@@ -1,5 +1,5 @@
 
-from select import select, error as select_err
+from select import select
 import threading
 import logging
 import socket
@@ -10,6 +10,7 @@ logger = logging.getLogger("HTTPServer")
 from fluxghost.http_handlers.websocket_handler import WebSocketHandler
 from fluxghost.http_handlers.file_handler import FileHandler
 from fluxghost.http_handler import HttpHandler
+
 
 class HttpServer(object):
     def __init__(self, address, backlog=10, assets_path=None):
@@ -39,4 +40,3 @@ class HttpServer(object):
         w = threading.Thread(target=HttpHandler, args=(request, client, self))
         w.setDaemon(True)
         w.start()
-

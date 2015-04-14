@@ -7,6 +7,7 @@ logger = logging.getLogger("HTTP")
 from fluxghost.websocket.echo import WebsocketEcho
 from fluxghost import VERSION_STRING
 
+
 class HttpHandler(BaseHTTPRequestHandler):
     server_version = "FLUXGhost/%s" % VERSION_STRING
     protocol_version = "HTTP/1.1"

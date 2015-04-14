@@ -55,6 +55,10 @@ class FileHandler(object):
         else:
             self.make_response(handler, path)
 
+    def get_last_modify(self, filepath):
+        return time.strftime("%a, %d %b %Y %H:%M:%S %Z",
+                             time.gmtime(os.stat(filepath).st_mtime))
+
     def make_response(self, handler, filepath):
         length = os.path.getsize(filepath)
 
@@ -65,9 +69,8 @@ class FileHandler(object):
 
         handler.send_header('Content-Type', self.get_mime(fileExtension))
         handler.send_header('Content-Length', length - start)
-        handler.send_header('Last-Modified',
-            time.strftime("%a, %d %b %Y %H:%M:%S %Z",
-                          time.gmtime(os.stat(filepath).st_mtime)))
+        handler.send_header('Last-Modified', self.get_last_modify(filepath))
+
         if not handler.close_connection:
             handler.send_header('Connection', 'Keep-Alive')
 

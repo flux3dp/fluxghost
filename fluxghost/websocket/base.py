@@ -1,6 +1,5 @@
 
-from select import select, error as select_err
-from socket import error as socket_err
+from select import select
 import logging
 
 from fluxghost.utils.websocket import WebSocketHandler
@@ -24,7 +23,7 @@ class WebSocketBase(WebSocketHandler):
                     r.on_read()
 
                 self.on_loop()
-        except Exception as e:
+        except Exception:
             logger.exception("Unhandle exception")
         finally:
             self.request.close()
