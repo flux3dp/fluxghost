@@ -32,14 +32,12 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.info("%s %s" % (self.address_string(), format % args))
 
     def do_GET(self):
-        if self.path == "/":
-            self.serve_assets("index.html")
-        elif self.path.startswith("/assets/"):
-            self.serve_assets(self.path[8:])
-        elif self.path == "/ws/echo":
+        if self.path == "/ws/echo":
             self.serve_websocket(WebsocketEcho)
+        elif self.path == "/":
+            self.serve_assets("index.html")
         else:
-            self.response_404()
+            self.serve_assets(self.path[1:])
 
     def serve_assets(self, path):
         self.server.assets_handler.handle_request(self, path)
