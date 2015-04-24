@@ -2,7 +2,7 @@
 from select import select
 import logging
 
-from fluxghost.utils.websocket import WebSocketHandler
+from fluxghost.utils.websocket import WebSocketHandler, STATUS
 
 logger = logging.getLogger("WS.BASE")
 

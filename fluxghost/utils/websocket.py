@@ -308,13 +308,21 @@ class WebSocketHandler(object):
             else:
                 self._send(TEXT_FRAME, message.encode())
 
+    def send_text(self, message):
+        with self._mutex_websocket:
+            self._send(TEXT_FRAME, message.encode())
+        
+    def send_binary(self, buf):
+        with self._mutex_websocket:
+            self._send(BINARY_FRAME, buf)
+
     def ping(self, data):
         self._send(PING_FRAME, data)
 
     def close(self, code, message):
         # RFC 6455: If there is a body, the first two bytes of the body MUST be
         # a 2-byte unsigned integer
-        buffer = struct.pack('>H', code) + message
+        buffer = struct.pack('>H', code) + message.encode()
 
         with self._mutex_websocket:
             if self.running:
