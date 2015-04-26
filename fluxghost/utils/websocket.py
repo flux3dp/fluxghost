@@ -80,7 +80,8 @@ class WebSocketHandler(object):
         self.server = server
         self._mutex_websocket = threading.Lock()
         self.running = True
-        self._isClosed = False
+        self._is_closing = False
+        self._is_closed = False
         self.buffer = bytearray(BUFFER_SIZE)
         self.recv_flag = 0
         self.recv_offset = 0
@@ -91,7 +92,7 @@ class WebSocketHandler(object):
         return self.request.fileno()
 
     def doRecv(self):
-        if self._isClosed:
+        if self._is_closed:
             raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
 
         buf = (self.recv_flag & WAIT_LARGE_DATA == 0) and \
@@ -243,6 +244,9 @@ class WebSocketHandler(object):
             shift = ((shift < 3) and (shift + 1) or 0)
 
     def _send(self, opcode, message):
+        if self._is_closing:
+            raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
+
         offset = 0
         length = len(message)
         buf = memoryview(message)
@@ -284,11 +288,18 @@ class WebSocketHandler(object):
         self.request.close()
 
     def onClose(self, message):
-        self._isClosed = True
-        with self._mutex_websocket:
-            if self.running:
-                self.running = False
-                self._send(CLOSE_FRAME, message)
+        if not self._is_closing:
+            # Remote send close message, response and close it
+            with self._mutex_websocket:
+                if self.running:
+                    self.running = False
+                    self._send(CLOSE_FRAME, message)
+
+            self._is_closing = True
+
+        self._is_closing = True
+        self._is_closed = True
+        self.running = False
 
         self._closed()
 
@@ -326,9 +337,9 @@ class WebSocketHandler(object):
 
         with self._mutex_websocket:
             if self.running:
-                self.running = False
                 self._send(CLOSE_FRAME, buffer)
-
+                self.request.shutdown(socket.SHUT_WR)
+                self._is_closing = True
 
 class WebsocketError(Exception):
     pass

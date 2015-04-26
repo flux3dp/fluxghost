@@ -12,12 +12,11 @@ class WebSocketBase(WebSocketHandler):
 
     def __init__(self, request, client, server):
         WebSocketHandler.__init__(self, request, client, server)
-
         self.rlist = [self]
 
     def serve_forever(self):
         try:
-            while not self._isClosed:
+            while self.running:
                 rl = select(self.rlist, (), (), self.POOL_TIME)[0]
                 for r in rl:
                     r.on_read()
