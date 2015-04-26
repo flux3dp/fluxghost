@@ -9,6 +9,7 @@ logger = logging.getLogger("WS.BASE")
 
 class WebSocketBase(WebSocketHandler):
     POOL_TIME = 30.0
+    STATUS = STATUS
 
     @classmethod
     def match_route(klass, path):
