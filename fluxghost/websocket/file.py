@@ -55,9 +55,11 @@ class WebsocketFile(WebSocketBase):
             if op == WRITE_OP:
                 self.operation = WRITE_OP
                 self.fileobj = open(file, "wb")
+                self.send("opened")
             elif op == READ_OP:
                 self.operation = READ_OP
                 self.fileobj = open(file, "rb")
+                self.send("opend")
                 self.send_file()
             else:
                 raise RuntimeError("BAD_FILE_OPERATION")
