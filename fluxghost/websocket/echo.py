@@ -13,8 +13,9 @@ This is a simple ECHO websocket for testing only
 Javascript Example:
 
 ws = new WebSocket("ws://localhost:8080/ws/echo");
-ws.onmessage = function(v) { console.log(v.data); window.aa = v.data}
-ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code + "; reason=" + v.reason); }
+ws.onmessage = function(v) { console.log(v.data);}
+ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
+    "; reason=" + v.reason); }
 
 ws.onopen = function() {
     ws.send("Say Hello")

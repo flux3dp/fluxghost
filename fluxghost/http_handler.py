@@ -5,6 +5,7 @@ import logging
 logger = logging.getLogger("HTTP")
 
 from fluxghost.websocket.echo import WebsocketEcho
+from fluxghost.websocket.file import WebsocketFile
 from fluxghost.websocket.laser_parser import WebsocketLaserParser
 from fluxghost import VERSION_STRING
 
@@ -37,6 +38,8 @@ class HttpHandler(BaseHTTPRequestHandler):
             self.serve_websocket(WebsocketEcho)
         elif self.path == "/ws/laser-parser":
             self.serve_websocket(WebsocketLaserParser)
+        elif self.path == "/ws/file":
+            self.serve_websocket(WebsocketFile)
         elif self.path == "/":
             self.serve_assets("index.html")
         else:
