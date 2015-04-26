@@ -330,7 +330,7 @@ class WebSocketHandler(object):
     def ping(self, data):
         self._send(PING_FRAME, data)
 
-    def close(self, code, message):
+    def close(self, code=STATUS.NORMAL, message=""):
         # RFC 6455: If there is a body, the first two bytes of the body MUST be
         # a 2-byte unsigned integer
         buffer = struct.pack('>H', code) + message.encode()
