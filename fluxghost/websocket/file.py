@@ -35,6 +35,10 @@ class WebsocketFile(WebSocketBase):
     fileobj = None
     operation = None
 
+    @classmethod
+    def match_route(klass, path):
+        return path == "file"
+
     def onMessage(self, message, is_binary):
         if is_binary:
             self.on_recv_binary(message)

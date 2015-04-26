@@ -10,8 +10,13 @@ logger = logging.getLogger("WS.BASE")
 class WebSocketBase(WebSocketHandler):
     POOL_TIME = 30.0
 
-    def __init__(self, request, client, server):
+    @classmethod
+    def match_route(klass, path):
+        return False
+
+    def __init__(self, request, client, server, path):
         WebSocketHandler.__init__(self, request, client, server)
+        self.path = path
         self.rlist = [self]
 
     def serve_forever(self):

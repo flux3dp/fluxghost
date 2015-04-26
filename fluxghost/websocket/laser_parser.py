@@ -36,6 +36,10 @@ class WebsocketLaserParser(WebSocketBase):
     buf = None
     data_buffered = 0
 
+    @classmethod
+    def match_route(klass, path):
+        return path == "laser-parser"
+
     def onMessage(self, message, is_binary):
         if not self.input_length and not is_binary:
             self.set_params(message)

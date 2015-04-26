@@ -4,9 +4,7 @@ import logging
 
 logger = logging.getLogger("HTTP")
 
-from fluxghost.websocket.echo import WebsocketEcho
-from fluxghost.websocket.file import WebsocketFile
-from fluxghost.websocket.laser_parser import WebsocketLaserParser
+from fluxghost.http_websocket_route import get_match_ws_service
 from fluxghost import VERSION_STRING
 
 
@@ -34,12 +32,12 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.info("%s %s" % (self.address_string(), format % args))
 
     def do_GET(self):
-        if self.path == "/ws/echo":
-            self.serve_websocket(WebsocketEcho)
-        elif self.path == "/ws/laser-parser":
-            self.serve_websocket(WebsocketLaserParser)
-        elif self.path == "/ws/file":
-            self.serve_websocket(WebsocketFile)
+        if self.path.startswith("/ws/"):
+            klass = get_match_ws_service(self.path[4:])
+            if klass:
+                self.serve_websocket(klass)
+            else:
+                self.response_404()
         elif self.path == "/":
             self.serve_assets("index.html")
         else:
@@ -54,7 +52,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             module = ws_class.__name__
 
             logger.debug("%s:%s connected" % (client, module))
-            ws = ws_class(self.request, client, self.server)
+            ws = ws_class(self.request, client, self.server, self.path[4:])
             ws.serve_forever()
             logger.debug("%s:%s disconnected" % (client, module))
 
