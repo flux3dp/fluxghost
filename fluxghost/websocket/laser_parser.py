@@ -4,6 +4,7 @@ from io import BytesIO
 import logging
 
 from .base import WebSocketBase, STATUS
+from .laser_pattern import laser_pattern
 
 
 logger = logging.getLogger("WS.LP")
@@ -81,15 +82,18 @@ class WebsocketLaserParser(WebSocketBase):
 
     def process_image(self):
         buf = self.buf.getvalue()
-        from hashlib import md5
+        output_binary = laser_pattern(buf, self.image_width, self.image_height, self.ratio).encode()
 
-        output_binary = md5(buf).hexdigest().encode() + b'\n'
+        # from hashlib import md5
+        # output_binary = md5(buf).hexdigest().encode() + b'\n'
         self.send_text('1')
 
-        self.send_text('length %i' % (len(output_binary) * 10))
-        for i in range(10):
-            self.send_binary(output_binary)
-
+        self.send_text('length %i' % (len(output_binary)))
+        bytes_sent = 0
+        while len(output_binary) - bytes_sent > 1024:
+            self.send_binary(output_binary[bytes_sent:bytes_sent+1024])
+            bytes_sent += 1024
+        self.send_binary(output_binary[bytes_sent:])
         self.close(STATUS.NORMAL, "bye")
 
     def on_loop(self):
