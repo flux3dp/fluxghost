@@ -2,12 +2,11 @@ from math import pi, sin, cos
 
 def to_image(buffer_data, img_width, img_height):
   int_data = list(buffer_data)
-  print(type(int_data), type(int_data[0]))
   image = [int_data[i * img_width:(i+1) * img_width] for i in range(img_height)]
   return image
 
 def rxy(x,y):
-    return 
+    return
 
 def moveTo(x, y, offsetX, offsetY, rotation, ratio):
   x -= offsetX
@@ -50,7 +49,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
   # im = Image.open("taiwan.png") #Can be many different formats.
   # pix = im.load()
   gcode.append("; image size:%d * %d" % (img_width, img_height))
-  
+
   laser_on = False
 
   offsetX = img_width / 2.
@@ -58,12 +57,12 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
   rotation = pi/4.
   pixel_size = 1 / ratio
 
-  
+
 
   last_i = 0
   gcode += turnOff(laser_on)
   gcode += ["M104 S200"]
-  gcode += turnOff(laser_on) 
+  gcode += turnOff(laser_on)
 
   gcode += turnHalf(laser_on)
 
@@ -90,7 +89,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
       itera = reversed(range(0,img_width))
 
     for i in itera:
-      if pix[i][j] < 50:
+      if pix[j][i] < 50:
         if not laser_on:
           last_i = i
           gcode += moveTo(i,j, offsetX, offsetY, rotation, ratio)
