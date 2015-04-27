@@ -62,7 +62,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
   last_i = 0
   gcode += turnOff(laser_on)
-  gcode["M104 S200"]
+  gcode += ["M104 S200"]
   gcode += turnOff(laser_on) 
 
   gcode += turnHalf(laser_on)
