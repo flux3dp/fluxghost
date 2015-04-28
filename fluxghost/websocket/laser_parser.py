@@ -3,8 +3,8 @@ from datetime import datetime
 from io import BytesIO
 import logging
 
+from fluxghost.utils.laser_pattern import laser_pattern
 from .base import WebSocketBase, STATUS
-from .laser_pattern import laser_pattern
 
 
 logger = logging.getLogger("WS.LP")
