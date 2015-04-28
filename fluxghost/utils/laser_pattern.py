@@ -118,5 +118,3 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     gcode += ["M104 S0"]
     gcode += ["G28"]
     return "\n".join(gcode) + "\n"
-
-print(laser_pattern(b"\xff\x80\x79\x00", 2, 2, 1))

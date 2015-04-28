@@ -1,5 +1,4 @@
 
-from datetime import datetime
 from io import BytesIO
 import logging
 
@@ -27,7 +26,6 @@ ws.send(buf)
 
 class WebsocketLaserParser(WebSocketBase):
     POOL_TIME = 30.0
-    enable_timer = False
 
     image_width = None
     image_height = None
@@ -62,40 +60,34 @@ class WebsocketLaserParser(WebSocketBase):
                 raise RuntimeError("IMAGE_TOO_LARGE")
 
             self.buf = BytesIO()
-            self.send("continue")
+            self.send_text('{"status": "waitting_data"}')
         except ValueError:
-            self.send("error BAD_PARAM_TYPE")
-            self.close(STATUS.INVALID_PAYLOAD, "BAD_PARAM_TYPE")
+            self.send_fatal("BAD_PARAM_TYPE")
 
         except RuntimeError as e:
-            self.send("error %s" % e.args[0])
-            self.close(STATUS.INVALID_PAYLOAD, e.args[0])
+            self.send_fatal(e.args[0])
 
     def append_image_data(self, buf):
         l = self.buf.write(buf)
         self.data_buffered += l
 
         if not self.data_buffered < self.input_length:
-            self.send("ok")
+            self.send('{"status": "received"}')
 
         self.process_image()
 
     def process_image(self):
         buf = self.buf.getvalue()
-        output_binary = laser_pattern(buf, self.image_width, self.image_height, self.ratio).encode()
+        output_binary = laser_pattern(buf, self.image_width, self.image_height,
+                                      self.ratio).encode()
 
-        # from hashlib import md5
-        # output_binary = md5(buf).hexdigest().encode() + b'\n'
-        self.send_text('1')
+        self.send_text('{"status": "processing", "prograss": 1.0}')
+        self.send_text('{"status": "complete", "length": %s}' %
+                       len(output_binary))
 
-        self.send_text('length %i' % (len(output_binary)))
         bytes_sent = 0
         while len(output_binary) - bytes_sent > 1024:
             self.send_binary(output_binary[bytes_sent:bytes_sent + 1024])
             bytes_sent += 1024
         self.send_binary(output_binary[bytes_sent:])
         self.close(STATUS.NORMAL, "bye")
-
-    def on_loop(self):
-        if self.enable_timer:
-            self.send("Current Time: %s" % datetime.now())

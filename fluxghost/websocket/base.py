@@ -33,6 +33,10 @@ class WebSocketBase(WebSocketHandler):
         finally:
             self.request.close()
 
+    def send_fatal(self, error):
+        self.send_text('{"status": "fatal", "error": "%s"}' % error)
+        self.close(STATUS.INVALID_PAYLOAD, error)
+
     def on_read(self):
         self.doRecv()
 
