@@ -2,6 +2,7 @@ from math import pi, sin, cos
 
 
 def to_image(buffer_data, img_width, img_height):
+    assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
     int_data = list(buffer_data)
     image = [int_data[i * img_width:(i + 1) * img_width] for i in range(img_height)]
     return image
