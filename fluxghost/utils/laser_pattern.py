@@ -5,7 +5,7 @@ laser_on = False
 def to_image(buffer_data, img_width, img_height):
     int_data = list(buffer_data)
     assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
-    image = [int_data[i * img_width:(i + 1) * img_width] for i in range(img_height)]
+    image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
     return image
 
 
@@ -119,7 +119,5 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
     gcode += ["M104 S0"]
     gcode += ["G28"]
-    return "\n".join(gcode) + "\n"
 
-# print laser_pattern(b'1' * 396 * 722, 396, 722, 15)
-# print laser_pattern(b'1' * 20 * 48, 20, 48, 15)
+    return "\n".join(gcode) + "\n"
