@@ -22,8 +22,8 @@ Note: You will see `(YOURENV)# ` in your console prompt to let you know you are 
 4. Install depent packages
 
 ```
-(YOURENV)# pip install pysendfile
-(YOURENV)# pip install pycrypto
+(YOURENV)# pip3 install pysendfile
+(YOURENV)# pip3 install pycrypto
 ```
 
 5. Launch fluxghost
