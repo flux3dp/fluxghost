@@ -1,9 +1,14 @@
 
+from select import select
 from time import time
 import logging
 import json
 import re
 
+from fluxclient.upnp_task import UpnpTask
+from fluxclient import encryptor as E
+
+from fluxghost.upnp.robot import RobotSocket
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -14,7 +19,7 @@ Control printer
 
 Javascript Example:
 
-ws = new WebSocket("ws://localhost:8080/ws/control/FFFFFFFFFFFFFFFFFFFFFFFFF");
+ws = new WebSocket("ws://localhost:8080/ws/control/RLFPAPI7E8KXG64KG5NOWWY3T");
 ws.onmessage = function(v) { console.log(v.data);}
 ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
     "; reason=" + v.reason); }
@@ -23,31 +28,66 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 ws.send("ls")
 """
 
-# >>>>>>>> FAKE_CODE
-FAKE_FILES = ["file1.gcode", "file2.gcode"]
-# <<<<<<<< FAKE_CODE
-
 
 class WebsocketControl(WebSocketBase):
     @classmethod
     def match_route(klass, path):
         return True if re.match("control/[0-9A-Z]{25}", path) else False
 
+    POOL_TIME = 1.0
+
     def __init__(self, *args, **kw):
         WebSocketBase.__init__(self, *args, **kw)
 
-        self.POOL_TIME = 1.0
+        # self.POOL_TIME = 1.0
+        self.serial = self.path[-25:]
 
-        # >>>>>>>> FAKE_CODE
-        self._connected = False
-        self._ts = time()
+        try:
+            self.send_text("connecting")
+            task = self._discover(self.serial)
 
-        self._file_selected = False
-        self._upload_file_size = -1
+            self.send_text("connecting")
+            auth_result = task.require_auth()
 
-        self._st = "STOP"
-        self._progress = 0.0
-        # <<<<<<<< FAKE_CODE
+        except RuntimeError:
+            self.send_text("timeout")
+            self.close()
+            raise
+
+        if auth_result and auth_result.get("status") != "ok":
+            self.send_text("no_auth")
+            self.close()
+            raise RuntimeError("NO AUTH")
+
+        try:
+            self.send_text("connecting")
+            resp = task.require_robot()
+
+            if not resp:
+                self.send_text("timeout")
+                self.close()
+                raise RuntimeError("TIMEOUT")
+        except RuntimeError as err:
+            if err.args[0] != "ALREADY_RUNNING":
+                self.send_text("timeout")
+                self.close()
+
+        try:
+            self.send_text("connecting")
+            self.conn = RobotSocket(self.on_robot_recv, (self.ipaddr, 23811),
+                                    logger)
+            self.rlist.append(self.conn)
+
+        except RuntimeError as err:
+            self.send_text("error %s" % err.args[0])
+
+        self.send_text("connected")
+
+    def _discover(self, serial):
+        task = UpnpTask(self.serial)
+        self.ipaddr = task.remote_addrs[0][0]
+
+        return task
 
     def onMessage(self, message, is_binary):
         if is_binary:
@@ -56,105 +96,17 @@ class WebsocketControl(WebSocketBase):
             self.on_recv_text(message)
 
     def on_recv_binary(self, buf):
-        if not self.connected:
-            return
-
-        # >>>>>>>> FAKE_CODE
-        if self._upload_file_size > 0:
-            self._upload_file_size -= len(buf)
-
-            if self._upload_file_size == 0:
-                self._upload_file_size = -1
-                self._file_selected = True
-                self.send_text("ok")
-            elif self._upload_file_size < 0:
-                self.send_text("error FILESIZE_ERROR")
-        # <<<<<<<< FAKE_CODE
+        self.conn.send(message)
 
     def on_recv_text(self, message):
-        if not self.connected:
-            return
+        logger.debug("WebSocket Send: %s" % message)
+        self.conn.send(message.encode())
 
-        # >>>>>>>> FAKE_CODE
-        if message == "ls":
-            self.send_text(json.dumps(FAKE_FILES))
-        elif message.startswith("select "):
-            filename = message.split(" ", 1)[-1]
-            if filename in FAKE_FILES:
-                self._file_selected = True
-                self.send_text("ok")
-            else:
-                self.send_text("error FILE_NOT_FOUND")
-        elif message.startswith("upload "):
-            filesize = message.split(" ", 1)[-1]
-            if filesize.isdigit():
-                self._upload_file_size = int(filesize, 10)
-                self.send_text("continue")
-            else:
-                self.send_text("error BAD_ARGS")
-        elif message == "start":
-            if self._file_selected:
-                if self._st == "STOP":
-                    self._st = "RUN"
-                    self._progress = 0.0
-                else:
-                    self.send_text("error ALREADY_RUNNING")
-            else:
-                self.send_text("error NO_JOB")
-        elif message == "pause":
-            if self._st == "RUN":
-                self._st = "PAUSE"
-            else:
-                self.send_text("error NOT_RUNNING")
-        elif message == "resume":
-            if self._st == "PAUSE":
-                self._st = "RUN"
-            else:
-                self.send_text("error NOT_PAUSE")
-        elif message == "stop":
-            if self._st == "RUN" or self._st == "PAUSE":
-                self._st = "STOP"
-                self.send_text(json.dumps({
-                    "status": "aborted" 
-                }))
-        # <<<<<<<< FAKE_CODE
-
-    @property
-    def connected(self):
-        # >>>>>>>> FAKE_CODE
-        return self._connected
-        # <<<<<<<< FAKE_CODE
+    def on_robot_recv(self, buf):
+        if buf:
+            self.send_text(buf.decode("utf8"))
+        else:
+            self.close()
 
     def on_loop(self):
-        # >>>>>>>> FAKE_CODE
-        if time() - self._ts < 3.5:
-            self.send_text("connecting")
-        elif not self._connected:
-            self._connected = True
-            self.send_text("connected")
-
-        if self._st == "RUN":
-            self._progress += 0.15
-
-            if self._progress < 1.0:
-                self.send_text(json.dumps({
-                    "status": "running",
-                    "coordinate": [0.1, 0.2, 0.3],
-                    "extruder1_temp": 123.0,
-                    "fan1_speed": 123
-                }))
-            else:
-                self.send_text(json.dumps({
-                    "status": "completed" 
-                }))
-                self._st = "STOP"
-        elif self._st == "PAUSE":
-            self.send_text(json.dumps({
-                "status": "pause",
-                "coordinate": [0.1, 0.2, 0.3],
-                "extruder1_temp": 123.0,
-                "fan1_speed": 123
-            }))
-        # <<<<<<<< FAKE_CODE
-
-
+        pass
