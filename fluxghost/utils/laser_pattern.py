@@ -21,18 +21,18 @@ def moveTo(x, y, offsetX, offsetY, rotation, ratio):
     y -= offsetY
     x2 = x * cos(rotation) + y * sin(rotation)
     y2 = x * -sin(rotation) + y * cos(rotation)
-    return ["G1 F600 X" + str((x2) / ratio) + " Y" + str((y2) / ratio)]
+    return ["G1 F600 X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio)]
 
 
-def drawTo(x, y, offsetX, offsetY, rotation, ratio, slow=False):
+def drawTo(x, y, offsetX, offsetY, rotation, ratio, speed=None):
     x -= offsetX
     y -= offsetY
     x2 = x * cos(rotation) + y * sin(rotation)
     y2 = x * -sin(rotation) + y * cos(rotation)
-    if slow:
-        return ["G1 F50 X" + str((x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
+    if speed:
+        return ["G1 F" + str(speed) + " X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
     else:
-        return ["G1 F200 X" + str((x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
+        return ["G1 F200 X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
 
 
 def turnOn():
@@ -64,7 +64,8 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
     gcode.append("G28")
     gcode.append(";G29")
-    gcode.append("G1 F3000 Z11")
+    focal_l = 11 + 3
+    gcode.append("G1 F3000 Z" + str(focal_l) + "")
 
     pix = to_image(buffer_data, img_width, img_height)
     # pix = cv2.imread('S.png')
