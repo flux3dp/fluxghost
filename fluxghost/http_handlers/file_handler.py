@@ -41,7 +41,7 @@ class FileHandler(object):
 
     def url_check(self, path):
         # Check path is safe or not
-        return path == os.path.abspath(path)
+        return os.path.abspath(path).startswith(self.basedir)
 
     def get_mime(self, extname):
         return MIME_TYPE.get(extname, "binary")
