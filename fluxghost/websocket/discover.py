@@ -1,16 +1,12 @@
 
 from time import time
 import logging
-import socket
-import struct
 import json
 
+from fluxghost.upnp.discover import UpnpDiscoverSocket
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.DISCOVER")
-
-CODE_DISCOVER = 0x00
-CODE_RESPONSE_DISCOVER = 0x01
 
 """
 Find devices on local network, cloud and USB
@@ -32,7 +28,7 @@ class WebsocketDiscover(WebSocketBase):
     def __init__(self, *args, **kw):
         WebSocketBase.__init__(self, *args, **kw)
 
-        self.upnp_discover_socket = UpnpDiscoverSocket(self)
+        self.upnp_discover_socket = UpnpDiscoverSocket(self, logger)
         self.upnp_discover_socket.poke()
         self.devices = {}
 
@@ -111,38 +107,4 @@ class WebsocketDiscover(WebSocketBase):
         }
         return json.dumps(payload)
 
-class UpnpDiscoverSocket(object):
-    def __init__(self, ws, ipaddr="255.255.255.255", port=3310):
-        self.ws = ws
-        self.dist = (ipaddr, port)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
-                                  socket.IPPROTO_UDP)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self._fileno = self.sock.fileno()
 
-        self.discover_payload = struct.pack('<4s16sh', b"FLUX",
-                                            b"\x00" * 16, CODE_DISCOVER)
-        self.last_poke = 0
-
-    def on_read(self):
-        buf, remote = self.sock.recvfrom(4096)
-
-        try:
-            payload = json.loads(buf[:-1].decode("utf8"))
-            code = payload.pop("code")
-
-            if code == CODE_RESPONSE_DISCOVER:
-                payload["from_lan"] = True
-                self.ws.on_recv_discover(payload, "lan")
-                
-        except Exception as e:
-            logger.debug("Unpack message error: %s" % e)
-
-    def poke(self):
-        t = time()
-        if t - self.last_poke > 0.3:
-            self.sock.sendto(self.discover_payload, self.dist)
-            self.last_poke = t
-
-    def fileno(self):
-        return self._fileno
