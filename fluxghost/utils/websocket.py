@@ -322,7 +322,7 @@ class WebSocketHandler(object):
     def send_text(self, message):
         with self._mutex_websocket:
             self._send(TEXT_FRAME, message.encode())
-        
+
     def send_binary(self, buf):
         with self._mutex_websocket:
             self._send(BINARY_FRAME, buf)
@@ -340,6 +340,7 @@ class WebSocketHandler(object):
                 self._send(CLOSE_FRAME, buffer)
                 self.request.shutdown(socket.SHUT_WR)
                 self._is_closing = True
+
 
 class WebsocketError(Exception):
     pass

@@ -1,9 +1,14 @@
+# !/usr/bin/env python3
 from math import pi, sin, cos
+# import cv2
+laser_on = False
 
 
 def to_image(buffer_data, img_width, img_height):
     int_data = list(buffer_data)
-    image = [int_data[i * img_width:(i + 1) * img_width] for i in range(img_height)]
+    print(int_data[:10])
+    assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
+    image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
     return image
 
 
@@ -30,50 +35,59 @@ def drawTo(x, y, offsetX, offsetY, rotation, ratio, slow=False):
         return ["G1 F200 X" + str((x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
 
 
-def turnOn(laser_on):
+def turnOn():
+    global laser_on
     laser_on = True
-    return ["G4 P1", "M106 S0"]
+    return ["G4 P1", "@X9L0"]
 
 
-def turnOff(laser_on):
+def turnOff():
+    global laser_on
     laser_on = False
-    return ["G4 P1", "M106 S255"]
+    return ["G4 P1", "@X9L255"]
 
 
-def turnHalf(laser_on):
+def turnHalf():
+    global laser_on
     laser_on = False
-    return ["M106 S252"]
+    return ["@X9L220"]
 
 
 def laser_pattern(buffer_data, img_width, img_height, ratio):
     gcode = []
+    # print(buffer_data)
+
+    gcode.append("@X5H2000")
+    gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
     gcode.append(";Flux image laser")
+    gcode.append(";Image size:%d * %d" % (img_width, img_height))
+
     gcode.append("G28")
     gcode.append(";G29")
-    gcode.append("G1 F900 Z100")
+    gcode.append("G1 F3000 Z11")
 
     pix = to_image(buffer_data, img_width, img_height)
+    # pix = cv2.imread('S.png')
+    # pix = cv2.cvtColor(pix, cv2.COLOR_BGR2GRAY)
 
-    # im = Image.open("taiwan.png") #Can be many different formats.
-    # pix = im.load()
-    gcode.append("; image size:%d * %d" % (img_width, img_height))
-
-    laser_on = False
+    # print pix.shape
+    # input()
 
     offsetX = img_width / 2.
     offsetY = img_height / 2.
     rotation = pi / 4.
-    pixel_size = 1 / ratio
+    # ratio = 6.
+
+    # pixel_size = 100 / ratio
 
     last_i = 0
-    gcode += turnOff(laser_on)
-    gcode += ["M104 S200"]
-    gcode += turnOff(laser_on)
-
-    gcode += turnHalf(laser_on)
+    gcode += turnOff()
+    # gcode += ["M104 S200"]
+    gcode += turnOff()
+    gcode += turnHalf()
 
     #Align process
-    for k in range(5):
+    for k in range(3):
         gcode += moveTo(0, 0, offsetX, offsetY, rotation, ratio)
         gcode += ["G4 P300"]
         gcode += moveTo(0, img_height, offsetX, offsetY, rotation, ratio)
@@ -99,7 +113,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
                 if not laser_on:
                     last_i = w
                     gcode += moveTo(w, h, offsetX, offsetY, rotation, ratio)
-                    gcode += turnOn(laser_on)
+                    gcode += turnOn()
             else:
                 if laser_on:
                     if abs(w - last_i) < 2:  # Single dot
@@ -109,12 +123,23 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
                         gcode += drawTo(w - 1 / 2, h, offsetX, offsetY, rotation, ratio, abs(w - last_i) < 10)
                     else:
                         gcode += drawTo(w + 1 / 2, h, offsetX, offsetY, rotation, ratio, abs(w - last_i) < 10)
-                    gcode += turnOff(laser_on)
+                    gcode += turnOff()
 
         if laser_on:
             gcode += drawTo(final_x, h, offsetX, offsetY, rotation, ratio)
-            gcode += turnOff(laser_on)
+            gcode += turnOff()
 
-    gcode += ["M104 S0"]
+    # gcode += ["M104 S0"]
     gcode += ["G28"]
+
+    store = False
+    if store:
+        with open('./S.gcode', 'w') as f:
+            print("\n".join(gcode) + "\n", file=f)
+            # print >> f, "\n".join(gcode) + "\n"
+    else:
+        pass
+
     return "\n".join(gcode) + "\n"
+
+# laser_pattern('', 200, 352, 4)
