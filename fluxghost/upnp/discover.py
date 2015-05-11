@@ -9,9 +9,9 @@ CODE_RESPONSE_DISCOVER = 0x01
 
 
 class UpnpDiscoverSocket(object):
-    def __init__(self, server, logger, ipaddr="255.255.255.255", port=3310):
-        self.server = server
+    def __init__(self, logger, callback, ipaddr="255.255.255.255", port=3310):
         self.logger = logger
+        self.callback = callback
         self.dist = (ipaddr, port)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,
                                   socket.IPPROTO_UDP)
@@ -31,7 +31,7 @@ class UpnpDiscoverSocket(object):
 
             if code == CODE_RESPONSE_DISCOVER:
                 payload["from_lan"] = True
-                self.server.on_recv_discover(payload, "lan")
+                self.callback(payload, "lan")
                 
         except Exception as e:
             self.logger.debug("Unpack message error: %s" % e)

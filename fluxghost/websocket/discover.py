@@ -28,7 +28,8 @@ class WebsocketDiscover(WebSocketBase):
     def __init__(self, *args, **kw):
         WebSocketBase.__init__(self, *args, **kw)
 
-        self.upnp_discover_socket = UpnpDiscoverSocket(self, logger)
+        self.upnp_discover_socket = UpnpDiscoverSocket(logger,
+                                                       self.on_recv_discover)
         self.upnp_discover_socket.poke()
         self.devices = {}
 
