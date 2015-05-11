@@ -1,6 +1,6 @@
 
 from select import select
-from time import time
+from time import time, sleep
 import logging
 import json
 import re
@@ -43,9 +43,11 @@ class WebsocketControl(WebSocketBase):
         self.serial = self.path[-25:]
 
         try:
+            logger.debug("DISCOVER")
             self.send_text("connecting")
             task = self._discover(self.serial)
 
+            logger.debug("AUTH")
             self.send_text("connecting")
             auth_result = task.require_auth()
 
@@ -60,6 +62,7 @@ class WebsocketControl(WebSocketBase):
             raise RuntimeError("NO AUTH")
 
         try:
+            logger.debug("REQUIRE ROBOT")
             self.send_text("connecting")
             resp = task.require_robot()
 
@@ -73,6 +76,9 @@ class WebsocketControl(WebSocketBase):
                 self.close()
 
         try:
+            # TODO
+            sleep(0.5)
+            logger.debug("CONNECTING")
             self.send_text("connecting")
             self.conn = RobotSocket(self.on_robot_recv, (self.ipaddr, 23811),
                                     logger)
