@@ -134,7 +134,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     # gcode += ["M104 S0"]
     gcode += ["G28"]
 
-    store = True
+    store = False
     if store:
         with open('./S.gcode', 'w') as f:
             print("\n".join(gcode) + "\n", file=f)
