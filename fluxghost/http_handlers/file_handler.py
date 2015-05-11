@@ -80,17 +80,25 @@ class FileHandler(object):
 
         offset = start
 
-        with open(filepath, "r") as f:
+        with open(filepath, "rb") as f:
             fd_from, fd_dist = f.fileno(), handler.wfile.fileno()
 
-            while (length - f.tell()) > BUF_SIZE:
+            # TODO:
+            while True:
                 select.select((), (fd_dist, ), ())
-                if sendfile(fd_dist, fd_from, offset, BUF_SIZE) == 0:
-                    logging.debug("Fuck you google chrome go to hell")
-                    return
-
-            # Last chunk
-            sendfile(fd_dist, fd_from, offset, length - f.tell())
+                buf = f.read(1024)
+                if buf:
+                    handler.wfile.write(buf)
+                else:
+                    break
+            # while (length - f.tell()) > BUF_SIZE:
+            #     select.select((), (fd_dist, ), ())
+            #     if sendfile(fd_dist, fd_from, offset, BUF_SIZE) == 0:
+            #         logging.debug("Fuck you google chrome go to hell")
+            #         return
+            #
+            # # Last chunk
+            # sendfile(fd_dist, fd_from, offset, length - f.tell())
 
     def proc_range_request(self, handler, file_length, request_range):
         if request_range:
