@@ -50,7 +50,7 @@ def turnOff():
 def turnHalf():
     global laser_on
     laser_on = False
-    return ["@X9L220"]
+    return ["G4 P1", "@X9L210"]
 
 
 def laser_pattern(buffer_data, img_width, img_height, ratio):
@@ -60,6 +60,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     gcode.append("@X5H2000")
     gcode.append("@X5H2000")
     gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
+    gcode += turnOff()
     gcode.append(";Flux image laser")
     gcode.append(";Image size:%d * %d" % (img_width, img_height))
 
@@ -78,12 +79,11 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     offsetX = img_width / 2.
     offsetY = img_height / 2.
     rotation = pi / 4.
-    # ratio = 6.
+    # ratio = 8.
 
     # pixel_size = 100 / ratio
 
     last_i = 0
-    gcode += turnOff()
     # gcode += ["M104 S200"]
     gcode += turnOff()
     gcode += turnHalf()
@@ -133,7 +133,6 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
     # gcode += ["M104 S0"]
     gcode += ["G28"]
-    # gcode
 
     store = True
     if store:
