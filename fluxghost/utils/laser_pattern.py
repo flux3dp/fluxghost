@@ -50,7 +50,7 @@ def turnOff():
 def turnHalf():
     global laser_on
     laser_on = False
-    return ["G4 P1", "@X9L210"]
+    return ["G4 P1", "@X9L220"]
 
 
 def laser_pattern(buffer_data, img_width, img_height, ratio):
