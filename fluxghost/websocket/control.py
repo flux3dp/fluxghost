@@ -96,7 +96,7 @@ class WebsocketControl(WebSocketBase):
             self.on_recv_text(message)
 
     def on_recv_binary(self, buf):
-        self.conn.send(message)
+        self.conn.send(buf)
 
     def on_recv_text(self, message):
         logger.debug("WebSocket Send: %s" % message)
