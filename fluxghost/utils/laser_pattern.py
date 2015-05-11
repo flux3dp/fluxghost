@@ -58,6 +58,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     # print(buffer_data)
 
     gcode.append("@X5H2000")
+    gcode.append("@X5H2000")
     gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
     gcode.append(";Flux image laser")
     gcode.append(";Image size:%d * %d" % (img_width, img_height))
@@ -132,8 +133,9 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
     # gcode += ["M104 S0"]
     gcode += ["G28"]
+    # gcode
 
-    store = False
+    store = True
     if store:
         with open('./S.gcode', 'w') as f:
             print("\n".join(gcode) + "\n", file=f)
