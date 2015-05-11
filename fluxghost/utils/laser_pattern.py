@@ -21,18 +21,18 @@ def moveTo(x, y, offsetX, offsetY, rotation, ratio):
     y -= offsetY
     x2 = x * cos(rotation) + y * sin(rotation)
     y2 = x * -sin(rotation) + y * cos(rotation)
-    return ["G1 F600 X" + str((x2) / ratio) + " Y" + str((y2) / ratio)]
+    return ["G1 F600 X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio)]
 
 
-def drawTo(x, y, offsetX, offsetY, rotation, ratio, slow=False):
+def drawTo(x, y, offsetX, offsetY, rotation, ratio, speed=None):
     x -= offsetX
     y -= offsetY
     x2 = x * cos(rotation) + y * sin(rotation)
     y2 = x * -sin(rotation) + y * cos(rotation)
-    if slow:
-        return ["G1 F50 X" + str((x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
+    if speed:
+        return ["G1 F" + str(speed) + " X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
     else:
-        return ["G1 F200 X" + str((x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
+        return ["G1 F200 X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
 
 
 def turnOn():
@@ -50,7 +50,7 @@ def turnOff():
 def turnHalf():
     global laser_on
     laser_on = False
-    return ["@X9L220"]
+    return ["G4 P1", "@X9L210"]
 
 
 def laser_pattern(buffer_data, img_width, img_height, ratio):
@@ -58,13 +58,16 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     # print(buffer_data)
 
     gcode.append("@X5H2000")
+    gcode.append("@X5H2000")
     gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
+    gcode += turnOff()
     gcode.append(";Flux image laser")
     gcode.append(";Image size:%d * %d" % (img_width, img_height))
 
     gcode.append("G28")
     gcode.append(";G29")
-    gcode.append("G1 F3000 Z11")
+    focal_l = 11 + 3
+    gcode.append("G1 F3000 Z" + str(focal_l) + "")
 
     pix = to_image(buffer_data, img_width, img_height)
     # pix = cv2.imread('S.png')
@@ -76,12 +79,11 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     offsetX = img_width / 2.
     offsetY = img_height / 2.
     rotation = pi / 4.
-    # ratio = 6.
+    # ratio = 8.
 
     # pixel_size = 100 / ratio
 
     last_i = 0
-    gcode += turnOff()
     # gcode += ["M104 S200"]
     gcode += turnOff()
     gcode += turnHalf()
@@ -132,7 +134,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
     # gcode += ["M104 S0"]
     gcode += ["G28"]
 
-    store = False
+    store = True
     if store:
         with open('./S.gcode', 'w') as f:
             print("\n".join(gcode) + "\n", file=f)
