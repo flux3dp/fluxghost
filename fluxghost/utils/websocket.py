@@ -212,7 +212,7 @@ class WebSocketHandler(object):
                 if flag_fin:
                     try:
                         self._handleMessage(self.fragments_opcode,
-                                            ''.join(self.fragments))
+                                            b''.join(self.fragments))
                     finally:
                         self.fragments = None
                         self.recv_flag ^= HAS_FRAGMENT_FLAG
