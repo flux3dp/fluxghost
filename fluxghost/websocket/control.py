@@ -75,17 +75,23 @@ class WebsocketControl(WebSocketBase):
                 self.send_text("timeout")
                 self.close()
 
-        try:
-            # TODO
-            sleep(0.5)
-            logger.debug("CONNECTING")
-            self.send_text("connecting")
-            self.conn = RobotSocket(self.on_robot_recv, (self.ipaddr, 23811),
-                                    logger)
-            self.rlist.append(self.conn)
+        # TODO
+        connected = False
+        for i in range(3): # retry 3 times
+            if connected:
+                break
 
-        except RuntimeError as err:
-            self.send_text("error %s" % err.args[0])
+            try:
+                self._connect()
+                connected = True
+            except ConnectionRefusedError as err:
+                logger.debug("Robot connection refused, retry (%i)" % i)
+            except RuntimeError as err:
+                self.send_text("error %s" % err.args[0])
+
+        if not connected:
+            self.send_text("timeout")
+            self.close()
 
         self.send_text("connected")
 
@@ -94,6 +100,15 @@ class WebsocketControl(WebSocketBase):
         self.ipaddr = task.remote_addrs[0][0]
 
         return task
+
+    def _connect(self):
+        # TODO
+        sleep(0.5)
+        logger.debug("CONNECTING")
+        self.send_text("connecting")
+        self.conn = RobotSocket(self.on_robot_recv, (self.ipaddr, 23811),
+                                logger)
+        self.rlist.append(self.conn)
 
     def onMessage(self, message, is_binary):
         if is_binary:
