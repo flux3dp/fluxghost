@@ -62,6 +62,7 @@ class WebsocketLaserParser(WebSocketBase):
             self.buf = BytesIO()
             self.send_text('{"status": "waitting_data"}')
         except ValueError:
+            logger.exception("Laser argument error")
             self.send_fatal("BAD_PARAM_TYPE")
 
         except RuntimeError as e:
