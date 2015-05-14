@@ -59,14 +59,17 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
     gcode.append("@X5H2000")
     gcode.append("@X5H2000")
-    gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
+
+    #  gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
+    gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")  # new
+
     gcode += turnOff()
     gcode.append(";Flux image laser")
     gcode.append(";Image size:%d * %d" % (img_width, img_height))
 
     gcode.append("G28")
     gcode.append(";G29")
-    focal_l = 11 + 3
+    focal_l = 11 + 3 - 0.7
     gcode.append("G1 F3000 Z" + str(focal_l) + "")
 
     pix = to_image(buffer_data, img_width, img_height)
@@ -111,7 +114,7 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
             itera = reversed(range(0, img_width))
 
         for w in itera:
-            if pix[h][w] < 50:
+            if pix[h][w] < 100:
                 if not laser_on:
                     last_i = w
                     gcode += moveTo(w, h, offsetX, offsetY, rotation, ratio)
@@ -144,4 +147,4 @@ def laser_pattern(buffer_data, img_width, img_height, ratio):
 
     return "\n".join(gcode) + "\n"
 
-# laser_pattern('', 200, 352, 4)
+# laser_pattern('', 432, 198, 7.3)
