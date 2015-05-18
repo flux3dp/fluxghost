@@ -6,9 +6,18 @@ laser_on = False
 
 def to_image(buffer_data, img_width, img_height):
     int_data = list(buffer_data)
-    print(int_data[:10])
+    # print(int_data[:10])
     assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
     image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
+
+    # with open('tmp.py', 'w') as f:
+    #     print('a=', file=f, end='')
+    #     print(image, file=f)
+    #     print('import cv2', file=f)
+    #     print('import numpy as np', file=f)
+    #     print('b = np.array(a)', file=f)
+    #     print('cv2.imwrite(\'SS.png\', b)', file=f)
+
     return image
 
 
