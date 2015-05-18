@@ -28,5 +28,7 @@ Note: You will see `(YOURENV)# ` in your console prompt to let you know you are 
 
 5. Launch fluxghost
 ```
-(YOURENV)# ./bin/fluxghost -d
+(YOURENV)# ./ghost.py
 ```
+
+Use `./ghost.py --help` to check what kind of options you can use.
