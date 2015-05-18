@@ -20,9 +20,11 @@ def setup_logger(debug):
 
 
 parser = argparse.ArgumentParser(description='FLUX Ghost')
+parser.add_argument("--assets", dest='assets', type=str,
+                    default='fluxghost/assets', help="Assets folder")
 parser.add_argument("--ip", dest='ipaddr', type=str, default='127.0.0.1',
                     help="Bind to IP Address")
-parser.add_argument("--port", dest='port', type=int, default=8080,
+parser.add_argument("--port", dest='port', type=int, default=8000,
                     help="Port")
 parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                     const=True, default=False, help='Enable debug')
@@ -30,10 +32,9 @@ parser.add_argument('-d', '--debug', dest='debug', action='store_const',
 options = parser.parse_args()
 setup_logger(debug=options.debug)
 
-if options.debug:
-    sys.path.append("")
-
 from fluxghost.http_server import HttpServer
 
-server = HttpServer(address=(options.ipaddr, options.port))
+server = HttpServer(assets_path=options.assets,
+                    address=(options.ipaddr, options.port,),)
+
 server.serve_forever()

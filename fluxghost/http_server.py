@@ -13,9 +13,8 @@ from fluxghost.http_handler import HttpHandler
 
 
 class HttpServer(object):
-    def __init__(self, address, backlog=10, assets_path=None):
-        self.assets_handler = FileHandler(
-            os.path.join(os.path.dirname(__file__), "assets"))
+    def __init__(self, assets_path, address, backlog=10):
+        self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

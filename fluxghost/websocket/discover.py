@@ -13,7 +13,7 @@ Find devices on local network, cloud and USB
 
 Javascript Example:
 
-ws = new WebSocket("ws://localhost:8080/ws/discover");
+ws = new WebSocket("ws://localhost:8000/ws/discover");
 ws.onmessage = function(v) { console.log(v.data);}
 ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
     "; reason=" + v.reason); }
@@ -36,7 +36,7 @@ class WebsocketDiscover(WebSocketBase):
         self.rlist.append(self.upnp_discover_socket)
         self.POOL_TIME = 0.3
 
-    def onMessage(self, message, is_binary):
+    def on_text_message(self, message):
         self.POOL_TIME = 0.3
 
     def on_recv_discover(self, payload, discover_from):
