@@ -4,8 +4,9 @@ import logging
 
 logger = logging.getLogger("HTTP")
 
-from fluxghost.websocket.echo import WebsocketEcho
+from fluxghost.http_websocket_route import get_match_ws_service
 from fluxghost import VERSION_STRING
+
 
 class HttpHandler(BaseHTTPRequestHandler):
     server_version = "FLUXGhost/%s" % VERSION_STRING
@@ -31,14 +32,16 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.info("%s %s" % (self.address_string(), format % args))
 
     def do_GET(self):
-        if self.path == "/":
+        if self.path.startswith("/ws/"):
+            klass = get_match_ws_service(self.path[4:])
+            if klass:
+                self.serve_websocket(klass)
+            else:
+                self.response_404()
+        elif self.path == "/":
             self.serve_assets("index.html")
-        elif self.path.startswith("/assets/"):
-            self.serve_assets(self.path[8:])
-        elif self.path == "/ws/echo":
-            self.serve_websocket(WebsocketEcho)
         else:
-            self.response_404()
+            self.serve_assets(self.path[1:])
 
     def serve_assets(self, path):
         self.server.assets_handler.handle_request(self, path)
@@ -49,7 +52,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             module = ws_class.__name__
 
             logger.debug("%s:%s connected" % (client, module))
-            ws = ws_class(self.request, client, self.server)
+            ws = ws_class(self.request, client, self.server, self.path[4:])
             ws.serve_forever()
             logger.debug("%s:%s disconnected" % (client, module))
 

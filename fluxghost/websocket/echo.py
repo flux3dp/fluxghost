@@ -1,18 +1,39 @@
 
 from datetime import datetime
+from hashlib import md5
 import logging
+import struct
 
-
-from .base import WebSocketBase
+from .base import WebSocketBase, ST_GOING_AWAY
 
 logger = logging.getLogger("WS.ECHO")
+
+"""
+This is a simple ECHO websocket for testing only
+
+Javascript Example:
+
+ws = new WebSocket("ws://localhost:8000/ws/echo");
+ws.onmessage = function(v) { console.log(v.data);}
+ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
+    "; reason=" + v.reason); }
+
+ws.onopen = function() {
+    ws.send("Say Hello")
+    ws.send("die BYEBYE")
+}
+"""
 
 
 class WebsocketEcho(WebSocketBase):
     POOL_TIME = 30.0
     enable_timer = False
 
-    def onMessage(self, message, is_binary):
+    @classmethod
+    def match_route(klass, path):
+        return path == "echo"
+
+    def on_text_message(self, message):
         if message == "time on":
             logger.debug("Timer ON")
             self.enable_timer = True
@@ -21,9 +42,23 @@ class WebsocketEcho(WebSocketBase):
             logger.debug("Timer OFF")
             self.enable_timer = False
             self.POOL_TIME = 30.0
+        elif message.startswith("die "):
+            logger.debug("Recive %s" % message)
+            close_msg = message.split(" ", 1)[-1]
+            self.close(ST_GOING_AWAY, close_msg)
         else:
             logger.debug("ECHO %s" % message)
-            self.send(message, is_binary)
+            self.send_text(message)
+
+    def on_binary_message(self, buf):
+        output = md5(buf).hexdigest()
+        logger.debug("BINARY ECHO %s" % output)
+        self.send_text(output)
+
+    def on_close(self, message):
+        code = struct.unpack(">H", message[:2])[0]
+        logger.debug("CLOSE: %i, %s" % (code, message[2:].decode("utf8")))
+        super(WebsocketEcho, self).on_close(message)
 
     def on_loop(self):
         if self.enable_timer:

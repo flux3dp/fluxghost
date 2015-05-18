@@ -1,6 +1,7 @@
 
 from mimetypes import types_map as MIME_TYPE
 import logging
+import select
 import time
 import os
 import re
@@ -40,7 +41,7 @@ class FileHandler(object):
 
     def url_check(self, path):
         # Check path is safe or not
-        return path == os.path.abspath(path)
+        return os.path.abspath(path).startswith(self.basedir)
 
     def get_mime(self, extname):
         return MIME_TYPE.get(extname, "binary")
@@ -55,6 +56,10 @@ class FileHandler(object):
         else:
             self.make_response(handler, path)
 
+    def get_last_modify(self, filepath):
+        return time.strftime("%a, %d %b %Y %H:%M:%S %Z",
+                             time.gmtime(os.stat(filepath).st_mtime))
+
     def make_response(self, handler, filepath):
         length = os.path.getsize(filepath)
 
@@ -65,9 +70,8 @@ class FileHandler(object):
 
         handler.send_header('Content-Type', self.get_mime(fileExtension))
         handler.send_header('Content-Length', length - start)
-        handler.send_header('Last-Modified',
-            time.strftime("%a, %d %b %Y %H:%M:%S %Z",
-                          time.gmtime(os.stat(filepath).st_mtime)))
+        handler.send_header('Last-Modified', self.get_last_modify(filepath))
+
         if not handler.close_connection:
             handler.send_header('Connection', 'Keep-Alive')
 
@@ -76,16 +80,25 @@ class FileHandler(object):
 
         offset = start
 
-        with open(filepath, "r") as f:
+        with open(filepath, "rb") as f:
             fd_from, fd_dist = f.fileno(), handler.wfile.fileno()
 
-            while (length - f.tell()) > BUF_SIZE:
-                if sendfile(fd_dist, fd_from, offset, BUF_SIZE) == 0:
-                    logging.debug("Fuck you google chrome go to hell")
-                    return
-
-            # Last chunk
-            sendfile(fd_dist, fd_from, offset, length - f.tell())
+            # TODO:
+            while True:
+                select.select((), (fd_dist, ), ())
+                buf = f.read(1024)
+                if buf:
+                    handler.wfile.write(buf)
+                else:
+                    break
+            # while (length - f.tell()) > BUF_SIZE:
+            #     select.select((), (fd_dist, ), ())
+            #     if sendfile(fd_dist, fd_from, offset, BUF_SIZE) == 0:
+            #         logging.debug("Fuck you google chrome go to hell")
+            #         return
+            #
+            # # Last chunk
+            # sendfile(fd_dist, fd_from, offset, length - f.tell())
 
     def proc_range_request(self, handler, file_length, request_range):
         if request_range:
