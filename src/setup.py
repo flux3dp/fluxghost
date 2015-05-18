@@ -10,6 +10,10 @@ import os
 
 os.environ["ARCHFLAGS"] = "-arch x86_64"
 
+def has_package(package_name):
+    return subprocess.call(["pkg-config", "--exists", package_name]) == 0
+
+
 def locate_includes(package_name):
     proc = subprocess.Popen(["pkg-config", "--cflags-only-I", package_name],
                             stdout=subprocess.PIPE)
@@ -34,10 +38,15 @@ LIBRARYS += [
 # LIBRARYS += ["pcl_visualization"]
 
 INCLUDE_DIRS = [
-    locate_includes("pcl_common-1.7"),
     locate_includes("eigen3"),
     # locate_includes("flann"),
 ]
+
+if has_package("pcl_common-1.8"):
+    INCLUDE_DIRS += [locate_includes("pcl_common-1.8")]
+elif has_package("pcl_common-1.7"):
+    INCLUDE_DIRS += [locate_includes("pcl_common-1.7")]
+
 
 EXTRA_COMPILE_ARGS = ["--stdlib=libc++"]
 
