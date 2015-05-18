@@ -3,7 +3,7 @@ from io import BytesIO
 import logging
 
 from fluxghost.utils.laser_pattern import laser_pattern
-from .base import WebSocketBase, STATUS
+from .base import WebSocketBase, ST_NORMAL
 
 
 logger = logging.getLogger("WS.LP")
@@ -14,7 +14,7 @@ This websocket is use to convert bitmap to G-code
 
 Javascript Example:
 
-ws = new WebSocket("ws://localhost:8080/ws/laser-parser");
+ws = new WebSocket("ws://localhost:8000/ws/laser-parser");
 ws.onmessage = function(v) { console.log(v.data);}
 ws.onclose = function(v) { console.log("CONNECTION CLOSED"); }
 
@@ -39,13 +39,24 @@ class WebsocketLaserParser(WebSocketBase):
     def match_route(klass, path):
         return path == "laser-parser"
 
-    def onMessage(self, message, is_binary):
-        if not self.input_length and not is_binary:
-            self.set_params(message)
-        elif self.data_buffered < self.input_length and is_binary:
-            self.append_image_data(message)
+    def on_text_message(self, message):
+        if self.input_length:
+            logger.error("Recive undefined text: %s" % message)
         else:
-            logger.error("Recive unknow data")
+            if self.set_params(message):
+                self.send_text('{"status": "waitting_data"}')
+
+    def on_binary_message(self, buf):
+        if self.data_buffered < self.input_length:
+            self.append_image_data(message)
+
+            if self.data_buffered == self.input_length:
+                self.send('{"status": "received"}')
+                self.process_image()
+            elif self.data_buffered > self.input_length:
+                raise RuntimeError("FILE_TOO_LARGE")
+        else:
+            logger.error("Recive undefined binary")
 
     def set_params(self, params):
         options = params.split(",")
@@ -60,7 +71,8 @@ class WebsocketLaserParser(WebSocketBase):
                 raise RuntimeError("IMAGE_TOO_LARGE")
 
             self.buf = BytesIO()
-            self.send_text('{"status": "waitting_data"}')
+            return True
+
         except ValueError:
             logger.exception("Laser argument error")
             self.send_fatal("BAD_PARAM_TYPE")
@@ -72,6 +84,7 @@ class WebsocketLaserParser(WebSocketBase):
         l = self.buf.write(buf)
         self.data_buffered += l
 
+        return self.data_buffered >= self.input_length
         if not self.data_buffered < self.input_length:
             self.send('{"status": "received"}')
 
@@ -91,4 +104,4 @@ class WebsocketLaserParser(WebSocketBase):
             self.send_binary(output_binary[bytes_sent:bytes_sent + 1024])
             bytes_sent += 1024
         self.send_binary(output_binary[bytes_sent:])
-        self.close(STATUS.NORMAL, "bye")
+        self.close(ST_NORMAL, "bye")

@@ -13,7 +13,7 @@ READ_OP = "r"
 Read or write file
 
 // Read file
-    ws = new WebSocket("ws://localhost:8080/ws/file");
+    ws = new WebSocket("ws://localhost:8000/ws/file");
     // Recive filestream in binary
     ws.onmessage = function(v) { console.log(v.data);}
     ws.onopen = function() {
@@ -39,17 +39,11 @@ class WebsocketFile(WebSocketBase):
     def match_route(klass, path):
         return path == "file"
 
-    def onMessage(self, message, is_binary):
-        if is_binary:
-            self.on_recv_binary(message)
-        else:
-            self.on_recv_text(message)
-
-    def onClose(self, *args, **kw):
-        super(WebsocketFile, self).onClose(*args, **kw)
+    def on_close(self, *args, **kw):
+        super(WebsocketFile, self).on_close(*args, **kw)
         self.close_file()
 
-    def on_recv_text(self, message):
+    def on_text_message(self, message):
         op, file = message.split(" ", 1)
 
         try:
@@ -81,7 +75,7 @@ class WebsocketFile(WebSocketBase):
             self.send("error UNKNOW_ERROR %s" % e)
             self.close()
 
-    def on_recv_binary(self, buf):
+    def on_binary_message(self, buf):
         if self.operation == WRITE_OP:
             self.fileobj.write(buf)
 

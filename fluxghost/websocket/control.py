@@ -19,7 +19,7 @@ Control printer
 
 Javascript Example:
 
-ws = new WebSocket("ws://localhost:8080/ws/control/RLFPAPI7E8KXG64KG5NOWWY3T");
+ws = new WebSocket("ws://localhost:8000/ws/control/RLFPAPI7E8KXG64KG5NOWWY3T");
 ws.onmessage = function(v) { console.log(v.data);}
 ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
     "; reason=" + v.reason); }
@@ -110,16 +110,10 @@ class WebsocketControl(WebSocketBase):
                                 logger)
         self.rlist.append(self.conn)
 
-    def onMessage(self, message, is_binary):
-        if is_binary:
-            self.on_recv_binary(message)
-        else:
-            self.on_recv_text(message)
-
-    def on_recv_binary(self, buf):
+    def on_binary_message(self, buf):
         self.conn.send(buf)
 
-    def on_recv_text(self, message):
+    def on_text_message(self, message):
         logger.debug("WebSocket Send: %s" % message)
         self.conn.send(message.encode())
 
