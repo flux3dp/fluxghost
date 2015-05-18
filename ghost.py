@@ -34,5 +34,7 @@ setup_logger(debug=options.debug)
 
 from fluxghost.http_server import HttpServer
 
-server = HttpServer(address=(options.ipaddr, options.port))
+server = HttpServer(assets_path=options.assets,
+                    address=(options.ipaddr, options.port,),)
+
 server.serve_forever()
