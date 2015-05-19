@@ -1,5 +1,7 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/features/fpfh_omp.h>
+#include <Eigen/Core>
 
 
 // Types
@@ -12,10 +14,8 @@ typedef pcl::FPFHEstimationOMP<PointNT,PointNT,FeatureT> FeatureEstimationT;
 typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::PointCloud<FeatureT>::Ptr FeatureCloudTPtr;
 
-typedef pcl::visualization::PointCloudColorHandlerCustom<PointNT> ColorHandlerT;
-
 PointCloudTPtr createPointCloudPointNormal();
-void dumpPointCloudXYZRGB(const char* file, PointCloudTPtr cloud);
+void dumpPointCloudPointNormal(const char* file, PointCloudTPtr cloud);
 
 int downsample(PointCloudTPtr object, float leaf);
 int NE_OMP(PointCloudTPtr object,float radius);

@@ -10,6 +10,23 @@ cdef extern from "noise_del.h":
     int SOR(PointCloudXYZRGB cloud, int neighbors, float thresh)
     int VG(PointCloudXYZRGB cloud)
 
+cdef extern from "reg.h":
+    cdef cppclass PointNT:
+        pass
+    cdef cppclass PointCloudTPtr:
+        pass
+    cdef cppclass Matrix4f: # Eigen::Matrix4f (namespce error)
+        pass
+    cdef cppclass FeatureCloudTPtr:
+        pass
+
+    PointCloudTPtr createPointCloudPointNormal()
+    int loadPointCloudPointNormal(const char* file, PointCloudTPtr cloud)
+    void dumpPointCloudPointNormal(const char* file, PointCloudTPtr cloud)
+    int NE_OMP(PointCloudTPtr object,float radius)
+    int FE(PointCloudTPtr object, FeatureCloudTPtr object_features, float radius)
+    int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Matrix4f &transformation)
+
 
 cdef class PointCloudXYZRGBObj:
     cdef PointCloudXYZRGB obj

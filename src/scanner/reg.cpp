@@ -14,7 +14,6 @@
 #include <pcl/segmentation/sac_segmentation.h>
 
 
-
 PointCloudTPtr createPointCloudPointNormal() {
     PointCloudTPtr cloud (new pcl::PointCloud<PointNT>);
     return cloud;
@@ -24,7 +23,7 @@ int loadPointCloudPointNormal(const char* file, PointCloudTPtr cloud) {
     return pcl::io::loadPCDFile<pcl::PointXYZRGB> (file, *cloud);
 }
 
-void dumpPointCloudXYZRGB(const char* file, PointCloudTPtr cloud) {
+void dumpPointCloudPointNormal(const char* file, PointCloudTPtr cloud) {
     pcl::io::savePCDFileASCII(file, *cloud);
 }
 
@@ -52,7 +51,7 @@ int FE(PointCloudTPtr object, FeatureCloudTPtr object_features, float radius){
   fest.compute (*object_features);
   return 1;
 }
-int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Eigen::Matrix4f transformation){
+int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Eigen::Matrix4f &transformation){
   pcl::SampleConsensusPrerejective<PointNT,PointNT,FeatureT> align;
 
   align.setInputSource (object);
@@ -213,4 +212,4 @@ int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr 
 //   }
 
 //   return (0);
-}
+// }
