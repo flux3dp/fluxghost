@@ -15,7 +15,7 @@ cdef extern from "reg.h":
         pass
     cdef cppclass PointCloudTPtr:
         pass
-    cdef cppclass Matrix4f: # Eigen::Matrix4f (namespce error)
+    cdef cppclass Matrix4f: # Eigen::Matrix4f (might cause namespace error)
         pass
     cdef cppclass FeatureCloudTPtr:
         pass
@@ -27,6 +27,18 @@ cdef extern from "reg.h":
     int FE(PointCloudTPtr object, FeatureCloudTPtr object_features, float radius)
     int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Matrix4f &transformation)
 
+cdef class RegCloud:
+    cdef PointCloudTPtr scene, obj
+
+    def __init__(self):
+        self.obj = createPointCloudPointNormal()
+        self.scene = createPointCloudPointNormal()
+
+    cpdef loadFile(self, unicode filename_scene, unicode filename_obj):
+        if loadPointCloudPointNormal(filename_scene.encode(), self.scene) == -1:
+            raise RuntimeError("Load failed")
+        if loadPointCloudPointNormal(filename_obj.encode(), self.obj) == -1:
+            raise RuntimeError("Load failed")
 
 cdef class PointCloudXYZRGBObj:
     cdef PointCloudXYZRGB obj

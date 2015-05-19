@@ -15,6 +15,7 @@ typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::PointCloud<FeatureT>::Ptr FeatureCloudTPtr;
 
 PointCloudTPtr createPointCloudPointNormal();
+int loadPointCloudPointNormal(const char* file, PointCloudTPtr cloud);
 void dumpPointCloudPointNormal(const char* file, PointCloudTPtr cloud);
 
 int downsample(PointCloudTPtr object, float leaf);

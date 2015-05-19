@@ -10,6 +10,7 @@ import os
 
 os.environ["ARCHFLAGS"] = "-arch x86_64"
 
+
 def has_package(package_name):
     return subprocess.call(["pkg-config", "--exists", package_name]) == 0
 
@@ -70,11 +71,12 @@ setup(
     packages=[],
     scripts=[],
     install_requires=[],
-    cmdclass = {'build_ext': build_ext},
+    cmdclass={'build_ext': build_ext},
     ext_modules=[
         Extension(
             '_scanner', sources=[
                 "scanner/scanner.pyx",
+                "scanner/reg.cpp",
                 "scanner/noise_del.cpp"],
             language="c++",
             extra_compile_args=EXTRA_COMPILE_ARGS,

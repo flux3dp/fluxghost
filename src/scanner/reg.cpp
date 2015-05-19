@@ -1,6 +1,7 @@
 #include "reg.h"
 
 #include <Eigen/Core>
+#include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/common/time.h>
 #include <pcl/console/print.h>
@@ -20,7 +21,7 @@ PointCloudTPtr createPointCloudPointNormal() {
 }
 
 int loadPointCloudPointNormal(const char* file, PointCloudTPtr cloud) {
-    return pcl::io::loadPCDFile<pcl::PointXYZRGB> (file, *cloud);
+    return pcl::io::loadPCDFile<PointNT> (file, *cloud);
 }
 
 void dumpPointCloudPointNormal(const char* file, PointCloudTPtr cloud) {
@@ -51,7 +52,7 @@ int FE(PointCloudTPtr object, FeatureCloudTPtr object_features, float radius){
   fest.compute (*object_features);
   return 1;
 }
-int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Eigen::Matrix4f &transformation){
+int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Eigen::Matrix4f &transformation, float leaf){
   pcl::SampleConsensusPrerejective<PointNT,PointNT,FeatureT> align;
 
   align.setInputSource (object);
@@ -69,7 +70,7 @@ int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr 
   //   align.align (*object_aligned);
   // }
   transformation = align.getFinalTransformation ();
-  return align.hasConverged()
+  return align.hasConverged();
 }
 
 // // Align a rigid object to a scene with clutter and occlusions
