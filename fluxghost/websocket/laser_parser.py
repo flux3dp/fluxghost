@@ -48,7 +48,7 @@ class WebsocketLaserParser(WebSocketBase):
 
     def on_binary_message(self, buf):
         if self.data_buffered < self.input_length:
-            self.append_image_data(message)
+            self.append_image_data(buf)
 
             if self.data_buffered == self.input_length:
                 self.send('{"status": "received"}')

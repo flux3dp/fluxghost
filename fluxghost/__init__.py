@@ -1,3 +1,3 @@
 
-VERSION = ("0", "1a1")
+VERSION = ("0", "1a2")
 VERSION_STRING = ".".join(VERSION)
