@@ -1,4 +1,5 @@
 
+from fluxghost.websocket.bitmap_laser_parser import WebsocketBitmapLaserParser
 from fluxghost.websocket.laser_parser import WebsocketLaserParser
 from fluxghost.websocket.discover import WebsocketDiscover
 from fluxghost.websocket.control import WebsocketControl
@@ -8,6 +9,7 @@ from fluxghost.websocket.file import WebsocketFile
 
 SERVICES = [WebsocketEcho,
             WebsocketFile,
+            WebsocketBitmapLaserParser,
             WebsocketLaserParser,
             WebsocketControl,
             WebsocketDiscover]
