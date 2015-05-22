@@ -2,7 +2,8 @@
 from io import BytesIO
 import logging
 
-from .base import WebSocketBase, ST_NORMAL
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
+    BinaryUploadHelper, ST_NORMAL
 
 
 logger = logging.getLogger("WS.LP")
@@ -28,15 +29,10 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketBitmapLaserParser(WebSocketBase):
+class WebsocketBitmapLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
     POOL_TIME = 30.0
 
     operation = None
-
-    image_params = None
-    image_size = None
-    image_buffered = None
-    image_buffer = None
 
     # images, it will like
     # [
@@ -54,11 +50,12 @@ class WebsocketBitmapLaserParser(WebSocketBase):
             if not self.operation:
                 self.set_params(message)
                 self.send_text('{"status": "ok"}')
-            elif self.operation and self.image_buffer is None:
+            elif self.operation and not self.has_binary_helper():
                 if message == "go":
                     self.process_image()
                 else:
-                    self.recv_image(message)
+                    self.begin_recv_image(message)
+                    # self.recv_image(message)
                     self.send_text('{"status": "continue"}')
             else:
                 raise RuntimeError("RESOURCE_BUSY")
@@ -69,13 +66,6 @@ class WebsocketBitmapLaserParser(WebSocketBase):
 
         except RuntimeError as e:
             self.send_fatal(e.args[0])
-
-    def on_binary_message(self, buf):
-        if self.image_buffer:
-            self.append_image_data(buf)
-        else:
-            logger.error("Recive undefined binary")
-            self.send_fatal("BAD_PARAM_TYPE")
 
     def set_params(self, params):
         options = params.split(",")
@@ -97,7 +87,7 @@ class WebsocketBitmapLaserParser(WebSocketBase):
         else:
             raise RuntimeError("BAD_PARAM_TYPE")
 
-    def recv_image(self, message):
+    def begin_recv_image(self, message):
         options = message.split(",")
 
         w, h = int(options[0]), int(options[1])
@@ -109,28 +99,13 @@ class WebsocketBitmapLaserParser(WebSocketBase):
         if image_size > 1024 * 1024 * 8:
             raise RuntimeError("IMAGE_TOO_LARGE")
 
-        buf = BytesIO()
-        self.image_params = [(x1, y1, x2, y2), (w, h), buf]
-        self.image_size = image_size
-        self.image_buffered = 0
-        self.image_buffer = buf
+        helper = BinaryUploadHelper(image_size, self.end_recv_image,
+                                    (x1, y1, x2, y2), (w, h))
+        self.set_binary_helper(helper)
 
-    def append_image_data(self, buf):
-        l = self.image_buffer.write(buf)
-        self.image_buffered += l
-
-        if self.image_buffered == self.image_size:
-            self.images.append(self.image_params)
-            self.image_params = None
-            self.image_size = None
-            self.image_buffered = None
-            self.image_buffer = None
-
-            self.send('{"status": "received"}')
-        elif self.image_buffered > self.image_size:
-            logger.error("File sent %i bytes, but should be %i bytes" %
-                         (self.image_buffered, self.image_size))
-            raise RuntimeError("FILE_TOO_LARGE")
+    def end_recv_image(self, buf, position, size):
+        self.images.append((position, size, buf))
+        self.send_text('{"status": "accept"}')
 
     def process_image(self):
         output_binary = b"WOW1234"

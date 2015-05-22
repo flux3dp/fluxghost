@@ -3,7 +3,8 @@ from io import BytesIO
 import logging
 
 from fluxghost.utils.laser_pattern import laser_pattern
-from .base import WebSocketBase, ST_NORMAL
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
+    BinaryUploadHelper, ST_NORMAL
 
 
 logger = logging.getLogger("WS.LP")
@@ -24,7 +25,7 @@ ws.send(buf)
 """
 
 
-class WebsocketLaserParser(WebSocketBase):
+class WebsocketLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
     POOL_TIME = 30.0
 
     image_width = None
@@ -46,18 +47,6 @@ class WebsocketLaserParser(WebSocketBase):
             if self.set_params(message):
                 self.send_text('{"status": "waitting_data"}')
 
-    def on_binary_message(self, buf):
-        if self.data_buffered < self.input_length:
-            self.append_image_data(message)
-
-            if self.data_buffered == self.input_length:
-                self.send('{"status": "received"}')
-                self.process_image()
-            elif self.data_buffered > self.input_length:
-                raise RuntimeError("FILE_TOO_LARGE")
-        else:
-            logger.error("Recive undefined binary")
-
     def set_params(self, params):
         options = params.split(",")
 
@@ -70,7 +59,8 @@ class WebsocketLaserParser(WebSocketBase):
             if self.input_length > 1024 * 1024 * 8:
                 raise RuntimeError("IMAGE_TOO_LARGE")
 
-            self.buf = BytesIO()
+            self._binary_helper = BinaryUploadHelper(self.input_length,
+                                                     self.upload_finished)
             return True
 
         except ValueError:
@@ -80,18 +70,10 @@ class WebsocketLaserParser(WebSocketBase):
         except RuntimeError as e:
             self.send_fatal(e.args[0])
 
-    def append_image_data(self, buf):
-        l = self.buf.write(buf)
-        self.data_buffered += l
+    def upload_finished(self, buf):
+        self.process_image(buf)
 
-        return self.data_buffered >= self.input_length
-        if not self.data_buffered < self.input_length:
-            self.send('{"status": "received"}')
-
-        self.process_image()
-
-    def process_image(self):
-        buf = self.buf.getvalue()
+    def process_image(self, buf):
         output_binary = laser_pattern(buf, self.image_width, self.image_height,
                                       self.ratio).encode()
 
