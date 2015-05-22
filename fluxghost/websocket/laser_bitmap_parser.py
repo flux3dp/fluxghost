@@ -28,7 +28,7 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketBitmapLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
+class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     POOL_TIME = 30.0
 
     operation = None
