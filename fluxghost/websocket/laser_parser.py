@@ -1,15 +1,4 @@
 
-from io import BytesIO
-import logging
-
-from fluxghost.utils.laser_pattern import laser_pattern
-from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
-
-
-logger = logging.getLogger("WS.LP")
-
-
 """
 This websocket is use to convert bitmap to G-code
 
@@ -23,6 +12,16 @@ ws.send("100,100,1,WOOD")
 buf = new ArrayBuffer(10000)
 ws.send(buf)
 """
+
+from io import BytesIO
+import logging
+
+from fluxghost.utils.laser_pattern import laser_pattern
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
+    BinaryUploadHelper, ST_NORMAL
+
+
+logger = logging.getLogger("WS.LP")
 
 
 class WebsocketLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):

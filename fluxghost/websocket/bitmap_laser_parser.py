@@ -1,14 +1,4 @@
 
-from io import BytesIO
-import logging
-
-from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
-
-
-logger = logging.getLogger("WS.LP")
-
-
 """
 This websocket is use to convert bitmap to G-code
 
@@ -24,6 +14,15 @@ buf = new ArrayBuffer(10000)
 ws.send(buf)
 ws.send('go')
 """
+
+from io import BytesIO
+import logging
+
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
+    BinaryUploadHelper, ST_NORMAL
+
+
+logger = logging.getLogger("WS.LP")
 
 MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"

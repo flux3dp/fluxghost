@@ -5,7 +5,7 @@ Control printer
 Javascript Example:
 
 ws = new WebSocket(
-    "ws://localhost:8000/ws/3d-scanner-control/RLFPAPI7E8KXG64KG5NOWWY3T");
+    "ws://localhost:8000/ws/3d-scan-control/RLFPAPI7E8KXG64KG5NOWWY3T");
 ws.onmessage = function(v) { console.log(v.data);}
 ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
     "; reason=" + v.reason); }
@@ -33,7 +33,7 @@ logger = logging.getLogger("WS.3DSCAN-CTRL")
 class Websocket3DScanControl(WebSocketBase):
     @classmethod
     def match_route(klass, path):
-        return re.match("3d-scanner-control/[0-9A-Z]{25}", path) is not None
+        return re.match("3d-scan-control/[0-9A-Z]{25}", path) is not None
 
     def __init__(self, *args, **kw):
         WebSocketBase.__init__(self, *args, **kw)
