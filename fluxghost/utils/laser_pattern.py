@@ -60,7 +60,7 @@ class laser_pattern():
 
         return image
 
-    def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2):
+    def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, thres):
         pix = to_image(buffer_data, img_width, img_height)
         real_width = float(x2 - x1)
         real_height = float(y1 - y2)
@@ -69,9 +69,10 @@ class laser_pattern():
                 real_x = (x1 + (real_width) * w / img_width)
                 real_y = (y1 - (real_height) * h / img_height)
                 if real_x ** 2 + real_y ** 2 <= self.radius ** 2:
-                    x_on_map = int(round(self.radius * self.pixel_per_mm + real_x / self.pixel_per_mm))
-                    y_on_map = int(round(self.radius * self.pixel_per_mm + real_y / self.pixel_per_mm))
-                    self.image_map[x_on_map][y_on_map] = pix[h][w]
+                    if pix[h][w] < thres:
+                        x_on_map = int(round(self.radius * self.pixel_per_mm + real_x / self.pixel_per_mm))
+                        y_on_map = int(round(self.radius * self.pixel_per_mm + real_y / self.pixel_per_mm))
+                        self.image_map[x_on_map][y_on_map] = pix[h][w]
         # alignment fail when float to int
 
     def gcode_generate(self):
