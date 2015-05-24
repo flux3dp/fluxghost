@@ -10,36 +10,44 @@ class laser_pattern():
         radius = 75  # laser max radius = 75
         focal_l = 11 + 3 - 0.7  # focal z coordinate
         self.thres = 100
+        rotation = 0
+        ratio = 1.
         image_map = [[255 for _ in range(pixel_per_mm * radius * 2)] for _ in range(pixel_per_mm * radius * 2)]  # main image
 
-    def moveTo(x, y, offsetX, offsetY, rotation, ratio):
-        x -= offsetX
-        y -= offsetY
-        x2 = x * cos(rotation) + y * sin(rotation)
-        y2 = x * -sin(rotation) + y * cos(rotation)
-        return ["G1 F600 X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio)]
+    def moveTo(self, x, y):
+        x = float(x) / pixel_per_mm - self.radius
+        y = float(len(self.image_map) - y) / pixel_per_mm - self.radius
 
-    def drawTo(x, y, offsetX, offsetY, rotation, ratio, speed=None):
-        x -= offsetX
-        y -= offsetY
         x2 = x * cos(rotation) + y * sin(rotation)
         y2 = x * -sin(rotation) + y * cos(rotation)
+
+        x = x2 / ratio
+        y = y2 / ratio
+        return ["G1 F600 X" + str(x) + " Y" + str(y)]
+
+    def drawTo(self, x, y, speed=None):
+        x = float(x) / pixel_per_mm - self.radius
+        y = float(len(self.image_map) - y) / pixel_per_mm - self.radius
+        x2 = x * cos(rotation) + y * sin(rotation)
+        y2 = x * -sin(rotation) + y * cos(rotation)
+        x = x2 / ratio
+        y = y2 / ratio
         if speed:
-            return ["G1 F" + str(speed) + " X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
+            return ["G1 F" + str(speed) + " X" + str(x) + " Y" + str(y) + ";Draw to"]
         else:
-            return ["G1 F200 X" + str((0 - x2) / ratio) + " Y" + str((y2) / ratio) + ";Draw to"]
+            return ["G1 F200 X" + str(x) + " Y" + str(y) + ";Draw to"]
 
-    def turnOn():
+    def turnOn(self):
         global laser_on
         laser_on = True
         return ["G4 P1", "@X9L0"]
 
-    def turnOff():
+    def turnOff(self):
         global laser_on
         laser_on = False
         return ["G4 P1", "@X9L255"]
 
-    def turnHalf():
+    def turnHalf(self):
         global laser_on
         laser_on = False
         return ["G4 P1", "@X9L220"]
@@ -109,7 +117,9 @@ class laser_pattern():
         # gcode += turnOff()
         # gcode += turnHalf()
 
+        # [TODO]
         # #Align process
+
         # for k in range(3):
         #     gcode += moveTo(0, 0, offsetX, offsetY, rotation, ratio)
         #     gcode += ["G4 P300"]
@@ -135,7 +145,7 @@ class laser_pattern():
                 if image_map[h][w] < self.thres:
                     if not laser_on:
                         last_i = w
-                        gcode += moveTo(w, h, offsetX, offsetY, rotation, ratio)
+                        gcode += moveTo(w, h)
                         gcode += turnOn()
                 else:
                     if laser_on:
@@ -143,13 +153,13 @@ class laser_pattern():
                             pass
                             gcode += ["G4 P100"]
                         elif final_x > 0:
-                            gcode += drawTo(w - 1 / 2, h, offsetX, offsetY, rotation, ratio, abs(w - last_i) < 10)
+                            gcode += drawTo(w, h)
                         else:
-                            gcode += drawTo(w + 1 / 2, h, offsetX, offsetY, rotation, ratio, abs(w - last_i) < 10)
+                            gcode += drawTo(w, h)
                         gcode += turnOff()
 
             if laser_on:
-                gcode += drawTo(final_x, h, offsetX, offsetY, rotation, ratio)
+                gcode += drawTo(final_x, h)
                 gcode += turnOff()
 
         # gcode += ["M104 S0"]
