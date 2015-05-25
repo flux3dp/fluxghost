@@ -28,8 +28,10 @@ class laser_pattern():
     def drawTo(self, x, y, speed=None):
         x = float(x) / pixel_per_mm - self.radius
         y = float(len(self.image_map) - y) / pixel_per_mm - self.radius
+
         x2 = x * cos(rotation) + y * sin(rotation)
         y2 = x * -sin(rotation) + y * cos(rotation)
+
         x = x2 / ratio
         y = y2 / ratio
         if speed:
@@ -78,6 +80,9 @@ class laser_pattern():
                 real_y = (y1 - (real_height) * h / img_height)
                 if real_x ** 2 + real_y ** 2 <= self.radius ** 2:
                     if pix[h][w] < thres:
+                        # [TODO]
+                        # if picture is small, when mapping to image_map should add more interval points
+                        # but not gonna happen in near future?
                         x_on_map = int(round(self.radius * self.pixel_per_mm + real_x / self.pixel_per_mm))
                         y_on_map = int(round(self.radius * self.pixel_per_mm + real_y / self.pixel_per_mm))
                         self.image_map[x_on_map][y_on_map] = pix[h][w]
