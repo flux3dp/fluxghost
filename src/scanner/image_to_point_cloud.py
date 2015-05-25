@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import struct
 
 import numpy as np
 
@@ -19,6 +20,20 @@ def to_image(buffer_data, img_width, img_height):
     image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
 
     return np.array(image, dtype=np.uint8)
+
+
+def points_to_bytes(points):
+    '''
+    convert points to bytes
+    input format: [
+                                p1[x-coordinate, y-coord, z-coord, b, g, r],
+                                p2[x-coordinate, y-coord, z-coord, b, g, r],
+                                p3[x-coordinate, y-coord, z-coord, b, g, r],
+                                  ...
+                 ]
+    output format: check https://github.com/flux3dp/fluxghost/wiki/websocket-3dscan-control
+    '''
+    return b''.join([struct.pack('<f<f<fBBB', p[0], p[1], p[2], p[5], p[4], p[3]) for p in points])
 
 
 class image_to_point_cloud():
@@ -46,6 +61,6 @@ class image_to_point_cloud():
 
         indices_R = fs_R.subProcess(img_O, img_R)
         point_R_this = lss_R.img_to_points(img_O, img_R, indices_R, step, 'R', clock=True)
-        points_R.extend(point_L_this)
+        points_R.extend(point_R_this)
 
-        return
+        return [points_to_bytes(point_L_this), points_to_bytes(point_R_this)]
