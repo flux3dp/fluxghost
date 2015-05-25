@@ -2,9 +2,9 @@
 from math import pi, sin, cos
 
 
-class laser_pattern():
+class laser_bitmap():
     """
-        laser_pattern class
+        laser_bitmap class
         call add_image() to add image
         call gcode_generate() to get the gcode base on the current image layout
     """
@@ -187,5 +187,5 @@ class laser_pattern():
 
         return "\n".join(gcode) + "\n"
 
-a = laser_pattern()
-# laser_pattern('', 432, 198, 7.3)
+a = laser_bitmap()
+# laser_bitmap('', 432, 198, 7.3)
