@@ -33,7 +33,7 @@ def points_to_bytes(points):
                  ]
     output format: check https://github.com/flux3dp/fluxghost/wiki/websocket-3dscan-control
     '''
-    return b''.join([struct.pack('<fffBBB', p[0], p[1], p[2], p[5], p[4], p[3]) for p in points])
+    return b''.join([struct.pack('<ffffff', p[0], p[1], p[2], p[5] / 255., p[4] / 255., p[3] / 255.) for p in points])
 
 
 class image_to_point_cloud():
