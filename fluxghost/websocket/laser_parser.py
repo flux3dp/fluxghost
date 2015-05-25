@@ -46,6 +46,7 @@ class WebsocketLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
             if self.set_params(message):
                 self.send_text('{"status": "waitting_data"}')
 
+
     def set_params(self, params):
         options = params.split(",")
 
