@@ -57,7 +57,7 @@ class laser_bitmap(laser):
 
         return image
 
-    def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, thres):
+    def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, thres=255):
         pix = self.to_image(buffer_data, img_width, img_height)
         real_width = float(x2 - x1)
         real_height = float(y1 - y2)
