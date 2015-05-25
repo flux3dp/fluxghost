@@ -7,7 +7,6 @@ import os
 from time import time
 from datetime import datetime
 
-import cv2
 
 from datetime import datetime
 name = datetime.fromtimestamp(time()).strftime('%Y-%m-%d-%H-%M-%S/')  # name
@@ -214,7 +213,7 @@ def pcd_write(points, file_name="model.pcd"):
                 pass
                 # print i, points.index(i)
 
-    print 'write', len(points), 'points into ' + file_name
+    print ('write', len(points), 'points into ' + file_name)
 
 
 def write_stl(tri, output='model.stl', mode='binary'):
@@ -266,7 +265,7 @@ def write_stl(tri, output='model.stl', mode='binary'):
         print >> sys.err, 'mode error, mode could only be \'binary\' or \'ascii\''
         return
 
-    print len(tri), 'triangle write in' + output
+    print (len(tri), 'triangle write in' + output)
 
 
 def stupid_smoooth(indices, sp=2):
@@ -291,8 +290,8 @@ def stupid_smoooth(indices, sp=2):
 
     return after_smooth
 
-if __name__ == '__main__':
-    img = cv2.imread('./box/0_L.png')
-    print img.shape
-    cv2.imshow("cropped", pre_cut(img))
-    cv2.waitKey(0)
+# if __name__ == '__main__':
+#     img = cv2.imread('./box/0_L.png')
+#     print (img.shape)
+#     cv2.imshow("cropped", pre_cut(img))
+#     cv2.waitKey(0)

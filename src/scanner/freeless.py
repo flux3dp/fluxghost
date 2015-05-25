@@ -2,8 +2,7 @@ import sys
 import time
 import math
 
-import cv2
-import serial
+
 import numpy
 
 import scan_settings as utl
@@ -78,7 +77,7 @@ class freeless():
             theta = math.pi * 2 * step / utl.scan_step
             # - utl.theta_a
         else:
-            print 'shouldn\'t happen, input=' + side
+            print ('shouldn\'t happen, input=' + side)
 
         c = math.cos(theta)
         s = math.sin(theta)
@@ -108,7 +107,7 @@ class freeless():
         # print denominator
 
         if abs(denominator) < 0.0000001:
-            print 'warning: < 0.0000001:', denominator
+            print ('warning: < 0.0000001:', denominator)
             return False, None
 
         v = [self.laser_plane[0][0] - ray[0][0], self.laser_plane[0]
@@ -208,7 +207,7 @@ class freeless():
         if step > 0:
             self.writeTrianglesForColumn(lastFrame, firstFrame, tri)
 
-        print 'tri:', len(tri), 'triangels'
+        print ('tri:', len(tri), 'triangels')
         utl.write_stl(tri, file_name)
 
     def subProcess(self, img1, img2, maxNumLocations=utl.img_height):
@@ -221,7 +220,8 @@ class freeless():
         prevLaserCol = self.firstRowLaserCol
 
         # diff two img
-        d = cv2.absdiff(img1, img2)
+
+        d = abs(img1 - img2)
         d = d.astype(int)
         # squre each element
         d = numpy.multiply(d, d)
@@ -318,8 +318,8 @@ class freeless():
           find the Center of bestrange
           return int
         '''
-        d = cv2.absdiff(
-            img1[row][bestRange[0]:bestRange[1]], img2[row][bestRange[0]:bestRange[1]])
+        d = abs(
+            img1[row][bestRange[0]:bestRange[1]] - img2[row][bestRange[0]:bestRange[1]])
         d = d.astype(int)
         d = numpy.multiply(d, d)
         d = numpy.sum(d, axis=1)
