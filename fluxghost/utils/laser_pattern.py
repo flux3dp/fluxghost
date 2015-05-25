@@ -3,16 +3,23 @@ from math import pi, sin, cos
 
 
 class laser_pattern():
-    """laser_pattern"""
+    """
+        laser_pattern class
+        call add_image() to add image
+        call gcode_generate() to get the gcode base on the current image layout
+    """
     def __init__(self):
-        laser_on = False  # recording if laser is on
-        pixel_per_mm = 2  # how many pixel is 1 mm
-        radius = 75  # laser max radius = 75
-        focal_l = 11 + 3 - 0.7  # focal z coordinate
+        self.reset()
+
+    def reset(self):
+        self.laser_on = False  # recording if laser is on
+        self.pixel_per_mm = 2  # how many pixel is 1 mm
+        self.radius = 75  # laser max radius = 75
+        self.focal_l = 11 + 3 - 0.7  # focal z coordinate
         self.thres = 100
-        rotation = 0
-        ratio = 1.
-        image_map = [[255 for _ in range(pixel_per_mm * radius * 2)] for _ in range(pixel_per_mm * radius * 2)]  # main image
+        self.rotation = 0
+        self.ratio = 1.
+        self.image_map = [[255 for _ in range(pixel_per_mm * radius * 2)] for _ in range(pixel_per_mm * radius * 2)]  # main image
 
     def moveTo(self, x, y):
         x = float(x) / pixel_per_mm - self.radius
