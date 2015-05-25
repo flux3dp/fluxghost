@@ -83,6 +83,6 @@ class Websocket3DScanControl(WebSocketBase):
 
                 y = x * c if c != float("INF") else 1
 
-                buf += struct.pack("<fffBBB", x, y, z, 255, 255, 255)
+                buf += struct.pack("<ffffff", x, y, z, 1.0, 1.0, 1.0)
             self.send_binary(buf)
         # >>>>>>>> Fake Code
