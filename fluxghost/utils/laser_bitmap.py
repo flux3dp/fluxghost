@@ -1,14 +1,17 @@
 # !/usr/bin/env python3
 from math import pi, sin, cos
 
+from laser import laser
 
-class laser_bitmap():
+
+class laser_bitmap(laser):
     """
         laser_bitmap class
         call add_image() to add image
         call gcode_generate() to get the gcode base on the current image layout
     """
     def __init__(self):
+        super(laser_bitmap, self).__init__()
         self.reset()
 
     def reset(self):
@@ -19,7 +22,7 @@ class laser_bitmap():
         self.thres = 100
         self.rotation = 0
         self.ratio = 1.
-        self.image_map = [[255 for _ in range(pixel_per_mm * radius * 2)] for _ in range(pixel_per_mm * radius * 2)]  # main image
+        self.image_map = [[255 for _ in range(self.pixel_per_mm * self.radius * 2)] for _ in range(self.pixel_per_mm * self.radius * 2)]  # main image
 
     def moveTo(self, x, y):
         x = float(x) / pixel_per_mm - self.radius
@@ -46,39 +49,16 @@ class laser_bitmap():
         else:
             return ["G1 F200 X" + str(x) + " Y" + str(y) + ";Draw to"]
 
-    def turnOn(self):
-        global laser_on
-        laser_on = True
-        return ["G4 P1", "@X9L0"]
-
-    def turnOff(self):
-        global laser_on
-        laser_on = False
-        return ["G4 P1", "@X9L255"]
-
-    def turnHalf(self):
-        global laser_on
-        laser_on = False
-        return ["G4 P1", "@X9L220"]
-
     def to_image(self, buffer_data, img_width, img_height):
         int_data = list(buffer_data)
         # print(int_data[:10])
         assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
         image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
 
-        # with open('tmp.py', 'w') as f:
-        #     print('a=', file=f, end='')
-        #     print(image, file=f)
-        #     print('import cv2', file=f)
-        #     print('import numpy as np', file=f)
-        #     print('b = np.array(a)', file=f)
-        #     print('cv2.imwrite(\'SS.png\', b)', file=f)
-
         return image
 
     def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, thres):
-        pix = to_image(buffer_data, img_width, img_height)
+        pix = self.to_image(buffer_data, img_width, img_height)
         real_width = float(x2 - x1)
         real_height = float(y1 - y2)
         for h in range(img_height):
@@ -188,4 +168,5 @@ class laser_bitmap():
         return "\n".join(gcode) + "\n"
 
 a = laser_bitmap()
+print (a.turnOff())
 # laser_bitmap('', 432, 198, 7.3)
