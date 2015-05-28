@@ -44,20 +44,24 @@ class Websocket3DScanControl(WebSocketBase):
 
     def on_text_message(self, message):
         if message == "image":
-            with open(IMG_FILE, "rb") as f:
-                buf = f.read()
-                self.send_text("ok %i" % len(buf))
-                self.send_binary(buf)
+            self._fetch_image()
         elif message == "start":
-            self.send_text("ok")
             self._scan()
-            self.send_text("finished")
 
         elif message == "quit":
             self.send_text("bye")
             self.close()
 
+    def _fetch_image(self):
+        with open(IMG_FILE, "rb") as f:
+            buf = f.read()
+            self.send_text("ok %i" % len(buf))
+            self.send_binary(buf)
+            self.send_text("finished")
+
     def _scan(self):
+        self.send_text("ok")
+
         # <<<<<<<< Fake Code
         import math
         STEPS = 400
@@ -86,3 +90,5 @@ class Websocket3DScanControl(WebSocketBase):
                 buf += struct.pack("<ffffff", x, y, z, 1.0, 1.0, 1.0)
             self.send_binary(buf)
         # >>>>>>>> Fake Code
+
+        self.send_text("finished")
