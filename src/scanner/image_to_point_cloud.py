@@ -55,12 +55,12 @@ class image_to_point_cloud():
         img_L = to_image(buffer_L)
         img_R = to_image(buffer_R)
 
-        indices_L = fs_L.subProcess(img_O, img_L)
-        point_L_this = lss_L.img_to_points(img_O, img_L, indices_L, step, 'L', clock=True)
+        indices_L = self.fs_L.subProcess(img_O, img_L)
+        point_L_this = self.fs_L.img_to_points(img_O, img_L, indices_L, step, 'L', clock=True)
         points_L.extend(point_L_this)
 
-        indices_R = fs_R.subProcess(img_O, img_R)
-        point_R_this = lss_R.img_to_points(img_O, img_R, indices_R, step, 'R', clock=True)
+        indices_R = self.fs_R.subProcess(img_O, img_R)
+        point_R_this = self.fs_R.img_to_points(img_O, img_R, indices_R, step, 'R', clock=True)
         points_R.extend(point_R_this)
 
         return [points_to_bytes(point_L_this), points_to_bytes(point_R_this)]
