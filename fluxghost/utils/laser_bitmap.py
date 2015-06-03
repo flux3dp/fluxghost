@@ -1,30 +1,41 @@
 # !/usr/bin/env python3
 from math import pi, sin, cos
 
-from laser import laser
+from fluxghost.utils.laser import laser
 
 
 class laser_bitmap(laser):
     """
-        laser_bitmap class
-        call add_image() to add image
-        call gcode_generate() to get the gcode base on the current image layout
+    laser_bitmap class:
+      generate gcode base on given images
     """
     def __init__(self):
         super(laser_bitmap, self).__init__()
         self.reset()
 
     def reset(self):
-        self.laser_on = False  # recording if laser is on
+        """
+        reset laser_bitmap class
+        """
+
         self.pixel_per_mm = 2  # how many pixel is 1 mm
         self.radius = 75  # laser max radius = 75
+        # list holding current image
+        self.image_map = [[255 for w in range(self.pixel_per_mm * self.radius * 2)] for h in range(self.pixel_per_mm * self.radius * 2)]
+        self.edges = [0, len(self.image_map), 0, len(self.image_map[0])]  # up, down, left, right bound of the image
+
+        self.rotation = 0  # general rotation for final gcode
+        self.laser_on = False  # recording if laser is on
         self.focal_l = 11 + 3 - 0.7  # focal z coordinate
+
+        # threshold, pixel on image_map darker than this will trigger laser, actually no use(only 255 or 0 on image_map)
         self.thres = 100
-        self.rotation = 0
-        self.ratio = 1.
-        self.image_map = [[255 for _ in range(self.pixel_per_mm * self.radius * 2)] for _ in range(self.pixel_per_mm * self.radius * 2)]  # main image
+        self.ratio = 1.  # ratio to scale gcode, bot safe, shouldn't be any value except than 1
 
-    def moveTo(self, x, y):
+    def moveTo(self, x, y, speed=600):
+        """
+            move to position x,y
+        """
         x = float(x) / pixel_per_mm - self.radius
         y = float(len(self.image_map) - y) / pixel_per_mm - self.radius
 
@@ -33,31 +44,38 @@ class laser_bitmap(laser):
 
         x = x2 / ratio
         y = y2 / ratio
-        return ["G1 F600 X" + str(x) + " Y" + str(y)]
 
-    def drawTo(self, x, y, speed=None):
-        x = float(x) / pixel_per_mm - self.radius
-        y = float(len(self.image_map) - y) / pixel_per_mm - self.radius
+        if speed == 'draw':
+            speed = 200
+        elif speed == 'move':
+            speed = 600
 
-        x2 = x * cos(rotation) + y * sin(rotation)
-        y2 = x * -sin(rotation) + y * cos(rotation)
+        return ["G1 F" + str(speed) + " X" + str(x) + " Y" + str(y) + ";Draw to"]
 
-        x = x2 / ratio
-        y = y2 / ratio
-        if speed:
-            return ["G1 F" + str(speed) + " X" + str(x) + " Y" + str(y) + ";Draw to"]
-        else:
-            return ["G1 F200 X" + str(x) + " Y" + str(y) + ";Draw to"]
+    def drawTo(self, x, y, speed='draw'):
+        """
+            turn on, move to x, y and turn off the laser
 
-    def to_image(self, buffer_data, img_width, img_height):
-        int_data = list(buffer_data)
-        # print(int_data[:10])
-        assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
-        image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
+            draw to position x,y with speed
+        """
+        gcode = []
+        gcode += self.turnOn()
+        gcode += self.moveTo(x, y, speed)
+        gcode += self.turnOff()
 
-        return image
+        return gcode
 
     def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, thres=255):
+        """
+        add image on top of current image i.e -> self.image_map
+          parameters:
+            buffer_data: image data in bytes array
+            img_width, img_height: trivial
+            x1, y1: absolute position of image's top-left corner
+            x2, y2: absolute position of image's button_right corner
+          return:
+            None
+        """
         pix = self.to_image(buffer_data, img_width, img_height)
         real_width = float(x2 - x1)
         real_height = float(y1 - y2)
@@ -74,6 +92,45 @@ class laser_bitmap(laser):
                         y_on_map = int(round(self.radius * self.pixel_per_mm + real_y / self.pixel_per_mm))
                         self.image_map[x_on_map][y_on_map] = pix[h][w]
         # alignment fail when float to int
+
+    def find_edges():
+        """
+        find the edge of 4 sides
+        return left-bound, right-bound, up-bound, down-bound
+        """
+
+        for i in range(len(self.image_map)):
+            if any(j == 0 for j in self.image_map[i]):
+                x1 = i
+                break
+
+        for i in range(len(self.image_map) - 1, 0 - 1, -1):
+            if any(j == 0 for j in self.image_map[i]):
+                x2 = i
+                break
+
+        y1 = False
+        for j in range(len(self.image_map[0])):
+            for i in range(len(self.image_map)):
+                if self.image_map[i][j] == 0:
+                    y1 = j
+                    break
+            if y1 is not False:
+                break
+
+        y2 = False
+        for j in range(len(self.image_map[0]) - 1, 0 - 1, -1):
+            for i in range(len(self.image_map) - 1, 0 - 1, -1):
+                if self.image_map[i][j] == 0:
+                    y2 = j
+                    break
+            if y2 is not False:
+                break
+
+        self.edges = [x1, x2, y1, y2]
+
+    def alignment_process(self, iter=3):
+        self.find_edges()
 
     def gcode_generate(self):
         gcode = []
@@ -111,6 +168,7 @@ class laser_bitmap(laser):
 
         # [TODO]
         # #Align process
+        gcode += self.alignment_process()
 
         # for k in range(3):
         #     gcode += moveTo(0, 0, offsetX, offsetY, rotation, ratio)
@@ -124,9 +182,9 @@ class laser_bitmap(laser):
         #     gcode += moveTo(0, 0, offsetX, offsetY, rotation, ratio)
         #     gcode += ["G4 P300"]
 
-        #column iteration
+        #row iteration
         for h in range(0, len(image_map)):
-            #row iteration
+            #column iteration
             itera = range(0, len(image_map))
             final_x = len(image_map)
             if h % 2 == 1:
@@ -167,6 +225,5 @@ class laser_bitmap(laser):
 
         return "\n".join(gcode) + "\n"
 
-a = laser_bitmap()
-print (a.turnOff())
-# laser_bitmap('', 432, 198, 7.3)
+if __name__ == '__main__':
+    a = laser_bitmap()
