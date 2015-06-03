@@ -21,6 +21,7 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 
+from fluxghost.utils.laser_bitmap import laser_bitmap
 
 logger = logging.getLogger("WS.LP")
 
@@ -107,6 +108,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "accept"}')
 
     def process_image(self):
+        m_laser_bitmap = laser_bitmap()
         output_binary = b"WOW1234"
 
         # <<<<<<<< Sample code for read all images
@@ -114,17 +116,19 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         total = float(len(self.images))
 
         for position, size, buf in self.images:
+            m_laser_bitmap.add_image(buf, size[0], size[2], position[0], position[1], position[2], position[3])
+
             logger.debug("Process image at %s pixel: %s" % (position, size))
             progress = layer_index / total
             self.send_text(
                 '{"status": "processing", "prograss": %.3f}' % progress)
             layer_index += 1
+        output_binary = m_laser_bitmap.gcode_generate().encode()
 
         self.send_text('{"status": "processing", "prograss": 1.0}')
         self.send_text('{"status": "complete", "length": %s}' %
                        len(output_binary))
 
-        output_binary = b"Fake output result"
         # >>>>>>>> Sample code for read all images
 
         bytes_sent = 0
