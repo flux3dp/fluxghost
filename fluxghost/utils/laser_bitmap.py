@@ -129,8 +129,22 @@ class laser_bitmap(laser):
 
         self.edges = [x1, x2, y1, y2]
 
-    def alignment_process(self, iter=3):
+    def alignment_process(self, times=3):
+        gcode = []
         self.find_edges()
+        gcode += turnHalf()
+        for _ in xrange(times):
+            gcode += moveTo(self.edges[0], self[3])
+            gcode += ["G4 P300"]
+            gcode += moveTo(self.edges[0], self[4])
+            gcode += ["G4 P300"]
+            gcode += moveTo(self.edges[1], self[4])
+            gcode += ["G4 P300"]
+            gcode += moveTo(self.edges[1], self[3])
+            gcode += ["G4 P300"]
+        gcode += turnOff()
+
+        return gcode
 
     def gcode_generate(self):
         gcode = []
@@ -156,31 +170,12 @@ class laser_bitmap(laser):
         # print pix.shape
         # input()
 
-        # offsetX = img_width / 2.
-        # offsetY = img_height / 2.
-        # rotation = pi / 4.
-        # # ratio = 8.
-
         # last_i = 0
         # # gcode += ["M104 S200"]
         # gcode += turnOff()
         # gcode += turnHalf()
 
-        # [TODO]
-        # #Align process
         gcode += self.alignment_process()
-
-        # for k in range(3):
-        #     gcode += moveTo(0, 0, offsetX, offsetY, rotation, ratio)
-        #     gcode += ["G4 P300"]
-        #     gcode += moveTo(0, img_height, offsetX, offsetY, rotation, ratio)
-        #     gcode += ["G4 P300"]
-        #     gcode += moveTo(img_width, img_height, offsetX, offsetY, rotation, ratio)
-        #     gcode += ["G4 P300"]
-        #     gcode += moveTo(img_width, 0, offsetX, offsetY, rotation, ratio)
-        #     gcode += ["G4 P300"]
-        #     gcode += moveTo(0, 0, offsetX, offsetY, rotation, ratio)
-        #     gcode += ["G4 P300"]
 
         #row iteration
         for h in range(0, len(image_map)):
