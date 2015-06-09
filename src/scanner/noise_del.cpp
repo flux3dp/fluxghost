@@ -20,6 +20,16 @@ void dumpPointCloudXYZRGB(const char* file, PointCloudXYZRGB cloud) {
     pcl::io::savePCDFileASCII (file, *cloud);
 }
 
+void push_back(PointCloudXYZRGB cloud, float x, float y, float z, uint32_t rgb){
+    pcl::PointXYZRGB p;
+    p.x = x;
+    p.y = y;
+    p.z = z;
+    p.rgb = rgb;
+    cloud -> push_back(p);
+}
+
+
 int SOR(PointCloudXYZRGB cloud, int neighbors, float threshold) {
     // statistical_outlier_removal
 

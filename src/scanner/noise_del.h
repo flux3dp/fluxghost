@@ -5,6 +5,7 @@
 typedef pcl::PointCloud<pcl::PointXYZRGB>::Ptr PointCloudXYZRGB;
 
 PointCloudXYZRGB createPointCloudXYZRGB();
+void push_backPoint(PointCloudXYZRGB cloud, float x, float y, float z, uint32_t rgb);
 int loadPointCloudXYZRGB(const char* file, PointCloudXYZRGB cloud);
 void dumpPointCloudXYZRGB(const char* file,
                           PointCloudXYZRGB cloud);

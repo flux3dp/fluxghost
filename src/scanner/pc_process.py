@@ -22,7 +22,7 @@ class pc_process():
 
     def cut(self, pc, mode, direction, thres):
         """
-            manual cut the point cloud
+            manually cut the point cloud
             mode = 'x', 'y', 'z' ,'r'
             direction = True(>=), False(<=)
         """
@@ -51,9 +51,20 @@ class pc_process():
 
         return cropped_pc
 
-    def noise_del(self, file_name):
+    def to_cpp(pc_before):
         pc = _scanner.PointCloudXYZRGBObj()
-        pc.load(file_name)
+        for i in pc_before:
+            _scanner.push_backPoint
+
+    def noise_del(self, pc_source):
+        """
+        pc_source could be a string indcating the file that we want or a pc object
+        """
+        if type(pc_source) == str:
+            pc = _scanner.PointCloudXYZRGBObj()
+            pc.load(pc_source)
+        else:
+            pc = pc_source
         pc.SOR(50, 0.3)
         return pc
 

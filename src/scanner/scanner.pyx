@@ -1,3 +1,4 @@
+import cython
 cdef extern from "noise_del.h":
     cdef cppclass PointCloudXYZRGB:
         pass
@@ -5,6 +6,7 @@ cdef extern from "noise_del.h":
     PointCloudXYZRGB createPointCloudXYZRGB()
     int loadPointCloudXYZRGB(const char* file, PointCloudXYZRGB cloud)
     void dumpPointCloudXYZRGB(const char* file, PointCloudXYZRGB cloud)
+    void push_backPoint(PointCloudXYZRGB cloud, float x, float y, float z, cython.uint rgb)
 
     int SOR(PointCloudXYZRGB cloud, int neighbors, float thresh)
     int VG(PointCloudXYZRGB cloud)
@@ -27,6 +29,9 @@ cdef class PointCloudXYZRGBObj:
 
     cpdef dump(self, unicode filename):
         dumpPointCloudXYZRGB(filename.encode(), self.obj)
+
+    cpdef push_backPoint(self, float x, float y, float z, cython.uint rgb):
+        push_backPoint(self.obj, x, y, z, rgb)
 
     cpdef int SOR(self, int neighbors, float threshold):
         return SOR(self.obj, neighbors, threshold)
@@ -51,13 +56,13 @@ cdef extern from "reg.h":
     int FE(PointCloudTPtr object, FeatureCloudTPtr object_features, float radius)
     int SCP(PointCloudTPtr object, FeatureCloudTPtr object_features, PointCloudTPtr scene, FeatureCloudTPtr scene_features, Matrix4f &transformation)
 
+
 cdef class RegCloud:
     cdef PointCloudTPtr scene, obj
 
     def __init__(self):
         self.obj = createPointCloudPointNormal()
         self.scene = createPointCloudPointNormal()
-
     cpdef loadFile(self, unicode filename_scene, unicode filename_obj):
         if loadPointCloudPointNormal(filename_scene.encode(), self.scene) == -1:
             raise RuntimeError("Load failed")
