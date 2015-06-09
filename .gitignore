@@ -52,3 +52,5 @@ target/
 
 #ignore process pid file
 *.pid
+src/scanner/PoissonRecon/Bin/Linux
+src/scanner/PoissonRecon/vbfile
