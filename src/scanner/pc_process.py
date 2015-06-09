@@ -52,12 +52,17 @@ class pc_process():
         return cropped_pc
 
     def to_cpp(pc_python):
+        """
+        convert python style pc into cpp style pc object
+        """
         pc = _scanner.PointCloudXYZRGBObj()
         for i in pc_python:
             _scanner.push_backPoint(pc, i[0], i[1], i[2], i[3] | (i[4] << 8) | (i[5] << 16))
+        return pc
 
     def noise_del(self, pc_source):
         """
+        delete noise base on idstance of each point
         pc_source could be a string indcating the file that we want or a pc object
         """
         if type(pc_source) == str:
@@ -70,7 +75,3 @@ class pc_process():
 
     def to_mesh(self):
         pass
-
-if True:
-    pass
-#
