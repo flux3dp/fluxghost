@@ -51,10 +51,10 @@ class pc_process():
 
         return cropped_pc
 
-    def to_cpp(pc_before):
+    def to_cpp(pc_python):
         pc = _scanner.PointCloudXYZRGBObj()
-        for i in pc_before:
-            _scanner.push_backPoint
+        for i in pc_python:
+            _scanner.push_backPoint(pc, i[0], i[1], i[2], i[3] | (i[4] << 8) | (i[5] << 16))
 
     def noise_del(self, pc_source):
         """
@@ -70,3 +70,7 @@ class pc_process():
 
     def to_mesh(self):
         pass
+
+if True:
+    pass
+#
