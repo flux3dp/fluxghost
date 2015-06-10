@@ -44,6 +44,7 @@ int NE_OMP(PointCloudTPtr object,float radius){
   nest.compute (*object);
   return 1;
 }
+
 int FE(PointCloudTPtr object, FeatureCloudTPtr object_features, float radius){
   FeatureEstimationT fest;
   fest.setRadiusSearch (10);

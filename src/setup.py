@@ -76,8 +76,8 @@ setup(
         Extension(
             '_scanner', sources=[
                 "scanner/scanner.pyx",
-                "scanner/reg.cpp",
-                "scanner/noise_del.cpp"],
+                # "scanner/reg.cpp",
+                "scanner/scan_module.cpp"],
             language="c++",
             extra_compile_args=EXTRA_COMPILE_ARGS,
             libraries=LIBRARYS,

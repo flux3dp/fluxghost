@@ -25,6 +25,7 @@ class pc_process():
             manually cut the point cloud
             mode = 'x', 'y', 'z' ,'r'
             direction = True(>=), False(<=)
+            [TODO] transplant to cpp
         """
         pc = (pc)
         if direction:  # ge = >=, le = <=

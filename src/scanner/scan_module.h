@@ -22,15 +22,13 @@ typedef pcl::PointCloud<pcl::Normal>::Ptr NormalPtr;
 typedef pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr PointXYZRGBNormalPtr;
 
 NormalPtr createNormalPtr();
-
+PointXYZRGBNormalPtr createPointXYZRGBNormalPtr();
 int ne(PointCloudXYZRGBPtr cloud, NormalPtr normals);
 int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, std::vector<std::vector<int> >viewp, std::vector<int> step);
 PointXYZRGBNormalPtr concatenatePointsNormal(PointCloudXYZRGBPtr cloud, NormalPtr normals);
 
-
 // registration
 // Types
-
 typedef pcl::PointXYZRGBNormal PointNT; // float x, y, z; float normal[3], curvature, rgb
 // typedef pcl::PointCloud<PointNT> PointCloudT;
 // typedef pcl::PointCloud<PointNT>::Ptr PointCloudTPtr;
@@ -39,6 +37,7 @@ typedef pcl::FPFHSignature33 FeatureT;
 typedef pcl::FPFHEstimationOMP<PointNT, PointNT, FeatureT> FeatureEstimationT;
 typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::PointCloud<FeatureT>::Ptr FeatureCloudTPtr;
+typedef Eigen::Matrix4f M4f;
 
 // PointCloudTPtr createPointCloudPointNormal();
 int loadPointNT(const char* file, PointXYZRGBNormalPtr cloud);
@@ -46,5 +45,5 @@ void dumpPointNT(const char* file, PointXYZRGBNormalPtr cloud);
 
 int downsample(PointXYZRGBNormalPtr cloud, float leaf);
 int FE(PointXYZRGBNormalPtr cloud, FeatureCloudTPtr cloud_features, float radius);
-int SCP(PointXYZRGBNormalPtr object, FeatureCloudTPtr object_features, PointXYZRGBNormalPtr scene, FeatureCloudTPtr scene_features, Eigen::Matrix4f &transformation, float leaf);
+int SCP(PointXYZRGBNormalPtr object, FeatureCloudTPtr object_features, PointXYZRGBNormalPtr scene, FeatureCloudTPtr scene_features, M4f &transformation, float leaf);
 

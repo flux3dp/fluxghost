@@ -5,6 +5,9 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/registration/sample_consensus_prerejective.h>
+
 
 PointCloudXYZRGBPtr createPointCloudXYZRGB() {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (
@@ -62,7 +65,11 @@ NormalPtr createNormalPtr(){
     NormalPtr normals (new pcl::PointCloud<pcl::Normal>);
     return normals;
 }
+PointXYZRGBNormalPtr createPointXYZRGBNormalPtr(){
+    PointXYZRGBNormalPtr all (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    return all;
 
+}
 int ne(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius){
    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> nest;
    nest.setNumberOfThreads(4);
@@ -74,22 +81,22 @@ int ne(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius){
    return 1;
 }
 
-inline int check(vector<float> normal, vector<float> position_v){
+inline int check(std::vector<float> normal, std::vector<float> position_v){
    if (normal[0] * position_v[0] + normal[1] * position_v[1] + normal[1] * position_v[1] > 0)
       return 1;
    else
       return 0;
 }
 
-int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius, vector<vector<int> >viewp, vector<int> step){
+int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius, std::vector<std::vector<int> >viewp, std::vector<int> step){
 
    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> nest;
    nest.setNumberOfThreads(4);
    nest.setRadiusSearch (radius);
    nest.compute (*normals);
 
-   vector<float> normal(3, 0);
-   vector<float> position_v(3, 0);
+   std::vector<float> normal(3, 0);
+   std::vector<float> position_v(3, 0);
 
    for (int vp = 0; vp < viewp.size(); vp += 1){
       for (int i = 0; i < step.size() - 1; i += 1){
@@ -167,4 +174,12 @@ int SCP(PointXYZRGBNormalPtr object, FeatureCloudTPtr object_features, PointXYZR
   // }
   transformation = align.getFinalTransformation ();
   return align.hasConverged();
+}
+
+int loadPointCloudPointNormal(const char* file, PointXYZRGBNormalPtr cloud) {
+    return pcl::io::loadPCDFile<PointNT> (file, *cloud);
+}
+
+void dumpPointCloudPointNormal(const char* file, PointXYZRGBNormalPtr cloud) {
+    pcl::io::savePCDFileASCII(file, *cloud);
 }
