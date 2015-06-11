@@ -75,7 +75,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
             operation = options[1]
             material = options[2]
-            raise RuntimeError("TODO: parse operation and material")
+            # raise RuntimeError("TODO: parse operation and material")
             self.laser_speed = 100.0
             self.duty_cycle = 100.0
 
