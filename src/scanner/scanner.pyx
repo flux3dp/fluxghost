@@ -1,10 +1,9 @@
 import cython
 from libcpp.vector cimport vector
 cdef extern from "scan_module.h":
-
-    cdef cppclass NormalPtr:
-        pass
     cdef cppclass PointCloudXYZRGBPtr:
+        pass
+    cdef cppclass NormalPtr:
         pass
     cdef cppclass PointXYZRGBNormalPtr:
         pass
@@ -14,12 +13,14 @@ cdef extern from "scan_module.h":
     int loadPointCloudXYZRGB(const char* file, PointCloudXYZRGBPtr cloud)
     void dumpPointCloudXYZRGB(const char* file, PointCloudXYZRGBPtr cloud)
     void push_backPoint(PointCloudXYZRGBPtr cloud, float x, float y, float z, cython.uint rgb)
+    # void push_backPoint(PointCloudXYZRGBPtr cloud, float x, float y, float z)
 
     int SOR(PointCloudXYZRGBPtr cloud, int neighbors, float thresh)
     int VG(PointCloudXYZRGBPtr cloud)
 
-    int ne(PointCloudXYZRGBPtr cloud, NormalPtr normals)
-    int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, vector[vector[int]] viewp, vector[int] step)
+    int ne(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius)
+    int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius, vector[vector [float]] viewp, vector[int] step)
+    # int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, vector[float] viewp, vector[int] step)
     PointXYZRGBNormalPtr createPointXYZRGBNormalPtr()
     PointXYZRGBNormalPtr concatenatePointsNormal(PointCloudXYZRGBPtr cloud, NormalPtr normals)
 
@@ -55,16 +56,12 @@ cdef class PointCloudXYZRGBObj:
         return VG(self.obj)
 
     cpdef int ne(self):
-        return ne(self.obj, self.normalObj)
+        return ne(self.obj, self.normalObj, 1.0)
 
     cpdef int ne_viewpoint(self, viewp, step):
-        cdef vector[int] vect
-        for i in step:
-            vect.push_back(i)
-        step = vect
 
-        cdef vector[vector[int]] vect1
-        cdef vector[int] vect2
+        cdef vector[vector[float]] vect1
+        cdef vector[float] vect2
 
         for i in viewp:
             vect2.clear()
@@ -74,7 +71,14 @@ cdef class PointCloudXYZRGBObj:
             vect1.push_back(vect2)
         viewp = vect1
 
-        return ne_viewpoint(self.obj, self.normalObj, viewp, step)
+
+        cdef vector[int] vect
+        for i in step:
+            vect.push_back(i)
+        step = vect
+
+        return ne_viewpoint(self.obj, self.normalObj, 1.0, viewp, step)
+        # return ne_viewpoint(self.obj, self.normalObj, step)
 
     cpdef int concatenatePointsNormal(self):
         self.bothobj = concatenatePointsNormal(self.obj, self.normalObj)

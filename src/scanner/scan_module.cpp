@@ -23,7 +23,7 @@ void dumpPointCloudXYZRGB(const char* file, PointCloudXYZRGBPtr cloud) {
     pcl::io::savePCDFileASCII (file, *cloud);
 }
 
-void push_back(PointCloudXYZRGBPtr cloud, float x, float y, float z, uint32_t rgb){
+void push_backPoint(PointCloudXYZRGBPtr cloud, float x, float y, float z, uint32_t rgb){
     pcl::PointXYZRGB p;
     p.x = x;
     p.y = y;
@@ -87,8 +87,9 @@ inline int check(std::vector<float> normal, std::vector<float> position_v){
    else
       return 0;
 }
-
-int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius, std::vector<std::vector<int> >viewp, std::vector<int> step){
+int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius,  std::vector<std::vector<float> >viewp, std::vector<int> step){
+// int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, std::vector< float > viewp, std::vector<int> step){
+// int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, std::vector<int> step){
 
    pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::Normal> nest;
    nest.setNumberOfThreads(4);
@@ -100,26 +101,27 @@ int ne_viewpoint(PointCloudXYZRGBPtr cloud, NormalPtr normals, float radius, std
 
    for (int vp = 0; vp < viewp.size(); vp += 1){
       for (int i = 0; i < step.size() - 1; i += 1){
-         normal[0]  = (*normals).points[i].normal_x;
-         normal[1]  = (*normals).points[i].normal_y;
-         normal[2]  = (*normals).points[i].normal_z;
-         position_v[0] = viewp[vp][0] - cloud->points[i].x;
-         position_v[1] = viewp[vp][1] - cloud->points[i].y;
-         position_v[2] = viewp[vp][2] - cloud->points[i].z;
+        normal[0]  = (*normals).points[i].normal_x;
+        normal[1]  = (*normals).points[i].normal_y;
+        normal[2]  = (*normals).points[i].normal_z;
 
-         if (check(normal,position_v)){
-            continue;
-         }
-         else{
-            (*normals).points[i].normal_x *= -1;
-            (*normals).points[i].normal_y *= -1;
-            (*normals).points[i].normal_z *= -1;
-         }
+        position_v[0] = viewp[vp][0] - cloud->points[i].x;
+        position_v[1] = viewp[vp][1] - cloud->points[i].y;
+        position_v[2] = viewp[vp][2] - cloud->points[i].z;
+        // position_v[0] = viewp[vp + 0] - cloud->points[i].x;
+        // position_v[1] = viewp[vp + 1] - cloud->points[i].y;
+        // position_v[2] = viewp[vp + 2] - cloud->points[i].z;
+
+        if (check(normal,position_v)){
+          continue;
+        }
+        else{
+          (*normals).points[i].normal_x *= -1;
+          (*normals).points[i].normal_y *= -1;
+          (*normals).points[i].normal_z *= -1;
+        }
       }
    }
-   // nest.setViewPoint(0.0, 170.0, 90);
-   // nest.setInputCloud (cloud);
-   // nest.compute (*normals);
    return 1;
 }
 
