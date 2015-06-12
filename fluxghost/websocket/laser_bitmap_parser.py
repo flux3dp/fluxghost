@@ -116,7 +116,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         total = float(len(self.images))
 
         for position, size, buf in self.images:
-            m_laser_bitmap.add_image(buf, size[0], size[2], position[0], position[1], position[2], position[3])
+            m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3])
 
             logger.debug("Process image at %s pixel: %s" % (position, size))
             progress = layer_index / total
