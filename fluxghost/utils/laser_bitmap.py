@@ -155,7 +155,7 @@ class laser_bitmap(laser):
         #  gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")
         gcode.append("M666 X-1.95 Y-0.4 Z-2.1 R97.4 H241.2")  # new
 
-        gcode += turnOff()
+        gcode += self.turnOff()
         gcode.append(";Flux image laser")
         gcode.append(";Image size:%d * %d" % (img_width, img_height))
 
@@ -190,22 +190,22 @@ class laser_bitmap(laser):
                 if image_map[h][w] < self.thres:
                     if not laser_on:
                         last_i = w
-                        gcode += moveTo(w, h)
-                        gcode += turnOn()
+                        gcode += self.moveTo(w, h)
+                        gcode += self.turnOn()
                 else:
                     if laser_on:
                         if abs(w - last_i) < 2:  # Single dot
                             pass
                             gcode += ["G4 P100"]
                         elif final_x > 0:
-                            gcode += drawTo(w, h)
+                            gcode += self.drawTo(w, h)
                         else:
-                            gcode += drawTo(w, h)
-                        gcode += turnOff()
+                            gcode += self.drawTo(w, h)
+                        gcode += self.turnOff()
 
             if laser_on:
-                gcode += drawTo(final_x, h)
-                gcode += turnOff()
+                gcode += self.drawTo(final_x, h)
+                gcode += self.turnOff()
 
         # gcode += ["M104 S0"]
         gcode += ["G28"]
