@@ -1,7 +1,7 @@
 # !/usr/bin/env python3
 from math import pi, sin, cos
 
-from fluxghost.utils.laser import laser
+from fluxghost.utils.laser_base import laser
 
 
 class laser_bitmap(laser):
