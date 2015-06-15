@@ -93,7 +93,7 @@ class laser_bitmap(laser):
                         self.image_map[x_on_map][y_on_map] = pix[h][w]
         # alignment fail when float to int
 
-    def find_edges():
+    def find_edges(self):
         """
         find the edge of 4 sides
         return left-bound, right-bound, up-bound, down-bound
@@ -132,17 +132,17 @@ class laser_bitmap(laser):
     def alignment_process(self, times=3):
         gcode = []
         self.find_edges()
-        gcode += turnHalf()
+        gcode += self.turnHalf()
         for _ in xrange(times):
-            gcode += moveTo(self.edges[0], self[3])
+            gcode += self.moveTo(self.edges[0], self[3])
             gcode += ["G4 P300"]
-            gcode += moveTo(self.edges[0], self[4])
+            gcode += self.moveTo(self.edges[0], self[4])
             gcode += ["G4 P300"]
-            gcode += moveTo(self.edges[1], self[4])
+            gcode += self.moveTo(self.edges[1], self[4])
             gcode += ["G4 P300"]
-            gcode += moveTo(self.edges[1], self[3])
+            gcode += self.moveTo(self.edges[1], self[3])
             gcode += ["G4 P300"]
-        gcode += turnOff()
+        gcode += self.turnOff()
 
         return gcode
 
@@ -157,12 +157,12 @@ class laser_bitmap(laser):
 
         gcode += self.turnOff()
         gcode.append(";Flux image laser")
-        gcode.append(";Image size:%d * %d" % (img_width, img_height))
+        # gcode.append(";Image size:%d * %d" % (img_width, img_height))
 
         gcode.append("G28")
         gcode.append(";G29")
 
-        gcode.append("G1 F3000 Z" + str(focal_l) + "")
+        gcode.append("G1 F3000 Z" + str(self.focal_l) + "")
 
         # pix = cv2.imread('S.png')
         # pix = cv2.cvtColor(pix, cv2.COLOR_BGR2GRAY)
@@ -178,22 +178,22 @@ class laser_bitmap(laser):
         gcode += self.alignment_process()
 
         #row iteration
-        for h in range(0, len(image_map)):
+        for h in range(0, len(self.image_map)):
             #column iteration
-            itera = range(0, len(image_map))
-            final_x = len(image_map)
+            itera = range(0, len(self.image_map))
+            final_x = len(self.image_map)
             if h % 2 == 1:
                 final_x = 0
-                itera = reversed(range(0, len(image_map)))
+                itera = reversed(range(0, len(self.image_map)))
 
             for w in itera:
-                if image_map[h][w] < self.thres:
-                    if not laser_on:
+                if self.image_map[h][w] < self.thres:
+                    if not self.laser_on:
                         last_i = w
                         gcode += self.moveTo(w, h)
                         gcode += self.turnOn()
                 else:
-                    if laser_on:
+                    if self.laser_on:
                         if abs(w - last_i) < 2:  # Single dot
                             pass
                             gcode += ["G4 P100"]
@@ -203,7 +203,7 @@ class laser_bitmap(laser):
                             gcode += self.drawTo(w, h)
                         gcode += self.turnOff()
 
-            if laser_on:
+            if self.laser_on:
                 gcode += self.drawTo(final_x, h)
                 gcode += self.turnOff()
 
