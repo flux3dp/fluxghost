@@ -36,14 +36,14 @@ class laser_bitmap(laser):
         """
             move to position x,y
         """
-        x = float(x) / pixel_per_mm - self.radius
-        y = float(len(self.image_map) - y) / pixel_per_mm - self.radius
+        x = float(x) / self.pixel_per_mm - self.radius
+        y = float(len(self.image_map) - y) / self.pixel_per_mm - self.radius
 
-        x2 = x * cos(rotation) + y * sin(rotation)
-        y2 = x * -sin(rotation) + y * cos(rotation)
+        x2 = x * cos(self.rotation) + y * sin(self.rotation)
+        y2 = x * -sin(self.rotation) + y * cos(self.rotation)
 
-        x = x2 / ratio
-        y = y2 / ratio
+        x = x2 / self.ratio
+        y = y2 / self.ratio
 
         if speed == 'draw':
             speed = 200
@@ -65,7 +65,7 @@ class laser_bitmap(laser):
 
         return gcode
 
-    def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, thres=255):
+    def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, rotation, thres=255):
         """
         add image on top of current image i.e -> self.image_map
           parameters:
@@ -77,20 +77,52 @@ class laser_bitmap(laser):
             None
         """
         pix = self.to_image(buffer_data, img_width, img_height)
+        print("recv", img_width, img_height, x1, y1, x2, y2, rotation)
+
+        # protocol fail
+        x1 -= self.radius
+        y1 -= self.radius
+        x2 -= self.radius
+        y2 -= self.radius
+        print("corner:", x1, y1, x2, y2)
         real_width = float(x2 - x1)
         real_height = float(y1 - y2)
+
+        # rotation center
+        mx = (x1 + x2) / 2.
+        my = (y1 + y2) / 2.
+
+        vx = (x1 - mx)
+        vy = (y1 - my)
+        x1 = mx + vx * cos(rotation)
+        y1 = my + vy * sin(rotation)
+        # x1 = mx + v1 * cos(rotation) + v2 * sin(rotation)
+        # y1 = my - v1 * sin(rotation) + v2 * cos(rotation)
+
+        vx = (x2 - mx)
+        vy = (y2 - my)
+        x2 = mx + vx * cos(rotation)
+        y2 = my + vy * sin(rotation)
+        # x2 = mx + v1 * cos(rotation) + v2 * sin(rotation)
+        # y2 = my - v1 * sin(rotation) + v2 * cos(rotation)
+        print("corner rotate", x1, y1, x2, y2)
+
         for h in range(img_height):
             for w in range(img_width):
-                real_x = (x1 + (real_width) * w / img_width)
-                real_y = (y1 - (real_height) * h / img_height)
+                real_x = (x1 * (img_width - w) + x2 * w) / img_width
+                real_y = (y1 * (img_height - h) + y2 * h) / img_height
+                # print(real_x, real_y)
+                # real_x = (x1 + w * (real_width) / img_width)
+                # real_y = (y1 - h * (real_height) / img_height)
                 if real_x ** 2 + real_y ** 2 <= self.radius ** 2:
                     if pix[h][w] < thres:
                         # [TODO]
-                        # if picture is small, when mapping to image_map should add more interval points
+                        # if picture  pixel is small, when mapping to image_map should add more interval points
                         # but not gonna happen in near future?
                         x_on_map = int(round(self.radius * self.pixel_per_mm + real_x / self.pixel_per_mm))
                         y_on_map = int(round(self.radius * self.pixel_per_mm + real_y / self.pixel_per_mm))
-                        self.image_map[x_on_map][y_on_map] = pix[h][w]
+                        # self.image_map[x_on_map][y_on_map] = pix[h][w]
+                        self.image_map[x_on_map][y_on_map] = 0
         # alignment fail when float to int
 
     def find_edges(self):
@@ -98,12 +130,13 @@ class laser_bitmap(laser):
         find the edge of 4 sides
         return left-bound, right-bound, up-bound, down-bound
         """
-
+        x1 = -53.03  # = 75/(sqrt(2))  Cyclic quadrilateral
         for i in range(len(self.image_map)):
             if any(j == 0 for j in self.image_map[i]):
                 x1 = i
                 break
 
+        x2 = 53.03
         for i in range(len(self.image_map) - 1, 0 - 1, -1):
             if any(j == 0 for j in self.image_map[i]):
                 x2 = i
@@ -117,6 +150,8 @@ class laser_bitmap(laser):
                     break
             if y1 is not False:
                 break
+        if y1 is False:
+            y1 = 53.03
 
         y2 = False
         for j in range(len(self.image_map[0]) - 1, 0 - 1, -1):
@@ -126,21 +161,23 @@ class laser_bitmap(laser):
                     break
             if y2 is not False:
                 break
-
+        if y2 is False:
+            y2 = 53.03
         self.edges = [x1, x2, y1, y2]
+        print(self.edges)
 
     def alignment_process(self, times=3):
         gcode = []
         self.find_edges()
         gcode += self.turnHalf()
-        for _ in xrange(times):
-            gcode += self.moveTo(self.edges[0], self[3])
+        for _ in range(times):
+            gcode += self.moveTo(self.edges[0], self.edges[2])
             gcode += ["G4 P300"]
-            gcode += self.moveTo(self.edges[0], self[4])
+            gcode += self.moveTo(self.edges[0], self.edges[3])
             gcode += ["G4 P300"]
-            gcode += self.moveTo(self.edges[1], self[4])
+            gcode += self.moveTo(self.edges[1], self.edges[3])
             gcode += ["G4 P300"]
-            gcode += self.moveTo(self.edges[1], self[3])
+            gcode += self.moveTo(self.edges[1], self.edges[2])
             gcode += ["G4 P300"]
         gcode += self.turnOff()
 
@@ -210,7 +247,7 @@ class laser_bitmap(laser):
         # gcode += ["M104 S0"]
         gcode += ["G28"]
 
-        store = False
+        store = True
         if store:
             with open('./S.gcode', 'w') as f:
                 print("\n".join(gcode) + "\n", file=f)
