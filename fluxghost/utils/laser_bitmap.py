@@ -18,7 +18,7 @@ class laser_bitmap(laser):
         reset laser_bitmap class
         """
 
-        self.pixel_per_mm = 2  # how many pixel is 1 mm
+        self.pixel_per_mm = 3  # how many pixel is 1 mm
         self.radius = 75  # laser max radius = 75
         # list holding current image
         self.image_map = [[255 for w in range(self.pixel_per_mm * self.radius * 2)] for h in range(self.pixel_per_mm * self.radius * 2)]
@@ -65,9 +65,17 @@ class laser_bitmap(laser):
 
         return gcode
 
+    def rotate(self, x, y, rotation, cx=0., cy=0.):
+        vx = (x - cx)
+        vy = (y - cy)
+        print ('f', vx, vy)
+        x = cx + vx * cos(rotation) - vy * sin(rotation)
+        y = cy + vx * sin(rotation) + vy * cos(rotation)
+        return x, y
+
     def add_image(self, buffer_data, img_width, img_height, x1, y1, x2, y2, rotation, thres=255):
         """
-        add image on top of current image i.e -> self.image_map
+        add image on top of current image i.e self.image_map
           parameters:
             buffer_data: image data in bytes array
             img_width, img_height: trivial
@@ -80,32 +88,25 @@ class laser_bitmap(laser):
         print("recv", img_width, img_height, x1, y1, x2, y2, rotation)
 
         # protocol fail
-        x1 -= self.radius
-        y1 -= self.radius
-        x2 -= self.radius
-        y2 -= self.radius
-        print("corner:", x1, y1, x2, y2)
+        print("corner:", x1, ',', y1, x2, ',', y2)
         real_width = float(x2 - x1)
         real_height = float(y1 - y2)
 
         # rotation center
         mx = (x1 + x2) / 2.
         my = (y1 + y2) / 2.
+        print('c', mx, my)
 
-        vx = (x1 - mx)
-        vy = (y1 - my)
-        x1 = mx + vx * cos(rotation)
-        y1 = my + vy * sin(rotation)
-        # x1 = mx + v1 * cos(rotation) + v2 * sin(rotation)
-        # y1 = my - v1 * sin(rotation) + v2 * cos(rotation)
+        print (x1, y1)
+        x1, y1 = self.rotate(x1, y1, -rotation, mx, my)
+        print (x1, y1)
+        x, y = self.rotate(x1, y1, rotation, mx, my)
+        print (x1, y1)
 
-        vx = (x2 - mx)
-        vy = (y2 - my)
-        x2 = mx + vx * cos(rotation)
-        y2 = my + vy * sin(rotation)
-        # x2 = mx + v1 * cos(rotation) + v2 * sin(rotation)
-        # y2 = my - v1 * sin(rotation) + v2 * cos(rotation)
-        print("corner rotate", x1, y1, x2, y2)
+
+        x2, y2 = self.rotate(x2, y2, -rotation, mx, my)
+
+        print("corner rotate:", x1, ',', y1, x2, ',', y2)
 
         for h in range(img_height):
             for w in range(img_width):

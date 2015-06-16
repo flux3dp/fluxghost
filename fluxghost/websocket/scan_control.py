@@ -80,7 +80,7 @@ class Websocket3DScanControl(WebSocketBase):
             buf = b""
             for iz in range(-200, 200):
                 z = iz / 200
-                x = math.sqrt((1 - (z**2)) / (1 + c**2))
+                x = math.sqrt((1 - (z ** 2)) / (1 + c ** 2))
 
                 if step > math.pi / 2 and step < (math.pi * 3 / 4):
                     x = -x
