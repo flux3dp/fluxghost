@@ -7,6 +7,11 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
+#include <pcl/surface/poisson.h>
+#include <pcl/PolygonMesh.h>
+#include <pcl/io/vtk_lib_io.h>
+
+
 
 
 PointCloudXYZRGBPtr createPointCloudXYZRGB() {
@@ -185,3 +190,28 @@ int loadPointCloudPointNormal(const char* file, PointXYZRGBNormalPtr cloud) {
 void dumpPointCloudPointNormal(const char* file, PointXYZRGBNormalPtr cloud) {
     pcl::io::savePCDFileASCII(file, *cloud);
 }
+
+MeshPtr createMeshPtr(){
+  MeshPtr mesh(new pcl::PolygonMesh);
+  return mesh;
+}
+
+int POS(PointXYZRGBNormalPtr cloud_with_normals, MeshPtr triangles){
+  puts("poisson computing");
+
+  pcl::Poisson<pcl::PointXYZRGBNormal> poisson;
+
+  // poisson.setConfidence(true);
+  // poisson.setScale(1.0); // from 1.1 to 1.0
+  poisson.setDepth (12);
+  poisson.setIsoDivide(7);
+  poisson.setInputCloud (cloud_with_normals);
+  poisson.performReconstruction (*triangles);
+
+  return 0;
+}
+int dumpSTL(const char* file, MeshPtr triangles){
+  return pcl::io::savePolygonFileSTL (file, *triangles);
+
+}
+

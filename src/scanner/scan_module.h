@@ -3,6 +3,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl/features/fpfh_omp.h>
+#include <pcl/PolygonMesh.h>
 #include <Eigen/Core>
 
 
@@ -48,3 +49,7 @@ int downsample(PointXYZRGBNormalPtr cloud, float leaf);
 int FE(PointXYZRGBNormalPtr cloud, FeatureCloudTPtr cloud_features, float radius);
 int SCP(PointXYZRGBNormalPtr object, FeatureCloudTPtr object_features, PointXYZRGBNormalPtr scene, FeatureCloudTPtr scene_features, M4f &transformation, float leaf);
 
+typedef pcl::PolygonMesh::Ptr MeshPtr;
+MeshPtr createMeshPtr();
+int POS(PointXYZRGBNormalPtr cloud_with_normals, MeshPtr &triangles);
+int dumpSTL(const char* file, MeshPtr triangles);
