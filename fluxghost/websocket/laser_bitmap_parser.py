@@ -39,7 +39,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     #    [(x1, y1, x2, z2), (w, h), bytes],
     #    ....
     # ]
-    images = []
+    images = None
 
     @classmethod
     def match_route(klass, path):
@@ -69,6 +69,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def set_params(self, params):
         options = params.split(",")
+        self.images = []
 
         if options[0] == "0":
             self.operation = MODE_PRESET
