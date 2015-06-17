@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio - Discover</title>
+  <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+  <script>
+  function appendLog(text, color) {
+    var dt = new Date();
+    var log_text = "[" + dt.getHours() + ":" + dt.getMinutes() + ":" + dt.getSeconds() + "] " + text;
+    var $row = $("<div></div>").text(log_text);
+    if(color) $row.css("color", color);
+    $("#log").append($row);
+  }
+
+  $(window).ready(function() {
+    window.discover_ws = new WebSocket("ws://localhost:8000/ws/discover");
+    window.discover_ws.onopen = function() {
+      appendLog("Connected", "#0000aa");
+    };
+    window.discover_ws.onclose = function(v) {
+      appendLog("CONNECTION CLOSED, code=" + v.code + "; reason=" + v.reason);
+    };
+    window.discover_ws.onmessage = function(m) {
+      var payload = JSON.parse(m.data);
+
+      if(payload.alive) {
+        var logtext = " + " + payload.name + " (" + payload.serial + ") VER: " + payload.version + " FROM " + payload.source + (payload.password?" with":" without") + " password" ;
+        appendLog(logtext, "#0000aa");
+      } else {
+        var logtext = " - " + payload.serial;
+        appendLog(logtext, "red");
+      }
+    }
+  });
+  </script>
+</head>
+<body>
+  <h1>./fluxghost/assets/discover.html</h1>
+  <div class="container" id="log"></div>
+</body>
+</html>
