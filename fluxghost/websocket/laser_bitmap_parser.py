@@ -21,7 +21,7 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 
-from fluxghost.utils.laser_bitmap import laser_bitmap
+from fluxclient.laser.laser_bitmap import laser_bitmap
 
 logger = logging.getLogger("WS.LP")
 
@@ -116,6 +116,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         # <<<<<<<< Sample code for read all images
         layer_index = 0
         total = float(len(self.images))
+        print ('total', total)
 
         for position, size, rotation, buf in self.images:
             m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation)
