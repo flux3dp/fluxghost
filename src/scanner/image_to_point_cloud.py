@@ -7,7 +7,7 @@ import freeless
 import scan_settings
 
 
-def to_image(buffer_data, img_width, img_height):
+def to_image(buffer_data):
     '''
         convert buffer_data into image -> (numpy.ndarray, uint8)
     '''
@@ -15,7 +15,7 @@ def to_image(buffer_data, img_width, img_height):
     img_width = scan_settings.img_width
     img_height = scan_settings.img_height
 
-    assert len(int_data) == img_width * img_height, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
+    assert len(int_data) == img_width * img_height * 3, "data length != width * height, %d != %d * %d" % (len(int_data), img_width, img_height)
 
     image = [int_data[i * img_width: (i + 1) * img_width] for i in range(img_height)]
 
@@ -43,14 +43,14 @@ class image_to_point_cloud():
 
     def reset(self):
         self.points_L = []
-        self.fs_L = freeless(scan_settings.laserX_L, scan_settings.laserZ_L)
+        self.fs_L = freeless.freeless(scan_settings.laserX_L, scan_settings.laserZ_L)
 
         self.points_R = []
-        self.fs_R = freeless(scan_settings.laserX_R, scan_settings.laserZ_R)
+        self.fs_R = freeless.freeless(scan_settings.laserX_R, scan_settings.laserZ_R)
 
         self.step_counter = 0
 
-    def feed(buffer_O, buffer_L, buffer_R, step):
+    def feed(self, buffer_O, buffer_L, buffer_R, step):
         img_O = to_image(buffer_O)
         img_L = to_image(buffer_L)
         img_R = to_image(buffer_R)
