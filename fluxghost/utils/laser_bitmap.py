@@ -39,8 +39,8 @@ class laser_bitmap(laser):
         x = float(x) / self.pixel_per_mm - self.radius
         y = float(len(self.image_map) - y) / self.pixel_per_mm - self.radius
 
-        x2 = x * cos(self.rotation) + y * sin(self.rotation)
-        y2 = x * -sin(self.rotation) + y * cos(self.rotation)
+        x2 = x * cos(self.rotation) - y * sin(self.rotation)
+        y2 = x * sin(self.rotation) + y * cos(self.rotation)
 
         x = x2 / self.ratio
         y = y2 / self.ratio
@@ -125,6 +125,7 @@ class laser_bitmap(laser):
                         # self.image_map[x_on_map][y_on_map] = pix[h][w]
                         self.image_map[x_on_map][y_on_map] = 0
         # alignment fail when float to int
+        self.rotation = rotation
 
     def find_edges(self):
         """
@@ -213,7 +214,7 @@ class laser_bitmap(laser):
         # gcode += turnOff()
         # gcode += turnHalf()
 
-        gcode += self.alignment_process()
+        # gcode += self.alignment_process()
 
         #row iteration
         for h in range(0, len(self.image_map)):
