@@ -211,7 +211,9 @@ int POS(PointXYZRGBNormalPtr cloud_with_normals, MeshPtr triangles){
   return 0;
 }
 int dumpSTL(const char* file, MeshPtr triangles){
+  // (*triangles)
   return pcl::io::savePolygonFileSTL (file, *triangles);
+
 
 }
 

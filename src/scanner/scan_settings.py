@@ -240,6 +240,7 @@ def write_stl(tri, output='model.stl', mode='binary'):
 
             outstl.write(struct.pack("I", len(tri)))
             for i in tri:
+                outstl.write(struct.pack("fff", 0, 0, 0))
                 for j in i:
                     for k in j:
                         outstl.write(struct.pack("f", k))

@@ -1,5 +1,8 @@
 import cython
 from libcpp.vector cimport vector
+
+from scan_settings import write_stl
+
 cdef extern from "scan_module.h":
     cdef cppclass PointCloudXYZRGBPtr:
         pass
@@ -105,9 +108,11 @@ cdef class RegCloud:
     cdef PointXYZRGBNormalPtr scene, obj
     cdef FeatureCloudTPtr scene_f, obj_f
     cdef M4f transformation
+
     def __init__(self):
         self.obj = createPointXYZRGBNormalPtr()
         self.scene = createPointXYZRGBNormalPtr()
+
     cpdef loadFile(self, unicode filename_scene, unicode filename_obj):
         if loadPointNT(filename_scene.encode(), self.scene) == -1:
             raise RuntimeError("Load failed")
