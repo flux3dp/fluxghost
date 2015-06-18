@@ -5,10 +5,11 @@ import logging
 import json
 import re
 
-from fluxclient.upnp_task import UpnpTask
+from fluxclient.robot import connect_robot, RobotError
+from fluxclient.upnp.task import UpnpTask
 from fluxclient import encryptor as E
 
-from fluxghost.upnp.robot import RobotSocket
+# from fluxghost.upnp.robot import RobotSocket
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -75,23 +76,8 @@ class WebsocketControl(WebSocketBase):
                 self.send_text("timeout")
                 self.close()
 
-        # TODO
-        connected = False
-        for i in range(3): # retry 3 times
-            if connected:
-                break
-
-            try:
-                self._connect()
-                connected = True
-            except ConnectionRefusedError as err:
-                logger.debug("Robot connection refused, retry (%i)" % i)
-            except RuntimeError as err:
-                self.send_text("error %s" % err.args[0])
-
-        if not connected:
-            self.send_text("timeout")
-            self.close()
+        self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
+                                   conn_callback=self._conn_callback)
 
         self.send_text("connected")
 
@@ -101,20 +87,17 @@ class WebsocketControl(WebSocketBase):
 
         return task
 
-    def _connect(self):
-        # TODO
-        sleep(0.5)
+    def _conn_callback(self, *args):
         logger.debug("CONNECTING")
         self.send_text("connecting")
-        self.conn = RobotSocket(self.on_robot_recv, (self.ipaddr, 23811),
-                                logger)
-        self.rlist.append(self.conn)
+        return True
 
     def on_binary_message(self, buf):
         self.conn.send(buf)
 
     def on_text_message(self, message):
-        logger.debug("WebSocket Send: %s" % message)
+        if message.startswith("upload "):
+            pass
         self.conn.send(message.encode())
 
     def on_robot_recv(self, buf):

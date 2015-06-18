@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio - Discover</title>
+  <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="shared.js"></script>
+  <script>
+  function addDevice(serial, name, version, password) {
+    var $item = $("<a></a>").
+      attr("href", "#").
+      addClass("list-group-item").
+      attr("data-serial", serial).
+      attr("data-password", password ? "true" : "false").
+      attr("data-name", name);
+
+    if(password) $item.append($("<span></span>").addClass("glyphicon glyphicon-lock"));
+    $item.append($("<span></span>").text(name));
+    $item.append($("<span></span>").text(serial).addClass("label label-default"));
+
+    $("#devices").append($item);
+  }
+
+  function removeDevice(serial) {
+    $("[data-device=" + serial + "]").remove();
+  }
+
+
+  function touch_without_password(serial, name, has_password) {
+    var ws = new WebSocket("ws://localhost:8000/ws/touch");
+    var close_normally = false;
+
+    ws.onopen = function() {
+      appendLog("Try touch: " + name + " (" + serial + ")");
+      ws.send(JSON.stringify({serial: serial}));
+    }
+    ws.onmessage = function(m) {
+      close_normally = true;
+      ws.close();
+      log_touch_result(serial, name, JSON.parse(m.data));
+    }
+    ws.onclose = function() {
+      if(!close_normally)
+      ws = undefined;
+    }
+  }
+
+  function log_touch_result(serial, name, payload) {
+    var log_text = name + " (" + serial + ") ";
+    if(payload.has_response) {
+      log_text += (payload.reachable?" is reachable ":" is NOT reachable ");
+      log_text += (payload.auth?" and auth SUCCESS":" and auth FAILED");
+
+      appendLog(log_text, (payload.auth?"#31B404":"#0000AA"))
+    } else {
+      log_text += "NO response";
+      appendLog(log_text, "red");
+    }
+  }
+
+  $(window).ready(function() {
+    $("[data-role=discover]").on("click", function() {
+      if(window.discover_ws) {
+        window.discover_ws.close();
+        window.discover_ws = undefined;
+        $(this).removeClass("btn-warning").addClass("btn-success").text("Start Discover");
+      } else {
+        $("#devices").children().remove();
+        window.discover_ws = new DiscoverWS(addDevice, removeDevice);
+        $(this).removeClass("btn-success").addClass("btn-warning").text("Stop Discover");
+      }
+    }).trigger("click");
+
+    $("#devices").on("click", "[data-serial]", function() {
+      var serial = $(this).attr("data-serial");
+      var name = $(this).attr("data-name");
+      var has_password = $(this).attr("data-password") === "true";
+      touch_without_password(serial, name, has_password);
+    });
+  });
+
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      ./fluxghost/assets/touch.html
+    </h1>
+  </div>
+  <hr />
+  <div class="container"><div class="navbar">
+      <a href="index.html" class="btn btn-primary">Back to Index</a>
+      <a href="#" class="btn btn-success" data-role="discover">Start Discover</a>
+  </div></div>
+  <div class="container">
+    <div class="row">
+      <div class="col-xs-4">
+        <div class="list-group" id="devices">
+          <a href="#" class="list-group-item">
+            <span class="glyphicon glyphicon-lock"></span>
+            My 3D Printer
+            <label class="label label-default">AAAAAAAAAAAAAAAAAAAAAAAAA</label>
+          </a>
+          <a href="#" class="list-group-item">
+            <span class="glyphicon glyphicon-lock"></span>
+            My 3D Printer
+          </a>
+        </div>
+      </div>
+      <div class="col-xs-8" id="log"></div>
+    </div>
+  </div>
+</body>
+</html>
