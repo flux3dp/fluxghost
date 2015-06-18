@@ -9,12 +9,8 @@ logger = logging.getLogger("WS.DISCOVER")
 
 
 class WebsocketTouch(WebSocketBase):
-    @classmethod
-    def match_route(klass, path):
-        return path == "touch"
-
-    def __init__(self, *args, **kw):
-        WebSocketBase.__init__(self, *args, **kw)
+    def __init__(self, *args):
+        WebSocketBase.__init__(self, *args)
 
     def on_text_message(self, message):
         try:

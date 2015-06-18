@@ -35,10 +35,6 @@ class WebsocketFile(WebSocketBase):
     fileobj = None
     operation = None
 
-    @classmethod
-    def match_route(klass, path):
-        return path == "file"
-
     def on_close(self, *args, **kw):
         super(WebsocketFile, self).on_close(*args, **kw)
         self.close_file()

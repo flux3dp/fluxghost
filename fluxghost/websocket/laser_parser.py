@@ -35,10 +35,6 @@ class WebsocketLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
     buf = None
     data_buffered = 0
 
-    @classmethod
-    def match_route(klass, path):
-        return path == "laser-parser"
-
     def on_text_message(self, message):
         if self.input_length:
             logger.error("Recive undefined text: %s" % message)

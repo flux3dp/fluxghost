@@ -37,11 +37,11 @@ class WebsocketControl(WebSocketBase):
 
     POOL_TIME = 1.0
 
-    def __init__(self, *args, **kw):
-        WebSocketBase.__init__(self, *args, **kw)
+    def __init__(self, *args, serial):
+        WebSocketBase.__init__(self, *args)
 
         # self.POOL_TIME = 1.0
-        self.serial = self.path[-25:]
+        self.serial = serial
 
         try:
             logger.debug("DISCOVER")

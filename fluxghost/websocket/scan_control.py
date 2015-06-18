@@ -31,13 +31,9 @@ logger = logging.getLogger("WS.3DSCAN-CTRL")
 
 
 class Websocket3DScanControl(WebSocketBase):
-    @classmethod
-    def match_route(klass, path):
-        return re.match("3d-scan-control/[0-9A-Z]{25}", path) is not None
-
-    def __init__(self, *args, **kw):
-        WebSocketBase.__init__(self, *args, **kw)
-        self.serial = self.path[-25:]
+    def __init__(self, *args, serial):
+        WebSocketBase.__init__(self, *args)
+        self.serial = serial
         self.send_text("connecting")
         self.send_text("connecting")
         self.send_text("connected")

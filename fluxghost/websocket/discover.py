@@ -32,12 +32,8 @@ class AsyncUpnpDiscover(UpnpDiscover):
 
 
 class WebsocketDiscover(WebSocketBase):
-    @classmethod
-    def match_route(klass, path):
-        return path == "discover"
-
-    def __init__(self, *args, **kw):
-        WebSocketBase.__init__(self, *args, **kw)
+    def __init__(self, *args):
+        WebSocketBase.__init__(self, *args)
 
         self.discover = AsyncUpnpDiscover(callback=self.on_recv_discover)
         self.devices = {}

@@ -41,10 +41,6 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     # ]
     images = None
 
-    @classmethod
-    def match_route(klass, path):
-        return path == "bitmap-laser-parser"
-
     def on_text_message(self, message):
         try:
             if not self.operation:

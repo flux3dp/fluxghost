@@ -29,12 +29,8 @@ logger = logging.getLogger("WS.3DSCAN-MODELING")
 
 
 class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
-    @classmethod
-    def match_route(klass, path):
-        return path == "3d-scan-modeling"
-
-    def __init__(self, *args, **kw):
-        WebSocketBase.__init__(self, *args, **kw)
+    def __init__(self, *args):
+        WebSocketBase.__init__(self, *args)
 
         self._data_sets = {}
         self._base_data_set = None
