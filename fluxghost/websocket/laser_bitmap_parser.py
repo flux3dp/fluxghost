@@ -21,7 +21,7 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 
-from fluxghost.utils.laser_bitmap import laser_bitmap
+from fluxclient.laser.laser_bitmap import laser_bitmap
 
 logger = logging.getLogger("WS.LP")
 
@@ -39,7 +39,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     #    [(x1, y1, x2, z2), (w, h), bytes],
     #    ....
     # ]
-    images = []
+    images = None
 
     @classmethod
     def match_route(klass, path):
@@ -69,12 +69,13 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def set_params(self, params):
         options = params.split(",")
+        self.images = []
 
         if options[0] == "0":
             self.operation = MODE_PRESET
 
-            operation = options[1]
-            material = options[2]
+            self.operation = options[1]
+            self.material = options[2]
             # raise RuntimeError("TODO: parse operation and material")
             self.laser_speed = 100.0
             self.duty_cycle = 100.0
@@ -92,19 +93,20 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
         w, h = int(options[0]), int(options[1])
         x1, y1, x2, y2 = (float(o) for o in options[2:6])
+        rotation = float(options[6])
         image_size = w * h
 
-        logger.debug("Start image at [%.4f, %.4f][%.4f,%.4f] x [%i, %i]" %
-                     (x1, y1, x2, y2, w, h))
+        logger.debug("Start image at [%.4f, %.4f][%.4f,%.4f] x [%i, %i], rotation = %.4f" %
+                     (x1, y1, x2, y2, w, h, rotation))
         if image_size > 1024 * 1024 * 8:
             raise RuntimeError("IMAGE_TOO_LARGE")
 
         helper = BinaryUploadHelper(image_size, self.end_recv_image,
-                                    (x1, y1, x2, y2), (w, h))
+                                    (x1, y1, x2, y2), (w, h), rotation)
         self.set_binary_helper(helper)
 
-    def end_recv_image(self, buf, position, size):
-        self.images.append((position, size, buf))
+    def end_recv_image(self, buf, position, size, rotation):
+        self.images.append((position, size, rotation, buf))
         self.send_text('{"status": "accept"}')
 
     def process_image(self):
@@ -114,9 +116,10 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         # <<<<<<<< Sample code for read all images
         layer_index = 0
         total = float(len(self.images))
+        print ('total', total)
 
-        for position, size, buf in self.images:
-            m_laser_bitmap.add_image(buf, size[0], size[2], position[0], position[1], position[2], position[3])
+        for position, size, rotation, buf in self.images:
+            m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation)
 
             logger.debug("Process image at %s pixel: %s" % (position, size))
             progress = layer_index / total

@@ -1,6 +1,7 @@
 
 from fluxghost.websocket.control import WebsocketControl
 from fluxghost.websocket.discover import WebsocketDiscover
+from fluxghost.websocket.touch import WebsocketTouch
 from fluxghost.websocket.echo import WebsocketEcho
 from fluxghost.websocket.file import WebsocketFile
 from fluxghost.websocket.laser_bitmap_parser import WebsocketLaserBitmapParser
@@ -14,7 +15,8 @@ SERVICES = [WebsocketEcho,
             Websocket3DScannModeling,
             Websocket3DScanControl,
             WebsocketControl,
-            WebsocketDiscover]
+            WebsocketDiscover,
+            WebsocketTouch]
 
 
 def get_match_ws_service(path):

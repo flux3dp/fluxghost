@@ -2,6 +2,11 @@
 
 from __future__ import absolute_import
 
+import fluxclient
+
+if fluxclient.VERSION < ('0', '4a4'):
+    raise RuntimeError("Your fluxclient need to update (>=0.4a4)")
+
 import argparse
 import logging
 import sys

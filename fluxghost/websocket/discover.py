@@ -3,7 +3,8 @@ from time import time
 import logging
 import json
 
-from fluxghost.upnp.discover import UpnpDiscoverSocket
+from fluxclient.upnp.discover import UpnpDiscover
+from fluxclient.upnp.misc import uuid_to_short
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.DISCOVER")
@@ -20,6 +21,16 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 """
 
 
+class AsyncUpnpDiscover(UpnpDiscover):
+    def __init__(self, callback):
+        super(AsyncUpnpDiscover, self).__init__()
+        self.callback = callback
+
+    def on_read(self):
+        args = self.on_recv_pong()
+        self.callback(*args)
+
+
 class WebsocketDiscover(WebSocketBase):
     @classmethod
     def match_route(klass, path):
@@ -28,52 +39,37 @@ class WebsocketDiscover(WebSocketBase):
     def __init__(self, *args, **kw):
         WebSocketBase.__init__(self, *args, **kw)
 
-        self.upnp_discover_socket = UpnpDiscoverSocket(logger,
-                                                       self.on_recv_discover)
-        self.upnp_discover_socket.poke()
+        self.discover = AsyncUpnpDiscover(callback=self.on_recv_discover)
         self.devices = {}
 
-        self.rlist.append(self.upnp_discover_socket)
+        self.rlist.append(self.discover)
         self.POOL_TIME = 0.3
 
     def on_text_message(self, message):
         self.POOL_TIME = 0.3
 
-    def on_recv_discover(self, payload, discover_from):
-        serial = payload.get("serial")
+    def on_recv_discover(self, serial, *args):
+        if serial not in self.devices:
+            self.send_text(self.build_response(serial, *args))
 
-        if serial in self.devices:
-            profile = self.devices[serial]
-        else:
-            self.devices[serial] = profile = {
-                "serial": serial,
-                "from_lan": False, "from_cloud": False, "from_usb": False,
-                "last_lan_update": 0
-            }
-
-        changed = self.update_profile(payload, profile, discover_from)
-
-        if changed:
-            self.send_text(self.build_response(profile))
+        self.devices[serial] = time()
 
     def on_review_devices(self):
         t = time()
-        for serial, profile in self.devices.items():
-            has_gone = False
+        dead = []
+        for serial, last_response in self.devices.items():
+            if t - last_response > 45.:
+                dead.append(serial)
+                self.send_text(self.build_dead_response(serial))
 
-            if profile["from_lan"]:
-                if t - profile["last_lan_update"] > 15.0:
-                    profile["from_lan"] = False
-                    has_gone = True
-
-            if has_gone:
-                self.send_text(self.build_response(profile))
+        for serial in dead:
+            self.devices.pop(serial)
 
     def on_loop(self):
         self.on_review_devices()
 
         self.POOL_TIME = min(self.POOL_TIME + 1.0, 3.0)
-        self.upnp_discover_socket.poke()
+        self.discover.ping()
 
     def update_profile(self, source, target, discover_from):
         changed = False
@@ -96,16 +92,21 @@ class WebsocketDiscover(WebSocketBase):
             target[key] = new_val
             return True
 
-    def build_response(self, profile):
+    def build_dead_response(self, serial):
+        return json.dumps({
+            "serial": uuid_to_short(serial),
+            "alive": False
+        })
+
+    def build_response(self, serial, model_id, timestemp, version, has_passwd,
+                       ipaddrs):
         payload = {
-            "serial": profile.get("serial"),
+            "serial": uuid_to_short(serial),
+            "version": version,
+            "alive": True,
             "name": "My FLUX Printer",
-            "model": profile.get("model"),
-            "password": profile.get("pwd"),
-            "from_lan": profile["from_lan"],
-            "from_cloud": profile["from_cloud"],
-            "from_usb": profile["from_usb"]
+            "model": model_id,
+            "password": has_passwd,
+            "source": "lan"
         }
         return json.dumps(payload)
-
-
