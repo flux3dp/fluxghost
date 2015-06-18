@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio - Control</title>
+  <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="shared.js"></script>
+  <script>
+  function beginControl(serial, name) {
+    stopDiscover()
+    $(".device_select_ui").hide();
+    $(".device_control_ui").show();
+
+    $("#device_label").
+      text(name + " (" + serial + ")").
+      attr("data-serial", serial);
+    connectControl()
+  }
+
+  function connectControl() {
+    if(window.control_ws) {
+      appendLog("Clean old control session", "red");
+      window.control_ws.close();
+      window.close();
+    }
+    var serial = $("#device_label").attr("data-serial");
+    appendLog("Connect to " + serial);
+    var ws = new WebSocket("ws://localhost:8000/ws/control/" + serial);
+    window.control_ws = ws;
+
+    var is_connected = false
+
+    control_ws.onclose = function(v) {
+      appendLog("Discover WS Closed, code=" + v.code + "; reason=" + v.reason);
+    };
+    control_ws.onmessage = function(m) {
+      if(is_connected) {
+        appendLog(m.data);
+      } else {
+        if(m.data === "connecting") {
+          appendLog("Connecting...", "#444");
+        } else if(m.data === "connected") {
+          appendLog(" ----> Ready");
+          is_connected = true;
+        } else {
+          appendLog("Error: "+ m.data, "red");
+        }
+      }
+    };
+  }
+
+  $(window).ready(function() {
+    $("[data-role=discover]").on("click", function() {
+      if(window.discover_ws) {
+        stopDiscover()
+      } else {
+        startDiscover()
+      }
+    }).trigger("click");
+
+    $("#devices").on("click", "[data-serial]", function() {
+      var serial = $(this).attr("data-serial");
+      var name = $(this).attr("data-name");
+      beginControl(serial, name);
+    });
+
+    $("[data-role=reset-control]").on("click", function() {
+      connectControl();
+    });
+
+    $("[data-role=end-control]").on("click", function() {
+      $(".device_select_ui").show();
+      $(".device_control_ui").hide();
+      $("[data-role=discover]").trigger("click");
+    });
+
+    $("#controlcmd").on("keypress", function(e) {
+      if(e.keyCode==13) {
+        var val = $(this).val();
+        if(window.control_ws)
+          window.control_ws.send(val);
+        appendLog(">> " + val);
+        $(this).val("");
+        return false;
+      }
+    });
+
+    $(".device_control_ui").hide();
+  });
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      ./fluxghost/assets/control.html
+    </h1>
+  </div>
+  <hr />
+  <div class="container"><div class="navbar">
+      <a href="index.html" class="btn btn-primary">Back to Index</a>
+      <a href="#" class="btn btn-success device_select_ui" data-role="discover">Start Discover</a>
+      <label id="device_label" class="device_control_ui"></label>
+      <a href="#" class="btn btn-warning device_control_ui" data-role="reset-control">Reset Connection</a>
+      <a href="#" class="btn btn-default device_control_ui" data-role="end-control">Back to discover</a>
+  </div></div>
+  <div class="container device_select_ui">
+      <div class="list-group" id="devices"></div>
+  </div>
+  <div class="container">
+    <div class="device_control_ui form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+    <input id="controlcmd" type="text" class="form-control" />
+  </div>
+</body>
+</html>

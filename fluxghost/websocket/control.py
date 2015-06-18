@@ -29,12 +29,24 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 ws.send("ls")
 """
 
+class AsyncRawSock(object):
+    def __init__(self, rawsock, callback):
+        self.callback = callback
+        self.rawsock = rawsock
+
+    def send(self, buf):
+        self.rawsock.send(buf)
+
+    def fileno(self):
+        return self.rawsock.fileno()
+
+    def on_read(self):
+        buf = self.rawsock.recv(4096)
+        self.callback(buf.decode("utf8", "ignore"))
+
 
 class WebsocketControl(WebSocketBase):
-    @classmethod
-    def match_route(klass, path):
-        return True if re.match("control/[0-9A-Z]{25}", path) else False
-
+    raw_sock = None
     POOL_TIME = 1.0
 
     def __init__(self, *args, serial):
@@ -93,12 +105,38 @@ class WebsocketControl(WebSocketBase):
         return True
 
     def on_binary_message(self, buf):
+        #TODO
         self.conn.send(buf)
 
     def on_text_message(self, message):
-        if message.startswith("upload "):
-            pass
-        self.conn.send(message.encode())
+        try:
+            if self.raw_sock:
+                self.raw_mode_handler(message)
+            else:
+                if message == "raw":
+                    self.raw_sock = AsyncRawSock(self.robot.raw_mode(),
+                                                 self.send_text)
+                    self.rlist.append(self.raw_sock)
+                    self.send_text("continue")
+                else:
+                    self.send_text("UNKNOW")
+            # #TODO
+            # self.conn.send(message.encode())
+        except RuntimeError as err:
+            logger.debug("Error: %s" % err)
+            self.send_text("error " + err.args[0])
+
+    def raw_mode_handler(self, message):
+        if message == "quit":
+            self.raw_sock.send(b"quit")
+            self.raw_sock.on_read()
+            self.rlist.remove(self.raw_sock)
+            self.raw_sock = None
+        else:
+            if message.endswith("\n"):
+                self.raw_sock.send(message.encode())
+            else:
+                self.raw_sock.send(message.encode() + b"\n")
 
     def on_robot_recv(self, buf):
         if buf:
