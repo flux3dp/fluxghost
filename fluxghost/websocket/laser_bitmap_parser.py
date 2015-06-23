@@ -21,7 +21,7 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 
-from fluxclient.laser.laser_bitmap import laser_bitmap
+from fluxclient.laser.laser_bitmap import LaserBitmap
 
 logger = logging.getLogger("WS.LP")
 
