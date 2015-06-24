@@ -29,3 +29,4 @@ def get_match_ws_service(path):
         match = exp.match(path)
         if match:
             return klass, match.groupdict()
+    raise RuntimeError("Route not found for path: %s" % path)
