@@ -33,13 +33,13 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/ws/"):
-            try:
-                klass, kwargs = get_match_ws_service(self.path[4:])
-            except RuntimeError as e:
-                logger.exception("Websocket route error: %s" % e)
-                self.response_404
+            klass, kwargs = get_match_ws_service(self.path[4:])
 
-            self.serve_websocket(klass, kwargs)
+            if klass:
+                self.serve_websocket(klass, kwargs)
+            else:
+                logger.exception("Websocket route error: %s" % e)
+                self.response_404()
 
         elif self.path == "/":
             self.serve_assets("index.html")
