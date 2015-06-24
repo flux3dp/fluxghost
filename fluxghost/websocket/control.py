@@ -111,8 +111,8 @@ class WebsocketControl(WebSocketBase):
         self.cmd_mapping = {
             "ls": self.list_file,
             "upload": self.upload_file,
-            # "oneshot": self.oneshot,
-            # "scanimages": self.scanimages,
+            "oneshot": self.oneshot,
+            "scanimages": self.scanimages,
         }
 
     def on_binary_message(self, buf):
@@ -153,15 +153,42 @@ class WebsocketControl(WebSocketBase):
             self.send_text("error %s" % " ".join(e.args))
 
     def list_file(self):
-        for f in self.robot.list_file():
-            self.send_text(f)
-        self.send_text("ok")
+        try:
+            for f in self.robot.list_file():
+                self.send_text(f)
+            self.send_text("ok")
+        except RuntimeError as e:
+            self.send_text("error %s" % " ".join(e.args))
 
     def upload_file(self, size):
         self.binary_sock = self.robot.begin_upload(int(size))
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text("continue")
+
+    def oneshot(self):
+        images = self.robot.oneshot()
+        for mime, buf in images:
+            size = len(buf)
+            self.send_text("binary %s %s" % (mime, size))
+            view = memoryview(buf)
+            sent = 0
+            while sent < size:
+                self.send_binary(view[sent:sent + 4016])
+                sent += 4016
+        self.send_text("ok")
+
+    def scanimages(self):
+        images = self.robot.scanimages()
+        for mime, buf in images:
+            size = len(buf)
+            self.send_text("binary %s %s" % (mime, size))
+            view = memoryview(buf)
+            sent = 0
+            while sent < size:
+                self.send_binary(view[sent:sent + 4016])
+                sent += 4016
+        self.send_text("ok")
 
     def on_loop(self):
         pass
