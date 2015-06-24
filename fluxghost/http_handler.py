@@ -38,7 +38,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             if klass:
                 self.serve_websocket(klass, kwargs)
             else:
-                logger.exception("Websocket route error: %s" % e)
+                logger.exception("Websocket route error: %s" % self.path[4:])
                 self.response_404()
 
         elif self.path == "/":
