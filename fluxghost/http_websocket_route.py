@@ -22,7 +22,7 @@ ROUTES = [
     (re.compile("touch"), WebsocketTouch),
     (re.compile("control/(?P<serial>[0-9A-Z]{25})"), WebsocketControl),
     (re.compile("3d-scan-control/(?P<serial>[0-9A-Z]{25})"),
-     WebsocketControl)]
+     Websocket3DScanControl)]
 
 def get_match_ws_service(path):
     for exp, klass in ROUTES:
