@@ -6,6 +6,32 @@
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" />
   <script src="shared.js"></script>
+  <style>
+  .fileinput-button {
+    position: relative;
+    overflow: hidden;
+  }
+  .fileinput-button input {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
+    opacity: 0;
+    -ms-filter: 'alpha(opacity=0)';
+    font-size: 200px;
+    direction: ltr;
+    cursor: pointer;
+  }
+
+  /* Fixes for IE < 8 */
+  @media screen\9 {
+    .fileinput-button input {
+      filter: alpha(opacity=0);
+      font-size: 100%;
+      height: 100%;
+    }
+  }
+  </style>
   <script>
   function beginControl(serial, name) {
     stopDiscover()
@@ -22,32 +48,49 @@
     if(window.control_ws) {
       appendLog("Clean old control session", "red");
       window.control_ws.close();
-      window.close();
+      window.control_ws = undefined;
     }
     var serial = $("#device_label").attr("data-serial");
     appendLog("Connect to " + serial);
     var ws = new WebSocket("ws://localhost:8000/ws/control/" + serial);
     window.control_ws = ws;
 
-    var is_connected = false
-
     control_ws.onclose = function(v) {
-      appendLog("Discover WS Closed, code=" + v.code + "; reason=" + v.reason);
+      appendLog("Control WS Closed, code=" + v.code + "; reason=" + v.reason);
     };
     control_ws.onmessage = function(m) {
-      if(is_connected) {
-        appendLog(m.data);
+      if(m.data === "connecting") {
+        appendLog("Connecting...", "#444");
+      } else if(m.data === "connected") {
+        appendLog(" ----> Ready");
+        control_ws.onmessage = cb_standard;
       } else {
-        if(m.data === "connecting") {
-          appendLog("Connecting...", "#444");
-        } else if(m.data === "connected") {
-          appendLog(" ----> Ready");
-          is_connected = true;
-        } else {
-          appendLog("Error: "+ m.data, "red");
-        }
+        appendLog("Error: "+ m.data, "red");
       }
     };
+  }
+
+  function cb_standard(m) {
+    appendLog(m.data);
+  }
+
+  function cb_begin_upload(m) {
+    if(m.data === "continue") {
+      appendLog(m.data);
+      var reader = new FileReader();
+      reader.onload = file_uploader;
+      reader.readAsArrayBuffer(window.upload_file)
+      window.upload_file = undefined;
+      window.control_ws.onmessage = cb_standard;
+    } else {
+      appendLog(m.data, "red");
+      window.control_ws.onmessage = cb_standard;
+      window.upload_file = undefined;
+    }
+  }
+
+  function file_uploader(f) {
+    window.control_ws.send(f.target.result);
   }
 
   $(window).ready(function() {
@@ -87,6 +130,22 @@
     });
 
     $(".device_control_ui").hide();
+
+    // Upload File Codes
+    $("input[name=file]").on("change", function(evt) {
+      var f = evt.target.files[0];
+
+      if(window.control_ws && window.control_ws.onmessage === cb_standard) {
+        appendLog("Start uploading...")
+        window.control_ws.onmessage = cb_begin_upload;
+        window.control_ws.send("upload " + f.size);
+
+        window.upload_file = f;
+      } else {
+        appendLog("Upload not start", "blue")
+      }
+    });
+    // End Upload File Codes
   });
   </script>
 </head>
@@ -108,8 +167,21 @@
       <div class="list-group" id="devices"></div>
   </div>
   <div class="container">
-    <div class="device_control_ui form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
-    <input id="controlcmd" type="text" class="form-control" />
+    <div class="col-xs-12">
+      <div class="device_control_ui form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+    </div>
+  </div>
+  <div class="container">
+    <div class="col-xs-10">
+      <input id="controlcmd" type="text" class="form-control" />
+    </div>
+    <div class="col-xs-2">
+      <span class="btn btn-primary fileinput-button">
+          <i class="glyphicon glyphicon-upload"></i>
+          <span>Upload</span>
+          <input type="file" name="file" />
+      </span>
+    </div>
   </div>
 </body>
 </html>

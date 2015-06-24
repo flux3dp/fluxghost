@@ -29,30 +29,14 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 ws.send("ls")
 """
 
-class AsyncRawSock(object):
-    def __init__(self, rawsock, callback):
-        self.callback = callback
-        self.rawsock = rawsock
-
-    def send(self, buf):
-        self.rawsock.send(buf)
-
-    def fileno(self):
-        return self.rawsock.fileno()
-
-    def on_read(self):
-        buf = self.rawsock.recv(4096)
-        self.callback(buf.decode("utf8", "ignore"))
-
 
 class WebsocketControl(WebSocketBase):
-    raw_sock = None
     POOL_TIME = 1.0
+    binary_sock = None
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
 
-        # self.POOL_TIME = 1.0
         self.serial = serial
 
         try:
@@ -92,6 +76,7 @@ class WebsocketControl(WebSocketBase):
                                    conn_callback=self._conn_callback)
 
         self.send_text("connected")
+        self.set_hooks()
 
     def _discover(self, serial):
         task = UpnpTask(self.serial)
@@ -104,45 +89,79 @@ class WebsocketControl(WebSocketBase):
         self.send_text("connecting")
         return True
 
+    def set_hooks(self):
+        self.simple_mapping = {
+            "select": self.robot.select_file,
+            "start": self.robot.start_play,
+            "pause": self.robot.pause_play,
+            "resume": self.robot.resume_play,
+            "abort": self.robot.abort_play,
+            "report": self.robot.report_play,
+            "position": self.robot.position,
+            "quit": self.robot.quit_task,
+
+            "scan": self.robot.begin_scan,
+            "scan_forword": self.robot.scan_forword,
+            "scan_next": self.robot.scan_next,
+
+            "maintain": self.robot.begin_maintain,
+            "home": self.robot.maintain_home,
+        }
+
+        self.cmd_mapping = {
+            "ls": self.list_file,
+            "upload": self.upload_file,
+            # "oneshot": self.oneshot,
+            # "scanimages": self.scanimages,
+        }
+
     def on_binary_message(self, buf):
-        #TODO
-        self.conn.send(buf)
+        if self.binary_sock:
+            self.binary_sent += self.binary_sock.send(buf)
+            if self.binary_sent < self.binary_length:
+                pass
+            elif self.binary_sent == self.binary_length:
+                self.send_text(self.robot.get_resp().decode("ascii", "ignore"))
+            else:
+                self.send_text("error NOT_MATCH binary data length error")
+                self.close()
+        else:
+            self.text_send("Can not accept binary data")
+            self.close()
 
     def on_text_message(self, message):
+        args = message.split(" ", 1)
+        cmd = args[0]
+
         try:
-            if self.raw_sock:
-                self.raw_mode_handler(message)
+            if cmd in self.simple_mapping:
+                self.simple_cmd(self.simple_mapping[cmd], *args[1:])
+            elif cmd in self.cmd_mapping:
+                func_ptr = self.cmd_mapping[cmd]
+                func_ptr(*args[1:])
             else:
-                if message == "raw":
-                    self.raw_sock = AsyncRawSock(self.robot.raw_mode(),
-                                                 self.send_text)
-                    self.rlist.append(self.raw_sock)
-                    self.send_text("continue")
-                else:
-                    self.send_text("UNKNOW")
-            # #TODO
-            # self.conn.send(message.encode())
-        except RuntimeError as err:
-            logger.debug("Error: %s" % err)
-            self.send_text("error " + err.args[0])
+                self.send_text("UNKNOW_COMMAND ws")
+                logger.error("Unknow Command: %s" % message)
 
-    def raw_mode_handler(self, message):
-        if message == "quit":
-            self.raw_sock.send(b"quit")
-            self.raw_sock.on_read()
-            self.rlist.remove(self.raw_sock)
-            self.raw_sock = None
-        else:
-            if message.endswith("\n"):
-                self.raw_sock.send(message.encode())
-            else:
-                self.raw_sock.send(message.encode() + b"\n")
+        except RuntimeError as e:
+            logger.error("RuntimeError%s" % repr(e.args))
 
-    def on_robot_recv(self, buf):
-        if buf:
-            self.send_text(buf.decode("utf8"))
-        else:
-            self.close()
+    def simple_cmd(self, func, *args):
+        try:
+            self.send_text(func(*args))
+        except RuntimeError as e:
+            self.send_text("error %s" % " ".join(e.args))
+
+    def list_file(self):
+        for f in self.robot.list_file():
+            self.send_text(f)
+        self.send_text("ok")
+
+    def upload_file(self, size):
+        self.binary_sock = self.robot.begin_upload(int(size))
+        self.binary_length = int(size)
+        self.binary_sent = 0
+        self.send_text("continue")
 
     def on_loop(self):
         pass
