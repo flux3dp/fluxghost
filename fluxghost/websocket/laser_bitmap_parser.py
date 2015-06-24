@@ -106,13 +106,12 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "accept"}')
 
     def process_image(self):
-        m_laser_bitmap = laser_bitmap()
+        m_laser_bitmap = LaserBitmap()
         output_binary = b"WOW1234"
 
         # <<<<<<<< Sample code for read all images
         layer_index = 0
         total = float(len(self.images))
-        print ('total', total)
 
         for position, size, rotation, buf in self.images:
             m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation)
