@@ -244,10 +244,6 @@ class WebSocketHandler(object):
         length = len(message)
         buf = memoryview(message)
 
-        if length > 524288:
-            raise Exception("WebSocketHandler can not send message larger "
-                            "then 524288, it is a bug! :)")
-
         while offset < length:
             flag = l = 0
 
@@ -267,12 +263,12 @@ class WebSocketHandler(object):
             elif l < 2 ** 64:
                 self.request.send(struct.pack('>HQ', flag + 127, l))
             else:
-                raise Exception("WebSocketHandler can not send message larger"
-                                " then %i, it is a bug! :)" % (2 ** 64))
+                raise Exception("Can not send message larger then %i" %
+                                (2**64))
 
             ll = l
             while ll > 0:
-                dl = self.request.send(buf[offset:offset + ll])
+                dl = self.request.send(buf[offset:offset + 4096])
                 ll -= dl
 
             offset += l
@@ -313,11 +309,6 @@ class WebSocketHandler(object):
 
     def send_binary(self, buf):
         self._send(FRAME_BINARY, buf)
-        # socket_limit = 1024
-        # bytes_sent = 0
-        # while bytes_sent < len(buf):
-        #     self._send(FRAME_BINARY, buf[bytes_sent:bytes_sent + socket_limit])
-        #     bytes_sent += socket_limit
 
     def ping(self, data):
         self._send(FRAME_PING, data)
