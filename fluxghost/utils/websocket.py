@@ -1,5 +1,4 @@
 
-import threading
 import socket
 import struct
 import errno
@@ -78,10 +77,8 @@ class WebSocketHandler(object):
         self.request = request
         self.client_address = client
         self.server = server
-        self._mutex_websocket = threading.Lock()
         self.running = True
         self._is_closing = False
-        self._is_closed = False
         self.buffer = bytearray(BUFFER_SIZE)
         self.recv_flag = 0
         self.recv_offset = 0
@@ -92,15 +89,13 @@ class WebSocketHandler(object):
         return self.request.fileno()
 
     def do_recv(self):
-        if self._is_closed:
-            raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
-
         buf = (self.recv_flag & WAIT_LARGE_DATA == 0) and \
             self.buf_view[self.recv_offset:] or \
             self.ext_buf_view[self.ext_recv_offset:]
 
         length = self.request.recv_into(buf)
         if length == 0:
+            self._closed()
             raise socket.error(errno.ECONNRESET, 'Connection reset')
 
         if self.recv_flag & WAIT_LARGE_DATA == 0:
@@ -219,7 +214,7 @@ class WebSocketHandler(object):
 
     def _handle_message(self, opcode, message):
         # ref: opcode in RFC 6455 (Chp 5.5)
-        if opcode != 0x8 and not self.running:
+        if opcode != 0x8 and not self._is_closing:
             raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
         elif opcode == 0x1:
             self.on_text_message(message.decode("utf8"))
@@ -244,7 +239,7 @@ class WebSocketHandler(object):
             shift = ((shift < 3) and (shift + 1) or 0)
 
     def _send(self, opcode, message):
-        if self._is_closing:
+        if self._is_closing and opcode != FRAME_CLOSE:
             raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
 
         offset = 0
@@ -286,20 +281,14 @@ class WebSocketHandler(object):
 
     def _closed(self):
         self.request.close()
+        self.running = False
 
     def on_close(self, message):
         if not self._is_closing:
-            # Remote send close message, response and close it
-            with self._mutex_websocket:
-                if self.running:
-                    self.running = False
-                    self._send(FRAME_CLOSE, message)
-
+            # Remote send close message, response and close it.
             self._is_closing = True
-
-        self._is_closing = True
-        self._is_closed = True
-        self.running = False
+            self._send(FRAME_CLOSE, b'\x03\xe8')
+            self.request.shutdown(socket.SHUT_WR)
 
         self._closed()
 
@@ -322,12 +311,10 @@ class WebSocketHandler(object):
             self._send(FRAME_TEXT, message.encode())
 
     def send_text(self, message):
-        with self._mutex_websocket:
-            self._send(FRAME_TEXT, message.encode())
+        self._send(FRAME_TEXT, message.encode())
 
     def send_binary(self, buf):
-        with self._mutex_websocket:
-            self._send(FRAME_BINARY, buf)
+        self._send(FRAME_BINARY, buf)
 
     def ping(self, data):
         self._send(FRAME_PING, data)
@@ -337,11 +324,9 @@ class WebSocketHandler(object):
         # a 2-byte unsigned integer
         buffer = struct.pack('>H', code) + message.encode()
 
-        with self._mutex_websocket:
-            if self.running:
-                self._send(FRAME_CLOSE, buffer)
-                self.request.shutdown(socket.SHUT_WR)
-                self._is_closing = True
+        self._send(FRAME_CLOSE, buffer)
+        self.request.shutdown(socket.SHUT_WR)
+        self._is_closing = True
 
 
 class WebsocketError(Exception):
