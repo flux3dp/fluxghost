@@ -48,7 +48,6 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
 
             if cmd == "upload":
                 self._begin_upload(params)
-                self.send_text('{"status": "continue"}')
 
             elif cmd == "base":
                 self.set_base(params)
