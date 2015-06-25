@@ -5,6 +5,7 @@
   <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
   <script src="shared.js"></script>
   <style>
   .fileinput-button {
@@ -60,10 +61,11 @@
       if(m.data === "connecting") {
         appendLog("Connecting...", "#444");
       } else if(m.data === "connected") {
-        appendLog(" ----> Ready");
+        appendLog("➜ Ready");
+        appendLog("😀😀😀");
         control_ws.onmessage = cb_standard;
       } else {
-        appendLog("Error: "+ m.data, "red");
+        appendLog("✗ Error: "+ m.data + " 😭", "red");
       }
     };
   }
@@ -117,11 +119,21 @@
     });
 
     $("#controlcmd").on("keypress", function(e) {
-      if(e.keyCode==13) {
+      if(e.keyCode == 13) {
         var val = $(this).val();
-        if(window.control_ws)
-          window.control_ws.send(val);
-        appendLog(">> " + val);
+        if(window.control_ws) {
+          if(window.control_ws.readyState == 0) {
+            appendLog("⚠️ " + val, "rgb(208, 142, 40)");
+          } else if(window.control_ws.readyState == 1) {
+            window.control_ws.send(val);
+            appendLog("➦ " + val);
+          } else {
+            appendLog("⚠️ " + val, "rgb(208, 142, 40)");
+            window.control_ws = undefined;
+          }
+        } else {
+          appendLog("⚠️ " + val, "rgb(208, 142, 40)");
+        }
         $(this).val("");
         return false;
       }

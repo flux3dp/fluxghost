@@ -1,7 +1,11 @@
 
 function appendLog(text, color) {
   var dt = new Date();
-  var log_text = "[" + dt.getHours() + ":" + dt.getMinutes() + ":" + dt.getSeconds() + "] " + text;
+  var hour = dt.getHours() < 10 ? "0" + String(dt.getHours()) : String(dt.getHours());
+  var minute  = dt.getHours() < 10 ? "0" + String(dt.getMinutes()) : String(dt.getMinutes());
+  var seconds = dt.getSeconds() < 10 ? "0" + String(dt.getSeconds()) : String(dt.getSeconds());
+  
+  var log_text = "[" + hour + ":" + minute + ":" + seconds + "] " + text;
   var $row = $("<div></div>").text(log_text);
   if(color) $row.css("color", color);
   $("#log").prepend($row);

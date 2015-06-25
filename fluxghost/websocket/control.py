@@ -71,6 +71,7 @@ class WebsocketControl(WebSocketBase):
             if err.args[0] != "ALREADY_RUNNING":
                 self.send_text("timeout")
                 self.close()
+                raise
 
         self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
                                    conn_callback=self._conn_callback)
