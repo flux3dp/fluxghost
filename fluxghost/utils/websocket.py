@@ -1,4 +1,5 @@
 
+from select import select
 import socket
 import struct
 import errno
@@ -268,7 +269,7 @@ class WebSocketHandler(object):
 
             ll = l
             while ll > 0:
-                dl = self.request.send(buf[offset:offset + 4096])
+                dl = self.request.send(buf[offset:ll])
                 ll -= dl
 
             offset += l
