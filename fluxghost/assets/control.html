@@ -139,6 +139,7 @@
         window.control_ws.send("upload " + f.size);
 
         window.upload_file = f;
+        this.value = "";
       } else {
         appendLog("Upload not start", "blue")
       }
@@ -164,12 +165,7 @@
   <div class="container device_select_ui">
       <div class="list-group" id="devices"></div>
   </div>
-  <div class="container">
-    <div class="col-xs-12">
-      <div class="device_control_ui form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
-    </div>
-  </div>
-  <div class="container">
+  <div class="container device_control_ui">
     <div class="col-xs-10">
       <input id="controlcmd" type="text" class="form-control" />
     </div>
@@ -179,6 +175,11 @@
           <span>Upload</span>
           <input type="file" name="file" />
       </span>
+    </div>
+  </div>
+  <div class="container device_control_ui">
+    <div class="col-xs-12">
+      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
     </div>
   </div>
 </body>

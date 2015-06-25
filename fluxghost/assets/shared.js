@@ -4,7 +4,7 @@ function appendLog(text, color) {
   var log_text = "[" + dt.getHours() + ":" + dt.getMinutes() + ":" + dt.getSeconds() + "] " + text;
   var $row = $("<div></div>").text(log_text);
   if(color) $row.css("color", color);
-  $("#log").append($row).scrollTop($("#log").height());
+  $("#log").prepend($row);
 }
 
 function ws_close_handler(name) {

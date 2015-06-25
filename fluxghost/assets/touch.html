@@ -17,7 +17,10 @@
 
     if(password) $item.append($("<span></span>").addClass("glyphicon glyphicon-lock"));
     $item.append($("<span></span>").text(name));
-    $item.append($("<span></span>").text(serial).addClass("label label-default"));
+    $item.append(
+      $("<div></div>").append(
+        $("<span></span>").text(serial).addClass("label label-default"))
+    );
 
     $("#devices").append($item);
   }
