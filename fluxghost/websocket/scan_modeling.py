@@ -12,7 +12,7 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 
 // After recive connected...
 ws.send("upload MySet1 15 15")
-buf = new ArrayBuffer(450)
+buf = new ArrayBuffer(720) // (15 + 15) * 24
 ws.send(buf)
 """
 
@@ -24,6 +24,7 @@ import re
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
+from fluxclient.scanner.pc_process import pc_process
 
 logger = logging.getLogger("WS.3DSCAN-MODELING")
 
@@ -32,8 +33,9 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
 
-        self._data_sets = {}
-        self._base_data_set = None
+        # self._data_sets = {}
+        # self._base_data_set = None
+        self.m_pc_process = pc_process()
 
         self._uploading = None
 
@@ -52,7 +54,8 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.set_base(params)
 
             elif cmd == "cut":
-                pass
+                self.cut(params)
+
             elif cmd == "delete_noise":
                 pass
             elif cmd == "dump":
@@ -66,7 +69,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_fatal("UNKNOW_ERROR")
             raise
 
-    def _begin_upload(self, params): #name, left_len, right_len="0"
+    def _begin_upload(self, params):  # name, left_len, right_len="0"
         splited_params = params.split(" ")
         try:
             name = splited_params[0]
@@ -75,10 +78,9 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
 
             llen = int(s_left_len)
             rlen = int(s_right_len)
-            totel_length = (llen + rlen) * 15
+            totel_length = (llen + rlen) * 24
         except ValueError:
             raise RuntimeError("BAD_PARAM_TYPE", "upload param error")
-
 
         helepr = BinaryUploadHelper(totel_length, self._end_upload,
                                     name, llen, rlen)
@@ -86,18 +88,23 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "continue"}')
 
     def _end_upload(self, buf, name, left_len, right_len):
-        left_points = buf[:left_len*15]
-        right_points = buf[left_len*15:]
 
-        self._data_sets[name] = (left_points, right_points)
+        left_points = buf[:left_len * 24]
+        right_points = buf[left_len * 24:]
+        self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)
         self.send_text('{"status": "ok"}')
 
     def set_base(self, name):
-        if name in self._data_sets:
-            self._base_data_set = object()
-
-    def cut(self, name, z0, z1, r):
         pass
+        # if name in self._data_sets:
+        #     self._base_data_set = object()
+
+    def cut(self, params):
+        name_in, name_out, mode, direction, value = params.split(" ")
+        value = float(value)
+        direction = direction[0] == 'T'
+        self.m_pc_process.cut(name_in, name_out, mode, direction, value)
+        self.send_text('{"status": "ok"}')
 
     def delete_noise(self, name, r):
         pass

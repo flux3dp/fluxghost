@@ -42,7 +42,6 @@ class WebsocketLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
             if self.set_params(message):
                 self.send_text('{"status": "waitting_data"}')
 
-
     def set_params(self, params):
         options = params.split(",")
 
@@ -77,9 +76,5 @@ class WebsocketLaserParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "complete", "length": %s}' %
                        len(output_binary))
 
-        bytes_sent = 0
-        while len(output_binary) - bytes_sent > 1024:
-            self.send_binary(output_binary[bytes_sent:bytes_sent + 1024])
-            bytes_sent += 1024
-        self.send_binary(output_binary[bytes_sent:])
+        self.send_binary(output_binary)
         self.close(ST_NORMAL, "bye")

@@ -8,7 +8,7 @@ import errno
 # WebSocket Frame Flag
 FLAG_FIN = 0x8000
 FLAG_RSVs = 0x7000
-FLAG_OPCODE= 0x0F00
+FLAG_OPCODE = 0x0F00
 FLAG_MASK = 0x0080
 FLAG_PAYLOAD = 0x007F
 
@@ -41,7 +41,7 @@ WAIT_LARGE_DATA = 0x40
 HAS_FRAGMENT_FLAG = 0x80
 
 
-MAX_FRAME_SIZE = 2**20
+MAX_FRAME_SIZE = 2 ** 20
 BUFFER_SIZE = 4096
 MAGIC_STRING = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
@@ -258,9 +258,9 @@ class WebSocketHandler(object):
 
             if l < 126:
                 self.request.send(struct.pack('>H', flag + l))
-            elif l < 2**16:
+            elif l < 2 ** 16:
                 self.request.send(struct.pack('>HH', flag + 126, l))
-            elif l < 2**64:
+            elif l < 2 ** 64:
                 self.request.send(struct.pack('>HQ', flag + 127, l))
             else:
                 raise Exception("Can not send message larger then %i" %
