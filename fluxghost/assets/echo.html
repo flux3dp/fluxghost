@@ -12,9 +12,7 @@
     window.echo_ws.onopen = function() {
       appendLog("Echo Connected", "#0000aa");
     };
-    window.echo_ws.onclose = function(v) {
-      appendLog("CONNECTION CLOSED, code=" + v.code + "; reason=" + v.reason);
-    };
+    window.echo_ws.onclose = ws_close_handler("Echo");
     window.echo_ws.onmessage = function(m) {
       appendLog("<< " + m.data, "#0000aa");
     }

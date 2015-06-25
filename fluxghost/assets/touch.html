@@ -39,11 +39,9 @@
       close_normally = true;
       ws.close();
       log_touch_result(serial, name, JSON.parse(m.data));
-    }
-    ws.onclose = function() {
-      if(!close_normally)
       ws = undefined;
     }
+    ws.onclose = ws_close_handler("Touch");
   }
 
   function log_touch_result(serial, name, payload) {

@@ -55,9 +55,7 @@
     var ws = new WebSocket("ws://localhost:8000/ws/control/" + serial);
     window.control_ws = ws;
 
-    control_ws.onclose = function(v) {
-      appendLog("Control WS Closed, code=" + v.code + "; reason=" + v.reason);
-    };
+    control_ws.onclose = ws_close_handler("Control");
     control_ws.onmessage = function(m) {
       if(m.data === "connecting") {
         appendLog("Connecting...", "#444");

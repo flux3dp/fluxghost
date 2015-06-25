@@ -214,9 +214,7 @@ class WebSocketHandler(object):
 
     def _handle_message(self, opcode, message):
         # ref: opcode in RFC 6455 (Chp 5.5)
-        if opcode != 0x8 and not self._is_closing:
-            raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
-        elif opcode == 0x1:
+        if opcode == 0x1:
             self.on_text_message(message.decode("utf8"))
         elif opcode == 0x2:
             self.on_binary_message(message)

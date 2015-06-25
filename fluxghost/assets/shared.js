@@ -7,6 +7,21 @@ function appendLog(text, color) {
   $("#log").append($row).scrollTop($("#log").height());
 }
 
+function ws_close_handler(name) {
+    return function(v) {
+        if(v.code == 1000) {
+            if(v.reason) {
+                appendLog(name + "WS CLOSED NORMAL; reason='" + v.reason + "'");
+            } else {
+                appendLog(name + "WS CLOSED NORMAL");
+            }
+        } else if(v.code == 1006) {
+            appendLog(name + "WS CLOSED ABNORMAL", "rgb(208, 142, 40)");
+        } else {
+            appendLog(name + "WS CLOSED, code=" + v.code + "; reason=" + v.reason, "#c00");
+        }
+    }
+}
 
 function DiscoverWS(addCallback, removeCallback) {
     var self = this;
@@ -25,9 +40,7 @@ function DiscoverWS(addCallback, removeCallback) {
       }
     }
 
-    this.ws.onclose = function(v) {
-      appendLog("Discover WS Closed, code=" + v.code + "; reason=" + v.reason);
-    };
+    this.ws.onclose = ws_close_handler("Discover");
 
     this.close = function() {
         self.ws.close();

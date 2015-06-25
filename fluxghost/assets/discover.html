@@ -12,9 +12,7 @@
     window.discover_ws.onopen = function() {
       appendLog("Connected", "#0000aa");
     };
-    window.discover_ws.onclose = function(v) {
-      appendLog("CONNECTION CLOSED, code=" + v.code + "; reason=" + v.reason);
-    };
+    window.discover_ws.onclose = ws_close_handler("Discover");
     window.discover_ws.onmessage = function(m) {
       var payload = JSON.parse(m.data);
 
