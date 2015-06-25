@@ -107,9 +107,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def process_image(self):
         m_laser_bitmap = LaserBitmap()
-        output_binary = b"WOW1234"
 
-        # <<<<<<<< Sample code for read all images
         layer_index = 0
         total = float(len(self.images))
 
