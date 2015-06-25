@@ -1,5 +1,4 @@
 
-from select import select
 import socket
 import struct
 import errno
@@ -241,38 +240,26 @@ class WebSocketHandler(object):
         if self._is_closing and opcode != FRAME_CLOSE:
             raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
 
-        offset = 0
         length = len(message)
+
+        flag = 0
+        flag += (opcode << 8)
+        flag += FLAG_FIN
+
+        if length < 126:
+            self.request.send(struct.pack('>H', flag + length))
+        elif length < 2 ** 16:
+            self.request.send(struct.pack('>HH', flag + 126, length))
+        elif length < 2 ** 64:
+            self.request.send(struct.pack('>HQ', flag + 127, length))
+        else:
+            raise Exception("Can not send message larger then %i" %
+                            (2**64))
+
+        sent = 0
         buf = memoryview(message)
-
-        while offset < length:
-            flag = l = 0
-
-            if offset == 0:  # first frame
-                flag += (opcode << 8)
-
-            if offset + MAX_FRAME_SIZE >= length:  # last frame
-                flag += FLAG_FIN
-                l = length - offset
-            else:
-                l = MAX_FRAME_SIZE
-
-            if l < 126:
-                self.request.send(struct.pack('>H', flag + l))
-            elif l < 2 ** 16:
-                self.request.send(struct.pack('>HH', flag + 126, l))
-            elif l < 2 ** 64:
-                self.request.send(struct.pack('>HQ', flag + 127, l))
-            else:
-                raise Exception("Can not send message larger then %i" %
-                                (2**64))
-
-            ll = l
-            while ll > 0:
-                dl = self.request.send(buf[offset:ll])
-                ll -= dl
-
-            offset += l
+        while sent < length:
+            sent += self.request.send(buf[sent:sent + 4096])
 
     def _closed(self):
         self.request.close()
