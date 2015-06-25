@@ -128,10 +128,12 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
                        len(output_binary))
 
         # >>>>>>>> Sample code for read all images
+        self.send_binary(output_binary)
 
-        bytes_sent = 0
-        while len(output_binary) - bytes_sent > 1024:
-            self.send_binary(output_binary[bytes_sent:bytes_sent + 1024])
-            bytes_sent += 1024
-        self.send_binary(output_binary[bytes_sent:])
+        # bytes_sent = 0
+        # while len(output_binary) - bytes_sent > 1024:
+        #     self.send_binary(output_binary[bytes_sent:bytes_sent + 1024])
+        #     bytes_sent += 1024
+        # self.send_binary(output_binary[bytes_sent:])
+
         self.close(ST_NORMAL, "bye")

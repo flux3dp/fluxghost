@@ -312,12 +312,12 @@ class WebSocketHandler(object):
         self._send(FRAME_TEXT, message.encode())
 
     def send_binary(self, buf):
-        socket_limit = 4016
-        bytes_sent = 0
-        while len(buf) - bytes_sent > socket_limit:
-            self._send(FRAME_BINARY, buf[bytes_sent:bytes_sent + socket_limit])
-            bytes_sent += socket_limit
-        self._send(buf[bytes_sent:])
+        self._send(FRAME_BINARY, buf)
+        # socket_limit = 1024
+        # bytes_sent = 0
+        # while bytes_sent < len(buf):
+        #     self._send(FRAME_BINARY, buf[bytes_sent:bytes_sent + socket_limit])
+        #     bytes_sent += socket_limit
 
     def ping(self, data):
         self._send(FRAME_PING, data)
