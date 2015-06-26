@@ -111,8 +111,8 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def dump(self, params):
         name = params
-        buffer_data = self.m_pc_process(name)
-        self.send_text('{"status": "continue" "length": %d}' % (len(buffer_data) / 24))
+        len_L, len_R, buffer_data = self.m_pc_process.dump(name)
+        self.send_text('{"status": "continue" "length": %d %d}' % (len_L, len_R))
         self.send_binary(buffer_data)
         self.send_text('{"status": "ok"}')
 
