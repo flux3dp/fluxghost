@@ -91,7 +91,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         x1, y1, x2, y2 = (float(o) for o in options[2:6])
         rotation = float(options[6])
 
-        ######################## delete after front-end supported ######
+        ########################TODO delete after front-end supported ######
         try:
             thres = int(options[7])
         except:
@@ -133,13 +133,6 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "complete", "length": %s}' %
                        len(output_binary))
 
-        # >>>>>>>> Sample code for read all images
         self.send_binary(output_binary)
-
-        # bytes_sent = 0
-        # while len(output_binary) - bytes_sent > 1024:
-        #     self.send_binary(output_binary[bytes_sent:bytes_sent + 1024])
-        #     bytes_sent += 1024
-        # self.send_binary(output_binary[bytes_sent:])
 
         self.close(ST_NORMAL, "bye")

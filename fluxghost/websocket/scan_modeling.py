@@ -56,7 +56,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.cut(params)
 
             elif cmd == "delete_noise":
-                pass
+                self.delete_noise(params)
             elif cmd == "dump":
                 self.dump(params)
 
@@ -106,8 +106,11 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         self.m_pc_process.cut(name_in, name_out, mode, direction, value)
         self.send_text('{"status": "ok"}')
 
-    def delete_noise(self, name, r):
-        pass
+    def delete_noise(self, params):
+        name_in, name_out, r = params.split(" ")
+        r = float(r)
+        self.m_pc_process.delete_noise(name_in, name_out, r)
+        self.send_text('"ok"')
 
     def dump(self, params):
         name = params
