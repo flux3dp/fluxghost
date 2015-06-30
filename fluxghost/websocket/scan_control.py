@@ -71,7 +71,7 @@ class Websocket3DScanControl(WebSocketBase):
             except ZeroDivisionError:
                 c = float("INF")
 
-            self.send_text('{"status": “chunk", "left": 200, “ right”: 200}')
+            self.send_text('{"status": "chunk", "left": 200, "right": 200}')
 
             buf = b""
             for iz in range(-200, 200):
