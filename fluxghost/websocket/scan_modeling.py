@@ -110,14 +110,14 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         name_in, name_out, r = params.split(" ")
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)
-        self.send_text('"ok"')
+        self.send_text('{"status": "ok"}')
 
     def dump(self, params):
         name = params
         len_L, len_R, buffer_data = self.m_pc_process.dump(name)
-        self.send_text('{"status": "continue" "length": %d %d}' % (len_L, len_R))
+        self.send_text('{"status": “continue", "left": %d, “ right”: %d}' % (len_L, len_R))
         self.send_binary(buffer_data)
-        self.send_text('"ok"')
+        self.send_text('{"status": "ok"}')
         logger.debug('dump %s done' % (name))
 
     def export(self):
