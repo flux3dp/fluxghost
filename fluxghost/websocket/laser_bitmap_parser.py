@@ -86,17 +86,10 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def begin_recv_image(self, message):
         options = message.split(",")
-
         w, h = int(options[0]), int(options[1])
         x1, y1, x2, y2 = (float(o) for o in options[2:6])
         rotation = float(options[6])
-
-        ########################TODO delete after front-end supported ######
-        try:
-            thres = int(options[7])
-        except:
-            thres = 255
-        ####################################################
+        thres = int(options[7])
 
         image_size = w * h
 
