@@ -115,7 +115,8 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
     def dump(self, params):
         name = params
         len_L, len_R, buffer_data = self.m_pc_process.dump(name)
-        self.send_text('{"status": “continue", "left": %d, “ right”: %d}' % (len_L, len_R))
+        self.send_text('{"status": "continue", "left": %d, "right": %d}' % (len_L, len_R))
+        print(len(buffer_data), '{"status": "continue", "left": %d, "right": %d}' % (len_L, len_R))
         self.send_binary(buffer_data)
         self.send_text('{"status": "ok"}')
         logger.debug('dump %s done' % (name))
