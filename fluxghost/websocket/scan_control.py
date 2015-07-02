@@ -21,6 +21,7 @@ import os
 import re
 
 from .base import WebSocketBase, ST_NORMAL
+from fluxclient.scanner.tools import read_pcd
 
 # <<<<<<<< Fake Code
 IMG_FILE = os.path.join(os.path.dirname(__file__),
@@ -56,35 +57,27 @@ class Websocket3DScanControl(WebSocketBase):
             self.send_text("finished")
 
     def _scan(self):
+        logger.debug('scanning')
+
         self.send_text("ok")
-
         # <<<<<<<< Fake Code
-        import math
-        STEPS = 400
+        PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
 
-        step = math.pi * 2 / STEPS
-        for i in range(STEPS):
-            r = step * i
+        pc_L = read_pcd(PCD_LOCATION + '/L.pcd')
+        self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(pc_L))
+        buf = []
+        for p in pc_L:
+            buf.append(struct.pack('<' + 'f' * 6, *p))
+        buf = b''.join(buf)
+        self.send_binary(buf)
 
-            try:
-                c = math.cos(r) / math.sin(r)
-            except ZeroDivisionError:
-                c = float("INF")
-
-            self.send_text('{"status": "chunk", "left": 200, "right": 200}')
-
-            buf = b""
-            for iz in range(-200, 200):
-                z = iz / 200
-                x = math.sqrt((1 - (z ** 2)) / (1 + c ** 2))
-
-                if step > math.pi / 2 and step < (math.pi * 3 / 4):
-                    x = -x
-
-                y = x * c if c != float("INF") else 1
-
-                buf += struct.pack("<ffffff", x, y, z, 1.0, 1.0, 1.0)
-            self.send_binary(buf)
+        pc_R = read_pcd(PCD_LOCATION + '/R.pcd')
+        self.send_text('{"status": "chunk", "left": 0, "right": %d}' % len(pc_R))
+        buf = []
+        for p in pc_R:
+            buf.append(struct.pack('<' + 'f' * 6, *p))
+        buf = b''.join(buf)
+        self.send_binary(buf)
         # >>>>>>>> Fake Code
 
         self.send_text("finished")
