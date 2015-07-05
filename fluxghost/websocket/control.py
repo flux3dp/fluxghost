@@ -1,15 +1,9 @@
 
-from select import select
-from time import time, sleep
 import logging
-import json
-import re
 
-from fluxclient.robot import connect_robot, RobotError
+from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
-from fluxclient import encryptor as E
 
-# from fluxghost.upnp.robot import RobotSocket
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -30,6 +24,10 @@ ws.send("ls")
 """
 
 
+STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
+STAGE_AUTH = '{"status": "connecting", "stage": "auth"}'
+
+
 class WebsocketControl(WebSocketBase):
     POOL_TIME = 1.0
     binary_sock = None
@@ -39,11 +37,11 @@ class WebsocketControl(WebSocketBase):
 
         self.serial = serial
 
-        try:
-            logger.debug("DISCOVER")
-            self.send_text("connecting")
-            task = self._discover(self.serial)
+        logger.debug("Discover....")
+        self.send_text(STAGE_DISCOVER)
+        task = self._discover(self.serial)
 
+        try:
             logger.debug("AUTH")
             self.send_text("connecting")
             auth_result = task.require_auth()
