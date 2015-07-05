@@ -2,14 +2,20 @@
 
 from __future__ import absolute_import
 
-import fluxclient
-
-if fluxclient.VERSION < ('0', '4a4'):
-    raise RuntimeError("Your fluxclient need to update (>=0.4a4)")
-
 import argparse
 import logging
 import sys
+
+
+def check_fluxclient():
+    from fluxclient import VERSION as fluxclient_version
+    sys.modules.pop("fluxclient")
+    if fluxclient_version < ('0', '4a4'):
+        raise RuntimeError("Your fluxclient need to update (>=0.4a4)")
+
+
+check_fluxclient()
+
 
 def setup_logger(debug):
     LOG_TIMEFMT = "%Y-%m-%d %H:%M:%S"
@@ -37,7 +43,10 @@ parser.add_argument('-d', '--debug', dest='debug', action='store_const',
 options = parser.parse_args()
 setup_logger(debug=options.debug)
 
-from fluxghost.http_server import HttpServer
+if options.debug:
+    from fluxghost.http_server_debug import HttpServer
+else:
+    from fluxghost.http_server import HttpServer
 
 server = HttpServer(assets_path=options.assets,
                     address=(options.ipaddr, options.port,),)
