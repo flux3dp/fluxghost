@@ -2,10 +2,12 @@
 from select import select
 from io import BytesIO
 import logging
+import os
 
 from fluxghost.utils.websocket import WebSocketHandler, ST_NORMAL, \
     ST_GOING_AWAY, ST_INVALID_PAYLOAD
 
+SIMULATE = "flux_simulate" in os.environ
 logger = logging.getLogger("WS.BASE")
 
 

@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import argparse
 import logging
 import sys
+import os
 
 
 def check_fluxclient():
@@ -39,6 +40,8 @@ parser.add_argument("--port", dest='port', type=int, default=8000,
                     help="Port")
 parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                     const=True, default=False, help='Enable debug')
+parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
+                    const=True, default=False, help='Simulate data')
 
 options = parser.parse_args()
 setup_logger(debug=options.debug)
@@ -47,6 +50,10 @@ if options.debug:
     from fluxghost.http_server_debug import HttpServer
 else:
     from fluxghost.http_server import HttpServer
+
+if options.simulate:
+    os.environ["flux_simulate"] = "1"
+
 
 server = HttpServer(assets_path=options.assets,
                     address=(options.ipaddr, options.port,),)

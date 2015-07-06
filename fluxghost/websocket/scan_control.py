@@ -20,7 +20,7 @@ import struct
 import os
 import re
 
-from .base import WebSocketBase, ST_NORMAL
+from .base import WebSocketBase, SIMULATE, ST_NORMAL
 from fluxclient.scanner.tools import read_pcd
 
 # <<<<<<<< Fake Code
@@ -55,6 +55,15 @@ class Websocket3DScanControl(WebSocketBase):
             self.send_text("ok %i" % len(buf))
             self.send_binary(buf)
             self.send_text("finished")
+
+    if SIMULATE:
+        def _scan(self):
+            # Simulate Code Here
+            pass
+    else:
+        def _scan(self):
+            # Real Code Here
+            pass
 
     def _scan(self):
         logger.debug('scanning')
