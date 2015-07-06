@@ -32,3 +32,5 @@ class HttpServer(HttpServerBase):
         w = Process(target=fork_entry, args=(request, client, self))
         w.daemon = True
         w.start()
+
+        request.close()
