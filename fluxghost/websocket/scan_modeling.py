@@ -81,7 +81,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
             totel_length = (llen + rlen) * 24
         except ValueError:
             raise RuntimeError("BAD_PARAM_TYPE", "upload param error")
-        logger.debug('uploading' + name)
+        logger.debug('uploading ' + name)
         helepr = BinaryUploadHelper(totel_length, self._end_upload,
                                     name, llen, rlen)
         self.set_binary_helper(helepr)
