@@ -64,7 +64,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_fatal(e.args[0])
 
     def set_params(self, params):
-        options = params.split(",")
+        options = params.split(" ")
         self.images = []
 
         if options[0] == "0":
@@ -85,7 +85,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
             raise RuntimeError("BAD_PARAM_TYPE")
 
     def begin_recv_image(self, message):
-        options = message.split(",")
+        options = message.split(" ")
         w, h = int(options[0]), int(options[1])
         x1, y1, x2, y2 = (float(o) for o in options[2:6])
         rotation = float(options[6])

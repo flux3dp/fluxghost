@@ -1,20 +1,4 @@
 
-"""
-This websocket is use to convert bitmap to G-code
-
-Javascript Example:
-
-ws = new WebSocket("ws://localhost:8000/ws/bitmap-laser-parser");
-ws.onmessage = function(v) { console.log(v.data);}
-ws.onclose = function(v) { console.log("CONNECTION CLOSED"); }
-
-ws.send("0,1,WOOD")
-ws.send("100,100,-3,-3,3,3")
-buf = new ArrayBuffer(10000)
-ws.send(buf)
-ws.send('go')
-"""
-
 from io import BytesIO
 import logging
 
@@ -38,7 +22,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     #    [(x1, y1, x2, z2), (w, h), bytes],
     #    ....
     # ]
-    images = None
+    m_laser_svg = LaserSvg()
 
     def on_text_message(self, message):
         try:
@@ -46,8 +30,19 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.set_params(message)
                 self.send_text('{"status": "ok"}')
             elif self.operation and not self.has_binary_helper():
-                if message == "go":
-                    self.process_image()
+                cmd, params = message.rstrip().split(" ", 1)
+
+                if cmd == "go":
+                    self.generate_gcode()
+                elif cmd == "upload":
+                    self.begin_recv_svg(params)
+                    self.send_text('{"status": "ok"}')
+
+                elif cmd == "get":
+                    self.get(params)
+                elif cmd == "compute":
+                    self.compute(params)
+
                 else:
                     self.begin_recv_image(message)
                     # self.recv_image(message)
@@ -63,8 +58,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_fatal(e.args[0])
 
     def set_params(self, params):
-        options = params.split(",")
-        self.images = []
+        options = params.split(" ")
 
         if options[0] == "0":
             self.operation = MODE_PRESET
@@ -83,47 +77,34 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         else:
             raise RuntimeError("BAD_PARAM_TYPE")
 
-    def begin_recv_image(self, message):
-        options = message.split(",")
-
-        w, h = int(options[0]), int(options[1])
-        x1, y1, x2, y2 = (float(o) for o in options[2:6])
-        rotation = float(options[6])
-        svg_len = int(options[7])
-
-        logger.debug("Start image at [%.4f, %.4f][%.4f,%.4f] x [%i, %i], rotation = %.4f svg_len = %d" %
-                     (x1, y1, x2, y2, w, h, rotation, svg_len))
-        if image_size > 1024 * 1024 * 8:
-            raise RuntimeError("IMAGE_TOO_LARGE")
-
-        helper = BinaryUploadHelper(svg_len, self.end_recv_image,
-                                    (x1, y1, x2, y2), (w, h), rotation, svg_len)
+    def begin_recv_svg(self, message):
+        name, file_length = message.split(" ")
+        helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name)
         self.set_binary_helper(helper)
+        self.send_text('{"status": "continue"}')
 
-    def end_recv_image(self, buf, position, size, rotation, svg_len):
-        self.images.append((position, size, rotation, svg_len, buf))
-        self.send_text('{"status": "accept"}')
+    def end_recv_svg(self, buf, name):
+        m_laser_svg.pretreat(buf)
+        self.m_laser_svg.svgs[name] = [buf]
+        self.send_text('{"status": "accepted"}')
 
-    def process_image(self):
-        m_laser_svg = LaserSvg()
+    def get(self, name):
+        self.send_text('{"status": "continue", "length" : %d}' % len(self.m_laser_svg.svgs[name]))
+        self.send_binary(self.m_laser_svg.svgs[name])
 
-        layer_index = 0
-        total = float(len(self.images))
+    def compute(self, params):
+        options = params.split(' ')
+        name = options[0]
+        w, h = int(options[1]), int(options[2])
+        x1, y1, x2, y2 = (float(o) for o in options[3:7])
+        rotation = float(options[7])
+        svg_length = int(options[8])
+        self.begin_recv_svg('%s %d' % (name, svg_length, holder))
 
-        for position, size, rotation, svg_len, buf in self.images:
-            m_laser_svg.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation)
+        self.m_laser_svg.svgs[name] += [w, h, x1, y1, x2, y2, rotation]
+        self.send_text('{"status": "ok"}')
 
-            logger.debug("Process image at %s pixel: %s" % (position, size))
-            progress = layer_index / total
-            self.send_text(
-                '{"status": "processing", "prograss": %.3f}' % progress)
-            layer_index += 1
-        output_binary = m_laser_svg.gcode_generate().encode()
-
-        self.send_text('{"status": "processing", "prograss": 1.0}')
-        self.send_text('{"status": "complete", "length": %s}' %
-                       len(output_binary))
-
+    def generate_gcode(self):
+        output_binary = self.m_laser_svg.gcode_generate().encode()
+        self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
-
-        self.close(ST_NORMAL, "bye")
