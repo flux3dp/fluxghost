@@ -24,6 +24,8 @@ import re
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
+
+from fluxclient import SUPPORT_PCL
 from fluxclient.scanner.pc_process import pc_process
 
 logger = logging.getLogger("WS.3DSCAN-MODELING")
@@ -107,6 +109,10 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "ok"}')
 
     def delete_noise(self, params):
+        if not SUPPORT_PCL:
+            self.send_text('{"status": "ok"}')
+            return
+
         name_in, name_out, r = params.split(" ")
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)
