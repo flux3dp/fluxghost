@@ -32,17 +32,14 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             elif self.operation and not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
 
-                if cmd == "go":
-                    self.generate_gcode()
-                elif cmd == "upload":
-                    self.begin_recv_svg(params)
-                    self.send_text('{"status": "ok"}')
-
+                if cmd == "upload":
+                    self.begin_recv_svg(params, 'upload')
                 elif cmd == "get":
                     self.get(params)
                 elif cmd == "compute":
                     self.compute(params)
-
+                elif cmd == "go":
+                    self.generate_gcode()
                 else:
                     self.begin_recv_image(message)
                     # self.recv_image(message)
@@ -77,16 +74,19 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         else:
             raise RuntimeError("BAD_PARAM_TYPE")
 
-    def begin_recv_svg(self, message):
+    def begin_recv_svg(self, message, flag):
         name, file_length = message.split(" ")
-        helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name)
+        helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag)
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
 
-    def end_recv_svg(self, buf, name):
-        m_laser_svg.pretreat(buf)
-        self.m_laser_svg.svgs[name] = [buf]
-        self.send_text('{"status": "accepted"}')
+    def end_recv_svg(self, buf, name, *args):
+        if args[0] == 'upload':
+            self.m_laser_svg.pretreat(buf, name)
+        elif args[0] == 'compute':
+            self.m_laser_svg.compute(buf, name, args[1])
+
+        self.send_text('{"status": "ok"}')
 
     def get(self, name):
         self.send_text('{"status": "continue", "length" : %d}' % len(self.m_laser_svg.svgs[name]))
@@ -99,10 +99,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         x1, y1, x2, y2 = (float(o) for o in options[3:7])
         rotation = float(options[7])
         svg_length = int(options[8])
-        self.begin_recv_svg('%s %d' % (name, svg_length, holder))
-
-        self.m_laser_svg.svgs[name] += [w, h, x1, y1, x2, y2, rotation]
-        self.send_text('{"status": "ok"}')
+        self.begin_recv_svg('%s %d' % (name, svg_length), 'compute', [w, h, x1, y1, x2, y2, rotation])
 
     def generate_gcode(self):
         output_binary = self.m_laser_svg.gcode_generate().encode()
