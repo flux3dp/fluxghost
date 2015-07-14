@@ -82,7 +82,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def end_recv_svg(self, buf, name, *args):
         if args[0] == 'upload':
-            self.m_laser_svg.pretreat(buf, name)
+            self.m_laser_svg.preprocess(buf, name)
         elif args[0] == 'compute':
             self.m_laser_svg.compute(buf, name, args[1])
 
