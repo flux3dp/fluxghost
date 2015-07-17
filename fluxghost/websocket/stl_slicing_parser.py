@@ -23,7 +23,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def on_text_message(self, message):
         try:
-            elif self.operation and not self.has_binary_helper():
+            if self.operation and not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
                 if cmd == 'upload':
                     self.begin_recv_stl(params, 'upload')

@@ -6,7 +6,7 @@ from fluxghost.websocket.file import WebsocketFile
 from fluxghost.websocket.scan_modeling import Websocket3DScannModeling
 from fluxghost.websocket.laser_bitmap_parser import WebsocketLaserBitmapParser
 from fluxghost.websocket.laser_svg_parser import WebsocketLaserSvgParser
-from fluxghost.websocket.stl_slicing
+from fluxghost.websocket.stl_slicing_parser import Websocket3DSlicing
 
 
 from fluxghost.websocket.discover import WebsocketDiscover
