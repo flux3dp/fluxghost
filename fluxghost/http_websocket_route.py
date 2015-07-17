@@ -6,6 +6,7 @@ from fluxghost.websocket.file import WebsocketFile
 from fluxghost.websocket.scan_modeling import Websocket3DScannModeling
 from fluxghost.websocket.laser_bitmap_parser import WebsocketLaserBitmapParser
 from fluxghost.websocket.laser_svg_parser import WebsocketLaserSvgParser
+from fluxghost.websocket.stl_slicing
 
 
 from fluxghost.websocket.discover import WebsocketDiscover
@@ -24,6 +25,7 @@ ROUTES = [
     (re.compile("discover"), WebsocketDiscover),
     (re.compile("touch"), WebsocketTouch),
     (re.compile("control/(?P<serial>[0-9A-Z]{25})"), WebsocketControl),
+    (re.compile("3dprint-slicing"), Websocket3DSlicing),
     (re.compile("3d-scan-control/(?P<serial>[0-9A-Z]{25})"),
      Websocket3DScanControl)]
 

@@ -14,14 +14,8 @@ MODE_MANUALLY = "manually"
 
 
 class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
-    POOL_TIME = 30.0
     operation = None
 
-    # images, it will like
-    # [
-    #    [(x1, y1, x2, z2), (w, h), bytes],
-    #    ....
-    # ]
     m_laser_svg = LaserSvg()
 
     def on_text_message(self, message):
@@ -41,14 +35,12 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 elif cmd == "go":
                     self.generate_gcode()
                 else:
-                    self.begin_recv_image(message)
-                    # self.recv_image(message)
-                    self.send_text('{"status": "continue"}')
+                    raise ValueError('Undefine command %s' % (cmd))
             else:
                 raise RuntimeError("RESOURCE_BUSY")
 
         except ValueError:
-            logger.exception("Laser argument error")
+            logger.exception("Laser svg argument error")
             self.send_fatal("BAD_PARAM_TYPE")
 
         except RuntimeError as e:

@@ -30,8 +30,6 @@ MODE_MANUALLY = "manually"
 
 
 class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
-    POOL_TIME = 30.0
-
     operation = None
 
     # images, it will like
@@ -57,7 +55,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 raise RuntimeError("RESOURCE_BUSY")
 
         except ValueError:
-            logger.exception("Laser argument error")
+            logger.exception("Laser bitmap argument error")
             self.send_fatal("BAD_PARAM_TYPE")
 
         except RuntimeError as e:
