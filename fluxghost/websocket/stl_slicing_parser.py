@@ -11,6 +11,7 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 
+from fluxclient.printer.stl_slicer import StlSlicer
 
 logger = logging.getLogger("WS.LP")
 
@@ -51,7 +52,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def end_recv_stl(self, buf, name, *args):
         if args[0] == 'upload':
-            self.m_stl_slicer.upload(buf, name)
+            self.m_stl_slicer.upload(name, buf)
 
         self.send_text('{"status": "ok"}')
 
