@@ -23,10 +23,10 @@ import os
 import re
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
+    BinaryUploadHelper, SIMULATE
 
 from fluxclient import SUPPORT_PCL
-from fluxclient.scanner.pc_process import pc_process
+from fluxclient.scanner.pc_process import pc_process, pc_process_no_pcl
 
 logger = logging.getLogger("WS.3DSCAN-MODELING")
 
@@ -35,9 +35,10 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
 
-        # self._data_sets = {}
-        # self._base_data_set = None
-        self.m_pc_process = pc_process()
+        if not SIMULATE:
+            self.m_pc_process = pc_process()
+        if SIMULATE:
+            self.m_pc_process = pc_process_no_pcl()
 
         self._uploading = None
 
@@ -95,11 +96,6 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         right_points = buf[left_len * 24:]
         self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)
         self.send_text('{"status": "ok"}')
-
-    def set_base(self, name):
-        pass
-        # if name in self._data_sets:
-        #     self._base_data_set = object()
 
     def cut(self, params):
         name_in, name_out, mode, direction, value = params.split(" ")
