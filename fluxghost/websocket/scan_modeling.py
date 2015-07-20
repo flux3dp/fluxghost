@@ -123,7 +123,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "ok"}')
         logger.debug('dump %s done' % (name))
 
-    def export(self):
+    def export(self, params):
         name, file_foramt = params.split(" ")
         buf = self.m_pc_process.export(name, file_foramt)
         self.send_text('{"status": "continue", "length": %d}' % (len(buf)))
