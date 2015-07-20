@@ -62,9 +62,9 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.delete_noise(params)
             elif cmd == "dump":
                 self.dump(params)
-
             elif cmd == "export":
-                pass
+                self.export(params)
+
         except RuntimeError as e:
             self.send_fatal(e.args[0])
             logger.error(e)
@@ -124,4 +124,9 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         logger.debug('dump %s done' % (name))
 
     def export(self):
-        pass
+        name, file_foramt = params.split(" ")
+        buf = self.m_pc_process.export(name, file_foramt)
+        self.send_text('{"status": "continue", "length": %d}' % (len(buf)))
+        self.send_binary(buf)
+        self.send_text('{"status": "ok"}')
+        logger.debug('export %s as .%s file done' % (name, file_foramt))
