@@ -43,25 +43,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 
     def __init__(self, *args, serial):
         WebsocketControlBase.__init__(self, *args, serial=serial)
-
-        try:
-            position = self.robot.position()
-
-            if position == "CommandTask":
-                ret = self.robot.begin_scan()
-                if ret == "ok":
-                    self.send_text('{"status": "ready"}')
-                    self.ready = True
-                else:
-                    self.send_error('DEVICE_ERROR', ret)
-            else:
-                self.send_error('DEVICE_BUSY', position)
-
-        except RuntimeError as err:
-            if err.args[0] == "RESOURCE_BUSY":
-                self.send_error('DEVICE_BUSY', err.args[-1])
-            else:
-                self.send_error('DEVICE_ERROR', err.args[0])
+        self.try_control()
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
@@ -70,6 +52,9 @@ class Websocket3DScanControl(WebsocketControlBase):
     def on_text_message(self, message):
         if message == "take_control":
             self.take_control()
+
+        elif message == "retry":
+            self.try_control()
 
         elif message == "image":
             self.fetch_image()
@@ -93,6 +78,29 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         else:
             self.send_error("UNKNOW_COMMAND", message)
+
+    def try_control(self):
+        if self.ready:
+            self.send_error("ALREADY_READY")
+
+        try:
+            position = self.robot.position()
+
+            if position == "CommandTask":
+                ret = self.robot.begin_scan()
+                if ret == "ok":
+                    self.send_text('{"status": "ready"}')
+                    self.ready = True
+                else:
+                    self.send_error('DEVICE_ERROR', ret)
+            else:
+                self.send_error('DEVICE_BUSY', position)
+
+        except RuntimeError as err:
+            if err.args[0] == "RESOURCE_BUSY":
+                self.send_error('DEVICE_BUSY', err.args[-1])
+            else:
+                self.send_error('DEVICE_ERROR', err.args[0])
 
     def take_control(self):
         if self.ready:
