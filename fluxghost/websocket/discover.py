@@ -5,7 +5,7 @@ import json
 
 from fluxclient.upnp.discover import UpnpDiscover
 from fluxclient.upnp.misc import uuid_to_short
-from .base import WebSocketBase
+from .base import WebSocketBase, SIMULATE
 
 logger = logging.getLogger("WS.DISCOVER")
 
@@ -39,6 +39,13 @@ class WebsocketDiscover(WebSocketBase):
         self.devices = {}
 
         self.rlist.append(self.discover)
+
+        if SIMULATE:
+            self.send_text(
+                self.build_response(
+                    serial="0"*32, model_id="magic", timestemp=0,
+                    version="god knows", has_passwd=False, ipaddrs="1.1.1.1"))
+
         self.POOL_TIME = 0.3
 
     def on_text_message(self, message):

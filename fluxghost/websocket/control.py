@@ -26,39 +26,31 @@ ws.send("ls")
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_AUTH = '{"status": "connecting", "stage": "auth"}'
+STAGE_CALL_ROBOT = '{"status": "connecting", "stage": "call_robot"}'
+STAGE_CONNECTED = '{"status": "connected"}'
 
 
-class WebsocketControl(WebSocketBase):
-    POOL_TIME = 1.0
-    binary_sock = None
-
+class WebsocketControlBase(WebSocketBase):
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
-
         self.serial = serial
 
-        logger.debug("Discover....")
         self.send_text(STAGE_DISCOVER)
         task = self._discover(self.serial)
 
         try:
             logger.debug("AUTH")
-            self.send_text("connecting")
-            auth_result = task.require_auth()
+            self.send_text(STAGE_DISCOVER)
+            task.require_auth()
 
-        except RuntimeError:
-            self.send_text("timeout")
+        except RuntimeError as e:
+            self.send_text("error %s" % e.args[0])
             self.close()
             raise
 
-        if auth_result and auth_result.get("status") != "ok":
-            self.send_text("no_auth")
-            self.close()
-            raise RuntimeError("NO AUTH")
-
         try:
             logger.debug("REQUIRE ROBOT")
-            self.send_text("connecting")
+            self.send_text(STAGE_DISCOVER)
             resp = task.require_robot()
 
             if not resp:
@@ -74,8 +66,11 @@ class WebsocketControl(WebSocketBase):
         self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
                                    conn_callback=self._conn_callback)
 
-        self.send_text("connected")
-        self.set_hooks()
+        self.send_text(STAGE_CONNECTED)
+
+    def _conn_callback(self, *args):
+        self.send_text(STAGE_CALL_ROBOT)
+        return True
 
     def _discover(self, serial):
         task = UpnpTask(self.serial)
@@ -83,10 +78,13 @@ class WebsocketControl(WebSocketBase):
 
         return task
 
-    def _conn_callback(self, *args):
-        logger.debug("CONNECTING")
-        self.send_text("connecting")
-        return True
+
+class WebsocketControl(WebsocketControlBase):
+    binary_sock = None
+
+    def __init__(self, *args, serial):
+        WebsocketControlBase.__init__(self, *args, serial=serial)
+        self.set_hooks()
 
     def set_hooks(self):
         self.simple_mapping = {

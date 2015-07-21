@@ -53,7 +53,7 @@
     }
     var serial = $("#device_label").attr("data-serial");
     appendLog("Connect to " + serial);
-    var ws = new WebSocket("ws://localhost:8000/ws/control/" + serial);
+    var ws = new WebSocket("ws://localhost:8000/ws/3d-scan-control/" + serial);
     window.control_ws = ws;
 
     control_ws.onclose = ws_close_handler("Control");
@@ -61,7 +61,7 @@
       try {
         var payload = JSON.parse(m.data);
         if(payload.status === "connecting") {
-          appendLog("Connecting...", "#444");
+          appendLog("Connecting... (" + (payload.stage || "?") + ")", "#444");
         } else if(payload.status === "connected") {
           appendLog("➜ Ready");
           appendLog("😀😀😀");
@@ -169,7 +169,7 @@
 <body>
   <div class="container">
     <h1>
-      ./fluxghost/assets/control.html
+      ./fluxghost/assets/scan-control.html
     </h1>
   </div>
   <hr />

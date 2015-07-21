@@ -32,6 +32,24 @@ class WebSocketBase(WebSocketHandler):
         finally:
             self.request.close()
 
+    def send_ok(self, info=None):
+        if info:
+            self.send_text('{"status": "ok", "info": "%s"}' % info)
+        else:
+            self.send_text('{"status": "ok"}')
+
+    def send_binary_begin(self, mime, length):
+        self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
+                       (length, mime))
+
+    def send_error(self, errcode, info=None):
+        if info:
+            self.send_text(
+                '{"status": "error", "error": "%s", "info":"%s"}' % (errcode,
+                                                                     info))
+        else:
+            self.send_text('{"status": "error", "error": "%s"}' % errcode)
+
     def send_fatal(self, error):
         self.send_text('{"status": "fatal", "error": "%s"}' % error)
         self.close(ST_INVALID_PAYLOAD, error)
@@ -55,7 +73,7 @@ class WebsocketBinaryHelperMixin(object):
     def on_binary_message(self, buf):
         try:
             if self._binary_helper:
-                if self._binary_helper.feed(buf) == True:
+                if self._binary_helper.feed(buf) is True:
                     self._binary_helper = None
             else:
                 raise RuntimeError("BAD_PROTOCOL", "no binary accept")

@@ -13,6 +13,7 @@ from fluxghost.websocket.discover import WebsocketDiscover
 from fluxghost.websocket.touch import WebsocketTouch
 from fluxghost.websocket.control import WebsocketControl
 from fluxghost.websocket.scan_control import Websocket3DScanControl
+from fluxghost.websocket.scan_control import SimulateWebsocket3DScanControl
 
 
 ROUTES = [
@@ -21,6 +22,10 @@ ROUTES = [
     (re.compile("3d-scan-modeling"), Websocket3DScannModeling),
     (re.compile("bitmap-laser-parser"), WebsocketLaserBitmapParser),
     (re.compile("svg-laser-parser"), WebsocketLaserSvgParser),
+
+    # Simulate
+    (re.compile("3d-scan-control/(?P<serial>[1]{25})"),
+     SimulateWebsocket3DScanControl),
 
     (re.compile("discover"), WebsocketDiscover),
     (re.compile("touch"), WebsocketTouch),
