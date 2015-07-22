@@ -33,7 +33,8 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 elif cmd == "compute":
                     self.compute(params)
                 elif cmd == "go":
-                    self.generate_gcode()
+                    # self.begin_recv_svg(params, 'go')
+                    self.go(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
             else:
@@ -66,19 +67,23 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         else:
             raise RuntimeError("BAD_PARAM_TYPE")
 
-    def begin_recv_svg(self, message, flag):
+    def begin_recv_svg(self, message, flag, *args):
         name, file_length = message.split(" ")
-        helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag)
+        helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag, args[0])
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
 
     def end_recv_svg(self, buf, name, *args):
         if args[0] == 'upload':
             self.m_laser_svg.preprocess(buf, name)
+            self.send_text('{"status": "ok"}')
         elif args[0] == 'compute':
             self.m_laser_svg.compute(buf, name, args[1])
-
-        self.send_text('{"status": "ok"}')
+            self.send_text('{"status": "ok"}')
+        elif args[0] == 'go':
+            output_binary = self.m_laser_svg.gcode_generate(args[1], buf).encode()
+            self.send_text('{"status": "complete","length": %d}' % len(output_binary))
+            self.send_binary(output_binary)
 
     def get(self, name):
         self.send_text('{"status": "continue", "length" : %d}' % len(self.m_laser_svg.svgs[name]))
@@ -93,7 +98,6 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         svg_length = int(options[8])
         self.begin_recv_svg('%s %d' % (name, svg_length), 'compute', [w, h, x1, y1, x2, y2, rotation])
 
-    def generate_gcode(self):
-        output_binary = self.m_laser_svg.gcode_generate().encode()
-        self.send_text('{"status": "complete","length": %d}' % len(output_binary))
-        self.send_binary(output_binary)
+    def go(self, params):
+        names = params.split(' ')
+        self.begin_recv_svg('tmp %s' % names[-1], 'go', names[:-1])
