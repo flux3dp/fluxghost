@@ -77,7 +77,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.m_laser_svg.preprocess(buf, name)
             self.send_text('{"status": "ok"}')
         elif args[0] == 'compute':
-            self.m_laser_svg.compute(buf[:args[1][-1]], name, args[1][:-2] + [buf[args[1][-1]:]])
+            self.m_laser_svg.compute(buf[:args[1][-2]], name, args[1][:-2] + [buf[args[1][-2]:]])
             self.send_text('{"status": "ok"}')
 
     def get(self, name):
