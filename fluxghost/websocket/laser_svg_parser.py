@@ -27,7 +27,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 cmd, params = message.rstrip().split(" ", 1)
 
                 if cmd == "upload":
-                    self.begin_recv_svg(params, 'upload')
+                    self.begin_recv_svg(params, 'upload', None)
                 elif cmd == "get":
                     self.get(params)
                 elif cmd == "compute":
