@@ -87,7 +87,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def compute(self, params):
         options = params.split(' ')
         name = options[0]
-        w, h = int(options[1]), int(options[2])
+        w, h = float(options[1]), float(options[2])
         x1, y1, x2, y2 = (float(o) for o in options[3:7])
         rotation = float(options[7])
         svg_length = int(options[8])
