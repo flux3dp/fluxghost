@@ -23,7 +23,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def on_text_message(self, message):
         try:
-            if self.operation and not self.has_binary_helper():
+            if not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
                 if cmd == 'upload':
                     self.begin_recv_stl(params, 'upload')
@@ -66,8 +66,10 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         rotation_x = float(params[4])
         rotation_y = float(params[5])
         rotation_z = float(params[6])
-        scale = float(params[7])
-        self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale])
+        scale_x = float(params[7])
+        scale_y = float(params[8])
+        scale_z = float(params[9])
+        self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
 
         self.send_text('{"status": "ok"}')
 
