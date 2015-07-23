@@ -33,7 +33,6 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 elif cmd == "compute":
                     self.compute(params)
                 elif cmd == "go":
-                    # self.begin_recv_svg(params, 'go')
                     self.go(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
@@ -78,12 +77,8 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.m_laser_svg.preprocess(buf, name)
             self.send_text('{"status": "ok"}')
         elif args[0] == 'compute':
-            self.m_laser_svg.compute(buf, name, args[1])
+            self.m_laser_svg.compute(buf[:args[1][-1]], name, args[1][:-2] + [buf[args[1][-1]:]])
             self.send_text('{"status": "ok"}')
-        elif args[0] == 'go':
-            output_binary = self.m_laser_svg.gcode_generate(args[1], buf).encode()
-            self.send_text('{"status": "complete","length": %d}' % len(output_binary))
-            self.send_binary(output_binary)
 
     def get(self, name):
         self.send_text('{"status": "continue", "length" : %d}' % len(self.m_laser_svg.svgs[name]))
@@ -96,8 +91,11 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         x1, y1, x2, y2 = (float(o) for o in options[3:7])
         rotation = float(options[7])
         svg_length = int(options[8])
-        self.begin_recv_svg('%s %d' % (name, svg_length), 'compute', [w, h, x1, y1, x2, y2, rotation])
+        bitmap_length = int(options[9])
+        self.begin_recv_svg('%s %d' % (name, svg_length + bitmap_length), 'compute', [w, h, x1, y1, x2, y2, rotation, svg_length, bitmap_length])
 
     def go(self, params):
         names = params.split(' ')
-        self.begin_recv_svg('tmp %s' % names[-1], 'go', names[:-1])
+        output_binary = self.m_laser_svg.gcode_generate(names).encode()
+        self.send_text('{"status": "complete","length": %d}' % len(output_binary))
+        self.send_binary(output_binary)
