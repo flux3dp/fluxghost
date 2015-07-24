@@ -9,7 +9,7 @@ import logging
 
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
+    BinaryUploadHelper, ST_NORMAL, SIMULATE
 
 from fluxclient.printer.stl_slicer import StlSlicer, StlSlicer_no_pcl
 
