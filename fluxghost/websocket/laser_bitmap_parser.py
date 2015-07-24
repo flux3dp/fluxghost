@@ -23,7 +23,7 @@ from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
 
 from fluxclient.laser.laser_bitmap import LaserBitmap
 
-logger = logging.getLogger("WS.LP")
+logger = logging.getLogger("WS.Laser Bitmap")
 
 MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
@@ -55,13 +55,14 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 raise RuntimeError("RESOURCE_BUSY")
 
         except ValueError:
-            logger.exception("Laser bitmap argument error")
+            logger.exception("Laser bitmap argument error: %s" % message)
             self.send_fatal("BAD_PARAM_TYPE")
 
         except RuntimeError as e:
             self.send_fatal(e.args[0])
 
     def set_params(self, params):
+        logger.debug("  Set params: %s" % params)
         options = params.split(" ")
         self.images = []
 
@@ -91,7 +92,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
         image_size = w * h
 
-        logger.debug("Start image at [%.4f, %.4f][%.4f,%.4f] x [%i, %i], rotation = %.4f thres = %d" %
+        logger.debug("  Start recv image at [%.4f, %.4f][%.4f,%.4f] x [%i, %i], rotation = %.4f thres = %d" %
                      (x1, y1, x2, y2, w, h, rotation, thres))
         if image_size > 1024 * 1024 * 8:
             raise RuntimeError("IMAGE_TOO_LARGE")
@@ -105,6 +106,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{"status": "accept"}')
 
     def process_image(self):
+        logger.debug('  start process images')
         m_laser_bitmap = LaserBitmap()
 
         layer_index = 0

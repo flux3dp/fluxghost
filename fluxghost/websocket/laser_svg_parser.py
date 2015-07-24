@@ -7,7 +7,7 @@ from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
 
 from fluxclient.laser.laser_svg import LaserSvg
 
-logger = logging.getLogger("WS.LP")
+logger = logging.getLogger("WS.Laser Svg")
 
 MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
@@ -27,6 +27,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 cmd, params = message.rstrip().split(" ", 1)
 
                 if cmd == "upload":
+
                     self.begin_recv_svg(params, 'upload', None)
                 elif cmd == "get":
                     self.get(params)
@@ -74,9 +75,11 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def end_recv_svg(self, buf, name, *args):
         if args[0] == 'upload':
+            logger.debug("upload name:%s" % (name))
             self.m_laser_svg.preprocess(buf, name)
             self.send_text('{"status": "ok"}')
         elif args[0] == 'compute':
+            logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
             self.m_laser_svg.compute(buf[:args[1][-2]], name, args[1][:-2] + [buf[args[1][-2]:]])
             self.send_text('{"status": "ok"}')
 
@@ -96,6 +99,8 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def go(self, params):
         names = params.split(' ')
+        logger.debug("upload names:%s" % (" ".join(names)))
+
         output_binary = self.m_laser_svg.gcode_generate(names).encode()
         self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
