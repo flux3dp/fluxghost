@@ -82,5 +82,5 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
     def generate_gcode(self, params):
         names = params.split(' ')
         gcode_buf, metadata = self.m_stl_slicer.generate_gcode(names)
-        self.send_text('{status: "complete",length: %d, time: %d}' % (len(gcode_buf), int(metadata[0])))
+        self.send_text('{status: "complete", length: %d, time: %.3f, filament_length: %.2f}' % (len(gcode_buf), metadata[0], metadata[1]))
         self.send_binary(gcode_buf)
