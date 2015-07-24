@@ -53,7 +53,7 @@
     }
     var serial = $("#device_label").attr("data-serial");
     appendLog("Connect to " + serial);
-    var ws = new WebSocket("ws://localhost:8000/ws/3d-scan-control/" + serial);
+    var ws = new WebSocket("ws://" + window.location.host + "/ws/3d-scan-control/" + serial);
     window.control_ws = ws;
 
     control_ws.onclose = ws_close_handler("Control");

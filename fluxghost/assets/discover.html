@@ -9,7 +9,7 @@
   <script src="shared.js"></script>
   <script>
   $(window).ready(function() {
-    window.discover_ws = new WebSocket("ws://localhost:8000/ws/discover");
+    window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
     window.discover_ws.onopen = function() {
       appendLog("Connected", "#0000aa");
     };

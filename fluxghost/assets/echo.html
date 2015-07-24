@@ -9,7 +9,7 @@
   <script src="shared.js"></script>
   <script>
   $(window).ready(function() {
-    window.echo_ws = new WebSocket("ws://localhost:8000/ws/echo");
+    window.echo_ws = new WebSocket("ws://" + window.location.host + "/ws/echo");
     window.echo_ws.onopen = function() {
       appendLog("Echo Connected", "#0000aa");
     };

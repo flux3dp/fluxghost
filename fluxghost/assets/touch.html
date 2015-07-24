@@ -32,7 +32,7 @@
 
 
   function touch_without_password(serial, name, has_password) {
-    var ws = new WebSocket("ws://localhost:8000/ws/touch");
+    var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
     var close_normally = false;
 
     ws.onopen = function() {

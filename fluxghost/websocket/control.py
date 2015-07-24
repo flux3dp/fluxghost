@@ -81,6 +81,7 @@ class WebsocketControlBase(WebSocketBase):
 
 class WebsocketControl(WebsocketControlBase):
     binary_sock = None
+    raw_sock = None
 
     def __init__(self, *args, serial):
         WebsocketControlBase.__init__(self, *args, serial=serial)
@@ -110,6 +111,7 @@ class WebsocketControl(WebsocketControlBase):
             "upload": self.upload_file,
             "oneshot": self.oneshot,
             "scanimages": self.scanimages,
+            "raw": self.begin_raw,
         }
 
     def on_binary_message(self, buf):
@@ -127,6 +129,10 @@ class WebsocketControl(WebsocketControlBase):
             self.close()
 
     def on_text_message(self, message):
+        if self.raw_sock:
+            self.on_raw_message(message)
+            return
+
         args = message.split(" ", 1)
         cmd = args[0]
 
@@ -187,5 +193,31 @@ class WebsocketControl(WebsocketControlBase):
                 sent += 4016
         self.send_text("ok")
 
+    def begin_raw(self):
+        self.raw_sock = RawSock(self.robot.raw_mode(), self)
+        self.rlist.append(self.raw_sock)
+        self.send_text("ok")
+
+    def on_raw_message(self, message):
+        if message == "quit":
+            self.raw_sock.sock.send("quit")
+            self.raw_sock.on_read()
+            self.raw_sock = None
+        else:
+            self.raw_sock.sock.send(message.encode() + b"\n")
+    
     def on_loop(self):
         pass
+
+
+class RawSock(object):
+    def __init__(self, sock, ws):
+        self.sock = sock
+        self.ws = ws
+
+    def fileno(self):
+        return self.sock.fileno()
+
+    def on_read(self):
+        self.ws.send_text(self.sock.recv(128).decode("ascii", "ignore"))
+
