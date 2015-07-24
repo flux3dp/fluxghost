@@ -11,7 +11,7 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 
-from fluxclient.printer.stl_slicer import StlSlicer
+from fluxclient.printer.stl_slicer import StlSlicer, StlSlicer_no_pcl
 
 logger = logging.getLogger("WS.LP")
 
@@ -19,7 +19,13 @@ logger = logging.getLogger("WS.LP")
 class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
     POOL_TIME = 30.0
 
-    m_stl_slicer = StlSlicer()
+    def __init__(self, *args):
+        WebSocketBase.__init__(self, *args)
+
+        if not SIMULATE:
+            self.m_stl_slicer = StlSlicer()
+        if SIMULATE:
+            self.m_stl_slicer = StlSlicer_no_pcl()
 
     def on_text_message(self, message):
         try:
