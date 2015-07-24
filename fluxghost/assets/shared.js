@@ -30,7 +30,7 @@ function ws_close_handler(name) {
 function DiscoverWS(addCallback, removeCallback) {
     var self = this;
 
-    this.ws = new WebSocket("ws://localhost:8000/ws/discover");
+    this.ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
     this.ws.onopen = function() {
       appendLog("Discover WS Connected", "#0000aa");
     };
