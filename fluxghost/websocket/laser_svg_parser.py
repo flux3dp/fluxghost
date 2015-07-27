@@ -84,8 +84,8 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_text('{"status": "ok"}')
 
     def get(self, name):
-        self.send_text('{"status": "continue", "length" : %d}' % len(self.m_laser_svg.svgs[name]))
-        self.send_binary(self.m_laser_svg.svgs[name])
+        self.send_text('{"status": "continue", "length" : %d, "width": %f, "height": %f}' % (len(self.m_laser_svg.svgs[name][0]), self.m_laser_svg.svgs[name][1], self.m_laser_svg.svgs[name][2]))
+        self.send_binary(self.m_laser_svg.svgs[name][0])
 
     def compute(self, params):
         options = params.split(' ')
