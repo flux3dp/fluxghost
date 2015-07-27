@@ -37,6 +37,8 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
                     self.set(params)
                 elif cmd == 'go':
                     self.generate_gcode(params)
+                elif cmd == 'delete':
+                    self.delete(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
 
@@ -84,3 +86,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         gcode_buf, metadata = self.m_stl_slicer.generate_gcode(names)
         self.send_text('{status: "complete", length: %d, time: %.3f, filament_length: %.2f}' % (len(gcode_buf), metadata[0], metadata[1]))
         self.send_binary(gcode_buf)
+
+    def delete(self):
+        name = params.rstrip().split(' ')
+        self.m_stl_slicer.delete(name)
