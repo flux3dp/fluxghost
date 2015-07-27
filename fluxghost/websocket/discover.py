@@ -43,7 +43,7 @@ class WebsocketDiscover(WebSocketBase):
         if SIMULATE:
             self.send_text(
                 self.build_response(
-                    serial="0"*32, model_id="magic", timestemp=0,
+                    serial="0" * 32, model_id="magic", timestemp=0,
                     version="god knows", has_passwd=False, ipaddrs="1.1.1.1"))
 
         self.POOL_TIME = 0.3
@@ -107,7 +107,12 @@ class WebsocketDiscover(WebSocketBase):
             "serial": uuid_to_short(serial),
             "version": version,
             "alive": True,
-            "name": "My FLUX Printer",
+            # "name": "My FLUX Printer",
+
+            ############ fake code for vm #########
+            "name": "My FLUX Printer " + model_id,
+            #######################################
+
             "model": model_id,
             "password": has_passwd,
             "source": "lan"
