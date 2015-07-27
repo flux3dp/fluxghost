@@ -88,5 +88,6 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_binary(gcode_buf)
 
     def delete(self, params):
-        name = params.rstrip().split(' ')
+        name = params.rstrip()
         self.m_stl_slicer.delete(name)
+        self.send_text('{"status": "ok"}')
