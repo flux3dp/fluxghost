@@ -11,9 +11,9 @@ import logging
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE
 
-from fluxclient.printer.stl_slicer import StlSlicer, StlSlicer_no_pcl
+from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerNoPCL
 
-logger = logging.getLogger("WS.LP")
+logger = logging.getLogger("WS.slicing")
 
 
 class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
@@ -21,23 +21,29 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
-
         if not SIMULATE:
+            logger.info("Using StlSlicer()")
             self.m_stl_slicer = StlSlicer()
-        if SIMULATE:
-            self.m_stl_slicer = StlSlicer_no_pcl()
+
+        elif SIMULATE:
+            logger.info("Using StlSlicerNoPcl()")
+            self.m_stl_slicer = StlSlicerNoPCL()
 
     def on_text_message(self, message):
         try:
             if not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
                 if cmd == 'upload':
+                    logger.debug("upload %s" % (params))
                     self.begin_recv_stl(params, 'upload')
                 elif cmd == 'set':
+                    logger.debug("set %s" % (params))
                     self.set(params)
                 elif cmd == 'go':
+                    logger.debug("go %s" % (params))
                     self.generate_gcode(params)
                 elif cmd == 'delete':
+                    logger.debug("delete %s" % (params))
                     self.delete(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
@@ -47,7 +53,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
         except ValueError:
             logger.exception("slicing argument error")
-            self.send_fatal("BAD_PARAM_TYPE")
+            self.send_fatal("BAD_PARAM_TYPE %s" % (message))
 
         except RuntimeError as e:
             self.send_fatal(e.args[0])
@@ -66,7 +72,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def set(self, params):
         params = params.split(' ')
-        assert len(params) == 8, 'wrong number of parameters %d' % len(params)
+        assert len(params) == 10, 'wrong number of parameters %d' % len(params)
         name = params[0]
         position_x = float(params[1])
         position_y = float(params[2])
