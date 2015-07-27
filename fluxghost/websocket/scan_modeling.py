@@ -26,7 +26,7 @@ from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, SIMULATE
 
 from fluxclient import SUPPORT_PCL
-from fluxclient.scanner.pc_process import pc_process, pc_process_no_pcl
+from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
 
 logger = logging.getLogger("WS.3DSCAN-MODELING")
 
@@ -36,9 +36,9 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         WebSocketBase.__init__(self, *args)
 
         if not SIMULATE:
-            self.m_pc_process = pc_process()
+            self.m_pc_process = PcProcess()
         if SIMULATE:
-            self.m_pc_process = pc_process_no_pcl()
+            self.m_pc_process = PcProcessNoPCL()
 
         self._uploading = None
 
