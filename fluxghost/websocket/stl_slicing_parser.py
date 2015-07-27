@@ -87,6 +87,6 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_text('{status: "complete", length: %d, time: %.3f, filament_length: %.2f}' % (len(gcode_buf), metadata[0], metadata[1]))
         self.send_binary(gcode_buf)
 
-    def delete(self):
+    def delete(self, params):
         name = params.rstrip().split(' ')
         self.m_stl_slicer.delete(name)
