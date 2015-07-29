@@ -150,16 +150,16 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_error("BAD_PARAMS", "resolution")
             return
 
-        L.debug('Do scan')
+        L.debug('Do scan %d' % (self.current_step))
         ir, il, io = self.robot.scanimages()
         left_r, right_r = self.proc.feed(io[1], il[1], ir[1],
                                          self.current_step)
 
         self.current_step += 1
+
         self.send_text('{"status": "chunk", "left": %d, "right": %d}' %
                        (len(left_r), len(right_r)))
-        self.send_binary(b''.join(left_r))
-        self.send_binary(b''.join(right_r))
+        self.send_binary(b''.join(left_r + right_r))
         self.robot.scan_next()
         self.send_ok()
 
@@ -167,7 +167,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
     current_step = 0
-    mode = 'cube'
+    mode = 'pcd'
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
@@ -212,6 +212,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         if self.mode == 'pcd':
             if self.current_step > 0:
                 self.send_text('{"status": "chunk", "left": 0, "right": 0}')
+                self.send_binary(b'')
                 self.send_ok()
                 return
 
