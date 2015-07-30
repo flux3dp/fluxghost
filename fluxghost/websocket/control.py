@@ -99,7 +99,7 @@ class WebsocketControl(WebsocketControlBase):
             "quit": self.robot.quit_task,
 
             "scan": self.robot.begin_scan,
-            "scan_forword": self.robot.scan_forword,
+            "scan_backward": self.robot.scan_backward,
             "scan_next": self.robot.scan_next,
 
             "maintain": self.robot.begin_maintain,
@@ -148,6 +148,10 @@ class WebsocketControl(WebsocketControlBase):
 
         except RuntimeError as e:
             logger.error("RuntimeError%s" % repr(e.args))
+
+        except Exception as e:
+            logger.exception("Unknow Error")
+            self.send_text("UNKNOW_ERROR %s" % e.__class__)
 
     def simple_cmd(self, func, *args):
         try:
