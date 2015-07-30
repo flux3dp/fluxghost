@@ -60,10 +60,15 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
 
             elif cmd == "delete_noise":
                 self.delete_noise(params)
+
             elif cmd == "dump":
                 self.dump(params)
+
             elif cmd == "export":
                 self.export(params)
+
+            elif cmd == "merge":
+                self.merge(params)
 
         except RuntimeError as e:
             self.send_fatal(e.args[0])
@@ -103,6 +108,19 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         direction = direction[0] == 'T'
         self.m_pc_process.cut(name_in, name_out, mode, direction, value)
         self.send_text('{"status": "ok"}')
+
+    def merge(self, params):
+        name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split(" ")
+        x = float(x)
+        y = float(y)
+        z = float(z)
+        rx = float(rx)
+        ry = float(ry)
+        rz = float(rz)
+        if self.m_pc_process.merge(name_base, name_2, x, y, z, rx, ry, rz, name_out):
+            self.send_text('{"status": "ok"}')
+        else:
+            self.send_text('{status: "fatal", "error": "merge fail"}')
 
     def delete_noise(self, params):
         if not SUPPORT_PCL:

@@ -167,7 +167,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
     current_step = 0
-    mode = 'pcd'
+    mode = 'merge'
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
@@ -195,7 +195,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         elif message.startswith("resolution "):
             s_step = message.split(" ", 1)[-1]
             self.steps = int(s_step, 10)
-            self.current_step = 0
+            # self.current_step = 0
             self.send_ok(str(self.steps))
 
         elif message == "scan":
@@ -211,6 +211,40 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
     def scan(self):
         if self.mode == 'pcd':
             if self.current_step > 0:
+                self.send_text('{"status": "chunk", "left": 0, "right": 0}')
+                self.send_binary(b'')
+                self.send_ok()
+                return
+
+            self.current_step += 1
+            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..",
+                                        "assets")
+            if self.current_step == 0:
+                pc_L = read_pcd(PCD_LOCATION + '/pikachu.pcd')
+                self.send_text('{"status": "chunk", "left": %d, "right": 0}' %
+                               len(pc_L))
+                buf = []
+                for p in pc_L:
+                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
+                               p[3] / 255., p[4] / 255., p[5] / 255.))
+                buf = b''.join(buf)
+                self.send_binary(buf)
+
+            elif self.current_step == 400:
+                pc_R = read_pcd(PCD_LOCATION + '/pikachu90.pcd')
+                self.send_text('{"status": "chunk", "left": 0, "right": %d}' %
+                               len(pc_R))
+                buf = []
+                for p in pc_R:
+                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
+                               p[3] / 255., p[4] / 255., p[5] / 255.))
+                buf = b''.join(buf)
+                self.send_binary(buf)
+
+            self.send_ok()
+
+        elif self.mode == 'merge':
+            if self.current_step > 0 or self.current_step > 400:
                 self.send_text('{"status": "chunk", "left": 0, "right": 0}')
                 self.send_binary(b'')
                 self.send_ok()
