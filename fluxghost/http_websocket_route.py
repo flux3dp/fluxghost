@@ -3,6 +3,7 @@ import re
 
 from fluxghost.websocket.echo import WebsocketEcho
 from fluxghost.websocket.file import WebsocketFile
+from fluxghost.websocket.config import WebsocketConfig
 from fluxghost.websocket.scan_modeling import Websocket3DScannModeling
 from fluxghost.websocket.laser_bitmap_parser import WebsocketLaserBitmapParser
 from fluxghost.websocket.laser_svg_parser import WebsocketLaserSvgParser
@@ -19,6 +20,7 @@ from fluxghost.websocket.scan_control import SimulateWebsocket3DScanControl
 ROUTES = [
     (re.compile("echo"), WebsocketEcho),
     (re.compile("file"), WebsocketFile),
+    (re.compile("config"), WebsocketConfig),
     (re.compile("3d-scan-modeling"), Websocket3DScannModeling),
     (re.compile("bitmap-laser-parser"), WebsocketLaserBitmapParser),
     (re.compile("svg-laser-parser"), WebsocketLaserSvgParser),
