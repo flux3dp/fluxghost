@@ -20,14 +20,12 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def on_text_message(self, message):
         try:
-            if not self.operation:
-                self.set_params(message)
-                self.send_text('{"status": "ok"}')
-            elif self.operation and not self.has_binary_helper():
+            # if not self.operation:
+            #     self.preset(message)
+            #     self.send_text('{"status": "ok"}')
+            if not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
-
                 if cmd == "upload":
-
                     self.begin_recv_svg(params, 'upload', None)
                 elif cmd == "get":
                     self.get(params)
@@ -35,6 +33,9 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                     self.compute(params)
                 elif cmd == "go":
                     self.go(params)
+                elif cmd == 'set_params':
+                    self.set_params(params)
+
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
             else:
@@ -47,25 +48,25 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         except RuntimeError as e:
             self.send_fatal(e.args[0])
 
-    def set_params(self, params):
-        options = params.split(" ")
+    # def preset(self, params):
+    #     options = params.split(" ")
 
-        if options[0] == "0":
-            self.operation = MODE_PRESET
+    #     if options[0] == "0":
+    #         self.operation = MODE_PRESET
 
-            self.operation = options[1]
-            self.material = options[2]
-            # raise RuntimeError("TODO: parse operation and material")
-            self.laser_speed = 100.0
-            self.duty_cycle = 100.0
+    #         self.operation = options[1]
+    #         self.material = options[2]
+    #         # raise RuntimeError("TODO: parse operation and material")
+    #         self.laser_speed = 100.0
+    #         self.duty_cycle = 100.0
 
-        elif options[0] == "1":
-            self.operation = MODE_MANUALLY
+    #     elif options[0] == "1":
+    #         self.operation = MODE_MANUALLY
 
-            self.laser_speed = float(options[1])
-            self.duty_cycle = float(options[2])
-        else:
-            raise RuntimeError("BAD_PARAM_TYPE")
+    #         self.laser_speed = float(options[1])
+    #         self.duty_cycle = float(options[2])
+    #     else:
+    #         raise RuntimeError("BAD_PARAM_TYPE")
 
     def begin_recv_svg(self, message, flag, *args):
         name, file_length = message.split(" ")
@@ -104,3 +105,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         output_binary = self.m_laser_svg.gcode_generate(names).encode()
         self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
+
+    def set_params(self, params):
+        key, value = params.split(' ')
+        self.m_laser_svg.set_params(key, value)

@@ -38,15 +38,25 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     #    ....
     # ]
     images = None
+    m_laser_bitmap = LaserBitmap()
 
     def on_text_message(self, message):
         try:
-            if not self.operation:
-                self.set_params(message)
-                self.send_text('{"status": "ok"}')
-            elif self.operation and not self.has_binary_helper():
-                if message == "go":
+            # if not self.operation:
+            #     self.preset(message)
+            #     self.send_text('{"status": "ok"}')
+            if not self.has_binary_helper():
+                cmd = message.rstrip().split(" ", 1)
+                if len(cmd) == 1:
+                    cmd = cmd[0]
+                else:
+                    params = cmd[1]
+                    cmd = cmd[0]
+
+                if cmd == "go":
                     self.process_image()
+                elif cmd == 'set_params':
+                    self.set_params(params)
                 else:
                     self.begin_recv_image(message)
                     # self.recv_image(message)
@@ -61,27 +71,27 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         except RuntimeError as e:
             self.send_fatal(e.args[0])
 
-    def set_params(self, params):
-        logger.debug("  Set params: %s" % params)
-        options = params.split(" ")
-        self.images = []
+    # def preset(self, params):
+    #     logger.debug("  Set params: %s" % params)
+    #     options = params.split(" ")
+    #     self.images = []
 
-        if options[0] == "0":
-            self.operation = MODE_PRESET
+    #     if options[0] == "0":
+    #         self.operation = MODE_PRESET
 
-            self.operation = options[1]
-            self.material = options[2]
-            # raise RuntimeError("TODO: parse operation and material")
-            self.laser_speed = 100.0
-            self.duty_cycle = 100.0
+    #         self.operation = options[1]
+    #         self.material = options[2]
+    #         # raise RuntimeError("TODO: parse operation and material")
+    #         self.laser_speed = 100.0
+    #         self.duty_cycle = 100.0
 
-        elif options[0] == "1":
-            self.operation = MODE_MANUALLY
+    #     elif options[0] == "1":
+    #         self.operation = MODE_MANUALLY
 
-            self.laser_speed = float(options[1])
-            self.duty_cycle = float(options[2])
-        else:
-            raise RuntimeError("BAD_PARAM_TYPE")
+    #         self.laser_speed = float(options[1])
+    #         self.duty_cycle = float(options[2])
+    #     else:
+    #         raise RuntimeError("BAD_PARAM_TYPE")
 
     def begin_recv_image(self, message):
         options = message.split(" ")
@@ -105,22 +115,24 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.images.append((position, size, rotation, thres, buf))
         self.send_text('{"status": "accept"}')
 
+    def set_params(self, params):
+        key, value = params.split(' ')
+        self.m_laser_bitmap.set_params(key, value)
+
     def process_image(self):
         logger.debug('  start process images')
-        m_laser_bitmap = LaserBitmap()
-
         layer_index = 0
         total = float(len(self.images))
 
         for position, size, rotation, thres, buf in self.images:
-            m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation, thres)
+            self.m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation, thres)
 
             logger.debug("Process image at %s pixel: %s" % (position, size))
             progress = layer_index / total
             self.send_text(
                 '{"status": "processing", "prograss": %.3f}' % progress)
             layer_index += 1
-        output_binary = m_laser_bitmap.gcode_generate().encode()
+        output_binary = self.m_laser_bitmap.gcode_generate().encode()
 
         self.send_text('{"status": "processing", "prograss": 1.0}')
         self.send_text('{"status": "complete", "length": %s}' %
