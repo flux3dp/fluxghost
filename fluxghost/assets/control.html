@@ -68,7 +68,6 @@
             '<img src="ready.png" height="60px" />' +
             '<img src="ready.png" height="60px" />' +
             '<img src="ready.png" height="60px" />' + '</div>');
-          // appendLog("😀😀😀");
           control_ws.onmessage = cb_standard;
         } else {
           appendLog("✗ Error: "+ m.data + " 😭", "red");
@@ -86,7 +85,7 @@
 
   function cb_begin_upload(m) {
     if(m.data === "continue") {
-      appendLog(m.data);
+      appendLog("Uploading file, do not send any commnad before you recive 'ok'");
       var reader = new FileReader();
       reader.onload = file_uploader;
       reader.readAsArrayBuffer(window.upload_file)
