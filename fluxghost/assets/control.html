@@ -63,8 +63,12 @@
         if(payload.status === "connecting") {
           appendLog("Connecting...", "#444");
         } else if(payload.status === "connected") {
-          appendLog("➜ Ready");
-          appendLog("😀😀😀");
+          appendLog("➜ Ready")
+          appendHtmlLog('<div>' + 
+            '<img src="ready.png" height="60px" />' +
+            '<img src="ready.png" height="60px" />' +
+            '<img src="ready.png" height="60px" />' + '</div>');
+          // appendLog("😀😀😀");
           control_ws.onmessage = cb_standard;
         } else {
           appendLog("✗ Error: "+ m.data + " 😭", "red");
@@ -99,6 +103,22 @@
     window.control_ws.send(f.target.result);
   }
 
+  function send_cmd(cmd) {
+    if(window.control_ws) {
+      if(window.control_ws.readyState == 0) {
+        appendLog("⚠️ " + cmd, "rgb(208, 142, 40)");
+      } else if(window.control_ws.readyState == 1) {
+        window.control_ws.send(cmd);
+        appendLog("➦ " + cmd);
+      } else {
+        appendLog("⚠️ " + cmd, "rgb(208, 142, 40)");
+        window.control_ws = undefined;
+      }
+    } else {
+      appendLog("⚠️ " + cmd, "rgb(208, 142, 40)");
+    }
+  }
+
   $(window).ready(function() {
     $("[data-role=discover]").on("click", function() {
       if(window.discover_ws) {
@@ -127,21 +147,16 @@
     $("#controlcmd").on("keypress", function(e) {
       if(e.keyCode == 13) {
         var val = $(this).val();
-        if(window.control_ws) {
-          if(window.control_ws.readyState == 0) {
-            appendLog("⚠️ " + val, "rgb(208, 142, 40)");
-          } else if(window.control_ws.readyState == 1) {
-            window.control_ws.send(val);
-            appendLog("➦ " + val);
-          } else {
-            appendLog("⚠️ " + val, "rgb(208, 142, 40)");
-            window.control_ws = undefined;
-          }
-        } else {
-          appendLog("⚠️ " + val, "rgb(208, 142, 40)");
-        }
+        send_cmd(val);
         $(this).val("");
         return false;
+      }
+    });
+
+    $("[data-cmd]").bind("click", function() {
+      cl = $(this).attr("data-cmd").split(",")
+      for(var i=0;i<cl.length;i++) {
+        send_cmd(cl[i]);
       }
     });
 
@@ -187,12 +202,29 @@
     <div class="col-xs-10">
       <input id="controlcmd" type="text" class="form-control" />
     </div>
-    <div class="col-xs-2">
+    <div class="col-xs-2 text-right">
       <span class="btn btn-primary fileinput-button">
           <i class="glyphicon glyphicon-upload"></i>
           <span>Upload</span>
           <input type="file" name="file" />
       </span>
+    </div>
+  </div>
+  <div class="container device_control_ui">
+    <div class="col-xs-12">
+      <div style="margin: 5px 0">
+        懶懶 DER
+        <span data-cmd="position" class="btn btn-xs btn-default">Position</span>
+        <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
+        <span data-cmd="start" class="btn btn-xs btn-primary">Start</span>
+        <span data-cmd="abort" class="btn btn-xs btn-danger">Abort</span>
+        <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
+        <span data-cmd="raw" class="btn btn-xs btn-info">Raw</span>
+        <span data-cmd="G28" class="btn btn-xs btn-primary">G28</span>
+        <span data-cmd="G92 E0,G1 F200 E200" class="btn btn-xs btn-default">送料</span>
+        <span data-cmd="-H2000" class="btn btn-xs btn-default">-H2000</span>
+        <span data-cmd="-H2100" class="btn btn-xs btn-default">-H2100</span>
+      </div>
     </div>
   </div>
   <div class="container device_control_ui">

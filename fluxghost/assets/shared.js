@@ -11,6 +11,10 @@ function appendLog(text, color) {
   $("#log").prepend($row);
 }
 
+function appendHtmlLog(html) {
+    $("#log").prepend($(html));
+}
+
 function ws_close_handler(name) {
     return function(v) {
         if(v.code == 1000) {

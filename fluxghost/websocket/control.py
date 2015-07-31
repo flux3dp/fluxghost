@@ -101,6 +101,7 @@ class WebsocketControl(WebsocketControlBase):
             "scan": self.robot.begin_scan,
             "scan_backward": self.robot.scan_backward,
             "scan_next": self.robot.scan_next,
+            "kick": self.robot.kick,
 
             "maintain": self.robot.begin_maintain,
             "home": self.robot.maintain_home,
