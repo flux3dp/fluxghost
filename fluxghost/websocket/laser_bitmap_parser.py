@@ -37,14 +37,11 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     #    [(x1, y1, x2, z2), (w, h), bytes],
     #    ....
     # ]
-    images = None
+    images = []
     m_laser_bitmap = LaserBitmap()
 
     def on_text_message(self, message):
         try:
-            # if not self.operation:
-            #     self.preset(message)
-            #     self.send_text('{"status": "ok"}')
             if not self.has_binary_helper():
                 cmd = message.rstrip().split(" ", 1)
                 if len(cmd) == 1:
@@ -57,10 +54,10 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
                     self.process_image()
                 elif cmd == 'set_params':
                     self.set_params(params)
+                elif cmd == 'upload':
+                    self.begin_recv_image(params)
                 else:
-                    self.begin_recv_image(message)
-                    # self.recv_image(message)
-                    self.send_text('{"status": "continue"}')
+                    raise ValueError('undefine command')
             else:
                 raise RuntimeError("RESOURCE_BUSY")
 
@@ -110,6 +107,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         helper = BinaryUploadHelper(image_size, self.end_recv_image,
                                     (x1, y1, x2, y2), (w, h), rotation, thres)
         self.set_binary_helper(helper)
+        self.send_text('{"status": "continue"}')
 
     def end_recv_image(self, buf, position, size, rotation, thres):
         self.images.append((position, size, rotation, thres, buf))
@@ -130,11 +128,11 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
             logger.debug("Process image at %s pixel: %s" % (position, size))
             progress = layer_index / total
             self.send_text(
-                '{"status": "processing", "prograss": %.3f}' % progress)
+                '{"status": "processing", "progress": %.3f}' % progress)
             layer_index += 1
         output_binary = self.m_laser_bitmap.gcode_generate().encode()
 
-        self.send_text('{"status": "processing", "prograss": 1.0}')
+        self.send_text('{"status": "processing", "progress": 1.0}')
         self.send_text('{"status": "complete", "length": %s}' %
                        len(output_binary))
 
