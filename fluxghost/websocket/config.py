@@ -4,7 +4,7 @@ import dbm
 from os.path import expanduser
 
 
-from .base import WebSocketBase
+from .base import WebSocketBase, BinaryUploadHelper, WebsocketBinaryHelperMixin
 
 logger = logging.getLogger("WS.CONFIG")
 
@@ -12,7 +12,7 @@ WRITE_OP = "w"
 READ_OP = "r"
 
 
-class WebsocketConfig(WebSocketBase):
+class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
     operation = None
     config_path = ''
     config_file = 'FluxStudio'  # TODO: find a proper name~
@@ -46,6 +46,7 @@ class WebsocketConfig(WebSocketBase):
                 self.operation = WRITE_OP
                 self.db = dbm.open(self.config_path + self.config_file, 'c')
                 self.send('{"status": "opened"}')
+                self.begin_recv_binary(self.key)
 
             elif op == READ_OP:
                 self.operation = READ_OP
@@ -72,9 +73,19 @@ class WebsocketConfig(WebSocketBase):
             self.send("error UNKNOW_ERROR %s" % e)
             self.close()
 
-    def on_binary_message(self, buf):
-        if self.operation == WRITE_OP:
-            self.db[key] = buf
+    # def on_binary_message(self, buf):
+    #     if self.operation == WRITE_OP:
+    #         self.db[key] = buf
 
     def read_key(self):
         self.send_binary(self.db[key])
+
+    def begin_recv_binary(self, params):
+        key, data_length = params.split(' ')
+        helper = BinaryUploadHelper(int(data_length), self.end_recv_binary, key)
+        self.set_binary_helper(helper)
+        self.send_text('{"status": "continue"}')
+
+    def end_recv_binary(self, buf, key):
+        self.db[key] = buf
+        self.send_text('{"status": "ok"}')
