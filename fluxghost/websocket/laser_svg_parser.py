@@ -1,6 +1,7 @@
 
 from io import BytesIO
 import logging
+import sys
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
@@ -81,7 +82,11 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_text('{"status": "ok"}')
         elif args[0] == 'compute':
             logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
-            self.m_laser_svg.compute(buf[:args[1][-2]], name, args[1][:-2] + [buf[args[1][-2]:]])
+            # self.m_laser_svg.compute(buf[:args[1][-3]], name, args[1][:-2] + [buf[args[1][-3]:]])
+            params = args[1][:]  # copy
+            params.pop(7)
+            self.m_laser_svg.compute(name, [buf[:args[1][-3]]] + params + [buf[args[1][-3]:]])
+            # [svg_buf, w, h, x1_real, y1_real, x2_real, y2_real, rotation, bitmap_w, bitmap_h, bitmap_buf]
             self.send_text('{"status": "ok"}')
 
     def get(self, name):
@@ -95,8 +100,10 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         x1, y1, x2, y2 = (float(o) for o in options[3:7])
         rotation = float(options[7])
         svg_length = int(options[8])
-        bitmap_length = int(options[9])
-        self.begin_recv_svg('%s %d' % (name, svg_length + bitmap_length), 'compute', [w, h, x1, y1, x2, y2, rotation, svg_length, bitmap_length])
+        bitmap_w = int(options[9])
+        bitmap_h = int(options[10])
+
+        self.begin_recv_svg('%s %d' % (name, svg_length + bitmap_w * bitmap_h), 'compute', [w, h, x1, y1, x2, y2, rotation, svg_length, bitmap_w, bitmap_h])
 
     def go(self, params):
         names = params.split(' ')
