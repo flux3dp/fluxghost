@@ -148,7 +148,9 @@ class WebsocketControl(WebsocketControlBase):
                 logger.error("Unknow Command: %s" % message)
 
         except RuntimeError as e:
-            logger.error("RuntimeError%s" % repr(e.args))
+            logger.debug("RuntimeError%s" % repr(e.args))
+            err = " ".join(e.args)
+            self.send_text("error %s" % err)
 
         except Exception as e:
             logger.exception("Unknow Error")
