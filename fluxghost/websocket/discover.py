@@ -27,8 +27,8 @@ class AsyncUpnpDiscover(UpnpDiscover):
         self.callback = callback
 
     def on_read(self):
-        args = self.on_recv_pong()
-        self.callback(*args)
+        data = self.on_recv_pong()
+        self.callback(**data)
 
 
 class WebsocketDiscover(WebSocketBase):
@@ -51,9 +51,9 @@ class WebsocketDiscover(WebSocketBase):
     def on_text_message(self, message):
         self.POOL_TIME = 0.3
 
-    def on_recv_discover(self, serial, *args):
+    def on_recv_discover(self, serial, **data):
         if serial not in self.devices:
-            self.send_text(self.build_response(serial, *args))
+            self.send_text(self.build_response(serial, **data))
 
         self.devices[serial] = time()
 
@@ -101,20 +101,16 @@ class WebsocketDiscover(WebSocketBase):
             "alive": False
         })
 
-    def build_response(self, serial, model_id, timestemp, version, has_passwd,
-                       ipaddrs):
+    def build_response(self, serial, model_id, name, timestemp, version,
+                       has_password, ipaddrs):
         payload = {
             "serial": uuid_to_short(serial),
             "version": version,
             "alive": True,
-            # "name": "My FLUX Printer",
-
-            ############ fake code for vm #########
-            "name": "My FLUX Printer " + model_id,
-            #######################################
+            "name": name,
 
             "model": model_id,
-            "password": has_passwd,
+            "password": has_password,
             "source": "lan"
         }
         return json.dumps(payload)
