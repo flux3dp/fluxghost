@@ -45,6 +45,9 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
                 elif cmd == 'delete':
                     logger.debug("delete %s" % (params))
                     self.delete(params)
+                elif cmd == 'set_params':
+                    logger.debug("set_params %s" % (params))
+                    self.set_params(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
 
@@ -86,6 +89,10 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
 
         self.send_text('{"status": "ok"}')
+
+    def set_params(params):
+        key, value = params.split(' ')
+        self.m_stl_slicer.set_params(key, value)
 
     def generate_gcode(self, params):
         names = params.split(' ')
