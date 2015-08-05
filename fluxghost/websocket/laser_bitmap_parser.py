@@ -116,6 +116,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def set_params(self, params):
         key, value = params.split(' ')
         self.m_laser_bitmap.set_params(key, value)
+        self.send_text('{"status": "ok"}')
 
     def process_image(self):
         logger.debug('  start process images')

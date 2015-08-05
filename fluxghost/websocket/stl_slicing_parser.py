@@ -93,6 +93,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
     def set_params(params):
         key, value = params.split(' ')
         self.m_stl_slicer.set_params(key, value)
+        self.send_text('{"status": "ok"}')
 
     def generate_gcode(self, params):
         names = params.split(' ')

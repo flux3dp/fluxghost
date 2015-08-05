@@ -116,3 +116,4 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def set_params(self, params):
         key, value = params.split(' ')
         self.m_laser_svg.set_params(key, value)
+        self.send_text('{"status": "ok"}')
