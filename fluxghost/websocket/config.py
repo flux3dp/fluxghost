@@ -2,6 +2,7 @@ import logging
 import platform
 import dbm
 from os.path import expanduser
+import sys
 
 
 from .base import WebSocketBase, BinaryUploadHelper, WebsocketBinaryHelperMixin
@@ -13,6 +14,7 @@ READ_OP = "r"
 
 
 class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
+
     operation = None
     config_path = ''
     config_file = 'FluxStudio'  # TODO: find a proper name~
@@ -21,15 +23,13 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
         config_path = expanduser("~") + '/Library/Preferences/'
     elif platform.platform().startswith("Linux"):
         config_path = expanduser("~") + '/.'
+        print('config_path', config_path)
     else:
         # c:\Users\John\.
         raise RuntimeError("Unknow platform!!")
 
-    logger.debug('will store in %s' % (config_path + config_file))
-
     def on_close(self, *args, **kw):
         super(WebsocketConfig, self).on_close(*args, **kw)
-
         try:
             self.db.close()
         except:
@@ -37,6 +37,7 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def on_text_message(self, message):
         op, self.key = message.split(" ", 1)
+        logger.debug('will store in %s' % (self.config_path + self.config_file))
 
         try:
             if self.operation:
@@ -46,6 +47,7 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.operation = WRITE_OP
                 self.db = dbm.open(self.config_path + self.config_file, 'c')
                 self.send('{"status": "opened"}')
+
                 self.begin_recv_binary(self.key)
 
             elif op == READ_OP:
@@ -58,7 +60,7 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
                 raise RuntimeError("BAD_FILE_OPERATION")
 
         except RuntimeError as e:
-            self.send("error %s" % e.args[0])
+            self.send('{"error": "%s"}' % e.args[0])
             self.close()
 
         # NO NEED
@@ -67,10 +69,10 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
         #     self.close()
 
         except PermissionError:
-            self.send("error ACCESS_DENY")
+            self.send('{"error": "ACCESS_DENY"}')
             self.close()
         except Exception as e:
-            self.send("error UNKNOW_ERROR %s" % e)
+            self.send('{"error": "UNKNOW_ERROR %s"}' % e)
             self.close()
 
     # def on_binary_message(self, buf):
@@ -78,10 +80,12 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
     #         self.db[key] = buf
 
     def read_key(self):
-        self.send_binary(self.db[key])
+        self.send_binary(self.db[self.key])
+        self.close()
 
     def begin_recv_binary(self, params):
         key, data_length = params.split(' ')
+        print(data_length)
         helper = BinaryUploadHelper(int(data_length), self.end_recv_binary, key)
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
