@@ -44,7 +44,7 @@ class WebsocketDiscover(WebSocketBase):
             self.send_text(
                 self.build_response(
                     serial="0" * 32, model_id="magic", timestemp=0,
-                    name="Simulate Device" version="god knows",
+                    name="Simulate Device", version="god knows",
                     has_passwd=False, ipaddrs="1.1.1.1"))
 
         self.POOL_TIME = 0.3

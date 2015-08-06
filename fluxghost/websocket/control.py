@@ -130,6 +130,17 @@ class WebsocketControl(WebsocketControlBase):
             self.close()
 
     def on_text_message(self, message):
+        if message == "over_my_dead_body":
+            import tempfile
+            import os
+            import gc
+            fn = os.path.join(tempfile.gettempdir(), "over_my_dead_body.dump")
+            with open(fn, "w") as f:
+                for o in gc.get_objects():
+                    f.write(repr(o) + "\n")
+            self.send_text("ok " + fn)
+            return
+
         if self.raw_sock:
             self.on_raw_message(message)
             return
