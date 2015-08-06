@@ -19,6 +19,7 @@ import logging
 import struct
 import math
 import os
+import sys
 
 from fluxclient.scanner.tools import read_pcd
 from fluxclient.scanner import scan_settings, image_to_pc
@@ -209,42 +210,45 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.send_error("UNKNOW_COMMAND", message)
 
     def scan(self):
-        if self.mode == 'pcd':
-            if self.current_step > 0:
+        if self.mode == 'merge':
+
+            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..",
+                                        "assets")
+
+            if self.current_step < self.steps:
+                pc_L = read_pcd(PCD_LOCATION + '/pikachu.pcd')
+                tmp = len(pc_L) // self.steps
+
+                self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
+                buf = []
+                for p in pc_L[tmp * self.current_step: tmp * (self.current_step + 1)]:
+                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
+                               p[3] / 255., p[4] / 255., p[5] / 255.))
+                buf = b''.join(buf)
+                self.send_binary(buf)
+
+            elif self.current_step < self.steps * 2:
+                pc_R = read_pcd(PCD_LOCATION + '/pikachu90.pcd')
+                tmp = len(pc_R) // self.steps
+                self.send_text('{"status": "chunk", "left": 0, "right": %d}' % tmp)
+                buf = []
+                for p in pc_R[tmp * (self.current_step - self.steps): tmp * (self.current_step + 1 - self.steps)]:
+                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
+                               p[3] / 255., p[4] / 255., p[5] / 255.))
+                buf = b''.join(buf)
+                self.send_binary(buf)
+
+            else:
                 self.send_text('{"status": "chunk", "left": 0, "right": 0}')
                 self.send_binary(b'')
                 self.send_ok()
                 return
 
             self.current_step += 1
-            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..",
-                                        "assets")
-            if self.current_step == 0:
-                pc_L = read_pcd(PCD_LOCATION + '/pikachu.pcd')
-                self.send_text('{"status": "chunk", "left": %d, "right": 0}' %
-                               len(pc_L))
-                buf = []
-                for p in pc_L:
-                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-                               p[3] / 255., p[4] / 255., p[5] / 255.))
-                buf = b''.join(buf)
-                self.send_binary(buf)
-
-            elif self.current_step == 400:
-                pc_R = read_pcd(PCD_LOCATION + '/pikachu90.pcd')
-                self.send_text('{"status": "chunk", "left": 0, "right": %d}' %
-                               len(pc_R))
-                buf = []
-                for p in pc_R:
-                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-                               p[3] / 255., p[4] / 255., p[5] / 255.))
-                buf = b''.join(buf)
-                self.send_binary(buf)
-
             self.send_ok()
 
-        elif self.mode == 'merge':
-            if self.current_step > 0 or self.current_step > 400:
+        elif self.mode == 'pcd':
+            if self.current_step > 0 or self.current_step > self.steps:
                 self.send_text('{"status": "chunk", "left": 0, "right": 0}')
                 self.send_binary(b'')
                 self.send_ok()
