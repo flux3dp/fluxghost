@@ -1,6 +1,7 @@
 
 from select import select
 from io import BytesIO
+from time import time
 import logging
 import os
 
@@ -13,11 +14,14 @@ logger = logging.getLogger("WS.BASE")
 
 class WebSocketBase(WebSocketHandler):
     POOL_TIME = 30.0
+    TIMEOUT = 600
+    timer = 0
 
     def __init__(self, request, client, server, path):
         WebSocketHandler.__init__(self, request, client, server)
         self.path = path
         self.rlist = [self]
+        self.timer = time()
 
     def serve_forever(self):
         try:
@@ -26,11 +30,13 @@ class WebSocketBase(WebSocketHandler):
                 for r in rl:
                     r.on_read()
 
+                self.check_ttl()
                 self.on_loop()
         except Exception:
             logger.exception("Unhandle exception")
         finally:
             self.request.close()
+            self.on_closed()
 
     def send_ok(self, info=None):
         if info:
@@ -55,9 +61,25 @@ class WebSocketBase(WebSocketHandler):
         self.close(ST_INVALID_PAYLOAD, error)
 
     def on_read(self):
+        self.timer = time()
         self.do_recv()
 
+    def check_ttl(self):
+        t = self.timer + self.TIMEOUT
+
+        if not self.running:
+            return
+
+        if self._is_closing and t < time():
+            self.close_directly()
+
+        elif t < time():
+            self.close(message="error TIMEOUT")
+
     def on_loop(self):
+        pass
+
+    def on_closed(self):
         pass
 
 

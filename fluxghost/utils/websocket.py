@@ -310,6 +310,9 @@ class WebSocketHandler(object):
         self.request.shutdown(socket.SHUT_WR)
         self._is_closing = True
 
+    def close_directly(self):
+        self._closed()
+
 
 class WebsocketError(Exception):
     pass

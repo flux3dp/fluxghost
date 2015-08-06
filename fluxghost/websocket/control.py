@@ -28,9 +28,14 @@ STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_AUTH = '{"status": "connecting", "stage": "auth"}'
 STAGE_CALL_ROBOT = '{"status": "connecting", "stage": "call_robot"}'
 STAGE_CONNECTED = '{"status": "connected"}'
+STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
 class WebsocketControlBase(WebSocketBase):
+    robot = None
+    simple_mapping = None
+    cmd_mapping = None
+
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
         self.serial = serial
@@ -59,14 +64,27 @@ class WebsocketControlBase(WebSocketBase):
                 raise RuntimeError("TIMEOUT")
         except RuntimeError as err:
             if err.args[0] != "ALREADY_RUNNING":
-                self.send_text("timeout")
+                self.send_error(err.args[0])
                 self.close()
                 raise
 
-        self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
-                                   conn_callback=self._conn_callback)
+        try:
+            self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
+                                       conn_callback=self._conn_callback)
+
+        except TimeoutError:
+            self.send_error("TIMEOUT")
+            self.close()
+            raise
 
         self.send_text(STAGE_CONNECTED)
+
+    def on_closed(self):
+        if self.robot:
+            self.robot.close()
+            self.robot = None
+        self.simple_mapping = None
+        self.cmd_mapping = None
 
     def _conn_callback(self, *args):
         self.send_text(STAGE_CALL_ROBOT)
@@ -223,9 +241,6 @@ class WebsocketControl(WebsocketControlBase):
             self.raw_sock = None
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
-    
-    def on_loop(self):
-        pass
 
 
 class RawSock(object):
