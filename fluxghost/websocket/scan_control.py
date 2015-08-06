@@ -168,7 +168,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
     current_step = 0
-    mode = 'merge'
+    mode = 'cube'
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
@@ -241,8 +241,6 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             else:
                 self.send_text('{"status": "chunk", "left": 0, "right": 0}')
                 self.send_binary(b'')
-                self.send_ok()
-                return
 
             self.current_step += 1
             self.send_ok()
@@ -308,15 +306,41 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.send_ok()
 
         elif self.mode == 'cube':
-            i = self.current_step
-            self.current_step += 1
-
             buf = []
-            self.send_text('{"status": "chunk", "left": 1250, "right": 1250}')
-            for j in range(-50, 50, 2):
-                for k in range(-50, 50, 2):
-                    x, y, z = map(float, [j, k, i / 2.])
-                    buf.append(struct.pack("<ffffff", x, y, z, 0.0, 0.0, 0.0))
-            buf = b"".join(buf)
+            if self.current_step < self.steps:
+                for z in range(500 * self.current_step // self.steps, 500 * (self.current_step + 1) // self.steps, 8):
+                    for s in range(-250, 250, 8):
+                        buf.append([s, -250, z])
+                        buf.append([s, 250, z])
+                        buf.append([-250, s, z])
+                        buf.append([250, s, z])
+                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., 0.0) for x, y, z in buf]
+            elif self.current_step < self.steps * 2:
+                for z in range(500 * (self.current_step - self.steps) // self.steps, 500 * (self.current_step - self.steps + 1) // self.steps, 8):
+                    for s in range(-250, 250, 8):
+                        buf.append([z, s, -250])
+                        buf.append([z, s, 250])
+                        buf.append([z, -250, s])
+                        buf.append([z, 250, s])
+                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., 0) for x, y, z in buf]
+            else:
+                buf = []
+
+            self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(buf))
+            buf = b''.join(buf)
             self.send_binary(buf)
             self.send_ok()
+
+            self.current_step += 1
+            # i = self.current_step
+            # self.current_step += 1
+
+            # buf = []
+            # self.send_text('{"status": "chunk", "left": 1250, "right": 1250}')
+            # for j in range(-50, 50, 2):
+            #     for k in range(-50, 50, 2):
+            #         x, y, z = map(float, [j, k, i / 2.])
+            #         buf.append(struct.pack("<ffffff", x, y, z, 0.0, 0.0, 0.0))
+            # buf = b"".join(buf)
+            # self.send_binary(buf)
+            # self.send_ok()
