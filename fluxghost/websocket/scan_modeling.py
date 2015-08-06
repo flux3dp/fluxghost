@@ -37,8 +37,10 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
 
         if not SIMULATE:
             self.m_pc_process = PcProcess()
+            logger.debug('using PcProcess')
         if SIMULATE:
             self.m_pc_process = PcProcessNoPCL()
+            logger.debug('using PcProcessNoPCL()')
 
         self._uploading = None
 
