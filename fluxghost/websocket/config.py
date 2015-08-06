@@ -47,7 +47,6 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.operation = WRITE_OP
                 self.db = dbm.open(self.config_path + self.config_file, 'c')
                 self.send('{"status": "opened"}')
-
                 self.begin_recv_binary(self.key)
 
             elif op == READ_OP:
@@ -63,21 +62,12 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send('{"error": "%s"}' % e.args[0])
             self.close()
 
-        # NO NEED
-        # except FileNotFoundError:
-        #     self.send("error FILE_NOT_EXIST")
-        #     self.close()
-
         except PermissionError:
             self.send('{"error": "ACCESS_DENY"}')
             self.close()
         except Exception as e:
             self.send('{"error": "UNKNOW_ERROR %s"}' % e)
             self.close()
-
-    # def on_binary_message(self, buf):
-    #     if self.operation == WRITE_OP:
-    #         self.db[key] = buf
 
     def read_key(self):
         self.send_binary(self.db[self.key])
@@ -93,3 +83,4 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
     def end_recv_binary(self, buf, key):
         self.db[key] = buf
         self.send_text('{"status": "ok"}')
+        self.close()
