@@ -314,15 +314,16 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
                         buf.append([s, 250, z])
                         buf.append([-250, s, z])
                         buf.append([250, s, z])
-                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., 0.0) for x, y, z in buf]
+                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
             elif self.current_step < self.steps * 2:
-                for z in range(500 * (self.current_step - self.steps) // self.steps, 500 * (self.current_step - self.steps + 1) // self.steps, 8):
+                for z in range(500 * (self.current_step - self.steps) // self.steps - 250, 500 * (self.current_step - self.steps + 1) // self.steps - 250, 8):
                     for s in range(-250, 250, 8):
-                        buf.append([z, s, -250])
-                        buf.append([z, s, 250])
+                        buf.append([z, s, 0])
+                        buf.append([z, s, 500])
+                    for s in range(0, 500, 8):
                         buf.append([z, -250, s])
                         buf.append([z, 250, s])
-                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., 0) for x, y, z in buf]
+                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
             else:
                 buf = []
 
