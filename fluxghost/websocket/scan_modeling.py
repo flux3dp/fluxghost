@@ -74,6 +74,9 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
             elif cmd == "merge":
                 self.merge(params)
 
+            elif cmd == 'auto_merge':
+                self.auto_merge(params)
+
         except RuntimeError as e:
             self.send_fatal(e.args[0])
             logger.error(e)
@@ -125,6 +128,11 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_text('{"status": "ok"}')
         else:
             self.send_text('{status: "fatal", "error": "merge fail"}')
+
+    def auto_merge(self, params):
+        name_base, name_2, name_out = params.split(' ')
+        self.m_pc_process.auto_merge(name_base, name_2, name_out)
+        self.send_text('{"status": "ok"}')
 
     def delete_noise(self, params):
         if not SUPPORT_PCL:
