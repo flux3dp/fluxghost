@@ -81,6 +81,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_fatal(e.args[0])
             logger.error(e)
         except Exception as e:
+            logger.error(e)
             self.send_fatal("UNKNOW_ERROR")
             raise
 
@@ -107,14 +108,14 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         left_points = buf[:left_len * 24]
         right_points = buf[left_len * 24:]
         self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
 
     def cut(self, params):
         name_in, name_out, mode, direction, value = params.split(" ")
         value = float(value)
         direction = direction[0] == 'T'
         self.m_pc_process.cut(name_in, name_out, mode, direction, value)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
 
     def merge(self, params):
         name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split(" ")
@@ -124,32 +125,32 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         rx = float(rx)
         ry = float(ry)
         rz = float(rz)
-        if self.m_pc_process.merge(name_base, name_2, x, y, z, rx, ry, rz, name_out):
-            self.send_text('{"status": "ok"}')
-        else:
-            self.send_text('{status: "fatal", "error": "merge fail"}')
+        self.m_pc_process.merge(name_base, name_2, x, y, z, rx, ry, rz, name_out)
+        self.send_ok()
 
     def auto_merge(self, params):
         name_base, name_2, name_out = params.split(' ')
-        self.m_pc_process.auto_merge(name_base, name_2, name_out)
-        self.send_text('{"status": "ok"}')
+        if self.m_pc_process.auto_merge(name_base, name_2, name_out):
+            self.send_ok()
+        else:
+            self.send_text('{"status": "fail"')
 
     def delete_noise(self, params):
         if not SUPPORT_PCL:
-            self.send_text('{"status": "ok"}')
+            self.send_ok()
             return
 
         name_in, name_out, r = params.split(" ")
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
 
     def dump(self, params):
         name = params
         len_L, len_R, buffer_data = self.m_pc_process.dump(name)
         self.send_text('{"status": "continue", "left": %d, "right": %d}' % (len_L, len_R))
         self.send_binary(buffer_data)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
         logger.debug('dump %s done' % (name))
 
     def export(self, params):
@@ -157,5 +158,5 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         buf = self.m_pc_process.export(name, file_foramt)
         self.send_text('{"status": "continue", "length": %d}' % (len(buf)))
         self.send_binary(buf)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
         logger.debug('export %s as .%s file done' % (name, file_foramt))

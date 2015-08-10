@@ -23,7 +23,7 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
         config_path = expanduser("~") + '/Library/Preferences/'
     elif platform.platform().startswith("Linux"):
         config_path = expanduser("~") + '/.'
-        print('config_path', config_path)
+        # print('config_path', config_path)
     else:
         # c:\Users\John\.
         raise RuntimeError("Unknow platform!!")

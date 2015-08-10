@@ -132,7 +132,7 @@ class WebsocketControl(WebsocketControlBase):
             if self.binary_sent < self.binary_length:
                 pass
             elif self.binary_sent == self.binary_length:
-                self.send_text(self.robot.get_resp().decode("ascii", "ignore"))
+                self.send_text('{"status":"%s"}' % self.robot.get_resp().decode("ascii", "ignore"))
             else:
                 self.send_text("error NOT_MATCH binary data length error")
                 self.close()
@@ -180,7 +180,7 @@ class WebsocketControl(WebsocketControlBase):
 
     def simple_cmd(self, func, *args):
         try:
-            self.send_text(func(*args))
+            self.send_text('{"status":"%s"}' % func(*args))
         except RuntimeError as e:
             self.send_text("error %s" % " ".join(e.args))
 
@@ -188,7 +188,7 @@ class WebsocketControl(WebsocketControlBase):
         try:
             for f in self.robot.list_file():
                 self.send_text(f)
-            self.send_text("ok")
+            self.send_ok()
         except RuntimeError as e:
             self.send_text("error %s" % " ".join(e.args))
 
@@ -196,7 +196,7 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_sock = self.robot.begin_upload(int(size))
         self.binary_length = int(size)
         self.binary_sent = 0
-        self.send_text("continue")
+        self.send_text('{"status":"continue"}')
 
     def oneshot(self):
         images = self.robot.oneshot()
@@ -208,7 +208,7 @@ class WebsocketControl(WebsocketControlBase):
             while sent < size:
                 self.send_binary(view[sent:sent + 4016])
                 sent += 4016
-        self.send_text("ok")
+        self.send_ok()
 
     def scanimages(self):
         images = self.robot.scanimages()
@@ -220,12 +220,12 @@ class WebsocketControl(WebsocketControlBase):
             while sent < size:
                 self.send_binary(view[sent:sent + 4016])
                 sent += 4016
-        self.send_text("ok")
+        self.send_ok()
 
     def begin_raw(self):
         self.raw_sock = RawSock(self.robot.raw_mode(), self)
         self.rlist.append(self.raw_sock)
-        self.send_text("ok")
+        self.send_ok()
 
     def on_raw_message(self, message):
         if message == "quit":
@@ -246,4 +246,3 @@ class RawSock(object):
 
     def on_read(self):
         self.ws.send_text(self.sock.recv(128).decode("ascii", "ignore"))
-

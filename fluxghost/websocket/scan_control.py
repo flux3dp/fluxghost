@@ -333,15 +333,3 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.send_ok()
 
             self.current_step += 1
-            # i = self.current_step
-            # self.current_step += 1
-
-            # buf = []
-            # self.send_text('{"status": "chunk", "left": 1250, "right": 1250}')
-            # for j in range(-50, 50, 2):
-            #     for k in range(-50, 50, 2):
-            #         x, y, z = map(float, [j, k, i / 2.])
-            #         buf.append(struct.pack("<ffffff", x, y, z, 0.0, 0.0, 0.0))
-            # buf = b"".join(buf)
-            # self.send_binary(buf)
-            # self.send_ok()
