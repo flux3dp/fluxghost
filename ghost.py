@@ -33,7 +33,7 @@ def setup_logger(debug):
 
 parser = argparse.ArgumentParser(description='FLUX Ghost')
 parser.add_argument("--assets", dest='assets', type=str,
-                    default='fluxghost/assets', help="Assets folder")
+                    default=None, help="Assets folder")
 parser.add_argument("--ip", dest='ipaddr', type=str, default='127.0.0.1',
                     help="Bind to IP Address")
 parser.add_argument("--port", dest='port', type=int, default=8000,
@@ -54,6 +54,11 @@ else:
 if options.simulate:
     os.environ["flux_simulate"] = "1"
 
+if not options.assets:
+    options.assets = os.path.join(
+        os.path.dirname(
+            os.path.abspath(__file__)),
+        "fluxghost", "assets")
 
 server = HttpServer(assets_path=options.assets,
                     address=(options.ipaddr, options.port,),)
