@@ -74,6 +74,8 @@
         }
 
       } catch(err) {
+        window.aaa = err;
+        window.bbb = m.data;
         appendLog("✗ Exception: "+ err.message + " 😭", "red");
       }
     };
@@ -181,23 +183,31 @@
   </script>
 </head>
 <body>
-  <div class="container">
-    <h1>
-      ./fluxghost/assets/control.html
-    </h1>
+  <div class="container-fluid">
+    <div class="row" style="padding-top: 1em">
+      <div class="col-xs-10">
+        <strong>./fluxghost/assets/control.html</strong>
+      </div>
+      <div class="col-xs-2">
+        <a href="index.html" class="btn btn-xs btn-primary">Back to Index</a>
+      </div>
+    </div>
   </div>
   <hr />
-  <div class="container"><div class="navbar">
-      <a href="index.html" class="btn btn-primary">Back to Index</a>
-      <a href="#" class="btn btn-success device_select_ui" data-role="discover">Start Discover</a>
+  <div class="container-fluid"><div class="navbar">
+    <div class="col-xs-8">
+      <a href="#" class="btn btn-sm btn-success device_select_ui" data-role="discover">Start Discover</a>
       <label id="device_label" class="device_control_ui"></label>
-      <a href="#" class="btn btn-warning device_control_ui" data-role="reset-control">Reset Connection</a>
-      <a href="#" class="btn btn-default device_control_ui" data-role="end-control">Back to discover</a>
+    </div>
+    <div class="col-xs-4 text-right">
+      <a href="#" class="btn btn-sm btn-warning device_control_ui" data-role="reset-control">Reset Connection</a>
+      <a href="#" class="btn btn-sm btn-default device_control_ui" data-role="end-control">Back to discover</a>
+    </div>
   </div></div>
-  <div class="container device_select_ui">
+  <div class="container-fluid device_select_ui">
       <div class="list-group" id="devices"></div>
   </div>
-  <div class="container device_control_ui">
+  <div class="container-fluid device_control_ui">
     <div class="col-xs-10">
       <input id="controlcmd" type="text" class="form-control" />
     </div>
@@ -230,7 +240,7 @@
       </div>
     </div>
   </div>
-  <div class="container device_control_ui">
+  <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
       <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
     </div>

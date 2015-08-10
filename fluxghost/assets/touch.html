@@ -42,10 +42,43 @@
     ws.onmessage = function(m) {
       close_normally = true;
       ws.close();
-      log_touch_result(serial, name, JSON.parse(m.data));
+
+      var data = JSON.parse(m.data);
+
+      if(data.has_response && !data.auth && has_password) {
+        touch_with_password(serial, name, has_password)
+      } else {
+        log_touch_result(serial, name, m.data);
+      }
+
       ws = undefined;
     }
     ws.onclose = ws_close_handler("Touch");
+  }
+
+  function touch_with_password(serial, name, has_password) {
+    var pwd = prompt("Enter password for " + name + " (" + serial + ")");
+    if(pwd) {
+      var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
+      var close_normally = false;
+
+      ws.onopen = function() {
+        appendLog("Try touch: " + name + " (" + serial + ")");
+        ws.send(JSON.stringify({serial: serial, password: pwd}));
+      }
+      ws.onmessage = function(m) {
+        close_normally = true;
+        ws.close();
+
+        var data = JSON.parse(m.data);
+        log_touch_result(serial, name, JSON.parse(m.data));
+
+        ws = undefined;
+      }
+      ws.onclose = ws_close_handler("Touch");
+    } else {
+      appendLog("Auch with \"" + name + "\" canceled", "#a00");
+    }
   }
 
   function log_touch_result(serial, name, payload) {
@@ -85,17 +118,21 @@
   </script>
 </head>
 <body>
-  <div class="container">
-    <h1>
-      ./fluxghost/assets/touch.html
-    </h1>
+  <div class="container-fluid">
+    <div class="row" style="padding-top: 1em">
+      <div class="col-xs-10">
+        <strong>./fluxghost/assets/touch.html</strong>
+      </div>
+      <div class="col-xs-2">
+        <a href="index.html" class="btn btn-xs btn-primary">Back to Index</a>
+      </div>
+    </div>
   </div>
   <hr />
-  <div class="container"><div class="navbar">
-      <a href="index.html" class="btn btn-primary">Back to Index</a>
+  <div class="container-fluid"><div class="navbar">
       <a href="#" class="btn btn-success" data-role="discover">Start Discover</a>
   </div></div>
-  <div class="container">
+  <div class="container-fluid">
     <div class="row">
       <div class="col-xs-4">
         <div class="list-group" id="devices">

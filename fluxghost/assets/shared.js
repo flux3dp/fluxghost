@@ -65,7 +65,9 @@ function addDevice(serial, name, version, password) {
     attr("data-name", name);
 
   if(password) $item.append($("<span></span>").addClass("glyphicon glyphicon-lock"));
+  $item.append($("<span></span>").text(" "));
   $item.append($("<span></span>").text(name));
+  $item.append($("<span></span>").text(" "));
   $item.append($("<span></span>").text(serial).addClass("label label-default"));
 
   $("#devices").append($item);

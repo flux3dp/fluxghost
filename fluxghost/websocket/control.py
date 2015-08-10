@@ -48,32 +48,25 @@ class WebsocketControlBase(WebSocketBase):
             self.send_text(STAGE_DISCOVER)
             task.require_auth()
 
-        except RuntimeError as e:
-            self.send_text("error %s" % e.args[0])
-            self.close()
-            raise
-
-        try:
             logger.debug("REQUIRE ROBOT")
             self.send_text(STAGE_DISCOVER)
-            resp = task.require_robot()
 
-            if not resp:
-                self.send_text("timeout")
-                self.close()
-                raise RuntimeError("TIMEOUT")
-        except RuntimeError as err:
-            if err.args[0] != "ALREADY_RUNNING":
-                self.send_error(err.args[0])
-                self.close()
-                raise
+            try:
+                task.require_robot()
+            except RuntimeError as err:
+                if err.args[0] != "ALREADY_RUNNING":
+                    raise
 
-        try:
             self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
                                        conn_callback=self._conn_callback)
 
         except TimeoutError:
             self.send_error("TIMEOUT")
+            self.close()
+            raise
+
+        except RuntimeError as err:
+            self.send_error(err.args[0])
             self.close()
             raise
 

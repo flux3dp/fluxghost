@@ -32,6 +32,7 @@ class WebsocketTouch(WebSocketBase):
 
             self.send_text(json.dumps({
                 "serial": serial,
+                "name": task.name,
                 "has_response": resp is not None,
                 "reachable": task.remote_addr != "255.255.255.255",
                 "auth": resp and resp.get("status") == "ok"
