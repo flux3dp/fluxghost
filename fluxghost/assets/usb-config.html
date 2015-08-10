@@ -9,9 +9,9 @@
   <script src="shared.js"></script>
   <script>
   $(window).ready(function() {
-    window.echo_ws = new WebSocket("ws://" + window.location.host + "/ws/echo");
+    window.echo_ws = new WebSocket("ws://" + window.location.host + "/ws/usb-config");
     window.echo_ws.onopen = function() {
-      appendLog("Echo Connected", "#0000aa");
+      appendLog("USB Config Connected", "#0000aa");
     };
     window.echo_ws.onclose = ws_close_handler("Echo");
     window.echo_ws.onmessage = function(m) {
@@ -31,7 +31,7 @@
   </script>
 </head>
 <body>
-  <div class="container"><h1>./fluxghost/assets/echo.html</h1></div>
+  <div class="container"><h1>USB Config./fluxghost/assets/discover.html</h1></div>
   <hr />
   <div class="container"><div class="navbar">
     <a href="index.html" class="btn btn-primary">Back to Index</a>

@@ -15,6 +15,7 @@ from fluxghost.websocket.touch import WebsocketTouch
 from fluxghost.websocket.control import WebsocketControl
 from fluxghost.websocket.scan_control import Websocket3DScanControl
 from fluxghost.websocket.scan_control import SimulateWebsocket3DScanControl
+from fluxghost.websocket.usb_config import WebsocketUsbConfig
 
 
 ROUTES = [
@@ -34,7 +35,8 @@ ROUTES = [
     (re.compile("control/(?P<serial>[0-9A-Z]{25})"), WebsocketControl),
     (re.compile("3dprint-slicing"), Websocket3DSlicing),
     (re.compile("3d-scan-control/(?P<serial>[0-9A-Z]{25})"),
-     Websocket3DScanControl)]
+     Websocket3DScanControl),
+    (re.compile("usb-config"), WebsocketUsbConfig)]
 
 
 def get_match_ws_service(path):
