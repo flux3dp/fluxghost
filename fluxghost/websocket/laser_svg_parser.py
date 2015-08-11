@@ -110,6 +110,12 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         logger.debug("upload names:%s" % (" ".join(names)))
 
         output_binary = self.m_laser_svg.gcode_generate(names).encode()
+
+        ########## fake code  ########################
+        with open('output.gcode', 'wb') as f:
+            f.write(output_binary)
+        ##############################################
+
         self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
 

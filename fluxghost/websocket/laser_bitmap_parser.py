@@ -133,10 +133,14 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
             layer_index += 1
         output_binary = self.m_laser_bitmap.gcode_generate().encode()
 
+        ########## fake code  ########################
+        with open('output.gcode', 'wb') as f:
+            f.write(output_binary)
+        ##############################################
+
         self.send_text('{"status": "processing", "progress": 1.0}')
         self.send_text('{"status": "complete", "length": %s}' %
                        len(output_binary))
-
         self.send_binary(output_binary)
 
         self.close(ST_NORMAL, "bye")
