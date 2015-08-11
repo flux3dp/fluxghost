@@ -1,47 +1,46 @@
 
+import importlib
 import re
-
-from fluxghost.websocket.echo import WebsocketEcho
-from fluxghost.websocket.file import WebsocketFile
-from fluxghost.websocket.config import WebsocketConfig
-from fluxghost.websocket.scan_modeling import Websocket3DScannModeling
-from fluxghost.websocket.laser_bitmap_parser import WebsocketLaserBitmapParser
-from fluxghost.websocket.laser_svg_parser import WebsocketLaserSvgParser
-from fluxghost.websocket.stl_slicing_parser import Websocket3DSlicing
-
-
-from fluxghost.websocket.discover import WebsocketDiscover
-from fluxghost.websocket.touch import WebsocketTouch
-from fluxghost.websocket.control import WebsocketControl
-from fluxghost.websocket.scan_control import Websocket3DScanControl
-from fluxghost.websocket.scan_control import SimulateWebsocket3DScanControl
-from fluxghost.websocket.usb_config import WebsocketUsbConfig
 
 
 ROUTES = [
-    (re.compile("echo"), WebsocketEcho),
-    (re.compile("file"), WebsocketFile),
-    (re.compile("config"), WebsocketConfig),
-    (re.compile("3d-scan-modeling"), Websocket3DScannModeling),
-    (re.compile("bitmap-laser-parser"), WebsocketLaserBitmapParser),
-    (re.compile("svg-laser-parser"), WebsocketLaserSvgParser),
+    (re.compile("echo"),
+     "fluxghost.websocket.echo.WebsocketEcho"),
+    (re.compile("file"),
+     "fluxghost.websocket.file.WebsocketFile"),
+    (re.compile("config"),
+     "fluxghost.websocket.config.WebsocketConfig"),
+    (re.compile("3d-scan-modeling"),
+     "fluxghost.websocket.scan_modeling.Websocket3DScannModeling"),
+    (re.compile("bitmap-laser-parser"),
+     "fluxghost.websocket.laser_bitmap_parser.WebsocketLaserBitmapParser"),
+    (re.compile("svg-laser-parser"),
+     "fluxghost.websocket.laser_svg_parser.WebsocketLaserSvgParser"),
 
     # Simulate
     (re.compile("3d-scan-control/(?P<serial>[1]{25})"),
-     SimulateWebsocket3DScanControl),
+     "fluxghost.websocket.scan_control.SimulateWebsocket3DScanControl"),
 
-    (re.compile("discover"), WebsocketDiscover),
-    (re.compile("touch"), WebsocketTouch),
-    (re.compile("control/(?P<serial>[0-9A-Z]{25})"), WebsocketControl),
-    (re.compile("3dprint-slicing"), Websocket3DSlicing),
+    (re.compile("discover"),
+     "fluxghost.websocket.discover.WebsocketDiscover"),
+    (re.compile("touch"),
+     "fluxghost.websocket.touch.WebsocketTouch"),
+    (re.compile("control/(?P<serial>[0-9A-Z]{25})"),
+     "fluxghost.websocket.control.WebsocketControl"),
+    (re.compile("3dprint-slicing"),
+     "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
     (re.compile("3d-scan-control/(?P<serial>[0-9A-Z]{25})"),
-     Websocket3DScanControl),
-    (re.compile("usb-config"), WebsocketUsbConfig)]
+     "fluxghost.websocket.scan_control.Websocket3DScanControl"),
+    (re.compile("usb-config"),
+     "fluxghost.websocket.usb_config.WebsocketUsbConfig")]
 
 
 def get_match_ws_service(path):
-    for exp, klass in ROUTES:
+    for exp, module_path in ROUTES:
         match = exp.match(path)
         if match:
+            module_name, klass_name = module_path.rsplit(".", 1)
+            module_instance = importlib.import_module(module_name)
+            klass = module_instance.__getattribute__(klass_name)
             return klass, match.groupdict()
     return None, None
