@@ -17,13 +17,20 @@ MODE_MANUALLY = "manually"
 class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     operation = None
 
-    m_laser_svg = LaserSvg()
+    _m_laser_svg = None
+
+    @property
+    def m_laser_svg(self):
+        if self._m_laser_svg is None:
+            self._m_laser_svg = LaserSvg()
+        return self._m_laser_svg
 
     def on_text_message(self, message):
         try:
             # if not self.operation:
             #     self.preset(message)
             #     self.send_text('{"status": "ok"}')
+
             if not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
                 if cmd == "upload":

@@ -38,7 +38,13 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     #    ....
     # ]
     images = []
-    m_laser_bitmap = LaserBitmap()
+    _m_laser_bitmap = None
+
+    @property
+    def m_laser_bitmap(self):
+        if self._m_laser_bitmap is None:
+            self._m_laser_bitmap = LaserBitmap()
+        return self._m_laser_bitmap
 
     def on_text_message(self, message):
         try:
