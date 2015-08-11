@@ -77,14 +77,17 @@ class FileHandler(object):
         handler.wfile.flush()
 
         with open(filepath, "rb") as f:
+            buf = bytearray(4096)
+            mv = memoryview(buf)
             fd_dist = handler.wfile.fileno()
 
-            # TODO:
             while True:
-                select.select((), (fd_dist, ), ())
-                buf = f.read(1024)
-                if buf:
-                    handler.wfile.write(buf)
+                l = f.readinto(mv)
+                if l:
+                    sent = 0
+                    while sent != l:
+                        select.select((), (fd_dist, ), ())
+                        sent += handler.wfile.write(mv[:l])
                 else:
                     break
 
