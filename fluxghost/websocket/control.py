@@ -121,6 +121,7 @@ class WebsocketControl(WebsocketControlBase):
         self.cmd_mapping = {
             "ls": self.list_file,
             "upload": self.upload_file,
+            "update_fw": self.update_fw,
             "oneshot": self.oneshot,
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
@@ -194,6 +195,12 @@ class WebsocketControl(WebsocketControlBase):
 
     def upload_file(self, size):
         self.binary_sock = self.robot.begin_upload(int(size))
+        self.binary_length = int(size)
+        self.binary_sent = 0
+        self.send_text('{"status":"continue"}')
+
+    def update_fw(self, size):
+        self.binary_sock = self.robot.begin_upload(int(size), cmd="update_fw")
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')

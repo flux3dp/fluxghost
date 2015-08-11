@@ -84,18 +84,24 @@
   }
 
   function cb_begin_upload(m) {
-    if(m.data === "continue") {
-      appendLog("Uploading file, do not send any commnad before you recive 'ok'");
-      var reader = new FileReader();
-      reader.onload = file_uploader;
-      reader.readAsArrayBuffer(window.upload_file)
-      window.upload_file = undefined;
-      window.control_ws.onmessage = cb_standard;
-    } else {
-      appendLog(m.data, "red");
-      window.control_ws.onmessage = cb_standard;
-      window.upload_file = undefined;
+    window.aa = m;
+    try {
+      var data = JSON.parse(m.data)
+
+      if(data.status === "continue") {
+        appendLog("Uploading file, do not send any commnad before you recive 'ok'");
+        var reader = new FileReader();
+        reader.onload = file_uploader;
+        reader.readAsArrayBuffer(window.upload_file)
+        window.upload_file = undefined;
+      } else {
+        appendLog(data.status, "red");
+        window.upload_file = undefined;
+      }
+    } catch(err) {
+      appendLog("✗ Exception: "+ err.message + " 😭", "red");
     }
+    window.control_ws.onmessage = cb_standard;
   }
 
   function file_uploader(f) {
@@ -166,9 +172,11 @@
       var f = evt.target.files[0];
 
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-        appendLog("Start uploading...")
+        var cmd = $(this).attr("data-file-cmd") + " " + f.size;
+        
+        appendLog("Start uploading... (" + cmd + ")")
         window.control_ws.onmessage = cb_begin_upload;
-        window.control_ws.send("upload " + f.size);
+        window.control_ws.send(cmd);
 
         window.upload_file = f;
         this.value = "";
@@ -213,7 +221,7 @@
       <span class="btn btn-primary fileinput-button">
           <i class="glyphicon glyphicon-upload"></i>
           <span>Upload</span>
-          <input type="file" name="file" />
+          <input type="file" data-file-cmd="upload" name="file" />
       </span>
     </div>
   </div>
@@ -241,6 +249,15 @@
   <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
       <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+    </div>
+  </div>
+  <div class="container device_control_ui">
+    <div class="col-xs-12">
+      <span class="btn btn-xs btn-danger fileinput-button">
+          <i class="glyphicon glyphicon-upload"></i>
+          <span>** Update Marlin Fireware **</span>
+          <input type="file" data-file-cmd="update_fw" name="file" />
+      </span>
     </div>
   </div>
 </body>
