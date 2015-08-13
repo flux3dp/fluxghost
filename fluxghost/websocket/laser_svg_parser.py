@@ -85,15 +85,18 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def end_recv_svg(self, buf, name, *args):
         if args[0] == 'upload':
             logger.debug("upload name:%s" % (name))
-            self.m_laser_svg.preprocess(buf, name)
-            self.send_text('{"status": "ok"}')
+            try:
+                self.m_laser_svg.preprocess(buf, name)
+                self.send_text('{"status": "ok"}')
+            except:
+                self.send_error('fail to parse svg')
         elif args[0] == 'compute':
             logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
             # self.m_laser_svg.compute(buf[:args[1][-3]], name, args[1][:-2] + [buf[args[1][-3]:]])
             params = args[1][:]  # copy
             params.pop(7)
-            self.m_laser_svg.compute(name, [buf[:args[1][-3]]] + params + [buf[args[1][-3]:]])
             # [svg_buf, w, h, x1_real, y1_real, x2_real, y2_real, rotation, bitmap_w, bitmap_h, bitmap_buf]
+            self.m_laser_svg.compute(name, [buf[:args[1][-3]]] + params + [buf[args[1][-3]:]])
             self.send_text('{"status": "ok"}')
 
     def get(self, name):
