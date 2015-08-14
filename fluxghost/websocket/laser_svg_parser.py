@@ -1,5 +1,3 @@
-
-from io import BytesIO
 import logging
 import sys
 
@@ -15,8 +13,6 @@ MODE_MANUALLY = "manually"
 
 
 class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
-    operation = None
-
     _m_laser_svg = None
 
     @property
@@ -27,10 +23,6 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def on_text_message(self, message):
         try:
-            # if not self.operation:
-            #     self.preset(message)
-            #     self.send_text('{"status": "ok"}')
-
             if not self.has_binary_helper():
                 cmd, params = message.rstrip().split(" ", 1)
                 if cmd == "upload":
@@ -43,7 +35,6 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                     self.go(params)
                 elif cmd == 'set_params':
                     self.set_params(params)
-
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
             else:
@@ -55,26 +46,6 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
         except RuntimeError as e:
             self.send_fatal(e.args[0])
-
-    # def preset(self, params):
-    #     options = params.split(" ")
-
-    #     if options[0] == "0":
-    #         self.operation = MODE_PRESET
-
-    #         self.operation = options[1]
-    #         self.material = options[2]
-    #         # raise RuntimeError("TODO: parse operation and material")
-    #         self.laser_speed = 100.0
-    #         self.duty_cycle = 100.0
-
-    #     elif options[0] == "1":
-    #         self.operation = MODE_MANUALLY
-
-    #         self.laser_speed = float(options[1])
-    #         self.duty_cycle = float(options[2])
-    #     else:
-    #         raise RuntimeError("BAD_PARAM_TYPE")
 
     def begin_recv_svg(self, message, flag, *args):
         name, file_length = message.split(" ")
@@ -92,7 +63,6 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.send_error('fail to parse svg')
         elif args[0] == 'compute':
             logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
-            # self.m_laser_svg.compute(buf[:args[1][-3]], name, args[1][:-2] + [buf[args[1][-3]:]])
             params = args[1][:]  # copy
             params.pop(7)
             # [svg_buf, w, h, x1_real, y1_real, x2_real, y2_real, rotation, bitmap_w, bitmap_h, bitmap_buf]

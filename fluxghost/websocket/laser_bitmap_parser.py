@@ -1,21 +1,3 @@
-
-"""
-This websocket is use to convert bitmap to G-code
-
-Javascript Example:
-
-ws = new WebSocket("ws://localhost:8000/ws/bitmap-laser-parser");
-ws.onmessage = function(v) { console.log(v.data);}
-ws.onclose = function(v) { console.log("CONNECTION CLOSED"); }
-
-ws.send("0,1,WOOD")
-ws.send("100,100,-3,-3,3,3")
-buf = new ArrayBuffer(10000)
-ws.send(buf)
-ws.send('go')
-"""
-
-from io import BytesIO
 import logging
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
@@ -30,8 +12,6 @@ MODE_MANUALLY = "manually"
 
 
 class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
-    operation = None
-
     # images, it will like
     # [
     #    [(x1, y1, x2, z2), (w, h), bytes],
@@ -74,28 +54,6 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         except RuntimeError as e:
             self.send_fatal(e.args[0])
 
-    # def preset(self, params):
-    #     logger.debug("  Set params: %s" % params)
-    #     options = params.split(" ")
-    #     self.images = []
-
-    #     if options[0] == "0":
-    #         self.operation = MODE_PRESET
-
-    #         self.operation = options[1]
-    #         self.material = options[2]
-    #         # raise RuntimeError("TODO: parse operation and material")
-    #         self.laser_speed = 100.0
-    #         self.duty_cycle = 100.0
-
-    #     elif options[0] == "1":
-    #         self.operation = MODE_MANUALLY
-
-    #         self.laser_speed = float(options[1])
-    #         self.duty_cycle = float(options[2])
-    #     else:
-    #         raise RuntimeError("BAD_PARAM_TYPE")
-
     def begin_recv_image(self, message):
         options = message.split(" ")
         w, h = int(options[0]), int(options[1])
@@ -131,11 +89,9 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
         for position, size, rotation, thres, buf in self.images:
             self.m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation, thres)
-
             logger.debug("Process image at %s pixel: %s" % (position, size))
             progress = layer_index / total
-            self.send_text(
-                '{"status": "processing", "progress": %.3f}' % progress)
+            self.send_text('{"status": "processing", "progress": %.3f}' % progress)
             layer_index += 1
         output_binary = self.m_laser_bitmap.gcode_generate().encode()
 
@@ -145,8 +101,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         ##############################################
 
         self.send_text('{"status": "processing", "progress": 1.0}')
-        self.send_text('{"status": "complete", "length": %s}' %
-                       len(output_binary))
+        self.send_text('{"status": "complete", "length": %s}' % len(output_binary))
         self.send_binary(output_binary)
 
         self.close(ST_NORMAL, "bye")
