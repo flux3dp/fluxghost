@@ -63,6 +63,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message.startswith("resolution "):
             s_step = message.split(" ", 1)[-1]
             self.steps = int(s_step, 10)
+            scan_settings.scan_step = self.steps
             self.current_step = 0
             self.proc = image_to_pc.image_to_pc()
             self.send_ok(str(self.steps))
@@ -168,7 +169,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
     current_step = 0
-    mode = 'cube'
+    mode = 'box'
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
@@ -187,7 +188,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
 
         elif message == "mode ":
             mode = message.split(" ", 1)
-            if mode not in ['cube', 'pcd', 'hemisphere']:
+            if mode not in ['cube', 'pcd', 'hemisphere', 'box']:
                 self.send_error("BAD_PARAMS", info=mode)
             else:
                 self.mode = mode
@@ -196,7 +197,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         elif message.startswith("resolution "):
             s_step = message.split(" ", 1)[-1]
             self.steps = int(s_step, 10)
-            # self.current_step = 0
+            self.current_step = 0
             self.send_ok(str(self.steps))
 
         elif message == "scan":
@@ -305,7 +306,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.send_binary(buf)
             self.send_ok()
 
-        elif self.mode == 'cube':
+        elif self.mode == 'box':
             buf = []
             if self.current_step < self.steps:
                 for z in range(500 * self.current_step // self.steps, 500 * (self.current_step + 1) // self.steps, 8):
@@ -323,6 +324,23 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
                     for s in range(0, 500, 8):
                         buf.append([z, -250, s])
                         buf.append([z, 250, s])
+                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
+            else:
+                buf = []
+
+            self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(buf))
+            buf = b''.join(buf)
+            self.send_binary(buf)
+            self.send_ok()
+
+            self.current_step += 1
+
+        elif self.mode == 'cube':
+            import random
+            buf = []
+            if self.current_step < self.steps:
+                for x in range(10000 // self.steps):
+                    buf.append([random.randint(-250, 250), random.randint(-250, 250), random.randint(500 * self.current_step // self.steps, 500 * (self.current_step + 1) // self.steps)])
                 buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
             else:
                 buf = []
