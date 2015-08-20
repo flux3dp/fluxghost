@@ -129,6 +129,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_ok()
 
     def auto_merge(self, params):
+
         name_base, name_2, name_out = params.split(' ')
         if self.m_pc_process.auto_merge(name_base, name_2, name_out):
             self.send_ok()

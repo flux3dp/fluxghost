@@ -197,7 +197,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         elif message.startswith("resolution "):
             s_step = message.split(" ", 1)[-1]
             self.steps = int(s_step, 10)
-            self.current_step = 0
+            # self.current_step = 0
             self.send_ok(str(self.steps))
 
         elif message == "scan":

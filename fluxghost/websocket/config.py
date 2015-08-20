@@ -17,12 +17,12 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
 
     operation = None
     config_path = ''
-    config_file = 'FluxStudio'  # TODO: find a proper name~
+    config_file = '.FluxStudio'  # TODO: find a proper name~
 
     if platform.platform().startswith("Darwin"):
         config_path = expanduser("~") + '/Library/Preferences/'
     elif platform.platform().startswith("Linux"):
-        config_path = expanduser("~") + '/.'
+        config_path = expanduser("~") + '/'
         # print('config_path', config_path)
     else:
         # c:\Users\John\.

@@ -90,10 +90,12 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
         self.send_text('{"status": "ok"}')
 
-    def set_params(params):
+    def set_params(self, params):
         key, value = params.split(' ')
-        self.m_stl_slicer.set_params(key, value)
-        self.send_text('{"status": "ok"}')
+        if self.m_stl_slicer.set_params(key, value):  # will check if key is valid
+            self.send_text('{"status": "ok"}')
+        else:
+            self.send_error('wrong parameter: %s' % key)
 
     def generate_gcode(self, params):
         names = params.split(' ')
