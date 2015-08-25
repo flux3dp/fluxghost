@@ -21,13 +21,8 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
-        if not SIMULATE:
-            logger.info("Using StlSlicer()")
-            self.m_stl_slicer = StlSlicer()
-
-        elif SIMULATE:
-            logger.info("Using StlSlicerNoPcl()")
-            self.m_stl_slicer = StlSlicerNoPCL()
+        logger.info("Using StlSlicer()")
+        self.m_stl_slicer = StlSlicer()
 
     def on_text_message(self, message):
         try:

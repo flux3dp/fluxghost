@@ -60,6 +60,8 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
                 self.m_laser_svg.preprocess(buf, name)
                 self.send_text('{"status": "ok"}')
             except:
+                print(sys.exc_info(), file=sys.stderr)
+                sys.exc_info()[2].print_exception(file=sys.stderr)
                 self.send_error('fail to parse svg')
         elif args[0] == 'compute':
             logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
