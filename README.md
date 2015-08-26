@@ -24,7 +24,7 @@ Note: You will see `(YOURENV)# ` in your console prompt to let you know you are 
 ```
 (YOURENV)# pip3 install pysendfile
 (YOURENV)# pip3 install pycrypto
-(YOURENV)# pip3 install pycrypto
+(YOURENV)# pip3 install cython
 ```
 
 5. Install fluxclient
@@ -33,7 +33,7 @@ cd [where fluxclient repository is]
 if you didn't install pcl:
   (YOURENV)# python3 ./setup.py develop --without-pcl
 else:
-  (YOURENV)# python3 ./setup.py develop --without-pcl
+  (YOURENV)# python3 ./setup.py develop
 ```
 
 6. Launch fluxghost
