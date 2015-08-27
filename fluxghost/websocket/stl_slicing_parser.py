@@ -43,6 +43,9 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
                 elif cmd == 'set_params':
                     logger.debug("set_params %s" % (params))
                     self.set_params(params)
+                elif cmd == 'advanced_setting':
+                    logger.debug("set_params %s" % (params))
+                    self.advanced_setting(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
 
@@ -66,7 +69,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         if args[0] == 'upload':
             self.m_stl_slicer.upload(name, buf)
 
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
 
     def set(self, params):
         params = params.split(' ')
@@ -83,14 +86,25 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         scale_z = float(params[9])
         self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
 
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
 
     def set_params(self, params):
         key, value = params.split(' ')
         if self.m_stl_slicer.set_params(key, value):  # will check if key is valid
-            self.send_text('{"status": "ok"}')
+            self.send_ok()
         else:
             self.send_error('wrong parameter: %s' % key)
+
+    def advanced_setting(self, params):
+        settings = params.split('\n')
+        counter = 0
+        for line in settings:
+            key, value = map(lambda x: x.strip(), line.split('=', 1))
+            if self.m_stl_slicer.advanced_setting(key, value):
+                self.send_ok()
+            else:
+                self.send_error('line %d: %s error', (counter, line))
+            counter += 1
 
     def generate_gcode(self, params):
         names = params.split(' ')
@@ -101,4 +115,4 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
     def delete(self, params):
         name = params.rstrip()
         self.m_stl_slicer.delete(name)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()

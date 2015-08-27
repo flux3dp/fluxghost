@@ -82,5 +82,5 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def end_recv_binary(self, buf, key):
         self.db[key] = buf
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
         self.close()

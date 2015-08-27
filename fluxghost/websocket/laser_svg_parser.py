@@ -58,7 +58,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             logger.debug("upload name:%s" % (name))
             try:
                 self.m_laser_svg.preprocess(buf, name)
-                self.send_text('{"status": "ok"}')
+                self.send_ok()
             except:
                 print(sys.exc_info(), file=sys.stderr)
                 sys.exc_info()[2].print_exception(file=sys.stderr)
@@ -69,7 +69,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             params.pop(7)
             # [svg_buf, w, h, x1_real, y1_real, x2_real, y2_real, rotation, bitmap_w, bitmap_h, bitmap_buf]
             self.m_laser_svg.compute(name, [buf[:args[1][-3]]] + params + [buf[args[1][-3]:]])
-            self.send_text('{"status": "ok"}')
+            self.send_ok()
 
     def get(self, name):
         self.send_text('{"status": "continue", "length" : %d, "width": %f, "height": %f}' % (len(self.m_laser_svg.svgs[name][0]), self.m_laser_svg.svgs[name][1], self.m_laser_svg.svgs[name][2]))
@@ -104,4 +104,4 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def set_params(self, params):
         key, value = params.split(' ')
         self.m_laser_svg.set_params(key, value)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
