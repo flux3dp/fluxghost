@@ -1,22 +1,21 @@
-
-"""
-This websocket is use to slicing stl model
-
-"""
+# !/usr/bin/env python3
 
 from io import BytesIO
 import logging
+import sys
 
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE
-
 from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerNoPCL
 
 logger = logging.getLogger("WS.slicing")
 
 
 class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
+    """
+    This websocket is use to slicing stl model
+    """
     POOL_TIME = 30.0
 
     def __init__(self, *args):

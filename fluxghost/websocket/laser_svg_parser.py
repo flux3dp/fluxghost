@@ -1,9 +1,11 @@
+# !/usr/bin/env python3
+
 import logging
 import sys
 
+
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
-
 from fluxclient.laser.laser_svg import LaserSvg
 
 logger = logging.getLogger("WS.Laser Svg")
