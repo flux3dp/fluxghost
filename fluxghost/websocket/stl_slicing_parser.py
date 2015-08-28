@@ -43,7 +43,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
                     logger.debug("set_params %s" % (params))
                     self.set_params(params)
                 elif cmd == 'advanced_setting':
-                    logger.debug("set_params %s" % (params))
+                    logger.debug("advanced_setting %s" % (params))
                     self.advanced_setting(params)
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
@@ -101,7 +101,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_ok()
         else:
             for i in bad_line:
-                self.send_error('line %d: %s error', (i, lines[i]))
+                self.send_error('line %d: %s error' % (i, lines[i]))
 
     def generate_gcode(self, params):
         names = params.split(' ')
