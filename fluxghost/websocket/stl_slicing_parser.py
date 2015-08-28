@@ -96,15 +96,13 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_error('wrong parameter: %s' % key)
 
     def advanced_setting(self, params):
-        settings = params.split('\n')
-        counter = 0
-        for line in settings:
-            key, value = map(lambda x: x.strip(), line.split('=', 1))
-            if self.m_stl_slicer.advanced_setting(key, value):
-                self.send_ok()
-            else:
-                self.send_error('line %d: %s error', (counter, line))
-            counter += 1
+        lines = params.split('\n')
+        bad_line = self.m_stl_slicer.advanced_setting(lines)
+        if bad_line == []:
+            self.send_ok()
+        else:
+            for i in bad_line:
+                self.send_error('line %d: %s error', (i, lines[i]))
 
     def generate_gcode(self, params):
         names = params.split(' ')
