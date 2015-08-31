@@ -133,9 +133,14 @@ class WebsocketControl(WebsocketControlBase):
             if self.binary_sent < self.binary_length:
                 pass
             elif self.binary_sent == self.binary_length:
-                self.send_text('{"status":"%s"}' % self.robot.get_resp().decode("ascii", "ignore"))
+                resp = self.robot.get_resp().decode("ascii", "ignore")
+                if resp == "ok":
+                    self.send_text('{"status": "ok"}')
+                else:
+                    errargs = resp.split(" ")
+                    self.send_error(*(errargs[1:]))
             else:
-                self.send_text("error NOT_MATCH binary data length error")
+                self.send_error("NOT_MATCH", "binary data length error")
                 self.close()
         else:
             self.text_send("Can not accept binary data")
@@ -167,23 +172,25 @@ class WebsocketControl(WebsocketControlBase):
                 func_ptr = self.cmd_mapping[cmd]
                 func_ptr(*args[1:])
             else:
-                self.send_text("UNKNOW_COMMAND ws")
                 logger.error("Unknow Command: %s" % message)
+                self.send_error("UNKNOW_COMMAND", "ws")
 
         except RuntimeError as e:
             logger.debug("RuntimeError%s" % repr(e.args))
-            err = " ".join(e.args)
-            self.send_text("error %s" % err)
+            self.send_error(*e.args)
 
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_text("UNKNOW_ERROR %s" % e.__class__)
+            self.send_error("UNKNOW_ERROR", repr(e.__class__))
 
     def simple_cmd(self, func, *args):
         try:
             self.send_text('{"status":"%s"}' % func(*args))
         except RuntimeError as e:
-            self.send_text("error %s" % " ".join(e.args))
+            self.send_error(*e.args)
+        except Exception as e:
+            logger.exception("Unknow Error")
+            self.send_error("UNKNOW_ERROR", repr(e.__class__))
 
     def list_file(self):
         try:
@@ -191,7 +198,10 @@ class WebsocketControl(WebsocketControlBase):
                 self.send_text(f)
             self.send_ok()
         except RuntimeError as e:
-            self.send_text("error %s" % " ".join(e.args))
+            self.send_error(*e.args)
+        except Exception as e:
+            logger.exception("Unknow Error")
+            self.send_error("UNKNOW_ERROR", repr(e.__class__))
 
     def upload_file(self, size):
         self.binary_sock = self.robot.begin_upload(int(size))
@@ -209,7 +219,8 @@ class WebsocketControl(WebsocketControlBase):
         images = self.robot.oneshot()
         for mime, buf in images:
             size = len(buf)
-            self.send_text("binary %s %s" % (mime, size))
+            self.send_text('{"status": "binary", "mimetype": %s, '
+                           '"size": %i}' % (mime, size))
             view = memoryview(buf)
             sent = 0
             while sent < size:
@@ -221,7 +232,8 @@ class WebsocketControl(WebsocketControlBase):
         images = self.robot.scanimages()
         for mime, buf in images:
             size = len(buf)
-            self.send_text("binary %s %s" % (mime, size))
+            self.send_text('{"status": "binary", "mimetype": %s, '
+                           '"size": %i}' % (mime, size))
             view = memoryview(buf)
             sent = 0
             while sent < size:

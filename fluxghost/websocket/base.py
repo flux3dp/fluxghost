@@ -48,7 +48,7 @@ class WebSocketBase(WebSocketHandler):
         self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
                        (length, mime))
 
-    def send_error(self, errcode, info=None):
+    def send_error(self, errcode, info=None, *args):
         if info:
             self.send_text(
                 '{"status": "error", "error": "%s", "info":"%s"}' % (errcode,
