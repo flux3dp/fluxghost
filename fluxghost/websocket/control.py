@@ -1,5 +1,6 @@
 
 import logging
+import json
 
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
@@ -120,6 +121,7 @@ class WebsocketControl(WebsocketControlBase):
         self.cmd_mapping = {
             "position": self.position,
             "ls": self.list_file,
+            "fileinfo": self.file_info,
             "upload": self.upload_file,
             "update_fw": self.update_fw,
             "oneshot": self.oneshot,
@@ -203,16 +205,47 @@ class WebsocketControl(WebsocketControlBase):
             logger.exception("Unknow Error")
             self.send_error("UNKNOW_ERROR", repr(e.__class__))
 
-    def list_file(self):
-        try:
-            for f in self.robot.list_file():
-                self.send_text(f)
-            self.send_ok()
-        except RuntimeError as e:
-            self.send_error(*e.args)
-        except Exception as e:
-            logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+    def list_file(self, location=None):
+        if location:
+            msg = None
+            if location == "SD":
+                msg = json.dumps({
+                    "status": "ok", "directories": ["DIRSD", "DIRERR"],
+                    "files": ["model1.fcode", "model2.gcode"]
+                })
+            elif location == "SD/DIRSD":
+                msg = json.dumps({"status": "ok", "files": ["m.fcode"]})
+            elif location == "USB":
+                msg = json.dumps({
+                    "status": "ok", "directories": ["DIRUSB", "DIRERR"],
+                    "files": ["model1.fcode", "model2.fcode"]
+                })
+            elif location == "SD/DIRSD":
+                msg = json.dumps({"status": "ok", "files": ["m.fcode"]})
+            elif location == "SD/DIRUSB":
+                msg = json.dumps({"status": "ok", "files": ["n.fcode"]})
+            else:
+                self.send_error("NOT_FOUND")
+                return
+            self.send_text(msg)
+        else:
+            self.send_text('{"status": "ok", "directories": '
+                           '["SD", "USB"], "files": []}')
+
+    def file_info(self, file):
+        if file.endswith(".fcode"):
+            f = open("fluxghost/assets/miku_q.png", "rb")
+            buf = f.read()
+            f.close()
+            self.send_text(json.dumps({
+                "status": "binary", "mimetype": "image/png", "size": len(buf) 
+            }))
+            self.send_binary(buf)
+            self.send_text(json.dumps({
+                "status": "ok", "filesize": 4096, "timecost": 3600}))
+        else:
+            self.send_text(json.dumps({
+                "status": "ok", "filesize": 4096, "timecost": 3600}))
 
     def upload_file(self, size):
         self.binary_sock = self.robot.begin_upload(int(size))
