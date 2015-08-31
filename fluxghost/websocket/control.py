@@ -106,7 +106,6 @@ class WebsocketControl(WebsocketControlBase):
             "resume": self.robot.resume_play,
             "abort": self.robot.abort_play,
             "report": self.robot.report_play,
-            "position": self.robot.position,
             "quit": self.robot.quit_task,
 
             "scan": self.robot.begin_scan,
@@ -119,6 +118,7 @@ class WebsocketControl(WebsocketControlBase):
         }
 
         self.cmd_mapping = {
+            "position": self.position,
             "ls": self.list_file,
             "upload": self.upload_file,
             "update_fw": self.update_fw,
@@ -186,6 +186,17 @@ class WebsocketControl(WebsocketControlBase):
     def simple_cmd(self, func, *args):
         try:
             self.send_text('{"status":"%s"}' % func(*args))
+        except RuntimeError as e:
+            self.send_error(*e.args)
+        except Exception as e:
+            logger.exception("Unknow Error")
+            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+
+    def position(self):
+        try:
+            location = self.robot.position()
+            self.send_text('{"status": "position", "location": "%s"}' %
+                           location)
         except RuntimeError as e:
             self.send_error(*e.args)
         except Exception as e:
