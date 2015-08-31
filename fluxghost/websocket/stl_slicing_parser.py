@@ -45,6 +45,9 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
                 elif cmd == 'advanced_setting':
                     logger.debug("advanced_setting %s" % (params))
                     self.advanced_setting(params)
+                elif cmd == 'get_path':
+                    logger.debug("get_path")
+                    self.get_path()
                 else:
                     raise ValueError('Undefine command %s' % (cmd))
 
@@ -106,8 +109,18 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
     def generate_gcode(self, params):
         names = params.split(' ')
         gcode, metadata = self.m_stl_slicer.generate_gcode(names)
-        self.send_text('{"status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(gcode), metadata[0], metadata[1]))
-        self.send_binary(gcode.encode())
+        if gcode:
+            self.send_text('{"status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(gcode), metadata[0], metadata[1]))
+            self.send_binary(gcode.encode())
+        else:
+            self.send_error(metadata)
+
+    def get_path(self):
+        path = self.m_stl_slicer.get_path()
+        if path:
+            self.send_text(path)
+        else:
+            self.send_error('no path data to send')
 
     def delete(self, params):
         name = params.rstrip()
