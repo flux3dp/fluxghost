@@ -60,6 +60,9 @@ class WebSocketBase(WebSocketHandler):
         self.send_text('{"status": "fatal", "error": "%s"}' % error)
         self.close(ST_INVALID_PAYLOAD, error)
 
+    def send_progress(self, message, percentage):
+        self.send_text('{"status": "computing", "message": "%s", "percentage": %.2f}' % (message, percentage))
+
     def on_read(self):
         self.timer = time()
         self.do_recv()

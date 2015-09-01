@@ -87,15 +87,17 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def process_image(self):
         logger.debug('  start process images')
-        layer_index = 0
-        total = float(len(self.images))
+        self.send_progress('initializing', 0.03)
 
+        layer_index = 0
         for position, size, rotation, thres, buf in self.images:
-            self.m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation, thres)
-            logger.debug("Process image at %s pixel: %s" % (position, size))
-            progress = layer_index / total
-            self.send_text('{"status": "processing", "progress": %.3f}' % progress)
             layer_index += 1
+            self.send_progress('processing image %d' % (layer_index), (layer_index / len(self.images) * 0.6 + 0.03))
+            self.m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation, thres)
+            logger.debug("add image at %s pixel: %s" % (position, size))
+
+        logger.debug("add image finished, generating gcode")
+        self.send_progress('generating gcode', 0.97)
         output_binary = self.m_laser_bitmap.gcode_generate().encode()
 
         ########## fake code  ########################
@@ -103,8 +105,9 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
             f.write(output_binary)
         ##############################################
 
-        self.send_text('{"status": "processing", "progress": 1.0}')
+        self.send_progress('finishing', 1.0)
         self.send_text('{"status": "complete", "length": %s}' % len(output_binary))
         self.send_binary(output_binary)
+        logger.debug("laser bitmap finished")
 
         self.close(ST_NORMAL, "bye")

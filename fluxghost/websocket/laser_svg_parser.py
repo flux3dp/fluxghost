@@ -92,8 +92,10 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def go(self, params):
         names = params.split(' ')
         logger.debug("upload names:%s" % (" ".join(names)))
+        self.send_progress('initializing', 0.01)
 
-        output_binary = self.m_laser_svg.gcode_generate(names).encode()
+        output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
+        self.send_progress('finishing', 1.0)
 
         ########## fake code  ########################
         with open('output.gcode', 'wb') as f:
@@ -102,6 +104,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
         self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
+        logger.debug('laser svg finish')
 
     def set_params(self, params):
         key, value = params.split(' ')
