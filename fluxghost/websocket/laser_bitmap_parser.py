@@ -32,12 +32,13 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     def on_text_message(self, message):
         try:
             if not self.has_binary_helper():
-                cmd = message.rstrip().split(" ", 1)
-                if len(cmd) == 1:
-                    cmd = cmd[0]
+                message = message.rstrip().split(" ", 1)
+                if len(message) == 1:
+                    cmd = message[0]
+                    params = ''
                 else:
-                    params = cmd[1]
-                    cmd = cmd[0]
+                    cmd = message[0]
+                    params = message[1]
 
                 if cmd == "go":
                     self.process_image()
