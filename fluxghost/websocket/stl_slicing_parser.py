@@ -7,7 +7,7 @@ import sys
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE
-from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerNoPCL
+from fluxclient.printer.stl_slicer import StlSlicer
 
 logger = logging.getLogger("WS.slicing")
 
@@ -31,9 +31,14 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
                     cmd, params = message[0], ''
                 else:
                     cmd, params = message
+
                 if cmd == 'upload':
                     logger.debug("upload %s" % (params))
                     self.begin_recv_stl(params, 'upload')
+                elif cmd == 'upload_image':
+                    logger.debug("upload_image %s" % (params))
+                    self.begin_recv_stl(params, 'upload_image')
+
                 elif cmd == 'set':
                     logger.debug("set %s" % (params))
                     self.set(params)
@@ -72,9 +77,11 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
 
-    def end_recv_stl(self, buf, name, *args):
-        if args[0] == 'upload':
-            self.m_stl_slicer.upload(name, buf)
+    def end_recv_stl(self, buf, *args):
+        if args[1] == 'upload':
+            self.m_stl_slicer.upload(args[0], buf)
+        elif args[1] == 'upload_image':
+            self.m_stl_slicer.upload_image(buf)
 
         self.send_ok()
 
@@ -132,5 +139,8 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def delete(self, params):
         name = params.rstrip()
-        self.m_stl_slicer.delete(name)
-        self.send_ok()
+        flag, message = self.m_stl_slicer.delete(name)
+        if flag:
+            self.send_ok()
+        else:
+            self.send_error(message)
