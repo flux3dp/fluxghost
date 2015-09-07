@@ -101,7 +101,7 @@ class WebsocketControl(WebsocketControlBase):
 
     def set_hooks(self):
         self.simple_mapping = {
-            "select": self.robot.select_file,
+            # "select": self.robot.select_file,
             "start": self.robot.start_play,
             "pause": self.robot.pause_play,
             "resume": self.robot.resume_play,
@@ -120,8 +120,13 @@ class WebsocketControl(WebsocketControlBase):
 
         self.cmd_mapping = {
             "position": self.position,
+
             "ls": self.list_file,
-            "fileinfo": self.file_info,
+            "mkdir": self.mkdir,
+            "rmdir": self.rmdir,
+            "rmfile": self.rmfile,
+            "cpfile": self.cpfile,
+            "fileinfo": self.fileinfo,
             "upload": self.upload_file,
             "update_fw": self.update_fw,
             "oneshot": self.oneshot,
@@ -207,38 +212,28 @@ class WebsocketControl(WebsocketControlBase):
 
     def list_file(self, location=None):
         if location:
-            msg = None
-            if location == "SD":
-                msg = json.dumps({
-                    "status": "ok", "directories": ["DIRSD", "DIRERR"],
-                    "files": ["model1.fcode", "model2.gcode"]
-                })
-            elif location == "SD/DIRSD":
-                msg = json.dumps({"status": "ok", "files": ["m.fcode"]})
-            elif location == "USB":
-                msg = json.dumps({
-                    "status": "ok", "directories": ["DIRUSB", "DIRERR"],
-                    "files": ["model1.fcode", "model2.fcode"]
-                })
-            elif location == "SD/DIRSD":
-                msg = json.dumps({"status": "ok", "files": ["m.fcode"]})
-            elif location == "SD/DIRUSB":
-                msg = json.dumps({"status": "ok", "files": ["n.fcode"]})
-            else:
-                self.send_error("NOT_FOUND")
-                return
-            self.send_text(msg)
+            params = location.split("/", 1)
+            dirs = []
+            files = []
+            for is_dir, name in self.robot.list_files(*params):
+                if is_dir:
+                    dirs.append(name)
+                else:
+                    files.append(name)
+
+            self.send_text('{"status": "ok", "directories": %s, "files": '
+                           '%s}' % (json.dumps(dirs), json.dumps(files)))
         else:
             self.send_text('{"status": "ok", "directories": '
                            '["SD", "USB"], "files": []}')
 
-    def file_info(self, file):
+    def fileinfo(self, file):
         if file.endswith(".fcode"):
             f = open("fluxghost/assets/miku_q.png", "rb")
             buf = f.read()
             f.close()
             self.send_text(json.dumps({
-                "status": "binary", "mimetype": "image/png", "size": len(buf) 
+                "status": "binary", "mimetype": "image/png", "size": len(buf)
             }))
             self.send_binary(buf)
             self.send_text(json.dumps({
@@ -246,6 +241,32 @@ class WebsocketControl(WebsocketControlBase):
         else:
             self.send_text(json.dumps({
                 "status": "ok", "filesize": 4096, "timecost": 3600}))
+
+    def mkdir(self, file):
+        if file.startswith("SD/"):
+            self.simple_cmd(self.robot.mkdir, "SD", file[3:])
+        else:
+            self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+
+    def rmdir(self, file):
+        if file.startswith("SD/"):
+            self.simple_cmd(self.robot.rmdir, "SD", file[3:])
+        else:
+            self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+
+    def rmfile(self, file):
+        if file.startswith("SD/"):
+            self.simple_cmd(self.robot.rmfile, "SD", file[3:])
+        else:
+            self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+
+    def cpfile(self, args):
+        if args.startswith("@"):
+            source, target = args[1:].split("#")
+        else:
+            source, target = args.split("\x00")
+        params = source.split("/", 1) + target.split("/", 1)
+        self.simple_cmd(self.robot.cpfile, *params)
 
     def upload_file(self, size):
         self.binary_sock = self.robot.begin_upload(int(size))
