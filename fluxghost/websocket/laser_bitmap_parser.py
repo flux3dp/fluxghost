@@ -69,8 +69,8 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
 
         logger.debug("  Start recv image at [%.4f, %.4f][%.4f,%.4f] x [%i, %i], rotation = %.4f thres = %d" %
                      (x1, y1, x2, y2, w, h, rotation, thres))
-        if image_size > 1024 * 1024 * 8:
-            raise RuntimeError("IMAGE_TOO_LARGE")
+        # if image_size > 1024 * 1024 * 8:
+        #     raise RuntimeError("IMAGE_TOO_LARGE")
 
         helper = BinaryUploadHelper(image_size, self.end_recv_image,
                                     (x1, y1, x2, y2), (w, h), rotation, thres)

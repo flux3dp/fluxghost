@@ -34,10 +34,10 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
                 if cmd == 'upload':
                     logger.debug("upload %s" % (params))
-                    self.begin_recv_stl(params, 'upload')
+                    self.begin_recv_stl(params, cmd)
                 elif cmd == 'upload_image':
                     logger.debug("upload_image %s" % (params))
-                    self.begin_recv_stl(params, 'upload_image')
+                    self.begin_recv_stl(params, cmd)
 
                 elif cmd == 'set':
                     logger.debug("set %s" % (params))
@@ -72,7 +72,11 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_fatal(e.args[0])
 
     def begin_recv_stl(self, params, flag):
-        name, file_length = params.split(' ')
+        if flag == 'upload':
+            name, file_length = params.split(' ')
+        elif flag == 'upload_image':
+            name = ''
+            file_length = params
         helper = BinaryUploadHelper(int(file_length), self.end_recv_stl, name, flag)
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
@@ -82,7 +86,6 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
             self.m_stl_slicer.upload(args[0], buf)
         elif args[1] == 'upload_image':
             self.m_stl_slicer.upload_image(buf)
-
         self.send_ok()
 
     def set(self, params):
