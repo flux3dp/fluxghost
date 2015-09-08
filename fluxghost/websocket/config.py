@@ -59,14 +59,14 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
                 raise RuntimeError("BAD_FILE_OPERATION")
 
         except RuntimeError as e:
-            self.send('{"error": "%s"}' % e.args[0])
+            self.send_error(e.args[0])
             self.close()
 
         except PermissionError:
-            self.send('{"error": "ACCESS_DENY"}')
+            self.send_error("ACCESS_DENY")
             self.close()
         except Exception as e:
-            self.send('{"error": "UNKNOW_ERROR %s"}' % e)
+            self.send_error(e)
             self.close()
 
     def read_key(self):
