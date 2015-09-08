@@ -106,6 +106,12 @@ class WebsocketBinaryHelperMixin(object):
             logger.error(e)
             self.send_fatal(e.args[0])
 
+    def on_loop(self):
+        if self._binary_helper:
+            if time() - self._binary_helper.last_update > 10:
+                self.send_fatal('binary receive timeout')
+                raise RuntimeError('binary receive timeout')
+
 
 class BinaryUploadHelper(object):
     def __init__(self, length, callback, *args, **kwargs):
@@ -117,9 +123,13 @@ class BinaryUploadHelper(object):
         self.args = args
         self.kwargs = kwargs
 
+        self.last_update = time()
+
     def feed(self, buf):
+
         l = self.buf.write(buf)
         self.buffered += l
+        self.last_update = time()
 
         if self.buffered < self.length:
             return False
@@ -127,6 +137,8 @@ class BinaryUploadHelper(object):
             self.callback(self.buf.getvalue(), *self.args, **self.kwargs)
             return True
         else:
-            raise RuntimeError("BAD_LENGTH", "recive too many binary data ("
+            raise RuntimeError("BAD_LENGTH" + " recive too many binary data ("
+                               "should be %i but get %i" %
+                               (self.length, self.buffered), "recive too many binary data ("
                                "should be %i but get %i" %
                                (self.length, self.buffered))

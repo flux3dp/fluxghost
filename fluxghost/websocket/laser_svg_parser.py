@@ -3,7 +3,6 @@
 import logging
 import sys
 
-
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL
 from fluxclient.laser.laser_svg import LaserSvg
@@ -57,12 +56,15 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_fatal(e.args[0])
 
     def begin_recv_svg(self, message, flag, *args):
+        self.POOL_TIME_ = self.POOL_TIME
+        self.POOL_TIME = 10
         name, file_length = message.split(" ")
         helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag, args[0])
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
 
     def end_recv_svg(self, buf, name, *args):
+        self.POOL_TIME = self.POOL_TIME_
         if args[0] == 'upload':
             logger.debug("upload name:%s" % (name))
             try:
