@@ -31,6 +31,8 @@ STAGE_CALL_ROBOT = '{"status": "connecting", "stage": "call_robot"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
+DEVICE_CACHE = {}
+
 
 class WebsocketControlBase(WebSocketBase):
     robot = None
@@ -58,7 +60,8 @@ class WebsocketControlBase(WebSocketBase):
                 if err.args[0] != "ALREADY_RUNNING":
                     raise
 
-            self.robot = connect_robot((self.ipaddr, 23811), server_key=None,
+            self.robot = connect_robot((self.ipaddr, 23811),
+                                       server_key=task.pubkey,
                                        conn_callback=self._conn_callback)
 
         except TimeoutError:
@@ -85,9 +88,18 @@ class WebsocketControlBase(WebSocketBase):
         return True
 
     def _discover(self, serial):
-        task = UpnpTask(self.serial)
-        self.ipaddr = task.remote_addrs[0][0]
+        if serial in DEVICE_CACHE:
+            try:
+                cache = DEVICE_CACHE[serial]
+                task = UpnpTask(self.serial, ipaddr=cache[0], pubkey=cache[1],
+                                lookup_timeout=4.0)
+            except RuntimeError as e:
+                task = UpnpTask(self.serial)
+        else:
+            task = UpnpTask(self.serial)
 
+        DEVICE_CACHE[serial] = (task.remote_addrs[0][0], task.pubkey)
+        self.ipaddr = task.remote_addrs[0][0]
         return task
 
 

@@ -7,12 +7,14 @@ import logging
 import sys
 import os
 
+from fluxclient.utils.version import StrictVersion
+
 
 def check_fluxclient():
-    from fluxclient import VERSION as fluxclient_version
+    from fluxclient import VERSION as V
     sys.modules.pop("fluxclient")
-    if fluxclient_version < ('0', '4a4'):
-        raise RuntimeError("Your fluxclient need to update (>=0.4a4)")
+    if ".".join(V) < StrictVersion('0.5a2'):
+        raise RuntimeError("Your fluxclient need to update (>=0.5a2)")
 
 
 check_fluxclient()
