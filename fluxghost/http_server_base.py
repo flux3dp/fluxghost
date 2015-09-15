@@ -25,7 +25,10 @@ class HttpServerBase(object):
 
         args = ((self.sock, ), (), (), 30.)
         while self.running:
-            rl = select(*args)[0]
+            try:
+                rl = select(*args)[0]
 
-            if rl:
-                self.on_accept()
+                if rl:
+                    self.on_accept()
+            except InterruptedError:
+                pass
