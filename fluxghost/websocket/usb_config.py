@@ -53,6 +53,13 @@ class WebsocketUsbConfig(WebSocketBase):
                         "version": t.remote_version, "name": t.name,
                         "model": t.model_id, "password": t.has_password}))
 
+    def auth(self, password=None):
+        if password:
+            self.task.auth(password)
+        else:
+            self.task.auth()
+        self.send_text('{"status": "ok"}')
+
     def config_general(self, params):
         options = json.loads(params)
         self.task.config_general(options)
@@ -86,6 +93,10 @@ class WebsocketUsbConfig(WebSocketBase):
                 self.list_ports()
             elif message.startswith("connect "):
                 self.connect_usb(message.split(" ", 1)[-1])
+            elif message == "auth":
+                self.auth()
+            elif message.startswith("auth "):
+                self.auth(message[5:])
             elif message.startswith("set general "):
                 self.config_general(message.split(" ", 2)[-1])
             elif message.startswith("set network "):
