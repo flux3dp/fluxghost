@@ -73,6 +73,13 @@ class WebsocketUsbConfig(WebSocketBase):
 
         self.send_text(json.dumps(payload))
 
+    def set_password(self, password):
+        ret = self.task.set_password(password)
+        if ret == "OK":
+            self.send_text('{"status": "ok"}')
+        else:
+            self.send_error(ret)
+
     def on_text_message(self, message):
         try:
             if message == "list":
@@ -85,6 +92,8 @@ class WebsocketUsbConfig(WebSocketBase):
                 self.config_network(message.split(" ", 2)[-1])
             elif message.startswith("get network"):
                 self.get_network()
+            elif message.startswith("set password "):
+                self.set_password(message[13])
             else:
                 self.send_text(
                     '{"status": "error", "error": "UNKNOW_COMMAND"}')
