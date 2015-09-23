@@ -333,6 +333,7 @@ class WebsocketControl(WebsocketControlBase):
             self.rlist.remove(self.raw_sock)
             self.raw_sock = None
             self.robot.quit_raw_mode()
+            self.send_ok()
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
 
