@@ -113,7 +113,6 @@ class WebsocketControl(WebsocketControlBase):
 
     def set_hooks(self):
         self.simple_mapping = {
-            # "select": self.robot.select_file,
             "start": self.robot.start_play,
             "pause": self.robot.pause_play,
             "resume": self.robot.resume_play,
@@ -134,6 +133,7 @@ class WebsocketControl(WebsocketControlBase):
             "position": self.position,
 
             "ls": self.list_file,
+            "select": self.select_file,
             "mkdir": self.mkdir,
             "rmdir": self.rmdir,
             "rmfile": self.rmfile,
@@ -238,6 +238,11 @@ class WebsocketControl(WebsocketControlBase):
         else:
             self.send_text('{"status": "ok", "directories": '
                            '["SD", "USB"], "files": []}')
+
+    def select_file(self, file):
+        entry, path = file.split("/", 1)
+        self.robot.select_file(entry, path)
+        self.send_text('{"status": "ok"}')
 
     def fileinfo(self, file):
         if file.endswith(".fcode"):
