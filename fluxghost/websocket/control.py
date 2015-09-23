@@ -330,9 +330,9 @@ class WebsocketControl(WebsocketControlBase):
 
     def on_raw_message(self, message):
         if message == "quit":
-            self.raw_sock.sock.send("quit")
-            self.raw_sock.on_read()
+            self.rlist.remove(self.raw_sock)
             self.raw_sock = None
+            self.robot.quit_raw_mode()
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
 
