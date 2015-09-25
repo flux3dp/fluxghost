@@ -184,7 +184,7 @@ class WebsocketControl(WebsocketControlBase):
             self.on_raw_message(message)
             return
 
-        args = shlex.split(" ")
+        args = shlex.split(message, " ")
         cmd = args.pop(0)
 
         try:
