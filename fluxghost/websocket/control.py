@@ -1,5 +1,6 @@
 
 import logging
+import shlex
 import json
 
 from fluxclient.robot import connect_robot
@@ -144,6 +145,8 @@ class WebsocketControl(WebsocketControlBase):
             "oneshot": self.oneshot,
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
+
+            "eadj": self.maintain_eadj
         }
 
     def on_binary_message(self, buf):
@@ -181,15 +184,15 @@ class WebsocketControl(WebsocketControlBase):
             self.on_raw_message(message)
             return
 
-        args = message.split(" ", 1)
-        cmd = args[0]
+        args = shlex.split(" ")
+        cmd = args.pop(0)
 
         try:
             if cmd in self.simple_mapping:
-                self.simple_cmd(self.simple_mapping[cmd], *args[1:])
+                self.simple_cmd(self.simple_mapping[cmd], *args)
             elif cmd in self.cmd_mapping:
                 func_ptr = self.cmd_mapping[cmd]
-                func_ptr(*args[1:])
+                func_ptr(*args)
             else:
                 logger.error("Unknow Command: %s" % message)
                 self.send_error("UNKNOW_COMMAND", "ws")
@@ -245,19 +248,17 @@ class WebsocketControl(WebsocketControlBase):
         self.send_text('{"status": "ok"}')
 
     def fileinfo(self, file):
-        if file.endswith(".fcode"):
-            f = open("fluxghost/assets/miku_q.png", "rb")
-            buf = f.read()
-            f.close()
+        entry, path = file.split("/", 1)
+        info, binary = self.robot.fileinfo(entry, path)
+        if binary:
             self.send_text(json.dumps({
-                "status": "binary", "mimetype": "image/png", "size": len(buf)
+                "status": "binary", "mimetype": binary[0],
+                "size": len(binary[1])
             }))
-            self.send_binary(buf)
-            self.send_text(json.dumps({
-                "status": "ok", "filesize": 4096, "timecost": 3600}))
-        else:
-            self.send_text(json.dumps({
-                "status": "ok", "filesize": 4096, "timecost": 3600}))
+            self.send_binary(binary[1])
+
+        info["status"] = "ok"
+        self.send_text(json.dumps(info))
 
     def mkdir(self, file):
         if file.startswith("SD/"):
@@ -285,7 +286,8 @@ class WebsocketControl(WebsocketControlBase):
         params = source.split("/", 1) + target.split("/", 1)
         self.simple_cmd(self.robot.cpfile, *params)
 
-    def upload_file(self, size):
+    def upload_file(self, mimetype, size, uploadto="#"):
+        #TODO
         self.binary_sock = self.robot.begin_upload(int(size))
         self.binary_length = int(size)
         self.binary_sent = 0
@@ -296,6 +298,12 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
+
+    def maintain_eadj(self, *args):
+        def callback(nav):
+            self.send_text("Mainboard info: %s", nav)
+        self.robot_obj.maintain_eadj(navigate_callback=callback)
+        self.send_text("ok")
 
     def oneshot(self):
         images = self.robot.oneshot()
