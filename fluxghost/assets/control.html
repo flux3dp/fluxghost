@@ -172,7 +172,7 @@
       var f = evt.target.files[0];
 
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-        var cmd = $(this).attr("data-file-cmd") + " " + f.size;
+        var cmd = $(this).attr("data-file-cmd") + " text/gcode " + f.size;
         
         appendLog("Start uploading... (" + cmd + ")")
         window.control_ws.onmessage = cb_begin_upload;
