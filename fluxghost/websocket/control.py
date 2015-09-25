@@ -302,7 +302,7 @@ class WebsocketControl(WebsocketControlBase):
     def maintain_eadj(self, *args):
         def callback(nav):
             self.send_text("Mainboard info: %s", nav)
-        self.robot_obj.maintain_eadj(navigate_callback=callback)
+        self.robot.maintain_eadj(navigate_callback=callback)
         self.send_text("ok")
 
     def oneshot(self):
