@@ -61,7 +61,7 @@
       try {
         var payload = JSON.parse(m.data);
         if(payload.status === "connecting") {
-          appendLog("Connecting...", "#444");
+          appendLog("Connecting... (" + payload.stage + ")", "#444");
         } else if(payload.status === "connected") {
           appendLog("➜ Ready")
           appendHtmlLog('<div>' + 

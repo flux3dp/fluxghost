@@ -57,9 +57,12 @@ class WebsocketControlBase(WebSocketBase):
 
             try:
                 task.require_robot()
+                self.send_text('{"status": "connecting", "stage": "robot_ready"}')
             except RuntimeError as err:
                 if err.args[0] != "ALREADY_RUNNING":
-                    raise
+                    self.send_text('{"status": "connecting", "stage": "%s, ignore error and continue"}' % err[0])
+                    # raise
+                self.send_text('{"status": "connecting", "stage": "robot_already_running, continue"}')
 
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.pubkey,
