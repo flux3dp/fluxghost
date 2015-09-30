@@ -75,7 +75,6 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def begin_recv_binary(self, params):
         key, data_length = params.split(' ')
-        print(data_length)
         helper = BinaryUploadHelper(int(data_length), self.end_recv_binary, key)
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
