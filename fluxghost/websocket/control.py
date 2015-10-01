@@ -99,6 +99,10 @@ class WebsocketControlBase(WebSocketBase):
         self.simple_mapping = None
         self.cmd_mapping = None
 
+    def _disc_callback(self, *args):
+        self.send_text(STAGE_DISCOVER)
+        return True
+
     def _conn_callback(self, *args):
         self.send_text(STAGE_ROBOT_CONNECTING)
         return True
@@ -110,9 +114,10 @@ class WebsocketControlBase(WebSocketBase):
                 task = UpnpTask(self.serial, ipaddr=cache[0], pubkey=cache[1],
                                 lookup_timeout=4.0)
             except RuntimeError as e:
-                task = UpnpTask(self.serial)
+                task = UpnpTask(self.serial,
+                                lookup_callback=self._disc_callback)
         else:
-            task = UpnpTask(self.serial)
+            task = UpnpTask(self.serial, lookup_callback=self._disc_callback)
 
         DEVICE_CACHE[serial] = (task.remote_addrs[0][0], task.pubkey)
         self.ipaddr = task.remote_addrs[0][0]
