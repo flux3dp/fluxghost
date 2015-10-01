@@ -56,8 +56,9 @@ class WebSocketBase(WebSocketHandler):
         else:
             self.send_text('{"status": "error", "error": "%s"}' % errcode)
 
-    def send_fatal(self, error):
-        self.send_text('{"status": "fatal", "error": "%s"}' % error)
+    def send_fatal(self, error, suberror=None):
+        self.send_text('{"status": "fatal", "error": "%s", "info": "%s"}' % 
+                       (error, suberror))
         self.close(ST_INVALID_PAYLOAD, error)
 
     def send_progress(self, message, percentage):

@@ -69,13 +69,11 @@ class WebsocketControlBase(WebSocketBase):
                                        conn_callback=self._conn_callback)
 
         except TimeoutError:
-            self.send_error("TIMEOUT")
-            self.close()
+            self.send_fatal("TIMEOUT")
             raise
 
         except RuntimeError as err:
-            self.send_error(err.args[0])
-            self.close()
+            self.send_fatal(err.args[0])
             raise
 
         self.send_text(STAGE_CONNECTED)
@@ -165,11 +163,9 @@ class WebsocketControl(WebsocketControlBase):
                     errargs = resp.split(" ")
                     self.send_error(*(errargs[1:]))
             else:
-                self.send_error("NOT_MATCH", "binary data length error")
-                self.close()
+                self.send_fatal("NOT_MATCH", "binary data length error")
         else:
-            self.text_send("Can not accept binary data")
-            self.close()
+            self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
     def on_text_message(self, message):
         if message == "over_my_dead_body":
@@ -358,4 +354,9 @@ class RawSock(object):
         return self.sock.fileno()
 
     def on_read(self):
-        self.ws.send_text(self.sock.recv(128).decode("ascii", "ignore"))
+        buf = self.sock.recv(128)
+        if buf:
+            self.ws.send_text(buf.decode("ascii", "replace"))
+        else:
+            self.ws.rlist.remove(self)
+            self.ws.send_fatal("DISCONNECTED")
