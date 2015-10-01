@@ -70,6 +70,7 @@
             '<img src="ready.png" height="60px" />' +
             '<img src="ready.png" height="60px" />' + '</div>');
           control_ws.onmessage = cb_standard;
+          send_cmd("position");
         } else {
           appendLog("✗ Error: "+ m.data + " 😭", "red");
         }
@@ -105,7 +106,7 @@
           $("<a></a>").
             css("cursor", "pointer").
             attr("data-cmd", "ls " + path + dirname).
-            text("[" + dirname + "]"));
+            text("[" + path + dirname + "]"));
         appendHtmlLog($row);
       }
 
@@ -117,7 +118,7 @@
           $("<a></a>").
             css("cursor", "pointer").
             attr("data-cmd", "select " + path + filename).
-            text("[" + filename + "]"));
+            text("[" + path + filename + "]"));
         appendHtmlLog($row);
       }
     } else {
@@ -173,22 +174,10 @@
       } else {
         startDiscover()
       }
-    }).trigger("click");
-
-    $("#devices").on("click", "[data-serial]", function() {
-      var serial = $(this).attr("data-serial");
-      var name = $(this).attr("data-name");
-      beginControl(serial, name);
     });
 
     $("[data-role=reset-control]").on("click", function() {
       connectControl();
-    });
-
-    $("[data-role=end-control]").on("click", function() {
-      $(".device_select_ui").show();
-      $(".device_control_ui").hide();
-      $("[data-role=discover]").trigger("click");
     });
 
     $("#controlcmd").on("keypress", function(e) {
@@ -234,6 +223,24 @@
       }
     });
     // End Upload File Codes
+
+    // Begin UI
+    $(window).bind('hashchange', function(e) {
+      var matchs = /^#[0-9A-Z]+;[\w\W]+$/.exec(document.location.hash);
+      if(matchs != undefined && matchs.length == 1) {
+        var tags = matchs[0].split(";");
+        var serial = tags[0].substr(1);
+        var name = tags.slice(1).join(";");
+
+        beginControl(serial, name);
+      } else {
+        $(".device_select_ui").show();
+        $(".device_control_ui").hide();
+        startDiscover();
+      }
+    }).trigger("hashchange");;
+
+    appendLog("溫馨小提醒: 狂按重新整理不會改變任何事情。", "blue");
   });
   </script>
 </head>
@@ -249,18 +256,24 @@
     </div>
   </div>
   <hr />
-  <div class="container-fluid"><div class="navbar">
+  <div class="container-fluid device_select_ui">
+      <div class="list-group" id="devices"></div>
+  </div>
+  <div class="container-fluid" style="margin-bottom: 5px;">
     <div class="col-xs-8">
-      <a href="#" class="btn btn-sm btn-success device_select_ui" data-role="discover">Start Discover</a>
+      <a class="btn btn-sm btn-success device_select_ui" data-role="discover">Start Discover</a>
       <label id="device_label" class="device_control_ui"></label>
     </div>
     <div class="col-xs-4 text-right">
-      <a href="#" class="btn btn-sm btn-warning device_control_ui" data-role="reset-control">Reset Connection</a>
-      <a href="#" class="btn btn-sm btn-default device_control_ui" data-role="end-control">Back to discover</a>
+      <a class="btn btn-sm btn-warning device_control_ui" data-role="reset-control">
+        <i class="glyphicon glyphicon-repeat"></i>
+        Reset Connection
+      </a>
+      <a href="#" class="btn btn-sm btn-default device_control_ui" data-role="end-control">
+        <i class="glyphicon glyphicon-th-list"></i>
+        Back to device lists
+      </a>
     </div>
-  </div></div>
-  <div class="container-fluid device_select_ui">
-      <div class="list-group" id="devices"></div>
   </div>
   <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
@@ -273,6 +286,7 @@
         懶懶 DER
         <span data-cmd="position" class="btn btn-xs btn-default">Position</span>
         <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
+        <span data-cmd="ls" class="btn btn-xs btn-default">List files</span>
         <span data-cmd="start" class="btn btn-xs btn-primary">Start</span>
         <span data-cmd="abort,quit" class="btn btn-xs btn-danger">Abort+Quit</span>
         <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>

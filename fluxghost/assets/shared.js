@@ -69,7 +69,7 @@ function DiscoverWS(addCallback, removeCallback) {
 
 function addDevice(serial, name, version, password) {
   var $item = $("<a></a>").
-    attr("href", "#").
+    attr("href", "#" + serial + ";" + name).
     addClass("list-group-item").
     attr("data-serial", serial).
     attr("data-password", password ? "true" : "false").
@@ -90,6 +90,7 @@ function removeDevice(serial) {
 
 function startDiscover() {
   $("#devices").children().remove();
+  if(window.discover_ws) stopDiscover();
   window.discover_ws = new DiscoverWS(addDevice, removeDevice);
   $("[data-role=discover]").removeClass("btn-success").addClass("btn-warning").text("Stop Discover");
 }
