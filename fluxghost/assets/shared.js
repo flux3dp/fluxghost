@@ -8,11 +8,22 @@ function appendLog(text, color) {
   var log_text = "[" + hour + ":" + minute + ":" + seconds + "] " + text;
   var $row = $("<div></div>").text(log_text);
   if(color) $row.css("color", color);
-  $("#log").prepend($row);
+
+  $("#log").append($row);
+
+  setTimeout(function() {
+      var h = $("#log")[0].scrollHeight;
+      $("#log").animate({ scrollTop: h }, "fast");
+  }, 5);
 }
 
 function appendHtmlLog(html) {
-    $("#log").prepend($(html));
+    $("#log").append($(html));
+
+    setTimeout(function() {
+        var h = $("#log")[0].scrollHeight;
+        $("#log").animate({ scrollTop: h }, "fast");
+    }, 5);
 }
 
 function ws_close_handler(name) {

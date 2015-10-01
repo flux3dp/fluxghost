@@ -17,6 +17,7 @@
     top: 0;
     right: 0;
     margin: 0;
+    width: 0;
     opacity: 0;
     -ms-filter: 'alpha(opacity=0)';
     font-size: 200px;
@@ -80,7 +81,48 @@
   }
 
   function cb_standard(m) {
-    appendLog(m.data);
+    var payload;
+    try {
+      payload = JSON.parse(m.data);
+    } catch (e) {}
+
+    if(payload != undefined && payload.status === "ok" &&
+       payload.path != undefined && payload.directories != undefined &&
+       payload.files != undefined) {
+      // List file
+      appendLog("List " + payload.path + ":");
+
+      var path = payload.path;
+      if(path != "" && path[path.length - 1] != "/") {
+        path = path + "/";
+      }
+
+      for(var i=0;i<payload.directories.length;i++) {
+        var dirname = payload.directories[i];
+        var $row = $("<div></div>");
+        $row.append($("<span>Dir&nbsp;</span>"));
+        $row.append(
+          $("<a></a>").
+            css("cursor", "pointer").
+            attr("data-cmd", "ls " + path + dirname).
+            text("[" + dirname + "]"));
+        appendHtmlLog($row);
+      }
+
+      for(var i=0;i<payload.files.length;i++) {
+        var filename = payload.files[i];
+        var $row = $("<div></div>");
+        $row.append($("<span>File&nbsp;</span>"));
+        $row.append(
+          $("<a></a>").
+            css("cursor", "pointer").
+            attr("data-cmd", "select " + path + filename).
+            text("[" + filename + "]"));
+        appendHtmlLog($row);
+      }
+    } else {
+      appendLog(m.data);
+    }
   }
 
   function cb_begin_upload(m) {
@@ -158,6 +200,13 @@
       }
     });
 
+    $("#log").on("click", "[data-cmd]", function() {
+      cl = $(this).attr("data-cmd").split(",")
+      for(var i=0;i<cl.length;i++) {
+        send_cmd(cl[i]);
+      }
+    });
+
     $("[data-cmd]").bind("click", function() {
       cl = $(this).attr("data-cmd").split(",")
       for(var i=0;i<cl.length;i++) {
@@ -214,18 +263,11 @@
       <div class="list-group" id="devices"></div>
   </div>
   <div class="container-fluid device_control_ui">
-    <div class="col-xs-10">
-      <input id="controlcmd" type="text" class="form-control" />
-    </div>
-    <div class="col-xs-2 text-right">
-      <span class="btn btn-primary fileinput-button">
-          <i class="glyphicon glyphicon-upload"></i>
-          <span>Upload</span>
-          <input type="file" data-file-cmd="upload" name="file" />
-      </span>
+    <div class="col-xs-12">
+      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
     </div>
   </div>
-  <div class="container device_control_ui">
+  <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
       <div style="margin: 5px 0">
         懶懶 DER
@@ -237,10 +279,9 @@
         <span data-cmd="raw" class="btn btn-xs btn-info">Raw</span>
         <span data-cmd="G28" class="btn btn-xs btn-primary">G28</span>
         <span data-cmd="G92 E0,G1 F200 E200" class="btn btn-xs btn-default">送料</span>
-        <span data-cmd="-H2000" class="btn btn-xs btn-default">-H2000</span>
-        <span data-cmd="-H2100" class="btn btn-xs btn-default">-H2100</span>
-        <span data-cmd="-M200" class="btn btn-xs btn-default">-M200</span>
-        <span data-cmd="-T" class="btn btn-xs btn-default">-T</span>
+        <span data-cmd="-HO2000" class="btn btn-xs btn-default">Temp 200 (HO2000)</span>
+        <span data-cmd="-HO2100" class="btn btn-xs btn-default">Temp 210 (HO2100)</span>
+        <span data-cmd="-RT" class="btn btn-xs btn-default">Temp? (RT)</span>
 
         <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
       </div>
@@ -248,15 +289,27 @@
   </div>
   <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
-      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+      <div class="input-group input-group">
+        <span class="input-group-addon">
+          <i class="glyphicon glyphicon-console"></i>
+        </span>
+        <input id="controlcmd" type="text" class="form-control" />
+        <div class="input-group-btn">
+          <span class="btn btn-primary fileinput-button">
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>Upload</span>
+              <input type="file" class="fileinput-button" data-file-cmd="upload" name="file" />
+          </span>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="container device_control_ui">
+  <div class="container-fluid device_control_ui" style="margin-top: 10px;">
     <div class="col-xs-12">
       <span class="btn btn-xs btn-danger fileinput-button">
           <i class="glyphicon glyphicon-upload"></i>
           <span>** Update Marlin Fireware **</span>
-          <input type="file" data-file-cmd="update_fw" name="file" />
+          <input type="file" class="fileinput-button" data-file-cmd="update_fw" name="file" />
       </span>
     </div>
   </div>

@@ -1,4 +1,5 @@
 
+from time import sleep
 import logging
 import shlex
 import json
@@ -28,7 +29,10 @@ ws.send("ls")
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_AUTH = '{"status": "connecting", "stage": "auth"}'
-STAGE_CALL_ROBOT = '{"status": "connecting", "stage": "call_robot"}'
+STAGE_ROBOT_INIT = '{"status": "connecting", "stage": "initial"}'
+STAGE_ROBOT_LAUNGING = '{"status": "connecting", "stage": "launching"}'
+STAGE_ROBOT_LAUNCHED = '{"status": "connecting", "stage": "launched"}'
+STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
@@ -52,29 +56,39 @@ class WebsocketControlBase(WebSocketBase):
             self.send_text(STAGE_DISCOVER)
             task.require_auth()
 
-            logger.debug("REQUIRE ROBOT")
-            self.send_text(STAGE_DISCOVER)
-
-            try:
-                task.require_robot()
-                self.send_text('{"status": "connecting", "stage": "robot_ready"}')
-            except RuntimeError as err:
-                if err.args[0] != "ALREADY_RUNNING":
-                    self.send_text('{"status": "connecting", "stage": "%s, ignore error and continue"}' % err.args[0])
-                    # raise
-                self.send_text('{"status": "connecting", "stage": "robot_already_running, continue"}')
-
-            self.robot = connect_robot((self.ipaddr, 23811),
-                                       server_key=task.pubkey,
-                                       conn_callback=self._conn_callback)
-
         except TimeoutError:
             self.send_fatal("TIMEOUT")
             raise
 
         except RuntimeError as err:
-            self.send_fatal(err.args[0])
+            self.send_fatal(err.args[0], )
             raise
+
+        try:
+            logger.debug("REQUIRE ROBOT")
+            while True:
+                resp = task.require_robot()
+
+                if resp:
+                    st = resp.get("status")
+                    if st == "initial":
+                        self.send_text(STAGE_ROBOT_INIT)
+                        sleep(0.3)
+                    elif st == "launching":
+                        self.send_text(STAGE_ROBOT_LAUNGING)
+                        sleep(0.3)
+                    elif st == "launched":
+                        self.send_text(STAGE_ROBOT_LAUNCHED)
+                        break
+
+        except RuntimeError as err:
+            self.send_fatal(err.args[0], "require robot failed")
+            raise
+
+        self.send_text(STAGE_ROBOT_CONNECTING)
+        self.robot = connect_robot((self.ipaddr, 23811),
+                                   server_key=task.pubkey,
+                                   conn_callback=self._conn_callback)
 
         self.send_text(STAGE_CONNECTED)
 
@@ -86,7 +100,7 @@ class WebsocketControlBase(WebSocketBase):
         self.cmd_mapping = None
 
     def _conn_callback(self, *args):
-        self.send_text(STAGE_CALL_ROBOT)
+        self.send_text(STAGE_ROBOT_CONNECTING)
         return True
 
     def _discover(self, serial):
@@ -235,10 +249,11 @@ class WebsocketControl(WebsocketControlBase):
                 else:
                     files.append(name)
 
-            self.send_text('{"status": "ok", "directories": %s, "files": '
-                           '%s}' % (json.dumps(dirs), json.dumps(files)))
+            payload = {"status": "ok", "path": location, "directories": dirs,
+                       "files": files}
+            self.send_text(json.dumps(payload))
         else:
-            self.send_text('{"status": "ok", "directories": '
+            self.send_text('{"status": "ok", "path": "", "directories": '
                            '["SD", "USB"], "files": []}')
 
     def select_file(self, file):
