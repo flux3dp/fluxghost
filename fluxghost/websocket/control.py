@@ -187,6 +187,10 @@ class WebsocketControl(WebsocketControlBase):
             self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
     def on_text_message(self, message):
+        if message == "ping":
+            self.send_text('{"status": "pong"}')
+            return
+
         if message == "over_my_dead_body":
             import tempfile
             import os

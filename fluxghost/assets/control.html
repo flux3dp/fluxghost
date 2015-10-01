@@ -57,7 +57,11 @@
     var ws = new WebSocket("ws://" + window.location.host + "/ws/control/" + serial);
     window.control_ws = ws;
 
-    control_ws.onclose = ws_close_handler("Control");
+    control_ws.onclose = function(v) {
+      self.control_ws = undefined;
+      ws_close_handler("Control")(v);
+    };
+
     control_ws.onmessage = function(m) {
       try {
         var payload = JSON.parse(m.data);
@@ -70,6 +74,7 @@
             '<img src="ready.png" height="60px" />' +
             '<img src="ready.png" height="60px" />' + '</div>');
           control_ws.onmessage = cb_standard;
+          send_ping();
           send_cmd("position");
         } else {
           appendLog("✗ Error: "+ m.data + " 😭", "red");
@@ -79,6 +84,10 @@
         appendLog("✗ Exception: "+ err.message + " 😭", "red");
       }
     };
+  }
+
+  function send_ping() {
+    if(window.control_ws) window.control_ws.send("ping");
   }
 
   function cb_standard(m) {
@@ -121,6 +130,8 @@
             text("[" + path + filename + "]"));
         appendHtmlLog($row);
       }
+    } else if(payload != undefined && payload.status === "pong") {
+      setTimeout(send_ping, 30 * 1000);
     } else {
       appendLog(m.data);
     }
