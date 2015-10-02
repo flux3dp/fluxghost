@@ -17,7 +17,6 @@
     top: 0;
     right: 0;
     margin: 0;
-    width: 0;
     opacity: 0;
     -ms-filter: 'alpha(opacity=0)';
     font-size: 200px;
@@ -138,7 +137,6 @@
   }
 
   function cb_begin_upload(m) {
-    window.aa = m;
     try {
       var data = JSON.parse(m.data)
 
