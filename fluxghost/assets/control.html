@@ -56,12 +56,12 @@
     var ws = new WebSocket("ws://" + window.location.host + "/ws/control/" + serial);
     window.control_ws = ws;
 
-    control_ws.onclose = function(v) {
+    ws.onclose = function(v) {
       self.control_ws = undefined;
       ws_close_handler("Control")(v);
     };
 
-    control_ws.onmessage = function(m) {
+    ws.onmessage = function(m) {
       try {
         var payload = JSON.parse(m.data);
         if(payload.status === "connecting") {

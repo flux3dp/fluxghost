@@ -316,7 +316,7 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
 
-    def update_fw(self, size):
+    def update_fw(self, mimetype, size):
         self.binary_sock = self.robot.begin_upload(int(size), cmd="update_fw")
         self.binary_length = int(size)
         self.binary_sent = 0
