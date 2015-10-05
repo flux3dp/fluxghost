@@ -48,7 +48,7 @@
       if(data.has_response && !data.auth && has_password) {
         touch_with_password(serial, name, has_password)
       } else {
-        log_touch_result(serial, name, m.data);
+        log_touch_result(serial, name, data);
       }
 
       ws = undefined;

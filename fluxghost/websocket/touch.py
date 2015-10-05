@@ -22,13 +22,25 @@ class WebsocketTouch(WebSocketBase):
             logger.exception("Touch error")
             self.close()
 
+    def _run_auth(self, task, password=None):
+        ttl = 3
+        while True:
+            try:
+                if password:
+                    return task.auth_with_password(password)
+                else:
+                    return task.auth_without_password()
+            except RuntimeError as e:
+                if e.args[0] == "TIMEOUT" and ttl > 0:
+                    logger.warn("Remote no response, retry")
+                    ttl -= 1
+                else:
+                    raise
+
     def touch_device(self, serial, password=None):
         try:
             task = UpnpTask(serial, lookup_timeout=30.0)
-            if password:
-                resp = task.auth_with_password(password)
-            else:
-                resp = task.auth_without_password()
+            resp = self._run_auth(task, password)
 
             self.send_text(json.dumps({
                 "serial": serial,
