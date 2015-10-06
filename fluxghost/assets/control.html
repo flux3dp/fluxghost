@@ -57,11 +57,15 @@
     window.control_ws = ws;
 
     ws.onclose = function(v) {
-      self.control_ws = undefined;
+      if(self.control_ws === ws) {
+        self.control_ws = undefined;
+      }
       ws_close_handler("Control")(v);
     };
 
     ws.onmessage = function(m) {
+      if(window.control_ws !== ws) { return; }
+
       try {
         var payload = JSON.parse(m.data);
         if(payload.status === "connecting") {
@@ -72,7 +76,7 @@
             '<img src="ready.png" height="60px" />' +
             '<img src="ready.png" height="60px" />' +
             '<img src="ready.png" height="60px" />' + '</div>');
-          control_ws.onmessage = cb_standard;
+          ws.onmessage = cb_standard;
           send_ping();
           send_cmd("position");
         } else {
@@ -218,9 +222,24 @@
     $("input[name=file]").on("change", function(evt) {
       var f = evt.target.files[0];
 
+      // Get mimetype
+      var mimetype = undefined;
+      var filename = f.name.split(".");
+      var fileext = filename[filename.length - 1].toLowerCase();
+      if(fileext == "gcode") {
+        mimetype = "text/gcode";
+      } else if (fileext == "fcode") {
+        mimetype = "application/fcode";
+      } else if (fileext == "bin"){
+        mimetype = "binary/fireware";
+      } else {
+        alert("Unknow file type");
+        return
+      }
+
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-        var cmd = $(this).attr("data-file-cmd") + " text/gcode " + f.size;
-        
+        var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
+
         appendLog("Start uploading... (" + cmd + ")")
         window.control_ws.onmessage = cb_begin_upload;
         window.control_ws.send(cmd);

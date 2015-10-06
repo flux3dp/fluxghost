@@ -1,6 +1,8 @@
 
+from errno import EPIPE
 from time import sleep
 import logging
+import socket
 import shlex
 import json
 
@@ -223,6 +225,13 @@ class WebsocketControl(WebsocketControlBase):
             logger.debug("RuntimeError%s" % repr(e.args))
             self.send_error(*e.args)
 
+        except socket.error as e:
+            if e.args[0] == EPIPE:
+                self.send_fatal("DISCONNECTED", repr(e.__class__))
+            else:
+                logger.exception("Unknow Error")
+                self.send_fatal("UNKNOW_ERROR", repr(e.__class__))
+
         except Exception as e:
             logger.exception("Unknow Error")
             self.send_error("UNKNOW_ERROR", repr(e.__class__))
@@ -310,14 +319,14 @@ class WebsocketControl(WebsocketControlBase):
         self.simple_cmd(self.robot.cpfile, *params)
 
     def upload_file(self, mimetype, size, uploadto="#"):
-        #TODO
-        self.binary_sock = self.robot.begin_upload(int(size))
+        self.binary_sock = self.robot.begin_upload(mimetype, int(size))
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
 
     def update_fw(self, mimetype, size):
-        self.binary_sock = self.robot.begin_upload(int(size), cmd="update_fw")
+        self.binary_sock = self.robot.begin_upload(mimetype, int(size),
+                                                   cmd="update_fw")
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
