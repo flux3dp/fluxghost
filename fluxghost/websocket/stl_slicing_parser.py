@@ -123,11 +123,13 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def generate_gcode(self, params):
         names = params.split(' ')
-        gcode, metadata = self.m_stl_slicer.generate_gcode(names, self)
+        output_type = names[-1]
+        names = names[:-1]
+        output, metadata = self.m_stl_slicer.generate_gcode(names, self, output_type)
         # self.send_progress('finishing', 1.0)
-        if gcode:
-            self.send_text('{"status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(gcode), metadata[0], metadata[1]))
-            self.send_binary(gcode.encode())
+        if output:
+            self.send_text('{"status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(output), metadata[0], metadata[1]))
+            self.send_binary(output)
             logger.debug('slicing finish')
         else:
             self.send_error(metadata)
