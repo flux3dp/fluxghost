@@ -73,9 +73,9 @@
         } else if(payload.status === "connected") {
           appendLog("➜ Ready")
           appendHtmlLog('<div>' + 
-            '<img src="ready.png" height="60px" />' +
-            '<img src="ready.png" height="60px" />' +
-            '<img src="ready.png" height="60px" />' + '</div>');
+            '<img src="ready.png?" height="60px" />' +
+            '<img src="ready.png?" height="60px" />' +
+            '<img src="ready.png?" height="60px" />' + '</div>');
           ws.onmessage = cb_standard;
           send_ping();
           send_cmd("position");
@@ -136,7 +136,10 @@
     } else if(payload != undefined && payload.status === "pong") {
       setTimeout(send_ping, 30 * 1000);
     } else {
-      appendLog(m.data);
+      var lines = m.data.split("\n");
+      for(var i=0;i<lines.length;i++) {
+        appendLog(lines[i]);
+      }
     }
   }
 
