@@ -66,9 +66,9 @@ class WebsocketControlBase(WebSocketBase):
             self.send_fatal(err.args[0], )
             raise
 
-        try:
-            logger.debug("REQUIRE ROBOT")
-            while True:
+        logger.debug("REQUIRE ROBOT")
+        while True:
+            try:
                 resp = task.require_robot()
 
                 if resp:
@@ -83,9 +83,17 @@ class WebsocketControlBase(WebSocketBase):
                         self.send_text(STAGE_ROBOT_LAUNCHED)
                         break
 
-        except RuntimeError as err:
-            self.send_fatal(err.args[0], "require robot failed")
-            raise
+            except RuntimeError as err:
+                if err.args[0] == "AUTH_ERROR":
+                    if task.timedelta < -15:
+                        logger.debug("Auth error, try fix time delta")
+                        old_td = task.timedelta
+                        task.update_remote_infomation(lookup_timeout=30.)
+                        if task.timedelta - old_td > 0.5:
+                            # Fix timedelta issue let's retry
+                            continue
+                self.send_fatal(err.args[0], "require robot failed")
+                raise
 
         self.send_text(STAGE_ROBOT_CONNECTING)
         self.robot = connect_robot((self.ipaddr, 23811),
