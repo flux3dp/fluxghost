@@ -72,10 +72,11 @@
           appendLog("Connecting... (" + payload.stage + ")", "#444");
         } else if(payload.status === "connected") {
           appendLog("➜ Ready")
-          appendHtmlLog('<div>' + 
+          appendHtmlLog('<div>' +
             '<img src="ready.png?" height="60px" />' +
             '<img src="ready.png?" height="60px" />' +
             '<img src="ready.png?" height="60px" />' + '</div>');
+
           ws.onmessage = cb_standard;
           send_ping();
           send_cmd("position");
@@ -241,7 +242,16 @@
       }
 
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-        var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
+
+
+        if($(this).attr("data-file-cmd") == "upload_g"){
+          var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size + " 1";
+          control_ws.flag = "g";
+        }
+        else{
+          var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
+          control_ws.flag = "normal";
+        }
 
         appendLog("Start uploading... (" + cmd + ")")
         window.control_ws.onmessage = cb_begin_upload;
@@ -342,6 +352,11 @@
               <i class="glyphicon glyphicon-upload"></i>
               <span>Upload</span>
               <input type="file" class="fileinput-button" data-file-cmd="upload" name="file" />
+          </span>
+          <span class="btn btn-primary fileinput-button">
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>Upload As Gcode</span>
+              <input type="file" class="fileinput-button" data-file-cmd="upload_g" name="file" />
           </span>
         </div>
       </div>

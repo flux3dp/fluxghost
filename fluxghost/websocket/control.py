@@ -5,11 +5,13 @@ import logging
 import socket
 import shlex
 import json
+import io
 
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
-
-from .base import WebSocketBase
+from fluxclient.fcode.g_to_f import GcodeToFcode
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
+    BinaryUploadHelper, ST_NORMAL
 
 logger = logging.getLogger("WS.CONTROL")
 
@@ -137,6 +139,7 @@ class WebsocketControlBase(WebSocketBase):
 class WebsocketControl(WebsocketControlBase):
     binary_sock = None
     raw_sock = None
+    convert = None
 
     def __init__(self, *args, serial):
         WebsocketControlBase.__init__(self, *args, serial=serial)
@@ -180,11 +183,24 @@ class WebsocketControl(WebsocketControlBase):
         }
 
     def on_binary_message(self, buf):
-        if self.binary_sock:
-            self.binary_sent += self.binary_sock.send(buf)
+        if self.binary_sock or isinstance(self.convert, io.BytesIO):
+            if isinstance(self.convert, io.BytesIO):
+                self.binary_sent += self.convert.write(buf)
+            else:
+                self.binary_sent += self.binary_sock.send(buf)
+
             if self.binary_sent < self.binary_length:
                 pass
             elif self.binary_sent == self.binary_length:
+                if self.convert:
+                    f_buf = self.g_to_f()
+                    print('f_buf', len(f_buf))
+                    self.binary_sock = self.robot.begin_upload('application/fcode', len(f_buf), uploadto=self.uploadto)
+                    self.binary_sock.send(buf)
+
+                self.binary_sock = None
+                del self.uploadto
+
                 resp = self.robot.get_resp().decode("ascii", "ignore")
                 if resp == "ok":
                     self.send_text('{"status": "ok"}')
@@ -192,8 +208,10 @@ class WebsocketControl(WebsocketControlBase):
                     errargs = resp.split(" ")
                     self.send_error(*(errargs[1:]))
             else:
+                self.binary_sock = None
                 self.send_fatal("NOT_MATCH", "binary data length error")
         else:
+            self.binary_sock = None
             self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
     def on_text_message(self, message):
@@ -326,8 +344,14 @@ class WebsocketControl(WebsocketControlBase):
         params = source.split("/", 1) + target.split("/", 1)
         self.simple_cmd(self.robot.cpfile, *params)
 
-    def upload_file(self, mimetype, size, uploadto="#"):
-        self.binary_sock = self.robot.begin_upload(mimetype, int(size))
+    def upload_file(self, mimetype, size, convert='0', uploadto="#"):
+        if convert == '1':
+            self.convert = io.BytesIO()
+            self.uploadto = uploadto
+        else:
+            self.convert = None
+            self.binary_sock = self.robot.begin_upload(mimetype, int(size), uploadto=uploadto)
+
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
@@ -384,6 +408,14 @@ class WebsocketControl(WebsocketControlBase):
             self.send_ok()
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
+
+    def g_to_f(self):
+        fcode_output = io.BytesIO()
+        m_GcodeToFcode = GcodeToFcode()
+        # print((self.convert.getvalue().decode()))
+        m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'), fcode_output)
+        self.convert = None
+        return fcode_output.getvalue()
 
 
 class RawSock(object):
