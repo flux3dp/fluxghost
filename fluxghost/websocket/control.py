@@ -344,7 +344,7 @@ class WebsocketControl(WebsocketControlBase):
         params = source.split("/", 1) + target.split("/", 1)
         self.simple_cmd(self.robot.cpfile, *params)
 
-    def upload_file(self, mimetype, size, convert='0', uploadto="#"):
+    def upload_file(self, mimetype, size, uploadto="#", convert='0'):
         if convert == '1':
             self.convert = io.BytesIO()
             self.uploadto = uploadto
