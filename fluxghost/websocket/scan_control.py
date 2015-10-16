@@ -23,9 +23,11 @@ import sys
 
 from fluxclient.scanner.tools import read_pcd
 from fluxclient.scanner import scan_settings, image_to_pc
+from fluxclient.hw_profile import HW_PROFILE
 
 from .base import WebSocketBase
 from .control import WebsocketControlBase
+
 
 SIMULATE_IMG_FILE = os.path.join(os.path.dirname(__file__),
                                  "..", "assets", "miku_q.png")
@@ -61,8 +63,15 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.fetch_image()
 
         elif message.startswith("resolution "):
+
             s_step = message.split(" ", 1)[-1]
-            self.steps = int(s_step, 10)
+            self.steps = int(s_step, 10)  # should be 400 or 800
+            if self.steps in HW_PROFILE['model-1']['step_setting']:
+                self.robot.set_scanlen(HW_PROFILE['model-1']['step_setting'][self.steps][1])
+            else:
+                self.steps = 400  # this will cause frontend couldn't adjust the numbers of steps
+                self.robot.set_scanlen(HW_PROFILE['model-1']['step_setting'][400][1])
+
             scan_settings.scan_step = self.steps
             self.current_step = 0
             self.proc = image_to_pc.image_to_pc()
@@ -154,8 +163,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         L.debug('Do scan %d' % (self.current_step))
         ir, il, io = self.robot.scanimages()
-        left_r, right_r = self.proc.feed(io[1], il[1], ir[1],
-                                         self.current_step)
+        left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step)
 
         self.current_step += 1
 
