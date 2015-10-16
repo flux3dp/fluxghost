@@ -12,7 +12,7 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketLaserSvgParser(WebsocketLaserSvgParser):
+class WebsocketPenDraw(WebsocketLaserSvgParser):
     self._m_pen_draw = None
 
     @property
