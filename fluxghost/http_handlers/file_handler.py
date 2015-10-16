@@ -8,8 +8,6 @@ import re
 
 logger = logging.getLogger(__name__)
 
-from sendfile import sendfile
-
 
 MIME_TYPE.update({
     ".css": "text/css",
@@ -78,27 +76,20 @@ class FileHandler(object):
         handler.end_headers()
         handler.wfile.flush()
 
-        offset = start
-
         with open(filepath, "rb") as f:
-            fd_from, fd_dist = f.fileno(), handler.wfile.fileno()
+            buf = bytearray(4096)
+            mv = memoryview(buf)
+            fd_dist = handler.wfile.fileno()
 
-            # TODO:
             while True:
-                select.select((), (fd_dist, ), ())
-                buf = f.read(1024)
-                if buf:
-                    handler.wfile.write(buf)
+                l = f.readinto(mv)
+                if l:
+                    sent = 0
+                    while sent != l:
+                        select.select((), (fd_dist, ), ())
+                        sent += handler.wfile.write(mv[:l])
                 else:
                     break
-            # while (length - f.tell()) > BUF_SIZE:
-            #     select.select((), (fd_dist, ), ())
-            #     if sendfile(fd_dist, fd_from, offset, BUF_SIZE) == 0:
-            #         logging.debug("Fuck you google chrome go to hell")
-            #         return
-            #
-            # # Last chunk
-            # sendfile(fd_dist, fd_from, offset, length - f.tell())
 
     def proc_range_request(self, handler, file_length, request_range):
         if request_range:

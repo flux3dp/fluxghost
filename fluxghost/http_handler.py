@@ -33,11 +33,14 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/ws/"):
-            klass = get_match_ws_service(self.path[4:])
+            klass, kwargs = get_match_ws_service(self.path[4:])
+
             if klass:
-                self.serve_websocket(klass)
+                self.serve_websocket(klass, kwargs)
             else:
+                logger.exception("Websocket route error: %s" % self.path[4:])
                 self.response_404()
+
         elif self.path == "/":
             self.serve_assets("index.html")
         else:
@@ -46,13 +49,14 @@ class HttpHandler(BaseHTTPRequestHandler):
     def serve_assets(self, path):
         self.server.assets_handler.handle_request(self, path)
 
-    def serve_websocket(self, ws_class):
+    def serve_websocket(self, ws_class, kwargs):
         if self.server.ws_handler.handle_request(self):
             client = self.address_string()
             module = ws_class.__name__
 
             logger.debug("%s:%s connected" % (client, module))
-            ws = ws_class(self.request, client, self.server, self.path[4:])
+            ws = ws_class(self.request, client, self.server, self.path,
+                          **kwargs)
             ws.serve_forever()
             logger.debug("%s:%s disconnected" % (client, module))
 

@@ -5,6 +5,20 @@ from __future__ import absolute_import
 import argparse
 import logging
 import sys
+import os
+
+from fluxclient.utils.version import StrictVersion
+
+
+def check_fluxclient():
+    from fluxclient import VERSION as V
+    sys.modules.pop("fluxclient")
+    if ".".join(V) < StrictVersion('0.5a2'):
+        raise RuntimeError("Your fluxclient need to update (>=0.5a2)")
+
+
+check_fluxclient()
+
 
 def setup_logger(debug):
     LOG_TIMEFMT = "%Y-%m-%d %H:%M:%S"
@@ -21,18 +35,32 @@ def setup_logger(debug):
 
 parser = argparse.ArgumentParser(description='FLUX Ghost')
 parser.add_argument("--assets", dest='assets', type=str,
-                    default='fluxghost/assets', help="Assets folder")
+                    default=None, help="Assets folder")
 parser.add_argument("--ip", dest='ipaddr', type=str, default='127.0.0.1',
                     help="Bind to IP Address")
 parser.add_argument("--port", dest='port', type=int, default=8000,
                     help="Port")
 parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                     const=True, default=False, help='Enable debug')
+parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
+                    const=True, default=False, help='Simulate data')
 
 options = parser.parse_args()
 setup_logger(debug=options.debug)
 
-from fluxghost.http_server import HttpServer
+if options.debug:
+    from fluxghost.http_server_debug import HttpServer
+else:
+    from fluxghost.http_server import HttpServer
+
+if options.simulate:
+    os.environ["flux_simulate"] = "1"
+
+if not options.assets:
+    options.assets = os.path.join(
+        os.path.dirname(
+            os.path.abspath(__file__)),
+        "fluxghost", "assets")
 
 server = HttpServer(assets_path=options.assets,
                     address=(options.ipaddr, options.port,),)

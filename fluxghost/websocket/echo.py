@@ -29,10 +29,6 @@ class WebsocketEcho(WebSocketBase):
     POOL_TIME = 30.0
     enable_timer = False
 
-    @classmethod
-    def match_route(klass, path):
-        return path == "echo"
-
     def on_text_message(self, message):
         if message == "time on":
             logger.debug("Timer ON")
