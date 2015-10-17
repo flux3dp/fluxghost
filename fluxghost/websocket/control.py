@@ -174,6 +174,7 @@ class WebsocketControl(WebsocketControlBase):
             "cpfile": self.cpfile,
             "fileinfo": self.fileinfo,
             "upload": self.upload_file,
+            "upload_g": self.upload_file,
             "update_fw": self.update_fw,
             "oneshot": self.oneshot,
             "scanimages": self.scanimages,
@@ -192,14 +193,15 @@ class WebsocketControl(WebsocketControlBase):
             if self.binary_sent < self.binary_length:
                 pass
             elif self.binary_sent == self.binary_length:
-                if self.convert:
+                if isinstance(self.convert, io.BytesIO):
                     f_buf = self.g_to_f()
-                    print('f_buf', len(f_buf))
+                    print('f_buf', len(f_buf), self.uploadto)
                     self.binary_sock = self.robot.begin_upload('application/fcode', len(f_buf), uploadto=self.uploadto)
-                    self.binary_sock.send(buf)
+                    self.binary_sock.send(f_buf)
+                    del self.uploadto
+                    self.convert = None
 
                 self.binary_sock = None
-                del self.uploadto
 
                 resp = self.robot.get_resp().decode("ascii", "ignore")
                 if resp == "ok":
@@ -345,6 +347,13 @@ class WebsocketControl(WebsocketControlBase):
         self.simple_cmd(self.robot.cpfile, *params)
 
     def upload_file(self, mimetype, size, uploadto="#", convert='0'):
+        if uploadto == "#":
+            pass
+        elif uploadto.startswith("SD/"):
+            uploadto = "SD " + uploadto[3:]
+        elif uploadto.startswith("USB/"):
+            uploadto = "USB " + uploadto[4:]
+
         if convert == '1':
             self.convert = io.BytesIO()
             self.uploadto = uploadto
