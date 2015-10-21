@@ -18,6 +18,13 @@ class HttpServerBase(object):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(address)
         s.listen(backlog)
+
+        if address[1] == 0:
+            from sys import stdout
+            address = s.getsockname()
+            stdout.write("LISTEN ON %i\n" % address[1])
+            stdout.flush()
+
         logger.info("Listen HTTP on %s:%s" % address)
 
     def serve_forever(self):
