@@ -39,6 +39,15 @@ class WebsocketTouch(WebSocketBase):
 
     def touch_device(self, serial, password=None):
         try:
+            if serial == "1111111111111111111111111":
+                self.send_text(json.dumps({
+                "serial": serial,
+                "name": "Simulate Device",
+                "has_response": True,
+                "reachable": True,
+                "auth": True
+            }))
+
             task = UpnpTask(serial, lookup_timeout=30.0)
             resp = self._run_auth(task, password)
 

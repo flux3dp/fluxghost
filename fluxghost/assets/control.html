@@ -245,7 +245,7 @@
 
 
         if($(this).attr("data-file-cmd") == "upload_g"){
-          var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size + "# 1";
+          var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size + " # 1";
           control_ws.flag = "g";
         }
         else{
@@ -355,7 +355,7 @@
           </span>
           <span class="btn btn-primary fileinput-button">
               <i class="glyphicon glyphicon-upload"></i>
-              <span>Upload As Gcode</span>
+              <span>Upload As Fcode</span>
               <input type="file" class="fileinput-button" data-file-cmd="upload_g" name="file" />
           </span>
         </div>
