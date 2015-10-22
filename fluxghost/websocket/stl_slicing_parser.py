@@ -6,13 +6,13 @@ import sys
 
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL, SIMULATE
+    BinaryUploadHelper, ST_NORMAL, SIMULATE, OnTextMessageMixin
 from fluxclient.printer.stl_slicer import StlSlicer
 
 logger = logging.getLogger("WS.slicing")
 
 
-class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
+class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     """
     This websocket is use to slicing stl model
     """
@@ -22,54 +22,16 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
         WebSocketBase.__init__(self, *args)
         logger.info("Using StlSlicer()")
         self.m_stl_slicer = StlSlicer()
-
-    def on_text_message(self, message):
-        try:
-            if not self.has_binary_helper():
-                message = message.rstrip().split(" ", 1)
-                if len(message) == 1:
-                    cmd, params = message[0], ''
-                else:
-                    cmd, params = message
-
-                if cmd == 'upload':
-                    logger.debug("upload %s" % (params))
-                    self.begin_recv_stl(params, cmd)
-                elif cmd == 'upload_image':
-                    logger.debug("upload_image %s" % (params))
-                    self.begin_recv_stl(params, cmd)
-
-                elif cmd == 'set':
-                    logger.debug("set %s" % (params))
-                    self.set(params)
-                elif cmd == 'go':
-                    logger.debug("go %s" % (params))
-                    self.generate_gcode(params)
-                elif cmd == 'delete':
-                    logger.debug("delete %s" % (params))
-                    self.delete(params)
-                elif cmd == 'set_params':
-                    logger.debug("set_params %s" % (params))
-                    self.set_params(params)
-                elif cmd == 'advanced_setting':
-                    logger.debug("advanced_setting %s" % (params))
-                    self.advanced_setting(params)
-                elif cmd == 'get_path':
-                    # TODO
-                    logger.debug("get_path")
-                    self.get_path()
-                else:
-                    raise ValueError('Undefine command %s' % (cmd))
-
-            else:
-                raise RuntimeError("RESOURCE_BUSY")
-
-        except ValueError:
-            logger.exception("slicing argument error")
-            self.send_fatal("BAD_PARAM_TYPE %s" % (message))
-
-        except RuntimeError as e:
-            self.send_fatal(e.args[0])
+        self.cmd_mapping = {
+            'upload': [self.begin_recv_stl, 'upload'],
+            'upload_image': [self.begin_recv_stl, 'upload_image'],
+            'set': [self.set],
+            'go': [self.generate_gcode],
+            'delete': [self.delete],
+            'set_params': [self.set_params],
+            'advanced_setting': [self.advanced_setting],
+            'get_path': [self.get_path]
+        }
 
     def begin_recv_stl(self, params, flag):
         if flag == 'upload':
@@ -135,7 +97,7 @@ class Websocket3DSlicing(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_error(metadata)
             logger.debug('slicing fail')
 
-    def get_path(self):
+    def get_path(self, *args):
         path = self.m_stl_slicer.get_path()
         if path:
             self.send_text(path)

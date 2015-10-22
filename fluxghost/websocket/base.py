@@ -57,7 +57,7 @@ class WebSocketBase(WebSocketHandler):
             self.send_text('{"status": "error", "error": "%s"}' % errcode)
 
     def send_fatal(self, error, suberror=None):
-        self.send_text('{"status": "fatal", "error": "%s", "info": "%s"}' % 
+        self.send_text('{"status": "fatal", "error": "%s", "info": "%s"}' %
                        (error, suberror))
         self.close(ST_INVALID_PAYLOAD, error)
 
@@ -143,3 +143,33 @@ class BinaryUploadHelper(object):
                                (self.length, self.buffered), "recive too many binary data ("
                                "should be %i but get %i" %
                                (self.length, self.buffered))
+
+
+class OnTextMessageMixin(object):
+    def on_text_message(self, message):
+        try:
+            if not self.has_binary_helper():
+                message = message.rstrip().split(" ", 1)
+                if len(message) == 1:
+                    cmd = message[0]
+                    params = ''
+                else:
+                    cmd = message[0]
+                    params = message[1]
+
+                if cmd in self.cmd_mapping:
+                    self.cmd_mapping[cmd][0](params, *self.cmd_mapping[cmd][1:])
+                else:
+                    logger.exception("receive message: %s" % (message))
+                    raise ValueError('Undefine command %s' % (cmd))
+            else:
+                logger.exception("receive message: %s" % (message))
+                raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
+
+        except ValueError:
+            logger.exception("receive message: %s" % (message))
+            self.send_fatal("BAD_PARAM_TYPE")
+
+        except RuntimeError as e:
+            logger.exception("receive message: %s" % (message))
+            self.send_fatal(e.args[0])

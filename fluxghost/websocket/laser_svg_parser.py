@@ -4,7 +4,7 @@ import logging
 import sys
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
+    BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
 from fluxclient.laser.laser_svg import LaserSvg
 
 logger = logging.getLogger("WS.Laser Svg")
@@ -13,47 +13,24 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
+class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     _m_laser_svg = None
+
+    def __init__(self, *args):
+        super(WebsocketLaserSvgParser, self).__init__(*args)
+        self.cmd_mapping = {
+            'upload': [self.begin_recv_svg, 'upload', None],
+            'get': [self.get],
+            'compute': [self.compute],
+            'go': [self.go],
+            'set_params': [self.set_params]
+        }
 
     @property
     def m_laser_svg(self):
         if self._m_laser_svg is None:
             self._m_laser_svg = LaserSvg()
         return self._m_laser_svg
-
-    def on_text_message(self, message):
-        try:
-            if not self.has_binary_helper():
-                message = message.rstrip().split(" ", 1)
-                if len(message) == 1:
-                    cmd = message[0]
-                    params = ''
-                else:
-                    cmd = message[0]
-                    params = message[1]
-
-                if cmd == "upload":
-                    self.begin_recv_svg(params, 'upload', None)
-                elif cmd == "get":
-                    self.get(params)
-                elif cmd == "compute":
-                    self.compute(params)
-                elif cmd == "go":
-                    self.go(params)
-                elif cmd == 'set_params':
-                    self.set_params(params)
-                else:
-                    raise ValueError('Undefine command %s' % (cmd))
-            else:
-                raise RuntimeError("RESOURCE_BUSY")
-
-        except ValueError:
-            logger.exception("Laser svg argument error")
-            self.send_fatal("BAD_PARAM_TYPE")
-
-        except RuntimeError as e:
-            self.send_fatal(e.args[0])
 
     def begin_recv_svg(self, message, flag, *args):
         self.POOL_TIME_ = self.POOL_TIME

@@ -23,7 +23,7 @@ import os
 import re
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, SIMULATE
+    BinaryUploadHelper, SIMULATE, OnTextMessageMixin
 
 from fluxclient import SUPPORT_PCL
 from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
@@ -31,7 +31,7 @@ from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
 logger = logging.getLogger("WS.3DSCAN-MODELING")
 
 
-class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
+class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
         ###################################
@@ -43,47 +43,16 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         if SIMULATE:
             self.m_pc_process = PcProcessNoPCL()
             logger.debug('using PcProcessNoPCL()')
-
-        self._uploading = None
-
-    def on_text_message(self, message):
-        try:
-            if self.has_binary_helper():
-                raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
-
-            cmd, params = message.split(" ", 1)
-
-            if cmd == "upload":
-                self._begin_upload(params)
-
-            elif cmd == "base":
-                self.set_base(params)
-
-            elif cmd == "cut":
-                self.cut(params)
-
-            elif cmd == "delete_noise":
-                self.delete_noise(params)
-
-            elif cmd == "dump":
-                self.dump(params)
-
-            elif cmd == "export":
-                self.export(params)
-
-            elif cmd == "merge":
-                self.merge(params)
-
-            elif cmd == 'auto_merge':
-                self.auto_merge(params)
-
-        except RuntimeError as e:
-            self.send_fatal(e.args[0])
-            logger.error(e)
-        except Exception as e:
-            logger.error(e)
-            self.send_fatal("UNKNOW_ERROR")
-            raise
+        self.cmd_mapping = {
+            'upload': [self._begin_upload],
+            'base': [self.set_base],
+            'cut': [self.cut],
+            'delete_noise': [self.delete_noise],
+            'dump': [self.dump],
+            'export': [self.export],
+            'merge': [self.merge],
+            'auto_merge': [self.auto_merge]
+        }
 
     def _begin_upload(self, params):  # name, left_len, right_len="0"
         splited_params = params.split(" ")

@@ -5,7 +5,7 @@ import sys
 
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
+    BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
 from fluxclient.laser.laser_bitmap import LaserBitmap
 
 logger = logging.getLogger("WS.Laser Bitmap")
@@ -14,7 +14,7 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
+class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     # images, it will like
     # [
     #    [(x1, y1, x2, z2), (w, h), bytes],
@@ -23,40 +23,19 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
     images = []
     _m_laser_bitmap = None
 
+    def __init__(self, *args):
+        super(WebsocketLaserBitmapParser, self).__init__(*args)
+        self.cmd_mapping = {
+            'upload': [self.begin_recv_image],
+            'go': [self.process_image],
+            'set_params': [self.set_params]
+        }
+
     @property
     def m_laser_bitmap(self):
         if self._m_laser_bitmap is None:
             self._m_laser_bitmap = LaserBitmap()
         return self._m_laser_bitmap
-
-    def on_text_message(self, message):
-        try:
-            if not self.has_binary_helper():
-                message = message.rstrip().split(" ", 1)
-                if len(message) == 1:
-                    cmd = message[0]
-                    params = ''
-                else:
-                    cmd = message[0]
-                    params = message[1]
-
-                if cmd == "go":
-                    self.process_image()
-                elif cmd == 'set_params':
-                    self.set_params(params)
-                elif cmd == 'upload':
-                    self.begin_recv_image(params)
-                else:
-                    raise ValueError('undefine command')
-            else:
-                raise RuntimeError("RESOURCE_BUSY")
-
-        except ValueError:
-            logger.exception("Laser bitmap argument error: %s" % message)
-            self.send_fatal("BAD_PARAM_TYPE")
-
-        except RuntimeError as e:
-            self.send_fatal(e.args[0])
 
     def begin_recv_image(self, message):
         options = message.split(" ")
@@ -86,7 +65,7 @@ class WebsocketLaserBitmapParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.m_laser_bitmap.set_params(key, value)
         self.send_ok()
 
-    def process_image(self):
+    def process_image(self, *args):
         logger.debug('  start process images')
         self.send_progress('initializing', 0.03)
 
