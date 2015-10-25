@@ -354,7 +354,7 @@ class WebsocketControl(WebsocketControlBase):
         elif uploadto.startswith("USB/"):
             uploadto = "USB " + uploadto[4:]
 
-        if convert == '1':
+        if mimetype == "text/gcode" and convert == '1':
             self.convert = io.BytesIO()
             self.uploadto = uploadto
         else:

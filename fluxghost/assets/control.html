@@ -242,8 +242,6 @@
       }
 
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-
-
         if($(this).attr("data-file-cmd") == "upload_g"){
           var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size + " # 1";
           control_ws.flag = "g";
@@ -347,17 +345,23 @@
           <i class="glyphicon glyphicon-console"></i>
         </span>
         <input id="controlcmd" type="text" class="form-control" />
-        <div class="input-group-btn">
+        <div class="input-group-btn dropup">
           <span class="btn btn-primary fileinput-button">
               <i class="glyphicon glyphicon-upload"></i>
               <span>Upload</span>
               <input type="file" class="fileinput-button" data-file-cmd="upload" name="file" />
           </span>
-          <span class="btn btn-primary fileinput-button">
+          <span type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <span class="caret"></span>
+            <span class="sr-only">Toggle Dropdown</span>
+          </span>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li class="fileinput-button"><a>
               <i class="glyphicon glyphicon-upload"></i>
               <span>Upload As Fcode</span>
-              <input type="file" class="fileinput-button" data-file-cmd="upload_g" name="file" />
-          </span>
+                <input type="file" class="fileinput-button" data-file-cmd="upload_g" name="file" />
+            </a></li>
+          </ul>
         </div>
       </div>
     </div>
