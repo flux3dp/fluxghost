@@ -25,7 +25,7 @@ MIME_TYPE.update({
 })
 
 
-if platform.startswith("Windows"):
+if platform.platform().startswith("Windows"):
     def get_last_modify(filepath):
         return time.strftime("%a, %d %b %Y %H:%M:%S UTC",
                              time.gmtime(os.path.getmtime(filepath)))
