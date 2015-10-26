@@ -45,7 +45,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         if args[0] == 'upload':
             logger.debug("upload name:%s" % (name))
             try:
-                self.m_laser_svg.preprocess(buf, name)
+                self.m_laser_svg.svgs[name] = self.m_laser_svg.preprocess(buf, name)
                 self.send_ok()
             except:
                 print(sys.exc_info(), file=sys.stderr)
