@@ -45,7 +45,6 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             logger.debug('using PcProcessNoPCL()')
         self.cmd_mapping = {
             'upload': [self._begin_upload],
-            'base': [self.set_base],
             'cut': [self.cut],
             'delete_noise': [self.delete_noise],
             'dump': [self.dump],
