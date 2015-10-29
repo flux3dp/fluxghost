@@ -80,7 +80,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         logger.debug("upload names:%s" % (" ".join(names)))
         self.send_progress('initializing', 0.01)
 
-        output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
+        output_binary = self.m_laser_svg.fcode_generate(names, self)
         self.send_progress('finishing', 1.0)
 
         ########## fake code  ########################

@@ -27,7 +27,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         super(WebsocketLaserBitmapParser, self).__init__(*args)
         self.cmd_mapping = {
             'upload': [self.begin_recv_image],
-            'go': [self.process_image],
+            'go': [self.go],
             'set_params': [self.set_params]
         }
 
@@ -65,7 +65,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.m_laser_bitmap.set_params(key, value)
         self.send_ok()
 
-    def process_image(self, *args):
+    def go(self, *args):
         logger.debug('  start process images')
         self.send_progress('initializing', 0.03)
 
@@ -78,7 +78,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
 
         logger.debug("add image finished, generating gcode")
         self.send_progress('generating gcode', 0.97)
-        output_binary = self.m_laser_bitmap.gcode_generate().encode()
+        output_binary = self.m_laser_bitmap.fcode_generate()
 
         ########## fake code  ########################
         with open('output.gcode', 'wb') as f:

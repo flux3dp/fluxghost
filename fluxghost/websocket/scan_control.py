@@ -62,6 +62,9 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "image":
             self.fetch_image()
 
+        elif message == "scan_check":
+            self.scan_check()
+
         elif message.startswith("resolution "):
 
             s_step = message.split(" ", 1)[-1]
@@ -151,6 +154,11 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_binary_begin(mime, len(buf))
             self.send_binary(buf)
         self.send_ok()
+
+    def scan_check():
+        if not self.ready:
+            self.send_error("NOT_READY")
+            return
 
     def scan(self):
         if not self.ready:

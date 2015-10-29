@@ -26,7 +26,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             'upload': [self.begin_recv_stl, 'upload'],
             'upload_image': [self.begin_recv_stl, 'upload_image'],
             'set': [self.set],
-            'go': [self.generate_gcode],
+            'go': [self.gcode_generate],
             'delete': [self.delete],
             'set_params': [self.set_params],
             'advanced_setting': [self.advanced_setting],
@@ -83,11 +83,11 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             for i in bad_line:
                 self.send_error('line %d: %s error' % (i, lines[i]))
 
-    def generate_gcode(self, params):
+    def gcode_generate(self, params):
         names = params.split(' ')
         output_type = names[-1]
         names = names[:-1]
-        output, metadata = self.m_stl_slicer.generate_gcode(names, self, output_type)
+        output, metadata = self.m_stl_slicer.gcode_generate(names, self, output_type)
         # self.send_progress('finishing', 1.0)
         if output:
             self.send_text('{"status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(output), metadata[0], metadata[1]))
