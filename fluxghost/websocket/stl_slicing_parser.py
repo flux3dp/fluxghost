@@ -3,6 +3,7 @@
 from io import BytesIO
 import logging
 import sys
+import os
 
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
@@ -21,7 +22,11 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
         logger.info("Using StlSlicer()")
-        self.m_stl_slicer = StlSlicer()
+        if "slic3r" in os.environ:
+            self.m_stl_slicer = StlSlicer(os.environ["slic3r"])
+        else:
+            self.m_stl_slicer = StlSlicer("../slic3r/slic3r")
+
         self.cmd_mapping = {
             'upload': [self.begin_recv_stl, 'upload'],
             'upload_image': [self.begin_recv_stl, 'upload_image'],
