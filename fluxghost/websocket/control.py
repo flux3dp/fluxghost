@@ -374,8 +374,11 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_eadj(self, *args):
         def callback(nav):
-            self.send_text("Mainboard info: %s" % nav)
-        self.robot.maintain_eadj(navigate_callback=callback)
+            self.send_text("DEBUG: %s" % nav)
+        if "clean" in args:
+            self.robot.maintain_eadj(navigate_callback=callback, clean=True)
+        else:
+            self.robot.maintain_eadj(navigate_callback=callback)
         self.send_text("ok")
 
     def oneshot(self):
