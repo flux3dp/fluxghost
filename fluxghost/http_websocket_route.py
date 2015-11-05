@@ -18,6 +18,8 @@ ROUTES = [
      "fluxghost.websocket.laser_svg_parser.WebsocketLaserSvgParser"),
     (re.compile("pen-draw-parser"),
      "fluxghost.websocket.pen_draw_parser.WebsocketPenDraw"),
+    (re.compile("fcode-reader"),
+     "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
 
     # Simulate
     (re.compile("3d-scan-control/(?P<serial>[1]{25})"),
