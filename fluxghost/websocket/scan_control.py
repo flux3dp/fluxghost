@@ -67,7 +67,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         elif message.startswith("resolution "):
 
-            s_step = message.split(" ", 1)[-1]
+            s_step = message.split(maxsplit=1)[-1]
             self.steps = int(s_step, 10)  # should be 400 or 800
             if self.steps in HW_PROFILE['model-1']['step_setting']:
                 self.robot.set_scanlen(HW_PROFILE['model-1']['step_setting'][self.steps][1])
@@ -203,7 +203,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.send_ok()
 
         elif message == "mode ":
-            mode = message.split(" ", 1)
+            mode = message.split(maxsplit=1)
             if mode not in ['cube', 'pcd', 'hemisphere', 'box']:
                 self.send_error("BAD_PARAMS", info=mode)
             else:
@@ -211,7 +211,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
                 self.send_ok(info=mode)
 
         elif message.startswith("resolution "):
-            s_step = message.split(" ", 1)[-1]
+            s_step = message.split(maxsplit=1)[-1]
             self.steps = int(s_step, 10)
             # self.current_step = 0
             self.send_ok(str(self.steps))

@@ -54,7 +54,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         }
 
     def _begin_upload(self, params):  # name, left_len, right_len="0"
-        splited_params = params.split(" ")
+        splited_params = params.split()
         try:
             name = splited_params[0]
             s_left_len = splited_params[1]
@@ -79,14 +79,14 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         self.send_ok()
 
     def cut(self, params):
-        name_in, name_out, mode, direction, value = params.split(" ")
+        name_in, name_out, mode, direction, value = params.split()
         value = float(value)
         direction = direction[0] == 'T'
         self.m_pc_process.cut(name_in, name_out, mode, direction, value)
         self.send_ok()
 
     def merge(self, params):
-        name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split(" ")
+        name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split()
         x = float(x)
         y = float(y)
         z = float(z)
@@ -98,7 +98,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
 
     def auto_merge(self, params):
 
-        name_base, name_2, name_out = params.split(' ')
+        name_base, name_2, name_out = params.split()
         if self.m_pc_process.auto_merge(name_base, name_2, name_out):
             self.send_ok()
         else:
@@ -109,7 +109,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             self.send_ok()
             return
 
-        name_in, name_out, r = params.split(" ")
+        name_in, name_out, r = params.split()
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)
         self.send_ok()
@@ -123,7 +123,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         logger.debug('dump %s done' % (name))
 
     def export(self, params):
-        name, file_foramt = params.split(" ")
+        name, file_foramt = params.split()
         buf = self.m_pc_process.export(name, file_foramt)
         self.send_text('{"status": "continue", "length": %d}' % (len(buf)))
         self.send_binary(buf)

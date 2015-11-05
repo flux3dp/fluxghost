@@ -40,7 +40,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
 
     def begin_recv_stl(self, params, flag):
         if flag == 'upload':
-            name, file_length = params.split(' ')
+            name, file_length = params.split()
         elif flag == 'upload_image':
             name = ''
             file_length = params
@@ -56,7 +56,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.send_ok()
 
     def set(self, params):
-        params = params.split(' ')
+        params = params.split()
         assert len(params) == 10, 'wrong number of parameters %d' % len(params)
         name = params[0]
         position_x = float(params[1])
@@ -73,7 +73,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.send_ok()
 
     def set_params(self, params):
-        key, value = params.split(' ')
+        key, value = params.split()
         if self.m_stl_slicer.set_params(key, value):  # will check if key is valid
             self.send_ok()
         else:
@@ -89,7 +89,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                 self.send_error('line %d: %s error' % (i, lines[i]))
 
     def gcode_generate(self, params):
-        names = params.split(' ')
+        names = params.split()
         output_type = names[-1]
         names = names[:-1]
         output, metadata = self.m_stl_slicer.gcode_generate(names, self, output_type)
