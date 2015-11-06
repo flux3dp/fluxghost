@@ -35,7 +35,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
     def begin_recv_svg(self, message, flag, *args):
         self.POOL_TIME_ = self.POOL_TIME
         self.POOL_TIME = 10
-        name, file_length = message.split(" ")
+        name, file_length = message.split()
         helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag, args[0])
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
@@ -64,7 +64,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         self.send_binary(self.m_laser_svg.svgs[name][0])
 
     def compute(self, params):
-        options = params.split(' ')
+        options = params.split()
         name = options[0]
         w, h = float(options[1]), float(options[2])
         x1, y1, x2, y2 = (float(o) for o in options[3:7])
@@ -76,23 +76,36 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         self.begin_recv_svg('%s %d' % (name, svg_length + bitmap_w * bitmap_h), 'compute', [w, h, x1, y1, x2, y2, rotation, svg_length, bitmap_w, bitmap_h])
 
     def go(self, params):
-        names = params.split(' ')
+        names = params.split()
+        gen_flag = '-f'
+        if names[-1] == '-g' or names[-1] == '-f':
+            gen_flag = names[-1]  # generate fcode or gcode
+            names = names[:-1]
         logger.debug("upload names:%s" % (" ".join(names)))
         self.send_progress('initializing', 0.01)
+        if gen_flag == '-f':
+            output_binary = self.m_laser_svg.fcode_generate(names, self)
 
-        output_binary = self.m_laser_svg.fcode_generate(names, self)
+            ########## fake code  ########################
+            with open('output.fcode', 'wb') as f:
+                f.write(output_binary)
+            ##############################################
+
+        elif gen_flag == '-g':
+            output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
+
+            ########## fake code  ########################
+            with open('output.gcode', 'wb') as f:
+                f.write(output_binary)
+            ##############################################
+
         self.send_progress('finishing', 1.0)
-
-        ########## fake code  ########################
-        with open('output.gcode', 'wb') as f:
-            f.write(output_binary)
-        ##############################################
 
         self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
         logger.debug('laser svg finish')
 
     def set_params(self, params):
-        key, value = params.split(' ')
+        key, value = params.split()
         self.m_laser_svg.set_params(key, value)
         self.send_ok()

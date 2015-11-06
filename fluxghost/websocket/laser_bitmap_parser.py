@@ -38,7 +38,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         return self._m_laser_bitmap
 
     def begin_recv_image(self, message):
-        options = message.split(" ")
+        options = message.split()
         w, h = int(options[0]), int(options[1])
         x1, y1, x2, y2 = (float(o) for o in options[2:6])
         rotation = float(options[6])
@@ -61,7 +61,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.send_text('{"status": "accept"}')
 
     def set_params(self, params):
-        key, value = params.split(' ')
+        key, value = params.split()
         self.m_laser_bitmap.set_params(key, value)
         self.send_ok()
 
@@ -78,16 +78,20 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
 
         logger.debug("add image finished, generating gcode")
         self.send_progress('generating gcode', 0.97)
-        output_binary = self.m_laser_bitmap.fcode_generate()
-
-        ########## fake code  ########################
-        with open('output.gcode', 'wb') as f:
-            f.write(output_binary)
-        ##############################################
+        if '-g' in args:
+            output_binary = self.m_laser_bitmap.gcode_generate().encode()
+            ########## fake code  ########################
+            with open('output.gcode', 'wb') as f:
+                f.write(output_binary)
+            ##############################################
+        else:
+            output_binary = self.m_laser_bitmap.fcode_generate()
+            ########## fake code  ########################
+            with open('output.fcode', 'wb') as f:
+                f.write(output_binary)
+            ##############################################
 
         self.send_progress('finishing', 1.0)
-        self.send_text('{"status": "complete", "length": %s}' % len(output_binary))
+        self.send_text('{"status": "complete", "length": %d}' % len(output_binary))
         self.send_binary(output_binary)
         logger.debug("laser bitmap finished")
-
-        self.close(ST_NORMAL, "bye")
