@@ -357,17 +357,17 @@
           </ul>
         </div>
         <div class="btn-group btn-xs dropup">
-          <span data-cmd="-HO2000" class="btn btn-xs btn-default">Temp 200 (HO2000)</span>
+          <span data-cmd="-1 H:0 T:200 *15" class="btn btn-xs btn-default">Temp 200</span>
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <span class="caret"></span>
               <span class="sr-only">Toggle Dropdown</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-right">
-            <li data-cmd="-HO2100" style="cursor: pointer"><a>Temp 210 (HO2100)</a></li>
-            <li data-cmd="-HO1900" style="cursor: pointer"><a>Temp 190 (HO1900)</a></li>
+            <li data-cmd="-1 H:0 T:210 *14" style="cursor: pointer"><a>Temp 210</a></li>
+            <li data-cmd="-1 H:0 T:190 *5" style="cursor: pointer"><a>Temp 190</a></li>
           </ul>
         </div>
-        <span data-cmd="-RT" class="btn btn-xs btn-default">Temp? (RT)</span>
+        <span data-cmd="-1 ping *33" class="btn btn-xs btn-default">Ping Head</span>
 
         <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
       </div>
