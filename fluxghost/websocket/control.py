@@ -376,10 +376,13 @@ class WebsocketControl(WebsocketControlBase):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
         if "clean" in args:
-            self.robot.maintain_eadj(navigate_callback=callback, clean=True)
+            ret = self.robot.maintain_eadj(navigate_callback=callback,
+                                           clean=True)
         else:
-            self.robot.maintain_eadj(navigate_callback=callback)
-        self.send_text("ok")
+            ret = self.robot.maintain_eadj(navigate_callback=callback)
+        self.send_text(json.dumps({
+            "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
+        }))
 
     def oneshot(self):
         images = self.robot.oneshot()
