@@ -179,7 +179,7 @@ class WebsocketControl(WebsocketControlBase):
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
 
-            "report": self.play_report
+            "report": self.play_report,
             "eadj": self.maintain_eadj
         }
 
@@ -385,10 +385,14 @@ class WebsocketControl(WebsocketControlBase):
         }))
 
     def play_report(self):
+        # TODO
         data = self.robot.report_play()
-        data["status"] = "ok"
-        data["cmd"] = "report"
-        self.send_text(json.dumps(data))
+        if isinstance(data, dict):
+            data["status"] = "ok"
+            data["cmd"] = "report"
+            self.send_text(json.dumps(data))
+        else:
+            self.send_text(data)
 
     def oneshot(self):
         images = self.robot.oneshot()
