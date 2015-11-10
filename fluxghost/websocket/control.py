@@ -151,7 +151,6 @@ class WebsocketControl(WebsocketControlBase):
             "pause": self.robot.pause_play,
             "resume": self.robot.resume_play,
             "abort": self.robot.abort_play,
-            "report": self.robot.report_play,
             "quit": self.robot.quit_task,
 
             "scan": self.robot.begin_scan,
@@ -180,6 +179,7 @@ class WebsocketControl(WebsocketControlBase):
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
 
+            "report": self.play_report
             "eadj": self.maintain_eadj
         }
 
@@ -383,6 +383,12 @@ class WebsocketControl(WebsocketControlBase):
         self.send_text(json.dumps({
             "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
         }))
+
+    def play_report(self):
+        data = self.robot.report_play()
+        data["status"] = "ok"
+        data["cmd"] = "report"
+        self.send_text(json.dumps(data))
 
     def oneshot(self):
         images = self.robot.oneshot()
