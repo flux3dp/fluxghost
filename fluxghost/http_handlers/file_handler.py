@@ -1,5 +1,6 @@
 
 from mimetypes import types_map as MIME_TYPE
+import platform
 import logging
 import select
 import time
@@ -22,6 +23,21 @@ MIME_TYPE.update({
     ".mp4": "video/mp4",
     ".txt": "text/plain"
 })
+
+
+if platform.platform().startswith("Windows"):
+    def get_last_modify(filepath):
+        return time.strftime("%a, %d %b %Y %H:%M:%S UTC",
+                             time.gmtime(os.path.getmtime(filepath)))
+        
+        return os.path.getmtime(filepath)
+
+    
+else:
+    def get_last_modify(filepath):
+        return time.strftime("%a, %d %b %Y %H:%M:%S %Z",
+                             time.gmtime(os.stat(filepath).st_mtime))
+
 
 BUF_SIZE = 65536
 
@@ -54,10 +70,6 @@ class FileHandler(object):
         else:
             self.make_response(handler, path)
 
-    def get_last_modify(self, filepath):
-        return time.strftime("%a, %d %b %Y %H:%M:%S %Z",
-                             time.gmtime(os.stat(filepath).st_mtime))
-
     def make_response(self, handler, filepath):
         length = os.path.getsize(filepath)
 
@@ -68,7 +80,7 @@ class FileHandler(object):
 
         handler.send_header('Content-Type', self.get_mime(fileExtension))
         handler.send_header('Content-Length', length - start)
-        handler.send_header('Last-Modified', self.get_last_modify(filepath))
+        handler.send_header('Last-Modified', get_last_modify(filepath))
 
         if not handler.close_connection:
             handler.send_header('Connection', 'Keep-Alive')

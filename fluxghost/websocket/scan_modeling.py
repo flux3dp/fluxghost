@@ -23,7 +23,7 @@ import os
 import re
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, SIMULATE
+    BinaryUploadHelper, SIMULATE, OnTextMessageMixin
 
 from fluxclient import SUPPORT_PCL
 from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
@@ -31,7 +31,7 @@ from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
 logger = logging.getLogger("WS.3DSCAN-MODELING")
 
 
-class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
+class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
         ###################################
@@ -43,50 +43,18 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         if SIMULATE:
             self.m_pc_process = PcProcessNoPCL()
             logger.debug('using PcProcessNoPCL()')
-
-        self._uploading = None
-
-    def on_text_message(self, message):
-        try:
-            if self.has_binary_helper():
-                raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
-
-            cmd, params = message.split(" ", 1)
-
-            if cmd == "upload":
-                self._begin_upload(params)
-
-            elif cmd == "base":
-                self.set_base(params)
-
-            elif cmd == "cut":
-                self.cut(params)
-
-            elif cmd == "delete_noise":
-                self.delete_noise(params)
-
-            elif cmd == "dump":
-                self.dump(params)
-
-            elif cmd == "export":
-                self.export(params)
-
-            elif cmd == "merge":
-                self.merge(params)
-
-            elif cmd == 'auto_merge':
-                self.auto_merge(params)
-
-        except RuntimeError as e:
-            self.send_fatal(e.args[0])
-            logger.error(e)
-        except Exception as e:
-            logger.error(e)
-            self.send_fatal("UNKNOW_ERROR")
-            raise
+        self.cmd_mapping = {
+            'upload': [self._begin_upload],
+            'cut': [self.cut],
+            'delete_noise': [self.delete_noise],
+            'dump': [self.dump],
+            'export': [self.export],
+            'merge': [self.merge],
+            'auto_merge': [self.auto_merge]
+        }
 
     def _begin_upload(self, params):  # name, left_len, right_len="0"
-        splited_params = params.split(" ")
+        splited_params = params.split()
         try:
             name = splited_params[0]
             s_left_len = splited_params[1]
@@ -111,14 +79,14 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_ok()
 
     def cut(self, params):
-        name_in, name_out, mode, direction, value = params.split(" ")
+        name_in, name_out, mode, direction, value = params.split()
         value = float(value)
         direction = direction[0] == 'T'
         self.m_pc_process.cut(name_in, name_out, mode, direction, value)
         self.send_ok()
 
     def merge(self, params):
-        name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split(" ")
+        name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split()
         x = float(x)
         y = float(y)
         z = float(z)
@@ -130,7 +98,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def auto_merge(self, params):
 
-        name_base, name_2, name_out = params.split(' ')
+        name_base, name_2, name_out = params.split()
         if self.m_pc_process.auto_merge(name_base, name_2, name_out):
             self.send_ok()
         else:
@@ -141,7 +109,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
             self.send_ok()
             return
 
-        name_in, name_out, r = params.split(" ")
+        name_in, name_out, r = params.split()
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)
         self.send_ok()
@@ -155,7 +123,7 @@ class Websocket3DScannModeling(WebsocketBinaryHelperMixin, WebSocketBase):
         logger.debug('dump %s done' % (name))
 
     def export(self, params):
-        name, file_foramt = params.split(" ")
+        name, file_foramt = params.split()
         buf = self.m_pc_process.export(name, file_foramt)
         self.send_text('{"status": "continue", "length": %d}' % (len(buf)))
         self.send_binary(buf)

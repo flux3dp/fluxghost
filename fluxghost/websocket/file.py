@@ -40,7 +40,7 @@ class WebsocketFile(WebSocketBase):
         self.close_file()
 
     def on_text_message(self, message):
-        op, file = message.split(" ", 1)
+        op, file = message.split(maxsplit=1)
 
         try:
             if self.operation:

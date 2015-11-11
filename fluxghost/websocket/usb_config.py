@@ -65,6 +65,12 @@ class WebsocketUsbConfig(WebSocketBase):
         self.task.config_general(options)
         self.send_text('{"status": "ok"}')
 
+    def scan_wifi(self):
+        # TODO: simulate API!
+        self.send_text('{"status": "ok", "wifi": [{"security": "WPA2-PSK",'
+                       ' "ssid": "FLUX-2.4"}, {"security": "WPA2-PSK",'
+                       ' "ssid": "FLUX-WPA"}]}')
+
     def config_network(self, params):
         options = json.loads(params)
         self.task.config_network(options)
@@ -99,6 +105,8 @@ class WebsocketUsbConfig(WebSocketBase):
                 self.auth(message[5:])
             elif message.startswith("set general "):
                 self.config_general(message.split(" ", 2)[-1])
+            elif message == "scan_wifi":
+                self.scan_wifi()
             elif message.startswith("set network "):
                 self.config_network(message.split(" ", 2)[-1])
             elif message.startswith("get network"):

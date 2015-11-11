@@ -18,6 +18,8 @@ ROUTES = [
      "fluxghost.websocket.laser_svg_parser.WebsocketLaserSvgParser"),
     (re.compile("pen-draw-parser"),
      "fluxghost.websocket.pen_draw_parser.WebsocketPenDraw"),
+    (re.compile("fcode-reader"),
+     "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
 
     # Simulate
     (re.compile("3d-scan-control/(?P<serial>[1]{25})"),
@@ -27,7 +29,7 @@ ROUTES = [
      "fluxghost.websocket.discover.WebsocketDiscover"),
     (re.compile("touch"),
      "fluxghost.websocket.touch.WebsocketTouch"),
-    (re.compile("control/(?P<serial>[0-9A-Z]{25})"),
+    (re.compile("control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.control.WebsocketControl"),
     (re.compile("3dprint-slicing"),
      "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),

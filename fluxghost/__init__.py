@@ -1,5 +1,5 @@
 
-VERSION = ("0", "2a2")
+VERSION = ("0", "3a1")
 VERSION_STRING = ".".join(VERSION)
 
 DEBUG = False

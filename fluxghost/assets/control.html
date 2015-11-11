@@ -34,15 +34,15 @@
   }
   </style>
   <script>
-  function beginControl(serial, name) {
+  function beginControl(uuid, name) {
     stopDiscover()
     $(".device_select_ui").hide();
     $(".device_control_ui").show();
 
     $("#device_label").
-      text(name + " (" + serial + ")").
-      attr("data-serial", serial);
-    connectControl()
+      text(name + " (" + uuid + ")").
+      attr("data-serial", uuid);
+    connectControl();
   }
 
   function connectControl() {
@@ -242,8 +242,6 @@
       }
 
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-
-
         if($(this).attr("data-file-cmd") == "upload_g"){
           var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size + " # 1";
           control_ws.flag = "g";
@@ -267,7 +265,7 @@
 
     // Begin UI
     $(window).bind('hashchange', function(e) {
-      var matchs = /^#[0-9A-Z]+;[\w\W]+$/.exec(document.location.hash);
+      var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
       if(matchs != undefined && matchs.length == 1) {
         var tags = matchs[0].split(";");
         var serial = tags[0].substr(1);
@@ -331,10 +329,45 @@
         <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
         <span data-cmd="raw" class="btn btn-xs btn-info">Raw</span>
         <span data-cmd="G28" class="btn btn-xs btn-primary">G28</span>
-        <span data-cmd="G92 E0,G1 F200 E200" class="btn btn-xs btn-default">送料</span>
-        <span data-cmd="-HO2000" class="btn btn-xs btn-default">Temp 200 (HO2000)</span>
-        <span data-cmd="-HO2100" class="btn btn-xs btn-default">Temp 210 (HO2100)</span>
-        <span data-cmd="-RT" class="btn btn-xs btn-default">Temp? (RT)</span>
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="G92 E0,G1F250E50" class="btn btn-xs btn-default">送料</span>
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li class="dropdown-header">50 系列</li>
+            <li data-cmd="G92E0,G1F6000E-500" style="cursor: pointer"><a>光輪 50 (退料)</a></li>
+            <li data-cmd="G92E0,G1F6000E500" style="cursor: pointer"><a>光輪 50 (送料)</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">快快der</li>
+            <li data-cmd="G92E0,G1F300E162" style="cursor: pointer"><a>公道價 x2</a></li>
+            <li data-cmd="G92E0,G1F300E81" style="cursor: pointer"><a>公道價 8.1cm</a></li>
+            <li data-cmd="G92E0,G1F300E40.5" style="cursor: pointer"><a>公道價 x0.5</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">普通快</li>
+            <li data-cmd="G92E0,G1F200E120" style="cursor: pointer"><a>走 40 秒</a></li>
+            <li data-cmd="G92E0,G1F200E60" style="cursor: pointer"><a>走 20 秒</a></li>
+            <li data-cmd="G92E0,G1F200E30" style="cursor: pointer"><a>走 10 秒</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">慢慢送</li>
+            <li data-cmd="G92E0,G1F120E40" style="cursor: pointer"><a>擠少少 x4</a></li>
+            <li data-cmd="G92E0,G1F120E20" style="cursor: pointer"><a>擠少少 x2</a></li>
+            <li data-cmd="G92E0,G1F120E10" style="cursor: pointer"><a>擠少少</a></li>
+          </ul>
+        </div>
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="-1 H:0 T:200 *15" class="btn btn-xs btn-default">Temp 200</span>
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li data-cmd="-1 H:0 T:210 *14" style="cursor: pointer"><a>Temp 210</a></li>
+            <li data-cmd="-1 H:0 T:190 *5" style="cursor: pointer"><a>Temp 190</a></li>
+          </ul>
+        </div>
+        <span data-cmd="-1 ping *33" class="btn btn-xs btn-default">Ping Head</span>
 
         <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
       </div>
@@ -347,17 +380,23 @@
           <i class="glyphicon glyphicon-console"></i>
         </span>
         <input id="controlcmd" type="text" class="form-control" />
-        <div class="input-group-btn">
+        <div class="input-group-btn dropup">
           <span class="btn btn-primary fileinput-button">
               <i class="glyphicon glyphicon-upload"></i>
               <span>Upload</span>
               <input type="file" class="fileinput-button" data-file-cmd="upload" name="file" />
           </span>
-          <span class="btn btn-primary fileinput-button">
+          <span type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <span class="caret"></span>
+            <span class="sr-only">Toggle Dropdown</span>
+          </span>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li class="fileinput-button"><a>
               <i class="glyphicon glyphicon-upload"></i>
               <span>Upload As Fcode</span>
               <input type="file" class="fileinput-button" data-file-cmd="upload_g" name="file" />
-          </span>
+            </a></li>
+          </ul>
         </div>
       </div>
     </div>

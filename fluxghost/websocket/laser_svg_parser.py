@@ -4,7 +4,7 @@ import logging
 import sys
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
+    BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
 from fluxclient.laser.laser_svg import LaserSvg
 
 logger = logging.getLogger("WS.Laser Svg")
@@ -13,8 +13,18 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
+class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     _m_laser_svg = None
+
+    def __init__(self, *args):
+        super(WebsocketLaserSvgParser, self).__init__(*args)
+        self.cmd_mapping = {
+            'upload': [self.begin_recv_svg, 'upload', None],
+            'get': [self.get],
+            'compute': [self.compute],
+            'go': [self.go],
+            'set_params': [self.set_params]
+        }
 
     @property
     def m_laser_svg(self):
@@ -22,43 +32,10 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
             self._m_laser_svg = LaserSvg()
         return self._m_laser_svg
 
-    def on_text_message(self, message):
-        try:
-            if not self.has_binary_helper():
-                message = message.rstrip().split(" ", 1)
-                if len(message) == 1:
-                    cmd = message[0]
-                    params = ''
-                else:
-                    cmd = message[0]
-                    params = message[1]
-
-                if cmd == "upload":
-                    self.begin_recv_svg(params, 'upload', None)
-                elif cmd == "get":
-                    self.get(params)
-                elif cmd == "compute":
-                    self.compute(params)
-                elif cmd == "go":
-                    self.go(params)
-                elif cmd == 'set_params':
-                    self.set_params(params)
-                else:
-                    raise ValueError('Undefine command %s' % (cmd))
-            else:
-                raise RuntimeError("RESOURCE_BUSY")
-
-        except ValueError:
-            logger.exception("Laser svg argument error")
-            self.send_fatal("BAD_PARAM_TYPE")
-
-        except RuntimeError as e:
-            self.send_fatal(e.args[0])
-
     def begin_recv_svg(self, message, flag, *args):
         self.POOL_TIME_ = self.POOL_TIME
         self.POOL_TIME = 10
-        name, file_length = message.split(" ")
+        name, file_length = message.split()
         helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag, args[0])
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
@@ -68,7 +45,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         if args[0] == 'upload':
             logger.debug("upload name:%s" % (name))
             try:
-                self.m_laser_svg.preprocess(buf, name)
+                self.m_laser_svg.svgs[name] = self.m_laser_svg.preprocess(buf, name)
                 self.send_ok()
             except:
                 print(sys.exc_info(), file=sys.stderr)
@@ -87,7 +64,7 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.send_binary(self.m_laser_svg.svgs[name][0])
 
     def compute(self, params):
-        options = params.split(' ')
+        options = params.split()
         name = options[0]
         w, h = float(options[1]), float(options[2])
         x1, y1, x2, y2 = (float(o) for o in options[3:7])
@@ -99,23 +76,36 @@ class WebsocketLaserSvgParser(WebsocketBinaryHelperMixin, WebSocketBase):
         self.begin_recv_svg('%s %d' % (name, svg_length + bitmap_w * bitmap_h), 'compute', [w, h, x1, y1, x2, y2, rotation, svg_length, bitmap_w, bitmap_h])
 
     def go(self, params):
-        names = params.split(' ')
+        names = params.split()
+        gen_flag = '-f'
+        if names[-1] == '-g' or names[-1] == '-f':
+            gen_flag = names[-1]  # generate fcode or gcode
+            names = names[:-1]
         logger.debug("upload names:%s" % (" ".join(names)))
         self.send_progress('initializing', 0.01)
+        if gen_flag == '-f':
+            output_binary = self.m_laser_svg.fcode_generate(names, self)
 
-        output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
+            ########## fake code  ########################
+            with open('output.fcode', 'wb') as f:
+                f.write(output_binary)
+            ##############################################
+
+        elif gen_flag == '-g':
+            output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
+
+            ########## fake code  ########################
+            with open('output.gcode', 'wb') as f:
+                f.write(output_binary)
+            ##############################################
+
         self.send_progress('finishing', 1.0)
-
-        ########## fake code  ########################
-        with open('output.gcode', 'wb') as f:
-            f.write(output_binary)
-        ##############################################
 
         self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
         logger.debug('laser svg finish')
 
     def set_params(self, params):
-        key, value = params.split(' ')
+        key, value = params.split()
         self.m_laser_svg.set_params(key, value)
         self.send_ok()

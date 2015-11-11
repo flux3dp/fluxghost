@@ -36,7 +36,7 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
             pass
 
     def on_text_message(self, message):
-        op, self.key = message.split(" ", 1)
+        op, self.key = message.split(maxsplit=1)
         logger.debug('will store in %s' % (self.config_path + self.config_file))
 
         try:
@@ -74,7 +74,7 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
         self.close()
 
     def begin_recv_binary(self, params):
-        key, data_length = params.split(' ')
+        key, data_length = params.split()
         helper = BinaryUploadHelper(int(data_length), self.end_recv_binary, key)
         self.set_binary_helper(helper)
         self.send_text('{"status": "continue"}')
