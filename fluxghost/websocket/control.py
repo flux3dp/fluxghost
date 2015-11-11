@@ -173,7 +173,8 @@ class WebsocketControl(WebsocketControlBase):
             "raw": self.begin_raw,
 
             "report": self.play_report,
-            "eadj": self.maintain_eadj
+            "eadj": self.maintain_eadj,
+            "cor_h": self.maintain_corh
         }
 
     def on_binary_message(self, buf):
@@ -377,6 +378,18 @@ class WebsocketControl(WebsocketControlBase):
         self.send_text(json.dumps({
             "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
         }))
+
+    def maintain_corh(self, *args):
+        def callback(nav):
+            self.send_text("DEBUG: %s" % nav)
+
+        if len(args) > 0:
+            ret = self.robot.maintain_hadj(navigate_callback=callback,
+                                           manual_h=float(args[0]))
+        else:
+            ret = self.robot.maintain_hadj(navigate_callback=callback)
+
+        self.send_text(json.dumps({"status": "ok", "data": ret}))
 
     def play_report(self):
         # TODO
