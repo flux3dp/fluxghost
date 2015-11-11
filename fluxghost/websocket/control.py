@@ -124,7 +124,7 @@ class WebsocketControlBase(WebSocketBase):
         if serial in DEVICE_CACHE:
             try:
                 cache = DEVICE_CACHE[serial]
-                task = UpnpTask(self.uuid, ipaddr=cache[0], pubkey=cache[1],
+                task = UpnpTask(self.uuid, pubkey=cache[1],
                                 lookup_timeout=4.0)
             except RuntimeError as e:
                 task = UpnpTask(self.uuid,
