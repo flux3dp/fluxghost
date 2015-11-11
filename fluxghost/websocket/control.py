@@ -1,6 +1,7 @@
 
 from errno import EPIPE
 from time import sleep
+from uuid import UUID
 import logging
 import socket
 import shlex
@@ -10,8 +11,7 @@ import io
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
 from fluxclient.fcode.g_to_f import GcodeToFcode
-from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, ST_NORMAL
 
 logger = logging.getLogger("WS.CONTROL")
 
@@ -40,8 +40,6 @@ STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
-DEVICE_CACHE = {}
-
 
 class WebsocketControlBase(WebSocketBase):
     robot = None
@@ -50,10 +48,10 @@ class WebsocketControlBase(WebSocketBase):
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
-        self.serial = serial
+        self.uuid = UUID(hex=serial)
 
         self.send_text(STAGE_DISCOVER)
-        task = self._discover(self.serial)
+        task = self._discover(self.uuid)
 
         try:
             logger.debug("AUTH")
@@ -99,7 +97,7 @@ class WebsocketControlBase(WebSocketBase):
 
         self.send_text(STAGE_ROBOT_CONNECTING)
         self.robot = connect_robot((self.ipaddr, 23811),
-                                   server_key=task.pubkey,
+                                   server_key=task.slave_key,
                                    conn_callback=self._conn_callback)
 
         self.send_text(STAGE_CONNECTED)
@@ -119,20 +117,15 @@ class WebsocketControlBase(WebSocketBase):
         self.send_text(STAGE_ROBOT_CONNECTING)
         return True
 
-    def _discover(self, serial):
-        if serial in DEVICE_CACHE:
-            try:
-                cache = DEVICE_CACHE[serial]
-                task = UpnpTask(self.serial, ipaddr=cache[0], pubkey=cache[1],
-                                lookup_timeout=4.0)
-            except RuntimeError as e:
-                task = UpnpTask(self.serial,
-                                lookup_callback=self._disc_callback)
+    def _discover(self, uuid):
+        profile = self.server.discover_devices.get(uuid)
+        if profile:
+            task = UpnpTask(self.uuid, remote_profile=profile,
+                            lookup_timeout=4.0)
         else:
-            task = UpnpTask(self.serial, lookup_callback=self._disc_callback)
+            task = UpnpTask(self.uuid, lookup_callback=self._disc_callback)
 
-        DEVICE_CACHE[serial] = (task.remote_addrs[0][0], task.pubkey)
-        self.ipaddr = task.remote_addrs[0][0]
+        self.ipaddr = task.endpoint[0]
         return task
 
 
@@ -359,7 +352,8 @@ class WebsocketControl(WebsocketControlBase):
             self.uploadto = uploadto
         else:
             self.convert = None
-            self.binary_sock = self.robot.begin_upload(mimetype, int(size), uploadto=uploadto)
+            self.binary_sock = self.robot.begin_upload(mimetype, int(size), 
+                                                       uploadto=uploadto)
 
         self.binary_length = int(size)
         self.binary_sent = 0
@@ -438,7 +432,8 @@ class WebsocketControl(WebsocketControlBase):
         fcode_output = io.BytesIO()
         m_GcodeToFcode = GcodeToFcode()
         # print((self.convert.getvalue().decode()))
-        m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'), fcode_output)
+        m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'),
+                               fcode_output)
         self.convert = None
         return fcode_output.getvalue()
 

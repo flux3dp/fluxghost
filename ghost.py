@@ -96,6 +96,7 @@ if not options.assets:
         "fluxghost", "assets")
 
 server = HttpServer(assets_path=options.assets,
+                    enable_discover=True,
                     address=(options.ipaddr, options.port,),)
 
 server.serve_forever()
