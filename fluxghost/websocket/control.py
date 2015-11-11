@@ -88,7 +88,7 @@ class WebsocketControlBase(WebSocketBase):
                     if task.timedelta < -15:
                         logger.debug("Auth error, try fix time delta")
                         old_td = task.timedelta
-                        task.update_remote_infomation(lookup_timeout=30.)
+                        task.update_remote_profile(lookup_timeout=30.)
                         if task.timedelta - old_td > 0.5:
                             # Fix timedelta issue let's retry
                             continue
