@@ -77,10 +77,11 @@ class WebsocketUsbConfig(WebSocketBase):
         self.send_text('{"status": "ok"}')
 
     def get_network(self):
-        payload = {"status": "ok", "ssid": None, "ipaddr": None}
+        payload = {"status": "ok"}
 
         try:
             payload["ssid"] = self.task.get_ssid()
+            payload["ipaddr"] = self.task.get_ipaddr()
         except UsbTaskError:
             pass
 

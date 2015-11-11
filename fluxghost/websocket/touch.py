@@ -1,4 +1,5 @@
 
+from uuid import UUID
 import logging
 import json
 
@@ -15,9 +16,15 @@ class WebsocketTouch(WebSocketBase):
     def on_text_message(self, message):
         try:
             payload = json.loads(message)
-            serial = payload["serial"]
+
+            # Old support:
+            if "serial" in payload:
+                uuid = UUID(hex=payload["serial"])
+            else:
+                uuid = UUID(hex=payload["uuid"])
+
             password = payload.get("password")
-            self.touch_device(serial, password)
+            self.touch_device(uuid, password)
         except Exception:
             logger.exception("Touch error")
             self.close()
@@ -37,25 +44,26 @@ class WebsocketTouch(WebSocketBase):
                 else:
                     raise
 
-    def touch_device(self, serial, password=None):
+    def touch_device(self, uuid, password=None):
         try:
-            if serial == "1111111111111111111111111":
+            if uuid.hex == "1" * 32:
                 self.send_text(json.dumps({
-                "serial": serial,
+                "serial": "SIMULATE00",
                 "name": "Simulate Device",
                 "has_response": True,
                 "reachable": True,
                 "auth": True
             }))
 
-            task = UpnpTask(serial, lookup_timeout=30.0)
+            task = UpnpTask(uuid, lookup_timeout=30.0)
             resp = self._run_auth(task, password)
 
             self.send_text(json.dumps({
-                "serial": serial,
+                "uuid": uuid.hex,
+                "serial": task.serial,
                 "name": task.name,
                 "has_response": resp is not None,
-                "reachable": task.remote_addr != "255.255.255.255",
+                "reachable": True,
                 "auth": resp and resp.get("status") == "ok"
             }))
 
