@@ -1,6 +1,7 @@
 
 from errno import EPIPE
 from time import sleep
+from uuid import UUID
 import logging
 import socket
 import shlex
@@ -50,10 +51,10 @@ class WebsocketControlBase(WebSocketBase):
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
-        self.serial = serial
+        self.uuid = UUID(hex=serial)
 
         self.send_text(STAGE_DISCOVER)
-        task = self._discover(self.serial)
+        task = self._discover(self.uuid)
 
         try:
             logger.debug("AUTH")
@@ -99,7 +100,7 @@ class WebsocketControlBase(WebSocketBase):
 
         self.send_text(STAGE_ROBOT_CONNECTING)
         self.robot = connect_robot((self.ipaddr, 23811),
-                                   server_key=task.pubkey,
+                                   server_key=task.slave_key,
                                    conn_callback=self._conn_callback)
 
         self.send_text(STAGE_CONNECTED)
@@ -123,16 +124,16 @@ class WebsocketControlBase(WebSocketBase):
         if serial in DEVICE_CACHE:
             try:
                 cache = DEVICE_CACHE[serial]
-                task = UpnpTask(self.serial, ipaddr=cache[0], pubkey=cache[1],
+                task = UpnpTask(self.uuid, ipaddr=cache[0], pubkey=cache[1],
                                 lookup_timeout=4.0)
             except RuntimeError as e:
-                task = UpnpTask(self.serial,
+                task = UpnpTask(self.uuid,
                                 lookup_callback=self._disc_callback)
         else:
-            task = UpnpTask(self.serial, lookup_callback=self._disc_callback)
+            task = UpnpTask(self.uuid, lookup_callback=self._disc_callback)
 
-        DEVICE_CACHE[serial] = (task.remote_addrs[0][0], task.pubkey)
-        self.ipaddr = task.remote_addrs[0][0]
+        DEVICE_CACHE[serial] = (task.endpoint[0], task.master_key)
+        self.ipaddr = task.endpoint[0]
         return task
 
 

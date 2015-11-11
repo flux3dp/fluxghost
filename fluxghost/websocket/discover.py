@@ -21,24 +21,52 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 """
 
 
-class AsyncUpnpDiscover(UpnpDiscover):
-    def __init__(self, callback):
-        super(AsyncUpnpDiscover, self).__init__()
-        self.callback = callback
+class AsyncCallback(object):
+    def __init__(self, f, d, callback):
+        self.f = f
+        self.d = d
+        self.cb = callback
 
-    def on_read(self):
-        data = self.on_recv_pong()
-        self.callback(**data)
+    def fileno(self):
+        return self.f.fileno()
+
+    def on_read(self, *args):
+        self.d.try_recive((self.f, ), self.cb)
+
+
+# class AsyncUpnpDiscover(UpnpDiscover):
+#     def __init__(self, callback):
+#         super(AsyncUpnpDiscover, self).__init__()
+#         self.callback = callback
+#
+#     def fileno(self):
+#
+#
+#     def on_read(self):
+#         data = self.on_recv_pong()
+#         self.callback(**data)
+
+
+def create_async_discover(callback):
+    discov = UpnpDiscover()
+    f1 = AsyncCallback(discov.disc_sock, discov, callback)
+    f2 = AsyncCallback(discov.touch_sock, discov, callback)
+    return discov, f1, f2
 
 
 class WebsocketDiscover(WebSocketBase):
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
 
-        self.discover = AsyncUpnpDiscover(callback=self.on_recv_discover)
+        self.discover, self.f1, self.f2 = create_async_discover(
+            self.on_recv_discover
+        )
+
+        # self.discover = AsyncUpnpDiscover(callback=self.on_recv_discover)
         self.devices = {}
 
-        self.rlist.append(self.discover)
+        self.rlist.append(self.f1)
+        self.rlist.append(self.f2)
 
         if SIMULATE:
             self.send_text(
@@ -52,9 +80,10 @@ class WebsocketDiscover(WebSocketBase):
     def on_text_message(self, message):
         self.POOL_TIME = 0.3
 
-    def on_recv_discover(self, serial, **data):
+    def on_recv_discover(self, instance, **data):
+        serial = data.get("serial")
         if serial not in self.devices:
-            self.send_text(self.build_response(serial, **data))
+            self.send_text(self.build_response(**data))
 
         self.devices[serial] = time()
 
@@ -71,9 +100,7 @@ class WebsocketDiscover(WebSocketBase):
 
     def on_loop(self):
         self.on_review_devices()
-
         self.POOL_TIME = min(self.POOL_TIME + 1.0, 3.0)
-        self.discover.ping()
 
     def update_profile(self, source, target, discover_from):
         changed = False
@@ -102,10 +129,11 @@ class WebsocketDiscover(WebSocketBase):
             "alive": False
         })
 
-    def build_response(self, serial, model_id, name, timestemp, version,
-                       has_password, ipaddrs):
+    def build_response(self, uuid, serial, model_id, name, timestemp, version,
+                       has_password, **kw):
         payload = {
-            "serial": uuid_to_short(serial),
+            "uuid": uuid.hex,
+            "serial": uuid.hex,
             "version": version,
             "alive": True,
             "name": name,
