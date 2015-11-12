@@ -4,10 +4,12 @@ import sys
 
 
 from fluxghost.http_server_base import HttpServerBase, logger
+import Crypto.Random
 
 
 def fork_entry(request, client, server):
     from fluxghost.http_handler import HttpHandler
+    Crypto.Random.atfork()
     HttpHandler(request, client, server)
 
 
