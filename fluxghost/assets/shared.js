@@ -72,7 +72,7 @@ function DiscoverWS(addCallback, removeCallback) {
 
 function addDevice(uuid, serial, name, version, password, ipaddr) {
   var $item = $("<a></a>").
-    attr("href", "#" + serial + ";" + name).
+    attr("href", "#" + uuid + ";" + name).
     addClass("list-group-item").
     attr("data-serial", uuid).
     attr("data-uuid", uuid).
