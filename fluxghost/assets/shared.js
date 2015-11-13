@@ -74,7 +74,8 @@ function addDevice(uuid, serial, name, version, password, ipaddr) {
   var $item = $("<a></a>").
     attr("href", "#" + serial + ";" + name).
     addClass("list-group-item").
-    attr("data-serial", serial).
+    attr("data-serial", uuid).
+    attr("data-uuid", uuid).
     attr("data-password", password ? "true" : "false").
     attr("data-name", name);
 
