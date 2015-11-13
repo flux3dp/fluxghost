@@ -53,7 +53,10 @@ function DiscoverWS(addCallback, removeCallback) {
       var payload = JSON.parse(m.data);
 
       if(payload.alive) {
-          if(addCallback) addCallback(payload.serial, payload.name, payload.version, payload.password);
+          if(addCallback) {
+              addCallback(payload.uuid, payload.serial, payload.name,
+                     payload.version, payload.password, payload.ipaddr);
+          }
       } else {
           if(removeCallback) removeCallback(payload.serial);
       }
@@ -67,7 +70,7 @@ function DiscoverWS(addCallback, removeCallback) {
     }
 }
 
-function addDevice(serial, name, version, password) {
+function addDevice(uuid, serial, name, version, password, ipaddr) {
   var $item = $("<a></a>").
     attr("href", "#" + serial + ";" + name).
     addClass("list-group-item").
@@ -75,11 +78,21 @@ function addDevice(serial, name, version, password) {
     attr("data-password", password ? "true" : "false").
     attr("data-name", name);
 
-  if(password) $item.append($("<span></span>").addClass("glyphicon glyphicon-lock"));
-  $item.append($("<span></span>").text(" "));
-  $item.append($("<span></span>").text(name));
-  $item.append($("<span></span>").text(" "));
-  $item.append($("<span></span>").text(serial).addClass("label label-default"));
+  var $row1 = $("<div></div>");
+  var $row2 = $("<div></div>");
+  $item.append($row1);
+  $item.append($row2);
+
+  if(password) $row1.append($("<span></span>").addClass("glyphicon glyphicon-lock"));
+  $row1.append($("<span></span>").text(serial).addClass("label label-primary"));
+  $row1.append($("<span></span>").text(" "));
+  $row1.append($("<span></span>").text(name));
+
+  $row2.append($("<span></span>").text(uuid).addClass("label label-default"));
+  $row2.append($("<span></span>").text(" "));
+  $row2.append($("<span></span>").text(version));
+  $row2.append($("<span></span>").text(" / "));
+  $row2.append($("<span></span>").text(ipaddr));
 
   $("#devices").append($item);
 }
