@@ -46,7 +46,7 @@ class WebsocketTouch(WebSocketBase):
 
     def touch_device(self, uuid, password=None):
         try:
-            if uuid.hex == "1" * 32:
+            if uuid.hex == "0" * 32:
                 self.send_text(json.dumps({
                 "serial": "SIMULATE00",
                 "name": "Simulate Device",
