@@ -75,10 +75,10 @@ class WebsocketControlBase(WebSocketBase):
                     st = resp.get("status")
                     if st == "initial":
                         self.send_text(STAGE_ROBOT_INIT)
-                        sleep(0.3)
+                        sleep(1.5)
                     elif st == "launching":
                         self.send_text(STAGE_ROBOT_LAUNGING)
-                        sleep(0.3)
+                        sleep(1.5)
                     elif st == "launched":
                         self.send_text(STAGE_ROBOT_LAUNCHED)
                         break
