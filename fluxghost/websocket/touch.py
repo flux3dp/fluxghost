@@ -70,7 +70,7 @@ class WebsocketTouch(WebSocketBase):
         except RuntimeError as err:
             logger.debug("Error: %s" % err)
             self.send_text(json.dumps({
-                "serial": serial,
+                "uuid": uuid.hex,
                 "has_response": False,
                 "reachable": False,
                 "auth": False
