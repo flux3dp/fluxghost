@@ -49,8 +49,6 @@ class WebsocketControlBase(WebSocketBase):
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
         self.uuid = UUID(hex=serial)
-
-        self.send_text(STAGE_DISCOVER)
         task = self._discover(self.uuid)
 
         try:
@@ -85,13 +83,19 @@ class WebsocketControlBase(WebSocketBase):
 
             except RuntimeError as err:
                 if err.args[0] == "AUTH_ERROR":
+                    self.send_text(STAGE_DISCOVER)
                     if task.timedelta < -15:
-                        logger.debug("Auth error, try fix time delta")
+                        logger.warn("Auth error, try fix time delta")
                         old_td = task.timedelta
                         task.reload_remote_profile(lookup_timeout=30.)
                         if task.timedelta - old_td > 0.5:
                             # Fix timedelta issue let's retry
+                            p = self.server.discover_devices.get(self.uuid)
+                            if p:
+                                p["timedelta"] = task.timedelta
+                                self.server.discover_devices[self.uuid] = p
                             continue
+
                 self.send_fatal(err.args[0], "require robot failed")
                 raise
 
