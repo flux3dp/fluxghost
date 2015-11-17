@@ -47,6 +47,7 @@ class Websocket3DScanControl(WebsocketControlBase):
     def __init__(self, *args, serial):
         WebsocketControlBase.__init__(self, *args, serial=serial)
         self.try_control()
+        self.cab = None
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
@@ -81,6 +82,8 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_ok(str(self.steps))
 
         elif message == "scan":
+            if self.cab is None:
+                self.get_cab()
             self.scan()
 
         elif message == "quit":
@@ -155,10 +158,13 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_binary(buf)
         self.send_ok()
 
-    def scan_check():
+    def scan_check(self):
         if not self.ready:
             self.send_error("NOT_READY")
             return
+
+    def get_cab(self):
+        self.cab = (-10, -10)
 
     def scan(self):
         if not self.ready:
@@ -170,8 +176,9 @@ class Websocket3DScanControl(WebsocketControlBase):
             return
 
         L.debug('Do scan %d' % (self.current_step))
+
         il, ir, io = self.robot.scanimages()
-        left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step)
+        left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step, self.cab[0], self.cab[1])
 
         self.current_step += 1
 
