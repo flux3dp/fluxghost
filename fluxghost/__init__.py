@@ -1,5 +1,3 @@
 
-VERSION = ("0", "3a2")
-VERSION_STRING = ".".join(VERSION)
-
+__version__ = "0.4a2"
 DEBUG = False

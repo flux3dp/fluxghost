@@ -87,10 +87,11 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         else:
             for line_num, err_msg in bad_lines:
                 self.send_error('line %d: %s' % (line_num, err_msg))
+                logger.debug('line %d: %s' % (line_num, err_msg))
 
     def gcode_generate(self, params):
         names = params.split()
-        if names[-1] == '-g':
+        if names[-1] == '-g' or names[-1] == 'g':  # TODO: delete 'g'
             output_type = '-g'
             names = names[:-1]
         elif names[-1] == '-f':

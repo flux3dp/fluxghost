@@ -170,7 +170,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             return
 
         L.debug('Do scan %d' % (self.current_step))
-        ir, il, io = self.robot.scanimages()
+        il, ir, io = self.robot.scanimages()
         left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step)
 
         self.current_step += 1

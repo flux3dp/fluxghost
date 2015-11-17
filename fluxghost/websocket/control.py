@@ -49,8 +49,6 @@ class WebsocketControlBase(WebSocketBase):
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
         self.uuid = UUID(hex=serial)
-
-        self.send_text(STAGE_DISCOVER)
         task = self._discover(self.uuid)
 
         try:
@@ -75,23 +73,29 @@ class WebsocketControlBase(WebSocketBase):
                     st = resp.get("status")
                     if st == "initial":
                         self.send_text(STAGE_ROBOT_INIT)
-                        sleep(0.3)
+                        sleep(1.5)
                     elif st == "launching":
                         self.send_text(STAGE_ROBOT_LAUNGING)
-                        sleep(0.3)
+                        sleep(1.5)
                     elif st == "launched":
                         self.send_text(STAGE_ROBOT_LAUNCHED)
                         break
 
             except RuntimeError as err:
                 if err.args[0] == "AUTH_ERROR":
+                    self.send_text(STAGE_DISCOVER)
                     if task.timedelta < -15:
-                        logger.debug("Auth error, try fix time delta")
+                        logger.warn("Auth error, try fix time delta")
                         old_td = task.timedelta
-                        task.update_remote_infomation(lookup_timeout=30.)
+                        task.reload_remote_profile(lookup_timeout=30.)
                         if task.timedelta - old_td > 0.5:
                             # Fix timedelta issue let's retry
+                            p = self.server.discover_devices.get(self.uuid)
+                            if p:
+                                p["timedelta"] = task.timedelta
+                                self.server.discover_devices[self.uuid] = p
                             continue
+
                 self.send_fatal(err.args[0], "require robot failed")
                 raise
 
@@ -173,7 +177,8 @@ class WebsocketControl(WebsocketControlBase):
             "raw": self.begin_raw,
 
             "report": self.play_report,
-            "eadj": self.maintain_eadj
+            "eadj": self.maintain_eadj,
+            "cor_h": self.maintain_corh
         }
 
     def on_binary_message(self, buf):
@@ -377,6 +382,18 @@ class WebsocketControl(WebsocketControlBase):
         self.send_text(json.dumps({
             "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
         }))
+
+    def maintain_corh(self, *args):
+        def callback(nav):
+            self.send_text("DEBUG: %s" % nav)
+
+        if len(args) > 0:
+            ret = self.robot.maintain_hadj(navigate_callback=callback,
+                                           manual_h=float(args[0]))
+        else:
+            ret = self.robot.maintain_hadj(navigate_callback=callback)
+
+        self.send_text(json.dumps({"status": "ok", "data": ret}))
 
     def play_report(self):
         # TODO

@@ -22,7 +22,7 @@ ROUTES = [
      "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
 
     # Simulate
-    (re.compile("3d-scan-control/(?P<serial>[1]{25})"),
+    (re.compile("3d-scan-control/(?P<serial>[0]{32})"),
      "fluxghost.websocket.scan_control.SimulateWebsocket3DScanControl"),
 
     (re.compile("discover"),
@@ -33,7 +33,7 @@ ROUTES = [
      "fluxghost.websocket.control.WebsocketControl"),
     (re.compile("3dprint-slicing"),
      "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
-    (re.compile("3d-scan-control/(?P<serial>[0-9A-Z]{25})"),
+    (re.compile("3d-scan-control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
     (re.compile("usb-config"),
      "fluxghost.websocket.usb_config.WebsocketUsbConfig")]

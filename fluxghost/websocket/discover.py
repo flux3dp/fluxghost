@@ -63,14 +63,15 @@ class WebsocketDiscover(WebSocketBase):
         })
 
     def build_response(self, uuid, serial, model_id, name, version,
-                       has_password, **kw):
+                       has_password, ipaddr, **kw):
         # TODO: serial -- uuid.hex to real serial
         payload = {
             "uuid": uuid.hex,
-            "serial": uuid.hex,
+            "serial": serial,
             "version": version,
             "alive": True,
             "name": name,
+            "ipaddr": ipaddr[0],
 
             "model": model_id,
             "password": has_password,
