@@ -5,11 +5,11 @@ import logging
 logger = logging.getLogger("HTTP")
 
 from fluxghost.http_websocket_route import get_match_ws_service
-from fluxghost import VERSION_STRING
+from fluxghost import __version__
 
 
 class HttpHandler(BaseHTTPRequestHandler):
-    server_version = "FLUXGhost/%s" % VERSION_STRING
+    server_version = "FLUXGhost/%s" % __version__
     protocol_version = "HTTP/1.1"
 
     def __init__(self, request, client, server):
