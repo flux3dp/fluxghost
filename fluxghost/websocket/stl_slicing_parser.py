@@ -91,7 +91,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
 
     def gcode_generate(self, params):
         names = params.split()
-        if names[-1] == '-g' or names[-1] == 'g':  # TODO: delete 'g'
+        if names[-1] == '-g':
             output_type = '-g'
             names = names[:-1]
         elif names[-1] == '-f':
