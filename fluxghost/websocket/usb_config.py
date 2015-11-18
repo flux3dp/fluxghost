@@ -67,9 +67,9 @@ class WebsocketUsbConfig(WebSocketBase):
 
     def scan_wifi(self):
         # TODO: simulate API!
-        self.send_text('{"status": "ok", "wifi": [{"security": "WPA2-PSK",'
-                       ' "ssid": "FLUX-2.4"}, {"security": "WPA2-PSK",'
-                       ' "ssid": "FLUX-WPA"}]}')
+        ret = self.task.list_ssid()
+        doc = json.dumps({"status": "ok", "wifi": ret})
+        self.send_text(doc)
 
     def config_network(self, params):
         options = json.loads(params)
