@@ -6,6 +6,7 @@ block_cipher = None
 a = Analysis(['ghost.py'],
              pathex=['/Users/Cerberus/Projects/python/py33/flux3dp/fluxghost'],
              hiddenimports=[
+               "serial",
                "fluxclient.printer._printer",
                "fluxclient.scanner._scanner",
                "fluxghost.websocket",
