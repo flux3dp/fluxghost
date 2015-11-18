@@ -30,7 +30,7 @@ class WebsocketDiscover(WebSocketBase):
                 self.build_response(
                     uuid=u, serial="SIMULATE00", model_id="magic",
                     timestemp=0, name="Simulate Device", version="god knows",
-                    has_password=False, ipaddrs="1.1.1.1"))
+                    has_password=False, ipaddr="1.1.1.1"))
 
         self.alive_devices = []
         self.POOL_TIME = 1.0
