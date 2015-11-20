@@ -58,6 +58,8 @@ class HttpServerBase(object):
                             from fluxclient.upnp.discover import UpnpDiscover
                             self.discover = UpnpDiscover()
                             self.discover_socks = self.discover.socks
+                            args = ((self.sock, ) + self.discover_socks, (),
+                                    (), 30.)
 
             except InterruptedError:
                 pass
