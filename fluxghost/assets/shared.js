@@ -95,6 +95,9 @@ function addDevice(uuid, serial, name, version, password, ipaddr) {
   $row2.append($("<span></span>").text(" / "));
   $row2.append($("<span></span>").text(ipaddr));
 
+  var $old = $("[data-uuid=" + uuid + "]", "#devices");
+  $old.remove();
+
   $("#devices").append($item);
 }
 
