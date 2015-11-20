@@ -48,10 +48,15 @@ class HttpServerBase(object):
                     if sock == self.sock:
                         self.on_accept()
                     elif sock in self.discover_socks:
-                        self.discover.try_recive(
-                            self.discover_socks,
-                            callback=self.on_discover_device,
-                            timeout=0.01)
+                        try:
+                            self.discover.try_recive(
+                                self.discover_socks,
+                                callback=self.on_discover_device,
+                                timeout=0.01)
+                        except (OSError, soocket.error):
+                            logger.debug("Discover error, recreate")
+                            self.discover = UpnpDiscover()
+                            self.discover_socks = self.discover.socks
 
             except InterruptedError:
                 pass
