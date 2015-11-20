@@ -69,4 +69,12 @@ class HttpServerBase(object):
 
     def on_discover_device(self, discover_instance, uuid, **kw):
         kw["last_response"] = time()
+        if uuid not in self.discover_devices:
+            kw["timedelta"] -= 100
+
+        if uuid in self.discover_devices:
+            exist = self.discover_devices[uuid]
+            if exist["timedelta"] != kw["timedelta"]:
+                kw["timedelta"] = exist["timedelta"]
+
         self.discover_devices[uuid] = kw
