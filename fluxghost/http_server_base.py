@@ -53,7 +53,7 @@ class HttpServerBase(object):
                                 self.discover_socks,
                                 callback=self.on_discover_device,
                                 timeout=0.01)
-                        except (OSError, soocket.error):
+                        except (OSError, socket.error):
                             logger.debug("Discover error, recreate")
                             self.discover = UpnpDiscover()
                             self.discover_socks = self.discover.socks
