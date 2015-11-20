@@ -15,6 +15,8 @@ class HttpServerBase(object):
                  backlog=10):
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
+        self.enable_discover = enable_discover
+        self.discover_devices = {}
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -41,25 +43,26 @@ class HttpServerBase(object):
     def serve_forever(self):
         self.running = True
 
-        args = ((self.sock, ) + self.discover_socks, (), (), 30.)
+        if self.enable_discover:
+            from fluxclient.upnp.discover import UpnpDiscover
+            disc = UpnpDiscover()
+
+        args = ((self.sock, ) + disc.socks, (), (), 30.)
         while self.running:
             try:
                 for sock in select(*args)[0]:
                     if sock == self.sock:
                         self.on_accept()
-                    elif sock in self.discover_socks:
+                    elif sock in disc.socks:
                         try:
-                            self.discover.try_recive(
-                                self.discover_socks,
+                            disc.try_recive(
+                                disc.socks,
                                 callback=self.on_discover_device,
                                 timeout=0.01)
                         except (OSError, socket.error):
                             logger.debug("Discover error, recreate")
-                            from fluxclient.upnp.discover import UpnpDiscover
-                            self.discover = UpnpDiscover()
-                            self.discover_socks = self.discover.socks
-                            args = ((self.sock, ) + self.discover_socks, (),
-                                    (), 30.)
+                            disc = UpnpDiscover()
+                            args = ((self.sock, ) + disc.socks, (), (), 30.)
 
             except InterruptedError:
                 pass
