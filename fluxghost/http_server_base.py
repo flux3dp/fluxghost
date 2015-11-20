@@ -55,6 +55,7 @@ class HttpServerBase(object):
                                 timeout=0.01)
                         except (OSError, socket.error):
                             logger.debug("Discover error, recreate")
+                            from fluxclient.upnp.discover import UpnpDiscover
                             self.discover = UpnpDiscover()
                             self.discover_socks = self.discover.socks
 
