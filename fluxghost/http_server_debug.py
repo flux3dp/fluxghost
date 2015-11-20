@@ -27,6 +27,8 @@ def check_autoreload():
 
 
 class HttpServer(HttpServerBase):
+    runmode = "FORK"
+
     def on_accept(self):
         check_autoreload()
         request, client = self.sock.accept()

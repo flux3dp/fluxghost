@@ -11,6 +11,8 @@ from fluxghost.http_handlers.file_handler import FileHandler
 
 
 class HttpServerBase(object):
+    runmode = None
+
     def __init__(self, assets_path, address, enable_discover=False,
                  backlog=10):
         self.assets_handler = FileHandler(assets_path)
@@ -43,11 +45,14 @@ class HttpServerBase(object):
     def serve_forever(self):
         self.running = True
 
-        if self.enable_discover:
+        if self.enable_discover and self.runmode == "THREAD":
+            logger.info("Run discover in background")
             from fluxclient.upnp.discover import UpnpDiscover
             disc = UpnpDiscover()
+            args = ((self.sock, ) + disc.socks, (), (), 30.)
+        else:
+            args = ((self.sock, ), (), (), 30.)
 
-        args = ((self.sock, ) + disc.socks, (), (), 30.)
         while self.running:
             try:
                 for sock in select(*args)[0]:

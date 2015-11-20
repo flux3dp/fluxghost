@@ -6,6 +6,8 @@ from fluxghost.http_handler import HttpHandler
 
 
 class HttpServer(HttpServerBase):
+    runmode = "THREAD"
+
     def on_accept(self):
         request, client = self.sock.accept()
 
