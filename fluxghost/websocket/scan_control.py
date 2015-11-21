@@ -164,7 +164,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             return
 
     def get_cab(self):
-        self.cab = (-10, -10)
+        self.cab = [float(i) for i in self.robot.get_calibrate().split()]
 
     def scan(self):
         if not self.ready:
@@ -176,6 +176,15 @@ class Websocket3DScanControl(WebsocketControlBase):
             return
 
         L.debug('Do scan %d' % (self.current_step))
+
+        # ###################
+        # if self.current_step > 10:
+        #     self.current_step += 1
+        #     self.send_text('{"status": "chunk", "left": 0, "right": 0}')
+        #     self.send_binary(b'')
+        #     self.send_ok()
+        #     return
+        # ###################
 
         il, ir, io = self.robot.scanimages()
         left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step, self.cab[0], self.cab[1])
@@ -229,6 +238,10 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         elif message == "quit":
             self.send_text("bye")
             self.close()
+        elif message == "scan_check":
+            self.scan_check()
+        elif message == "calibrate":
+            self.calibrate()
 
         else:
             self.send_error("UNKNOW_COMMAND", message)
@@ -374,3 +387,14 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.send_ok()
 
             self.current_step += 1
+
+    def scan_check(self):
+        import random
+        s = random.choice(["not open", "not open", "no object", "no object", "good", "didn't pull out laser"])
+        self.send_text('{"status": "ok", "message": "%s"}' % (s))
+
+    def calibrate(self):
+        self.send_text('{"status": "continue", "message": "please wait until this process done"}')
+        from time import sleep
+        sleep(10)
+        self.send_text('{"status": "ok", "message": "calibration done"}')

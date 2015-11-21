@@ -25,7 +25,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         if "slic3r" in os.environ:
             self.m_stl_slicer = StlSlicer(os.environ["slic3r"])
         else:
-            self.m_stl_slicer = StlSlicer("../slic3r/slic3r")
+            self.m_stl_slicer = StlSlicer("../Slic3r/slic3r.pl")
 
         self.cmd_mapping = {
             'upload': [self.begin_recv_stl, 'upload'],
