@@ -70,7 +70,7 @@ class WebsocketDiscover(WebSocketBase):
             "serial": serial,
             "version": version,
             "alive": True,
-            "name": name,
+            "name": repr(name),
             "ipaddr": ipaddr[0],
 
             "model": model_id,
