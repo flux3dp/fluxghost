@@ -45,7 +45,7 @@ class HttpServerBase(object):
     def serve_forever(self):
         self.running = True
 
-        if self.enable_discover and self.runmode == "THREAD":
+        if self.enable_discover: # and self.runmode == "THREAD"
             logger.info("Run discover in background")
             from fluxclient.upnp.discover import UpnpDiscover
             disc = UpnpDiscover()
