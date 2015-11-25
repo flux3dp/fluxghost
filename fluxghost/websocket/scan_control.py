@@ -66,6 +66,9 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "scan_check":
             self.scan_check()
 
+        elif message == "calibrate":
+            self.calibrate()
+
         elif message.startswith("resolution "):
 
             s_step = message.split(maxsplit=1)[-1]
@@ -78,7 +81,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 
             scan_settings.scan_step = self.steps
             self.current_step = 0
-            self.proc = image_to_pc.image_to_pc()
+            self.proc = image_to_pc.image_to_pc(self.steps)
             self.send_ok(str(self.steps))
 
         elif message == "scan":
@@ -158,12 +161,9 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_binary(buf)
         self.send_ok()
 
-    def scan_check(self):
-        if not self.ready:
-            self.send_error("NOT_READY")
-            return
-
     def get_cab(self):
+        self.cab = [-10, -10]
+        return
         self.cab = [float(i) for i in self.robot.get_calibrate().split()]
 
     def scan(self):
@@ -197,11 +197,31 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.robot.scan_next()
         self.send_ok()
 
+    def scan_check(self):
+        self.send_text('{"status": "ok", "message": "good}')
+
+    # def scan_check(self):
+    #     if not self.ready:
+    #         self.send_error("NOT_READY")
+    #         return
+
+    def calibrate(self):
+        self.send_text('{"status": "continue"}')
+        from time import sleep
+        sleep(10)
+        self.send_ok()
+
 
 class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
     current_step = 0
     mode = 'box'
+    # mode = 'merge'
+    if mode == 'merge':
+        pc_L = read_pcd('/var/pcd/1.pcd')
+        pc_R = read_pcd('/var/pcd/2.pcd')
+    else:
+        pass
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
@@ -249,27 +269,28 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
     def scan(self):
         if self.mode == 'merge':
 
-            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..",
-                                        "assets")
+            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
+            print(self.current_step, file=sys.stderr)
+            sys.stderr.flush()
 
             if self.current_step < self.steps:
-                pc_L = read_pcd(PCD_LOCATION + '/pikachu.pcd')
-                tmp = len(pc_L) // self.steps
+
+                tmp = len(self.pc_L) // self.steps
 
                 self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
                 buf = []
-                for p in pc_L[tmp * self.current_step: tmp * (self.current_step + 1)]:
+                for p in self.pc_L[tmp * self.current_step: tmp * (self.current_step + 1)]:
                     buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
                                p[3] / 255., p[4] / 255., p[5] / 255.))
                 buf = b''.join(buf)
                 self.send_binary(buf)
 
             elif self.current_step < self.steps * 2:
-                pc_R = read_pcd(PCD_LOCATION + '/pikachu90.pcd')
-                tmp = len(pc_R) // self.steps
-                self.send_text('{"status": "chunk", "left": 0, "right": %d}' % tmp)
+
+                tmp = len(self.pc_R) // self.steps
+                self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
                 buf = []
-                for p in pc_R[tmp * (self.current_step - self.steps): tmp * (self.current_step + 1 - self.steps)]:
+                for p in self.pc_R[tmp * (self.current_step - self.steps): tmp * (self.current_step + 1 - self.steps)]:
                     buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
                                p[3] / 255., p[4] / 255., p[5] / 255.))
                 buf = b''.join(buf)
@@ -346,20 +367,23 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             buf = []
             if self.current_step < self.steps:
                 for z in range(500 * self.current_step // self.steps, 500 * (self.current_step + 1) // self.steps, 8):
-                    for s in range(-250, 250, 8):
-                        buf.append([s, -250, z])
-                        buf.append([s, 250, z])
-                        buf.append([-250, s, z])
-                        buf.append([250, s, z])
+                    for s in range(-125, 125, 8):
+                        buf.append([s, -62, z])
+                        buf.append([s, 62, z])
+
+                    for s in range(-62, 62, 8):
+                        buf.append([-125, s, z])
+                        buf.append([125, s, z])
                 buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
+
             elif self.current_step < self.steps * 2:
                 for z in range(500 * (self.current_step - self.steps) // self.steps - 250, 500 * (self.current_step - self.steps + 1) // self.steps - 250, 8):
-                    for s in range(-250, 250, 8):
+                    for s in range(-125, 125, 8):
                         buf.append([z, s, 0])
-                        buf.append([z, s, 500])
-                    for s in range(0, 500, 8):
-                        buf.append([z, -250, s])
-                        buf.append([z, 250, s])
+                        buf.append([z, s, 125])
+                    for s in range(0, 125, 8):
+                        buf.append([z, -125, s])
+                        buf.append([z, 125, s])
                 buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
             else:
                 buf = []
@@ -390,11 +414,11 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
 
     def scan_check(self):
         import random
-        s = random.choice(["not open", "not open", "no object", "no object", "good", "didn't pull out laser"])
+        s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
         self.send_text('{"status": "ok", "message": "%s"}' % (s))
 
     def calibrate(self):
-        self.send_text('{"status": "continue", "message": "please wait until this process done"}')
+        self.send_text('{"status": "continue"}')
         from time import sleep
-        sleep(10)
-        self.send_text('{"status": "ok", "message": "calibration done"}')
+        sleep(1)
+        self.send_ok()
