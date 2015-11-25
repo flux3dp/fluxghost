@@ -352,6 +352,9 @@ class WebsocketControl(WebsocketControlBase):
         elif uploadto.startswith("USB/"):
             uploadto = "USB " + uploadto[4:]
 
+        if mimetype == "text/gcode" and convert != '1':
+            self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
+            return
         if mimetype == "text/gcode" and convert == '1':
             self.convert = io.BytesIO()
             self.uploadto = uploadto
