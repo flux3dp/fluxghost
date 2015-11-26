@@ -16,12 +16,7 @@ class WebsocketTouch(WebSocketBase):
     def on_text_message(self, message):
         try:
             payload = json.loads(message)
-
-            # Old support:
-            if "serial" in payload:
-                uuid = UUID(hex=payload["serial"])
-            else:
-                uuid = UUID(hex=payload["uuid"])
+            uuid = UUID(hex=payload["uuid"])
 
             password = payload.get("password")
             self.touch_device(uuid, password)

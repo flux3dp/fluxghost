@@ -49,9 +49,9 @@ class WebsocketControlBase(WebSocketBase):
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
         self.uuid = UUID(hex=serial)
-        task = self._discover(self.uuid)
 
         try:
+            task = self._discover(self.uuid)
             logger.debug("AUTH")
             self.send_text(STAGE_DISCOVER)
             task.require_auth()
