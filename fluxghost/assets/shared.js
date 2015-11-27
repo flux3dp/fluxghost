@@ -107,7 +107,7 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
   $row1.append($("<span></span>").text(" "));
   $row1.append($("<span></span>").text(name));
 
-  $row1.append($("<span></span>").text("ST_TS / ST_ID / ST_PROG / HEAD").addClass("pull-right"))
+  $row1.append($("<span></span>").text("ST_TS / ST_ID / ST_PROG / HEAD / ERROR").addClass("pull-right"))
 
   $row2.append($("<span></span>").text(uuid).addClass("label label-default"));
   $row2.append($("<span></span>").text(" "));
@@ -117,7 +117,8 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
 
   $row2.append($("<span></span>").text(
     addDeviceStrHelper(dataset.st_ts) + " / " + addDeviceStrHelper(dataset.st_id) + " / " + 
-    addDeviceStrHelper(dataset.st_prog) + " / " + addDeviceStrHelper(dataset.head_module)
+    addDeviceStrHelper(dataset.st_prog) + " / " + addDeviceStrHelper(dataset.head_module) + " / " +
+    addDeviceStrHelper(dataset.error_label)
   ).addClass("pull-right"))
 
   var $old = $("[data-uuid=" + uuid + "]", "#devices");
