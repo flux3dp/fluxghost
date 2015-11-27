@@ -74,6 +74,8 @@ function DiscoverWS(addCallback, removeCallback) {
 function addDeviceStrHelper(input) {
   if(input===undefined) {
     return "-";
+  } else if(input === "") {
+    return "-";
   } else if(typeof(input) === "number") {
     var raw = input.toFixed(2);
     if(raw.endsWith(".00")) {
@@ -81,6 +83,8 @@ function addDeviceStrHelper(input) {
     } else {
       return raw;
     }
+  } else {
+    return input;
   }
 }
 
