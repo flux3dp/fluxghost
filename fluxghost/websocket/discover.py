@@ -46,25 +46,22 @@ class WebsocketDiscover(WebSocketBase):
                     self.send_text(self.build_dead_response(uuid))
             else:
                 # Alive devices
-                if uuid not in self.alive_devices:
-                    self.alive_devices.append(uuid)
-                    self.send_text(self.build_response(uuid, **data))
+                self.alive_devices.append(uuid)
+                self.send_text(self.build_response(uuid, **data))
 
     def on_loop(self):
         self.on_review_devices()
         self.POOL_TIME = min(self.POOL_TIME + 1.0, 3.0)
 
     def build_dead_response(self, uuid):
-        # TODO: serial -- uuid.hex to real serial
         return json.dumps({
             "uuid": uuid.hex,
-            "serial": uuid.hex,
             "alive": False
         })
 
     def build_response(self, uuid, serial, model_id, name, version,
-                       has_password, ipaddr, **kw):
-        # TODO: serial -- uuid.hex to real serial
+                       has_password, ipaddr, st_ts=None, st_id=None,
+                       st_prog=None, head_module=None, error_label=None, **kw):
         payload = {
             "uuid": uuid.hex,
             "serial": serial,
@@ -75,6 +72,12 @@ class WebsocketDiscover(WebSocketBase):
 
             "model": model_id,
             "password": has_password,
-            "source": "lan"
+            "source": "lan",
+
+            "st_ts": st_ts,
+            "st_id": st_id,
+            "st_prog": st_prog,
+            "head_module": head_module,
+            "error_label": error_label
         }
         return json.dumps(payload)

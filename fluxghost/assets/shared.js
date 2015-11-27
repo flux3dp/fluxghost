@@ -55,7 +55,8 @@ function DiscoverWS(addCallback, removeCallback) {
       if(payload.alive) {
           if(addCallback) {
               addCallback(payload.uuid, payload.serial, payload.name,
-                     payload.version, payload.password, payload.ipaddr);
+                     payload.version, payload.password, payload.ipaddr,
+                     payload);
           }
       } else {
           if(removeCallback) removeCallback(payload.serial);
@@ -70,7 +71,20 @@ function DiscoverWS(addCallback, removeCallback) {
     }
 }
 
-function addDevice(uuid, serial, name, version, password, ipaddr) {
+function addDeviceStrHelper(input) {
+  if(input===undefined) {
+    return "-";
+  } else if(typeof(input) === "number") {
+    var raw = input.toFixed(2);
+    if(raw.endsWith(".00")) {
+      return raw.substring(0, raw.length - 3);
+    } else {
+      return raw;
+    }
+  }
+}
+
+function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
   var $item = $("<a></a>").
     attr("href", "#" + uuid + ";" + name).
     addClass("list-group-item").
@@ -89,11 +103,18 @@ function addDevice(uuid, serial, name, version, password, ipaddr) {
   $row1.append($("<span></span>").text(" "));
   $row1.append($("<span></span>").text(name));
 
+  $row1.append($("<span></span>").text("ST_TS / ST_ID / ST_PROG / HEAD").addClass("pull-right"))
+
   $row2.append($("<span></span>").text(uuid).addClass("label label-default"));
   $row2.append($("<span></span>").text(" "));
   $row2.append($("<span></span>").text(version));
   $row2.append($("<span></span>").text(" / "));
   $row2.append($("<span></span>").text(ipaddr));
+
+  $row2.append($("<span></span>").text(
+    addDeviceStrHelper(dataset.st_ts) + " / " + addDeviceStrHelper(dataset.st_id) + " / " + 
+    addDeviceStrHelper(dataset.st_prog) + " / " + addDeviceStrHelper(dataset.head_module)
+  ).addClass("pull-right"))
 
   var $old = $("[data-uuid=" + uuid + "]", "#devices");
   $old.remove();
