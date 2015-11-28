@@ -51,9 +51,11 @@ class WebsocketControlBase(WebSocketBase):
         self.uuid = UUID(hex=serial)
 
         try:
-            task = self._discover(self.uuid)
-            logger.debug("AUTH")
             self.send_text(STAGE_DISCOVER)
+            logger.debug("DISCOVER")
+            task = self._discover(self.uuid)
+            self.send_text(STAGE_AUTH)
+            logger.debug("AUTH")
             task.require_auth()
 
         except TimeoutError:
