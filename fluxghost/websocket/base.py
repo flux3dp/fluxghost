@@ -5,7 +5,7 @@ import logging
 import os
 
 from fluxghost.utils.websocket import WebSocketHandler, ST_NORMAL, \
-    ST_GOING_AWAY, ST_INVALID_PAYLOAD
+    ST_GOING_AWAY, ST_INVALID_PAYLOAD, WebsocketError
 
 SIMULATE = "flux_simulate" in os.environ
 logger = logging.getLogger("WS.BASE")
@@ -31,6 +31,8 @@ class WebSocketBase(WebSocketHandler):
 
                 self.check_ttl()
                 self.on_loop()
+        except WebsocketError as e:
+            logger.info("%s", e)
         except Exception:
             logger.exception("Unhandle exception")
         finally:
