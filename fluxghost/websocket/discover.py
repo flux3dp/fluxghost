@@ -22,6 +22,7 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 
 class WebsocketDiscover(WebSocketBase):
     def __init__(self, *args):
+        self.POOL_TIME = 1.0
         WebSocketBase.__init__(self, *args)
 
         if SIMULATE:
@@ -32,8 +33,8 @@ class WebsocketDiscover(WebSocketBase):
                     timestemp=0, name="Simulate Device", version="god knows",
                     has_password=False, ipaddr="1.1.1.1"))
 
-        self.alive_devices = []
-        self.POOL_TIME = 1.0
+        self.alive_devices = set()
+        self.server.discover_devices.items()
 
     def on_review_devices(self):
         t = time()
@@ -42,11 +43,11 @@ class WebsocketDiscover(WebSocketBase):
             if t - data.get("last_response", 0) > 30:
                 # Dead devices
                 if uuid in self.alive_devices:
-                    self.alive_devices.pop()
+                    self.alive_devices.remove(uuid)
                     self.send_text(self.build_dead_response(uuid))
             else:
                 # Alive devices
-                self.alive_devices.append(uuid)
+                self.alive_devices.add(uuid)
                 self.send_text(self.build_response(uuid, **data))
 
     def on_loop(self):
