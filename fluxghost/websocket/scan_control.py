@@ -89,6 +89,10 @@ class Websocket3DScanControl(WebsocketControlBase):
                 self.get_cab()
             self.scan()
 
+        elif message == "ping":
+            self.send_text('{"status": "pong"}')
+            return
+            
         elif message == "quit":
             if self.robot.position() == "ScanTask":
                 self.robot.quit_task()
