@@ -49,6 +49,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'delete_noise': [self.delete_noise],
             'dump': [self.dump],
             'export': [self.export],
+            'apply_transform': [self.apply_transform],
             'merge': [self.merge],
             'auto_merge': [self.auto_merge]
         }
@@ -86,14 +87,19 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         self.send_ok()
 
     def merge(self, params):
-        name_base, name_2, x, y, z, rx, ry, rz, name_out = params.split()
+        name_base, name_2, name_out = params.split()
+        self.m_pc_process.merge(name_base, name_2, name_out)
+        self.send_ok()
+
+    def apply_transform(self, params):
+        name_in, x, y, z, rx, ry, rz, name_out = params.split()
         x = float(x)
         y = float(y)
         z = float(z)
         rx = float(rx)
         ry = float(ry)
         rz = float(rz)
-        self.m_pc_process.merge(name_base, name_2, x, y, z, rx, ry, rz, name_out)
+        self.m_pc_process.apply_transform(name_in, x, y, z, rx, ry, rz, name_out)
         self.send_ok()
 
     def auto_merge(self, params):
@@ -108,7 +114,8 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         if not SUPPORT_PCL:
             self.send_ok()
             return
-
+        import sys
+        print(params, file=sys.stderr)
         name_in, name_out, r = params.split()
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)

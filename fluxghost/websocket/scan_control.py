@@ -20,6 +20,7 @@ import struct
 import math
 import os
 import sys
+import random
 
 from fluxclient.scanner.tools import read_pcd
 from fluxclient.scanner import scan_settings, image_to_pc
@@ -48,6 +49,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         WebsocketControlBase.__init__(self, *args, serial=serial)
         self.try_control()
         self.cab = None
+        self.serial = serial
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
@@ -68,6 +70,9 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         elif message == "calibrate":
             self.calibrate()
+
+        elif message == "ping":
+            print('ping', file=sys.stderr)
 
         elif message.startswith("resolution "):
 
@@ -165,8 +170,23 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_binary(buf)
         self.send_ok()
 
+    def scan_check(self):
+        import random
+        s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
+        self.send_text('{"status": "ok", "message": "%s"}' % (s))
+
     def get_cab(self):
-        self.cab = [-10, -10]
+        if self.serial == '4231314100048163a34c35d4607254cd':
+            self.cab = [0, 8]
+
+        else:
+            self.cab = [-10, -10]
+
+        print('\033[92m', file=sys.stderr)  # green
+        print(self.cab, file=sys.stderr)
+        print('\033[0m', file=sys.stderr)
+        sys.stderr.flush()
+
         return
         self.cab = [float(i) for i in self.robot.get_calibrate().split()]
 
@@ -201,14 +221,6 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.robot.scan_next()
         self.send_ok()
 
-    def scan_check(self):
-        self.send_text('{"status": "ok", "message": "good}')
-
-    # def scan_check(self):
-    #     if not self.ready:
-    #         self.send_error("NOT_READY")
-    #         return
-
     def calibrate(self):
         self.send_text('{"status": "continue"}')
         from time import sleep
@@ -220,12 +232,19 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
     current_step = 0
     mode = 'box'
-    # mode = 'merge'
+    mode = 'merge'
     if mode == 'merge':
-        pc_L = read_pcd('/var/pcd/1.pcd')
-        pc_R = read_pcd('/var/pcd/2.pcd')
+        PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
+        model_l = []
+        for i in range(1, 10):
+            try:
+                model_l.append(read_pcd('/var/pcd/%d.pcd' % i))
+            except:
+                print(i, file=sys.stderr)
+                # raise
     else:
         pass
+    # mode = 'box'
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
@@ -259,6 +278,9 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         elif message == "scan":
             self.scan()
 
+        elif message == "ping":
+            pass
+
         elif message == "quit":
             self.send_text("bye")
             self.close()
@@ -273,37 +295,44 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
     def scan(self):
         if self.mode == 'merge':
 
-            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
-            print(self.current_step, file=sys.stderr)
-            sys.stderr.flush()
-
-            if self.current_step < self.steps:
-
-                tmp = len(self.pc_L) // self.steps
+            # PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
+            if self.current_step // self.steps < len(self.model_l):
+                pc = self.model_l[self.current_step // self.steps]
+                tmp = len(pc) // self.steps
 
                 self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
                 buf = []
-                for p in self.pc_L[tmp * self.current_step: tmp * (self.current_step + 1)]:
+                for p in pc[tmp * (self.current_step - (self.current_step // self.steps) * self.steps): tmp * ((self.current_step - (self.current_step // self.steps) * self.steps) + 1)]:
                     buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
                                p[3] / 255., p[4] / 255., p[5] / 255.))
                 buf = b''.join(buf)
                 self.send_binary(buf)
-
-            elif self.current_step < self.steps * 2:
-
-                tmp = len(self.pc_R) // self.steps
-                self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
-                buf = []
-                for p in self.pc_R[tmp * (self.current_step - self.steps): tmp * (self.current_step + 1 - self.steps)]:
-                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-                               p[3] / 255., p[4] / 255., p[5] / 255.))
-                buf = b''.join(buf)
-                self.send_binary(buf)
-
             else:
                 self.send_text('{"status": "chunk", "left": 0, "right": 0}')
                 self.send_binary(b'')
 
+            # if self.current_step < self.steps:
+
+            #     tmp = len(self.pc_L) // self.steps
+
+            #     self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
+            #     buf = []
+            #     for p in self.pc_L[tmp * self.current_step: tmp * (self.current_step + 1)]:
+            #         buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
+            #                    p[3] / 255., p[4] / 255., p[5] / 255.))
+            #     buf = b''.join(buf)
+            #     self.send_binary(buf)
+
+            # elif self.current_step < self.steps * 2:
+
+            #     tmp = len(self.pc_R) // self.steps
+            #     self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
+            #     buf = []
+            #     for p in self.pc_R[tmp * (self.current_step - self.steps): tmp * (self.current_step + 1 - self.steps)]:
+            #         buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
+            #                    p[3] / 255., p[4] / 255., p[5] / 255.))
+            #     buf = b''.join(buf)
+            #     self.send_binary(buf)
             self.current_step += 1
             self.send_ok()
 
@@ -390,9 +419,12 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
                         buf.append([z, 125, s])
                 buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
             else:
-                buf = []
+                for z in range(1000):
+                    buf.append([random.randint(-99, 99), random.randint(-99, 99), random.randint(0, 990)])
+                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, 0, 0, 0) for x, y, z in buf]
 
-            self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(buf))
+            # self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(buf))
+            self.send_text('{"status": "chunk", "left": %d, "right": %d}' % (len(buf) // 2, len(buf) // 2))
             buf = b''.join(buf)
             self.send_binary(buf)
             self.send_ok()
@@ -400,7 +432,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.current_step += 1
 
         elif self.mode == 'cube':
-            import random
+
             buf = []
             if self.current_step < self.steps:
                 for x in range(10000 // self.steps):
