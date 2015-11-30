@@ -71,9 +71,6 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "calibrate":
             self.calibrate()
 
-        elif message == "ping":
-            print('ping', file=sys.stderr)
-
         elif message.startswith("resolution "):
 
             s_step = message.split(maxsplit=1)[-1]
@@ -97,7 +94,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "ping":
             self.send_text('{"status": "pong"}')
             return
-            
+
         elif message == "quit":
             if self.robot.position() == "ScanTask":
                 self.robot.quit_task()
@@ -279,7 +276,8 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             self.scan()
 
         elif message == "ping":
-            pass
+            self.send_text('{"status": "pong"}')
+            return
 
         elif message == "quit":
             self.send_text("bye")
