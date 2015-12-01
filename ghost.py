@@ -77,9 +77,11 @@ parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                     const=True, default=False, help='Enable debug')
 parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
                     const=True, default=False, help='Simulate data')
-
 parser.add_argument("--slic3r", dest='slic3r', type=str, default='../',
                     help="Set slic3r location")
+parser.add_argument('--test', dest='test', action='store_const',
+                    const=True, default=False, help='Run test')
+
 
 options = parser.parse_args()
 setup_logger(debug=options.debug, logfile=options.logfile)
@@ -88,6 +90,11 @@ if options.debug:
     from fluxghost.http_server_debug import HttpServer
 else:
     from fluxghost.http_server import HttpServer
+
+if options.test:
+    from tests.main import main
+    main()
+    sys.exit(0)
 
 if options.simulate:
     os.environ["flux_simulate"] = "1"
