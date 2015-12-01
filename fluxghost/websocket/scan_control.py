@@ -173,7 +173,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_text('{"status": "ok", "message": "%s"}' % (s))
 
     def get_cab(self):
-        self.cab = [float(i) for i in self.robot.get_calibrate().split()]
+        self.cab = [float(i) for i in self.robot.get_calibrate().split()[1:]]
         return
 
     def scan(self):
@@ -226,6 +226,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
             try:
                 model_l.append(read_pcd('/var/pcd/%d.pcd' % i))
             except:
+
                 pass
                 # raise
     else:
