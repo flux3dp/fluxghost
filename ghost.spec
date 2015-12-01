@@ -1,5 +1,28 @@
 # -*- mode: python -*-
 
+from pkg_resources import resource_listdir, resource_isdir, resource_filename
+import os
+
+
+def fetch_data(package, path):
+    data = []
+    for fn in resource_listdir(package, path):
+        np = os.path.join(path, fn)
+        if resource_isdir(package, np):
+            data += fetch_data(package, np)
+        else:
+            data.append((os.path.join(package, np),
+                         resource_filename(package, np),
+                         'DATA'))
+    return data
+
+
+def fetch_datas():
+    datas = []
+    datas += fetch_data("fluxclient", "assets")
+    return datas
+
+
 block_cipher = None
 
 
@@ -26,6 +49,7 @@ a = Analysis(['ghost.py'],
              runtime_hooks=None,
              excludes=None,
              cipher=block_cipher)
+a.datas += fetch_datas()
 pyz = PYZ(a.pure,
              cipher=block_cipher)
 exe = EXE(pyz,
