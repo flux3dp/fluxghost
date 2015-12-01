@@ -78,6 +78,9 @@ parser.add_argument('-d', '--debug', dest='debug', action='store_const',
 parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
                     const=True, default=False, help='Simulate data')
 
+parser.add_argument("--slic3r", dest='slic3r', type=str, default='../',
+                    help="Set slic3r location")
+
 options = parser.parse_args()
 setup_logger(debug=options.debug, logfile=options.logfile)
 
@@ -88,6 +91,11 @@ else:
 
 if options.simulate:
     os.environ["flux_simulate"] = "1"
+
+if options.slic3r:
+
+    os.environ["slic3r"] = options.slic3r
+
 
 if not options.assets:
     options.assets = os.path.join(
