@@ -110,7 +110,7 @@ class WebsocketBinaryHelperMixin(object):
 
     def on_loop(self):
         if self._binary_helper:
-            if time() - self._binary_helper.last_update > 10:
+            if time() - self._binary_helper.last_update > 20:
                 self.send_fatal('binary receive timeout')
                 raise RuntimeError('binary receive timeout')
 
@@ -128,7 +128,6 @@ class BinaryUploadHelper(object):
         self.last_update = time()
 
     def feed(self, buf):
-
         l = self.buf.write(buf)
         self.buffered += l
         self.last_update = time()

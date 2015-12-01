@@ -21,6 +21,7 @@ import logging
 import struct
 import os
 import re
+from time import time
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, SIMULATE, OnTextMessageMixin
@@ -66,14 +67,13 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             totel_length = (llen + rlen) * 24
         except ValueError:
             raise RuntimeError("BAD_PARAM_TYPE", "upload param error")
-        logger.debug('uploading ' + name)
+        logger.debug('uploading {}, L:{}, R:{}, time:{}'.format(name, s_left_len, s_right_len, time()))
         helepr = BinaryUploadHelper(totel_length, self._end_upload,
                                     name, llen, rlen)
         self.set_binary_helper(helepr)
         self.send_text('{"status": "continue"}')
 
     def _end_upload(self, buf, name, left_len, right_len):
-
         left_points = buf[:left_len * 24]
         right_points = buf[left_len * 24:]
         self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)

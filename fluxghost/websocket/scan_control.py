@@ -173,19 +173,8 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_text('{"status": "ok", "message": "%s"}' % (s))
 
     def get_cab(self):
-        if self.serial == '4231314100048163a34c35d4607254cd':
-            self.cab = [0, 8]
-
-        else:
-            self.cab = [-10, -10]
-
-        print('\033[92m', file=sys.stderr)  # green
-        print(self.cab, file=sys.stderr)
-        print('\033[0m', file=sys.stderr)
-        sys.stderr.flush()
-
-        return
         self.cab = [float(i) for i in self.robot.get_calibrate().split()]
+        return
 
     def scan(self):
         if not self.ready:
@@ -230,18 +219,20 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
     current_step = 0
     mode = 'box'
     mode = 'merge'
+    model_l = []
     if mode == 'merge':
         PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
-        model_l = []
         for i in range(1, 10):
             try:
                 model_l.append(read_pcd('/var/pcd/%d.pcd' % i))
             except:
-                print(i, file=sys.stderr)
+                pass
                 # raise
     else:
         pass
-    # mode = 'box'
+    if len(model_l) == 0:
+        mode = 'box'
+    mode = 'box'
 
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
