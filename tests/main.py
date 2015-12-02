@@ -23,6 +23,7 @@ def main():
     try_import("serial")
     try_import("PIL")
     try_import("numpy")
+    try_import("zipimport")
 
     try_import("fluxclient")
     try_import("fluxclient.fcode")
@@ -34,6 +35,4 @@ def main():
     try_import("fluxclient.scanner")
     try_import("fluxclient.scanner._scanner")
     try_import("fluxclient.upnp")
-
-    try_import("serial")
 

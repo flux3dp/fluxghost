@@ -1,4 +1,29 @@
 
+function _scrollLog() {
+  setTimeout(function() {
+      var h = $("#log")[0].scrollHeight;
+
+      var $log = $("#log");
+      var anime_flag = $log.attr("data-anime-flag");
+
+      if(anime_flag == "RUNNING") {
+        $log.attr("data-anime-flag", "NEED_REFRESH");
+      } else if(anime_flag == "NEED_REFRESH") {
+
+      } else {
+        $log.attr("data-anime-flag", "RUNNING");
+        $log.animate({ scrollTop: h }, "fast", "swing", function() {
+          if($log.attr("data-anime-flag") === "NEED_REFRESH") {
+            $log.removeAttr("data-anime-flag");
+            _scrollLog();
+          } else {
+            $log.removeAttr("data-anime-flag");
+          }
+        });
+      }
+  }, 5);
+}
+
 function appendLog(text, color) {
   var dt = new Date();
   var hour = dt.getHours() < 10 ? "0" + String(dt.getHours()) : String(dt.getHours());
@@ -10,11 +35,7 @@ function appendLog(text, color) {
   if(color) $row.css("color", color);
 
   $("#log").append($row);
-
-  setTimeout(function() {
-      var h = $("#log")[0].scrollHeight;
-      $("#log").animate({ scrollTop: h }, "fast");
-  }, 5);
+  _scrollLog();
 }
 
 function appendHtmlLog(html) {
