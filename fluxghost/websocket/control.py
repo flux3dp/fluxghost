@@ -63,8 +63,13 @@ class WebsocketControlBase(WebSocketBase):
             raise
 
         except RuntimeError as err:
-            self.send_fatal(err.args[0], )
-            raise
+            if err.args[0] == "AUTH_ERROR":
+                self.send_text(STAGE_AUTH)
+                if not self._fix_auth_error(task):
+                    raise
+            else:
+                self.send_fatal(err.args[0], )
+                raise
 
         logger.debug("REQUIRE ROBOT")
         while True:
@@ -85,18 +90,9 @@ class WebsocketControlBase(WebSocketBase):
 
             except RuntimeError as err:
                 if err.args[0] == "AUTH_ERROR":
-                    self.send_text(STAGE_DISCOVER)
-                    if task.timedelta < -15:
-                        logger.warn("Auth error, try fix time delta")
-                        old_td = task.timedelta
-                        task.reload_remote_profile(lookup_timeout=30.)
-                        if task.timedelta - old_td > 0.5:
-                            # Fix timedelta issue let's retry
-                            p = self.server.discover_devices.get(self.uuid)
-                            if p:
-                                p["timedelta"] = task.timedelta
-                                self.server.discover_devices[self.uuid] = p
-                            continue
+                    self.send_text(STAGE_ROBOT_LAUNGING)
+                    if self._fix_auth_error(task):
+                        continue
 
                 self.send_fatal(err.args[0], "require robot failed")
                 raise
@@ -107,6 +103,21 @@ class WebsocketControlBase(WebSocketBase):
                                    conn_callback=self._conn_callback)
 
         self.send_text(STAGE_CONNECTED)
+
+    def _fix_auth_error(self, task):
+        self.send_text(STAGE_DISCOVER)
+        if task.timedelta < -15:
+            logger.warn("Auth error, try fix time delta")
+            old_td = task.timedelta
+            task.reload_remote_profile(lookup_timeout=30.)
+            if task.timedelta - old_td > 0.5:
+                # Fix timedelta issue let's retry
+                p = self.server.discover_devices.get(self.uuid)
+                if p:
+                    p["timedelta"] = task.timedelta
+                    self.server.discover_devices[self.uuid] = p
+                    return True
+        return False
 
     def on_closed(self):
         if self.robot:
@@ -362,7 +373,7 @@ class WebsocketControl(WebsocketControlBase):
             self.uploadto = uploadto
         else:
             self.convert = None
-            self.binary_sock = self.robot.begin_upload(mimetype, int(size), 
+            self.binary_sock = self.robot.begin_upload(mimetype, int(size),
                                                        uploadto=uploadto)
 
         self.binary_length = int(size)
