@@ -91,10 +91,6 @@ class Websocket3DScanControl(WebsocketControlBase):
                 self.get_cab()
             self.scan()
 
-        elif message == "ping":
-            self.send_text('{"status": "pong"}')
-            return
-
         elif message == "quit":
             if self.robot.position() == "ScanTask":
                 self.robot.quit_task()
@@ -168,9 +164,17 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_ok()
 
     def scan_check(self):
-        import random
-        s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
-        self.send_text('{"status": "ok", "message": "%s"}' % (s))
+        # s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
+        message = self.robot.scan_check()
+        message = int(message.split()[-1])
+        if message & 1 == 0:
+            message = "not open, or too dark"
+        else:
+            if message & 2:
+                message = "good"
+            else:
+                message = "opened, but no object"
+        self.send_text('{"status": "ok", "message": "%s"}' % (message))
 
     def get_cab(self):
         self.cab = [float(i) for i in self.robot.get_calibrate().split()[1:]]
@@ -441,6 +445,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
     def scan_check(self):
         import random
         s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
+        s = "good"
         self.send_text('{"status": "ok", "message": "%s"}' % (s))
 
     def calibrate(self):

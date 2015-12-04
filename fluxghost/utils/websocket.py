@@ -221,7 +221,12 @@ class WebSocketHandler(object):
     def _handle_message(self, opcode, message):
         # ref: opcode in RFC 6455 (Chp 5.5)
         if opcode == 0x1:
-            self.on_text_message(message.decode("utf8"))
+            # TODO: this if statement is only for ping-pong
+            # might be too fundamental, should we add another layer for this?
+            if message.decode("utf8") == "ping":
+                self.send_text('{"status": "pong"}')
+            else:
+                self.on_text_message(message.decode("utf8"))
         elif opcode == 0x2:
             self.on_binary_message(message)
         elif opcode == 0x8:
@@ -261,10 +266,10 @@ class WebSocketHandler(object):
                 self.request.send(struct.pack('>HQ', flag + 127, length))
             else:
                 raise Exception("Can not send message larger then %i" %
-                                (2**64))
+                                (2 ** 64))
         except socket.error as e:
             self._closed()
-            raise WebsocketError("Connection closed") from e 
+            raise WebsocketError("Connection closed") from e
 
         sent = 0
         buf = memoryview(message)

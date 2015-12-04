@@ -77,7 +77,7 @@ parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                     const=True, default=False, help='Enable debug')
 parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
                     const=True, default=False, help='Simulate data')
-parser.add_argument("--slic3r", dest='slic3r', type=str, default='../',
+parser.add_argument("--slic3r", dest='slic3r', type=str, default='../Slic3r/slic3r.pl',
                     help="Set slic3r location")
 parser.add_argument('--test', dest='test', action='store_const',
                     const=True, default=False, help='Run test')
