@@ -50,52 +50,9 @@ class WebsocketControlBase(WebSocketBase):
         WebSocketBase.__init__(self, *args)
         self.uuid = UUID(hex=serial)
 
-        try:
-            self.send_text(STAGE_DISCOVER)
-            logger.debug("DISCOVER")
-            task = self._discover(self.uuid)
-            self.send_text(STAGE_AUTH)
-            logger.debug("AUTH")
-            task.require_auth()
-
-        except TimeoutError:
-            self.send_fatal("TIMEOUT")
-            raise
-
-        except RuntimeError as err:
-            if err.args[0] == "AUTH_ERROR":
-                self.send_text(STAGE_AUTH)
-                if not self._fix_auth_error(task):
-                    raise
-            else:
-                self.send_fatal(err.args[0], )
-                raise
-
-        logger.debug("REQUIRE ROBOT")
-        while True:
-            try:
-                resp = task.require_robot()
-
-                if resp:
-                    st = resp.get("status")
-                    if st == "initial":
-                        self.send_text(STAGE_ROBOT_INIT)
-                        sleep(1.5)
-                    elif st == "launching":
-                        self.send_text(STAGE_ROBOT_LAUNGING)
-                        sleep(1.5)
-                    elif st == "launched":
-                        self.send_text(STAGE_ROBOT_LAUNCHED)
-                        break
-
-            except RuntimeError as err:
-                if err.args[0] == "AUTH_ERROR":
-                    self.send_text(STAGE_ROBOT_LAUNGING)
-                    if self._fix_auth_error(task):
-                        continue
-
-                self.send_fatal(err.args[0], "require robot failed")
-                raise
+        self.send_text(STAGE_DISCOVER)
+        logger.debug("DISCOVER")
+        task = self._discover(self.uuid)
 
         self.send_text(STAGE_ROBOT_CONNECTING)
         self.robot = connect_robot((self.ipaddr, 23811),
