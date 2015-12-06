@@ -116,7 +116,8 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
     attr("data-serial", uuid).
     attr("data-uuid", uuid).
     attr("data-password", password ? "true" : "false").
-    attr("data-name", name);
+    attr("data-name", name).
+    addClass("device");
 
   var $row1 = $("<div></div>");
   var $row2 = $("<div></div>");
@@ -128,7 +129,7 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
   $row1.append($("<span></span>").text(" "));
   $row1.append($("<span></span>").text(name));
 
-  $row1.append($("<span></span>").text("ST_TS / ST_ID / ST_PROG / HEAD / ERROR").addClass("pull-right"))
+  $row1.append($("<span></span>").text("ST_TS / ST_ID / ST_PROG / HEAD / ERROR").addClass("pull-right").addClass("details"));
 
   $row2.append($("<span></span>").text(uuid).addClass("label label-default"));
   $row2.append($("<span></span>").text(" "));
@@ -140,7 +141,7 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
     addDeviceStrHelper(dataset.st_ts) + " / " + addDeviceStrHelper(dataset.st_id) + " / " + 
     addDeviceStrHelper(dataset.st_prog) + " / " + addDeviceStrHelper(dataset.head_module) + " / " +
     addDeviceStrHelper(dataset.error_label)
-  ).addClass("pull-right"))
+  ).addClass("pull-right").addClass("details"));
 
   var $old = $("[data-uuid=" + uuid + "]", "#devices");
   $old.remove();
