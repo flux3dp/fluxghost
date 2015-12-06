@@ -54,10 +54,14 @@ class WebsocketControlBase(WebSocketBase):
         logger.debug("DISCOVER")
         task = self._discover(self.uuid)
 
-        self.send_text(STAGE_ROBOT_CONNECTING)
-        self.robot = connect_robot((self.ipaddr, 23811),
-                                   server_key=task.slave_key,
-                                   conn_callback=self._conn_callback)
+        try:
+            self.send_text(STAGE_ROBOT_CONNECTING)
+            self.robot = connect_robot((self.ipaddr, 23811),
+                                       server_key=task.slave_key,
+                                       conn_callback=self._conn_callback)
+        except RuntimeError as err:
+            self.send_fatal(err.args[0], )
+            raise
 
         self.send_text(STAGE_CONNECTED)
 
