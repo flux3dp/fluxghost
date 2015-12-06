@@ -82,12 +82,11 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
     def advanced_setting(self, params):
         lines = params.split('\n')
         bad_lines = self.m_stl_slicer.advanced_setting(lines)
-        if bad_lines == []:
-            self.send_ok()
-        else:
+        if bad_lines != []:
             for line_num, err_msg in bad_lines:
                 self.send_error('line %d: %s' % (line_num, err_msg))
                 logger.debug('line %d: %s' % (line_num, err_msg))
+        self.send_ok()
 
     def gcode_generate(self, params):
         names = params.split()
