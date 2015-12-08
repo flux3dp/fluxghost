@@ -213,9 +213,8 @@ class Websocket3DScanControl(WebsocketControlBase):
 
     def calibrate(self):
         self.send_text('{"status": "continue"}')
-        from time import sleep
-        sleep(10)
-        self.send_ok()
+        res = self.robot.calibrate()
+        self.send_ok(res[3:])
 
 
 class SimulateWebsocket3DScanControl(WebSocketBase):
