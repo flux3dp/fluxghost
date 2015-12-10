@@ -108,7 +108,7 @@ class WebsocketUsbConfig(WebSocketBase):
             elif message.startswith("get network"):
                 self.get_network()
             elif message.startswith("set password "):
-                self.set_password(message[13])
+                self.set_password(message[13:])
             else:
                 self.send_text(
                     '{"status": "error", "error": "UNKNOW_COMMAND"}')
