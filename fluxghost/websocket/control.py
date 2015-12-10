@@ -219,7 +219,7 @@ class WebsocketControl(WebsocketControlBase):
                 func_ptr(*args)
             else:
                 logger.error("Unknow Command: %s" % message)
-                self.send_error("UNKNOW_COMMAND", "ws")
+                self.send_error("UNKNOWN_COMMAND", "ws")
 
         except RuntimeError as e:
             logger.debug("RuntimeError%s" % repr(e.args))
@@ -230,11 +230,11 @@ class WebsocketControl(WebsocketControlBase):
                 self.send_fatal("DISCONNECTED", repr(e.__class__))
             else:
                 logger.exception("Unknow Error")
-                self.send_fatal("UNKNOW_ERROR", repr(e.__class__))
+                self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
 
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def simple_cmd(self, func, *args):
         try:
@@ -243,7 +243,7 @@ class WebsocketControl(WebsocketControlBase):
             self.send_error(*e.args)
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def position(self):
         try:
@@ -254,7 +254,7 @@ class WebsocketControl(WebsocketControlBase):
             self.send_error(*e.args)
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def list_file(self, location=None):
         if location:
