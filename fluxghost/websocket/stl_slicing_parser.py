@@ -35,8 +35,10 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             'delete': [self.delete],
             'set_params': [self.set_params],
             'advanced_setting': [self.advanced_setting],
-            'get_path': [self.get_path]
+            'get_path': [self.get_path],
+            'meta_option': [self.meta_option]
         }
+        self.ext_metadata = {}
 
     def begin_recv_stl(self, params, flag):
         if flag == 'upload':
@@ -122,3 +124,8 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             self.send_ok()
         else:
             self.send_error(message)
+
+    def meta_option(self, params):
+        key, value = params.split()
+        self.m_stl_slicer.ext_metadata[key] = value
+        self.send_ok()
