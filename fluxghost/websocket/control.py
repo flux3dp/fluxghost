@@ -116,6 +116,17 @@ class WebsocketControl(WebsocketControlBase):
         WebsocketControlBase.__init__(self, *args, serial=serial)
         self.set_hooks()
 
+    def fast_wrapper(self, func):
+        def wrapper(*args, **kw):
+            try:
+                self.send_text('{"status":"%s"}' % func(*args, **kw))
+            except RuntimeError as e:
+                self.send_error(*e.args)
+            except Exception as e:
+                logger.exception("Unknow Error")
+                self.send_error("UNKNOW_ERROR", repr(e.__class__))
+        return wrapper
+
     def set_hooks(self):
         self.simple_mapping = {
             "start": self.robot.start_play,
@@ -150,9 +161,17 @@ class WebsocketControl(WebsocketControlBase):
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
 
-            "report": self.play_report,
+            "report": self.report_play,
             "eadj": self.maintain_eadj,
-            "cor_h": self.maintain_corh
+            "cor_h": self.maintain_corh,
+
+            "play": {
+                "info": self.play_info,
+                "report": self.report_play,
+                "pause": self.fast_wrapper(self.robot.pause_play),
+                "resume": self.fast_wrapper(self.robot.resume_play),
+                "abort": self.fast_wrapper(self.robot.abort_play),
+            }
         }
 
     def on_binary_message(self, buf):
@@ -188,20 +207,26 @@ class WebsocketControl(WebsocketControlBase):
             self.binary_sock = None
             self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
+    def invoke_command(self, ref, args, wrapper=None):
+        if not args:
+            return False
+
+        cmd = args[0]
+        if cmd in ref:
+            obj = ref[cmd]
+            if isinstance(obj, dict):
+                return self.invoke_command(obj, args[1:], wrapper)
+            else:
+                if wrapper:
+                    wrapper(obj, *args[1:])
+                else:
+                    obj(*args[1:])
+                return True
+        return False
+
     def on_text_message(self, message):
         if message == "ping":
             self.send_text('{"status": "pong"}')
-            return
-
-        if message == "over_my_dead_body":
-            import tempfile
-            import os
-            import gc
-            fn = os.path.join(tempfile.gettempdir(), "over_my_dead_body.dump")
-            with open(fn, "w") as f:
-                for o in gc.get_objects():
-                    f.write(repr(o) + "\n")
-            self.send_text("ok " + fn)
             return
 
         if self.raw_sock:
@@ -209,14 +234,13 @@ class WebsocketControl(WebsocketControlBase):
             return
 
         args = shlex.split(message)
-        cmd = args.pop(0)
 
         try:
-            if cmd in self.simple_mapping:
-                self.simple_cmd(self.simple_mapping[cmd], *args)
-            elif cmd in self.cmd_mapping:
-                func_ptr = self.cmd_mapping[cmd]
-                func_ptr(*args)
+            if self.invoke_command(self.simple_mapping, args,
+                                   self.simple_cmd):
+                pass
+            elif self.invoke_command(self.cmd_mapping, args):
+                pass
             else:
                 logger.error("Unknow Command: %s" % message)
                 self.send_error("UNKNOWN_COMMAND", "ws")
@@ -372,7 +396,7 @@ class WebsocketControl(WebsocketControlBase):
 
         self.send_text(json.dumps({"status": "ok", "data": ret}))
 
-    def play_report(self):
+    def report_play(self):
         # TODO
         data = self.robot.report_play()
         if isinstance(data, dict):
@@ -408,6 +432,16 @@ class WebsocketControl(WebsocketControlBase):
                 sent += 4016
         self.send_ok()
 
+    def play_info(self):
+        metadata, images = self.robot.play_info()
+        metadata["status"] = "playinfo"
+        self.send_text(json.dumps(metadata))
+
+        for mime, buf in images:
+            self.send_binary_begin(mime, len(buf))
+            self.send_binary(buf)
+        self.send_ok()
+
     def begin_raw(self):
         self.raw_sock = RawSock(self.robot.raw_mode(), self)
         self.rlist.append(self.raw_sock)
@@ -425,7 +459,6 @@ class WebsocketControl(WebsocketControlBase):
     def g_to_f(self):
         fcode_output = io.BytesIO()
         m_GcodeToFcode = GcodeToFcode()
-        # print((self.convert.getvalue().decode()))
         m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'),
                                fcode_output)
         self.convert = None
