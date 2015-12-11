@@ -28,7 +28,8 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.cmd_mapping = {
             'upload': [self.begin_recv_image],
             'go': [self.go],
-            'set_params': [self.set_params]
+            'set_params': [self.set_params],
+            'meta_option': [self.meta_option]
         }
 
     @property
@@ -63,6 +64,11 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
     def set_params(self, params):
         key, value = params.split()
         self.m_laser_bitmap.set_params(key, value)
+        self.send_ok()
+
+    def meta_option(self, params):
+        key, value = params.split()
+        self.m_laser_bitmap.ext_metadata[key] = value
         self.send_ok()
 
     def go(self, *args):
