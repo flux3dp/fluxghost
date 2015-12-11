@@ -52,7 +52,8 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'export': [self.export],
             'apply_transform': [self.apply_transform],
             'merge': [self.merge],
-            'auto_merge': [self.auto_merge]
+            'auto_merge': [self.auto_merge],
+            'import_file': [self.import_file]
         }
 
     def _begin_upload(self, params):  # name, left_len, right_len="0"
@@ -69,14 +70,19 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             raise RuntimeError("BAD_PARAM_TYPE", "upload param error")
         logger.debug('uploading {}, L:{}, R:{}, time:{}'.format(name, s_left_len, s_right_len, time()))
         helepr = BinaryUploadHelper(totel_length, self._end_upload,
-                                    name, llen, rlen)
+                                    1, name, llen, rlen)
         self.set_binary_helper(helepr)
         self.send_text('{"status": "continue"}')
 
-    def _end_upload(self, buf, name, left_len, right_len):
-        left_points = buf[:left_len * 24]
-        right_points = buf[left_len * 24:]
-        self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)
+    def _end_upload(self, buf, flag, name, *args):
+        if flag == 1:
+            left_len, right_len = args
+            left_points = buf[:left_len * 24]
+            right_points = buf[left_len * 24:]
+            self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)
+        elif flag == 2:
+            filetype = args[0]
+            self.m_pc_process.import_file(name, buf, filetype)
         self.send_ok()
 
     def cut(self, params):
@@ -124,7 +130,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
     def dump(self, params):
         name = params
         len_L, len_R, buffer_data = self.m_pc_process.dump(name)
-        self.send_text('{"status": "continue", "left": %d, "right": %d}' % (len_L, len_R))
+        self.send_text('{{"status": "continue", "left": {}, "right": {}}}'.format(len_L, len_R))
         self.send_binary(buffer_data)
         self.send_ok()
         logger.debug('dump %s done' % (name))
@@ -132,7 +138,13 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
     def export(self, params):
         name, file_foramt = params.split()
         buf = self.m_pc_process.export(name, file_foramt)
-        self.send_text('{"status": "continue", "length": %d}' % (len(buf)))
+        self.send_text('{{"status": "continue", "length": {}}}'.format(len(buf)))
         self.send_binary(buf)
         self.send_ok()
-        logger.debug('export %s as .%s file done' % (name, file_foramt))
+        logger.debug('export {} as .{} file done'.format(name, file_foramt))
+
+    def import_file(self, params):
+        name, filetype, file_length = params.split()
+        helepr = BinaryUploadHelper(file_length, self._end_upload, 2, name, filetype)
+        self.set_binary_helper(helepr)
+        self.send_text('{"status": "continue"}')
