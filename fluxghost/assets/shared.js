@@ -71,7 +71,8 @@ function DiscoverWS(addCallback, removeCallback) {
       appendLog("Discover WS Connected", "#0000aa");
     };
     this.ws.onmessage = function(m) {
-      var payload = JSON.parse(m.data);
+      // TODO
+      var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
 
       if(payload.alive) {
           if(addCallback) {
@@ -110,14 +111,33 @@ function addDeviceStrHelper(input) {
 }
 
 function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
-  var $item = $("<a></a>").
-    attr("href", "#" + uuid + ";" + name).
-    addClass("list-group-item").
-    attr("data-serial", uuid).
-    attr("data-uuid", uuid).
-    attr("data-password", password ? "true" : "false").
-    attr("data-name", name).
-    addClass("device");
+  var $item = $("[data-uuid=" + uuid + "]", "#devices");
+  if($item.length) {
+    $item.children().remove();
+  } else {
+    var $item = $("<a></a>").
+      attr("href", "#" + uuid + ";" + name).
+      addClass("list-group-item").
+      attr("data-serial", uuid).
+      attr("data-uuid", uuid).
+      attr("data-password", password ? "true" : "false").
+      attr("data-name", name).
+      attr("data-placement", "bottom").
+      attr("title", "N/A").
+      addClass("device");
+
+      $("#devices").append($item);
+      $item.tooltip();
+  }
+
+  if(!window.device_info) window.device_info = {}
+  if(window.device_info[uuid]) {
+    if(window.device_info[uuid][0] != dataset.st_ts) {
+      window.device_info[uuid] = [dataset.st_ts, Date.now()];
+    }
+  } else {
+    window.device_info[uuid] = [dataset.st_ts, Date.now()];
+  }
 
   var $row1 = $("<div></div>");
   var $row2 = $("<div></div>");
@@ -129,7 +149,7 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
   $row1.append($("<span></span>").text(" "));
   $row1.append($("<span></span>").text(name));
 
-  $row1.append($("<span></span>").text("ST_TS / ST_ID / ST_PROG / HEAD / ERROR").addClass("pull-right").addClass("details"));
+  $row1.append($("<span></span>").text(addDeviceStrHelper(dataset.st_ts)).addClass("details pull-right"));
 
   $row2.append($("<span></span>").text(uuid).addClass("label label-default"));
   $row2.append($("<span></span>").text(" "));
@@ -137,16 +157,40 @@ function addDevice(uuid, serial, name, version, password, ipaddr, dataset) {
   $row2.append($("<span></span>").text(" / "));
   $row2.append($("<span></span>").text(ipaddr));
 
-  $row2.append($("<span></span>").text(
-    addDeviceStrHelper(dataset.st_ts) + " / " + addDeviceStrHelper(dataset.st_id) + " / " + 
-    addDeviceStrHelper(dataset.st_prog) + " / " + addDeviceStrHelper(dataset.head_module) + " / " +
-    addDeviceStrHelper(dataset.error_label)
-  ).addClass("pull-right").addClass("details"));
+  $item.tooltip('destroy');
+  $item.attr("title", "ST=" + addDeviceStrHelper(dataset.st_id) + " / PROG=" +
+                      addDeviceStrHelper(dataset.st_prog) + " / HEAD=" +
+                      addDeviceStrHelper(dataset.head_module));
+  $item.tooltip();
 
-  var $old = $("[data-uuid=" + uuid + "]", "#devices");
-  $old.remove();
+  if(dataset.st_id & 160) {
+    var c = (dataset.error_label == "USER_OPERATION") ? "info" : "danger"
+    $row2.append($("<span></span>").
+                  text(dataset.error_label).
+                  addClass("pull-right details label label-" + c));
+  }
 
-  $("#devices").append($item);
+  if(dataset.st_id > 0) {
+    var $row3 = $("<div></div>");
+    $item.append($row3);
+    $row3.addClass("progress details").css("margin", "5px -10px -5px -10px").css("height", "10px");
+
+    var $innerbar = $("<div class=\"progress-bar\" role=\"progressbar\"></div>").
+                      attr("aria-valuenow", "60").
+                      attr("aria-valuemin", "0").
+                      attr("aria-valuemax", "100").
+                      css("width", Math.round(dataset.st_prog * 100) + "%")
+
+    if(dataset.st_id & 128) {
+      $innerbar.addClass("progress-bar-danger");
+    } else if(dataset.st_id & 64) {
+      $innerbar.addClass("progress-bar-success");
+    } else if(dataset.st_id & 32) {
+      $innerbar.addClass("progress-bar-warning");
+    }
+
+    $row3.append($innerbar);
+  }
 }
 
 function removeDevice(serial) {
