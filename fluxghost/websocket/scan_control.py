@@ -70,6 +70,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         elif message == "calibrate":
             self.calibrate()
+            self.get_cab()
 
         elif message.startswith("resolution "):
 
@@ -94,7 +95,6 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "quit":
             if self.robot.position() == "ScanTask":
                 self.robot.quit_task()
-
             self.send_text("bye")
             self.close()
 
@@ -166,18 +166,20 @@ class Websocket3DScanControl(WebsocketControlBase):
     def scan_check(self):
         # s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
         message = self.robot.scan_check()
+        print(message, file=sys.stderr)
         message = int(message.split()[-1])
         if message & 1 == 0:
-            message = "not open, or too dark"
+            message = "not open"
         else:
             if message & 2:
                 message = "good"
             else:
-                message = "opened, but no object"
+                message = "no object"
         self.send_text('{"status": "ok", "message": "%s"}' % (message))
 
     def get_cab(self):
         self.cab = [float(i) for i in self.robot.get_calibrate().split()[1:]]
+        print(self.cab)
         return
 
     def scan(self):
@@ -201,7 +203,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         # ###################
 
         il, ir, io = self.robot.scanimages()
-        left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step, self.cab[0], self.cab[1])
+        left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step, -self.cab[0], -self.cab[1])
 
         self.current_step += 1
 

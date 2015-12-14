@@ -23,7 +23,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             'get': [self.get],
             'compute': [self.compute],
             'go': [self.go],
-            'set_params': [self.set_params]
+            'set_params': [self.set_params],
             'meta_option': [self.meta_option]
         }
 
