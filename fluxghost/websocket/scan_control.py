@@ -178,8 +178,10 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_text('{"status": "ok", "message": "%s"}' % (message))
 
     def get_cab(self):
-        self.cab = [float(i) for i in self.robot.get_calibrate().split()[1:]]
-        print(self.cab)
+        # self.cab = [float(i) for i in self.robot.get_calibrate().split()[2:]]
+        self.cab = [0, 0]
+        self.cab[0] = int(float(self.robot.get_calibrate().split()[1])) - (scan_settings.img_width / 2)
+        self.cab[1] = int(float(self.robot.get_calibrate().split()[1])) - (scan_settings.img_width / 2)
         return
 
     def scan(self):
