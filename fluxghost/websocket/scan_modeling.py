@@ -52,7 +52,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'export': [self.export],
             'apply_transform': [self.apply_transform],
             'merge': [self.merge],
-            'auto_merge': [self.auto_merge],
+            'auto_alignment': [self.auto_merge],
             'import_file': [self.import_file]
         }
 
