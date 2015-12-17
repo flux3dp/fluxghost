@@ -187,6 +187,12 @@ class WebsocketControl(WebsocketControlBase):
                 if isinstance(self.convert, io.BytesIO):
                     f_buf = self.g_to_f()
                     print('f_buf', len(f_buf), self.uploadto)
+
+                    ################ fake code ################
+                    with open('tmp.fcode', 'wb') as f:
+                        f.write(f_buf)
+                    ########################################
+
                     self.binary_sock = self.robot.begin_upload('application/fcode', len(f_buf), uploadto=self.uploadto)
                     self.binary_sock.send(f_buf)
                     del self.uploadto

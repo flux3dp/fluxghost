@@ -88,7 +88,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             output_binary = self.m_laser_svg.fcode_generate(names, self)
 
             ########## fake code  ########################
-            with open('output.fcode', 'wb') as f:
+            with open('output.fc', 'wb') as f:
                 f.write(output_binary)
             ##############################################
 

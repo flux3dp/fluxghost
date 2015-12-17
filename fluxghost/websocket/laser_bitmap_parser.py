@@ -3,7 +3,6 @@
 import logging
 import sys
 
-
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
 from fluxclient.laser.laser_bitmap import LaserBitmap
@@ -93,7 +92,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         else:
             output_binary = self.m_laser_bitmap.fcode_generate()
             ########## fake code  ########################
-            with open('output.fcode', 'wb') as f:
+            with open('output.fc', 'wb') as f:
                 f.write(output_binary)
             ##############################################
 
@@ -101,3 +100,8 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.send_text('{"status": "complete", "length": %d}' % len(output_binary))
         self.send_binary(output_binary)
         logger.debug("laser bitmap finished")
+
+        ########## fake code  ########################
+        # ???
+        # self.images = []
+        ##############################################

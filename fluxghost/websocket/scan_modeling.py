@@ -52,7 +52,12 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'export': [self.export],
             'apply_transform': [self.apply_transform],
             'merge': [self.merge],
-            'auto_alignment': [self.auto_merge],
+            'auto_alignment': [self.auto_alignment],
+
+            ############### fake code #####################
+            # for downward compatibility
+            'auto_merge': [self.auto_alignment],
+            ################################################
             'import_file': [self.import_file]
         }
 
@@ -108,10 +113,10 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         self.m_pc_process.apply_transform(name_in, x, y, z, rx, ry, rz, name_out)
         self.send_ok()
 
-    def auto_merge(self, params):
+    def auto_alignment(self, params):
 
         name_base, name_2, name_out = params.split()
-        if self.m_pc_process.auto_merge(name_base, name_2, name_out):
+        if self.m_pc_process.auto_alignment(name_base, name_2, name_out):
             self.send_ok()
         else:
             self.send_text('{"status": "fail"')
