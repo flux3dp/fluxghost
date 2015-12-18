@@ -150,6 +150,6 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
 
     def import_file(self, params):
         name, filetype, file_length = params.split()
-        helepr = BinaryUploadHelper(file_length, self._end_upload, 2, name, filetype)
+        helepr = BinaryUploadHelper(int(file_length), self._end_upload, 2, name, filetype)
         self.set_binary_helper(helepr)
         self.send_text('{"status": "continue"}')
