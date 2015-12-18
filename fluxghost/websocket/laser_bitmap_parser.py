@@ -28,6 +28,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
             'upload': [self.begin_recv_image],
             'go': [self.go],
             'set_params': [self.set_params],
+            'clear_imgs': [self.clear_imgs],
             'meta_option': [self.meta_option]
         }
 
@@ -70,6 +71,9 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.m_laser_bitmap.ext_metadata[key] = value
         self.send_ok()
 
+    def clear_imgs(self):
+        self.images = []
+
     def go(self, *args):
         logger.debug('  start process images')
         self.send_progress('initializing', 0.03)
@@ -100,8 +104,3 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.send_text('{"status": "complete", "length": %d}' % len(output_binary))
         self.send_binary(output_binary)
         logger.debug("laser bitmap finished")
-
-        ########## fake code  ########################
-        # ???
-        # self.images = []
-        ##############################################
