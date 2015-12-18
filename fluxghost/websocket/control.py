@@ -49,62 +49,36 @@ class WebsocketControlBase(WebSocketBase):
     def __init__(self, *args, serial):
         WebSocketBase.__init__(self, *args)
         self.uuid = UUID(hex=serial)
+
+        self.send_text(STAGE_DISCOVER)
+        logger.debug("DISCOVER")
         task = self._discover(self.uuid)
 
         try:
-            logger.debug("AUTH")
-            self.send_text(STAGE_DISCOVER)
-            task.require_auth()
-
-        except TimeoutError:
-            self.send_fatal("TIMEOUT")
-            raise
-
+            self.send_text(STAGE_ROBOT_CONNECTING)
+            self.robot = connect_robot((self.ipaddr, 23811),
+                                       server_key=task.slave_key,
+                                       conn_callback=self._conn_callback)
         except RuntimeError as err:
             self.send_fatal(err.args[0], )
             raise
 
-        logger.debug("REQUIRE ROBOT")
-        while True:
-            try:
-                resp = task.require_robot()
-
-                if resp:
-                    st = resp.get("status")
-                    if st == "initial":
-                        self.send_text(STAGE_ROBOT_INIT)
-                        sleep(1.5)
-                    elif st == "launching":
-                        self.send_text(STAGE_ROBOT_LAUNGING)
-                        sleep(1.5)
-                    elif st == "launched":
-                        self.send_text(STAGE_ROBOT_LAUNCHED)
-                        break
-
-            except RuntimeError as err:
-                if err.args[0] == "AUTH_ERROR":
-                    self.send_text(STAGE_DISCOVER)
-                    if task.timedelta < -15:
-                        logger.warn("Auth error, try fix time delta")
-                        old_td = task.timedelta
-                        task.reload_remote_profile(lookup_timeout=30.)
-                        if task.timedelta - old_td > 0.5:
-                            # Fix timedelta issue let's retry
-                            p = self.server.discover_devices.get(self.uuid)
-                            if p:
-                                p["timedelta"] = task.timedelta
-                                self.server.discover_devices[self.uuid] = p
-                            continue
-
-                self.send_fatal(err.args[0], "require robot failed")
-                raise
-
-        self.send_text(STAGE_ROBOT_CONNECTING)
-        self.robot = connect_robot((self.ipaddr, 23811),
-                                   server_key=task.slave_key,
-                                   conn_callback=self._conn_callback)
-
         self.send_text(STAGE_CONNECTED)
+
+    def _fix_auth_error(self, task):
+        self.send_text(STAGE_DISCOVER)
+        if task.timedelta < -15:
+            logger.warn("Auth error, try fix time delta")
+            old_td = task.timedelta
+            task.reload_remote_profile(lookup_timeout=30.)
+            if task.timedelta - old_td > 0.5:
+                # Fix timedelta issue let's retry
+                p = self.server.discover_devices.get(self.uuid)
+                if p:
+                    p["timedelta"] = task.timedelta
+                    self.server.discover_devices[self.uuid] = p
+                    return True
+        return False
 
     def on_closed(self):
         if self.robot:
@@ -142,6 +116,17 @@ class WebsocketControl(WebsocketControlBase):
         WebsocketControlBase.__init__(self, *args, serial=serial)
         self.set_hooks()
 
+    def fast_wrapper(self, func):
+        def wrapper(*args, **kw):
+            try:
+                self.send_text('{"status":"%s"}' % func(*args, **kw))
+            except RuntimeError as e:
+                self.send_error(*e.args)
+            except Exception as e:
+                logger.exception("Unknow Error")
+                self.send_error("UNKNOW_ERROR", repr(e.__class__))
+        return wrapper
+
     def set_hooks(self):
         self.simple_mapping = {
             "start": self.robot.start_play,
@@ -176,9 +161,17 @@ class WebsocketControl(WebsocketControlBase):
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
 
-            "report": self.play_report,
+            "report": self.report_play,
             "eadj": self.maintain_eadj,
-            "cor_h": self.maintain_corh
+            "cor_h": self.maintain_corh,
+
+            "play": {
+                "info": self.play_info,
+                "report": self.report_play,
+                "pause": self.fast_wrapper(self.robot.pause_play),
+                "resume": self.fast_wrapper(self.robot.resume_play),
+                "abort": self.fast_wrapper(self.robot.abort_play),
+            }
         }
 
     def on_binary_message(self, buf):
@@ -194,6 +187,12 @@ class WebsocketControl(WebsocketControlBase):
                 if isinstance(self.convert, io.BytesIO):
                     f_buf = self.g_to_f()
                     print('f_buf', len(f_buf), self.uploadto)
+
+                    ################ fake code ################
+                    with open('tmp.fcode', 'wb') as f:
+                        f.write(f_buf)
+                    ########################################
+
                     self.binary_sock = self.robot.begin_upload('application/fcode', len(f_buf), uploadto=self.uploadto)
                     self.binary_sock.send(f_buf)
                     del self.uploadto
@@ -214,20 +213,26 @@ class WebsocketControl(WebsocketControlBase):
             self.binary_sock = None
             self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
+    def invoke_command(self, ref, args, wrapper=None):
+        if not args:
+            return False
+
+        cmd = args[0]
+        if cmd in ref:
+            obj = ref[cmd]
+            if isinstance(obj, dict):
+                return self.invoke_command(obj, args[1:], wrapper)
+            else:
+                if wrapper:
+                    wrapper(obj, *args[1:])
+                else:
+                    obj(*args[1:])
+                return True
+        return False
+
     def on_text_message(self, message):
         if message == "ping":
             self.send_text('{"status": "pong"}')
-            return
-
-        if message == "over_my_dead_body":
-            import tempfile
-            import os
-            import gc
-            fn = os.path.join(tempfile.gettempdir(), "over_my_dead_body.dump")
-            with open(fn, "w") as f:
-                for o in gc.get_objects():
-                    f.write(repr(o) + "\n")
-            self.send_text("ok " + fn)
             return
 
         if self.raw_sock:
@@ -235,17 +240,16 @@ class WebsocketControl(WebsocketControlBase):
             return
 
         args = shlex.split(message)
-        cmd = args.pop(0)
 
         try:
-            if cmd in self.simple_mapping:
-                self.simple_cmd(self.simple_mapping[cmd], *args)
-            elif cmd in self.cmd_mapping:
-                func_ptr = self.cmd_mapping[cmd]
-                func_ptr(*args)
+            if self.invoke_command(self.simple_mapping, args,
+                                   self.simple_cmd):
+                pass
+            elif self.invoke_command(self.cmd_mapping, args):
+                pass
             else:
                 logger.error("Unknow Command: %s" % message)
-                self.send_error("UNKNOW_COMMAND", "ws")
+                self.send_error("UNKNOWN_COMMAND", "ws")
 
         except RuntimeError as e:
             logger.debug("RuntimeError%s" % repr(e.args))
@@ -256,11 +260,11 @@ class WebsocketControl(WebsocketControlBase):
                 self.send_fatal("DISCONNECTED", repr(e.__class__))
             else:
                 logger.exception("Unknow Error")
-                self.send_fatal("UNKNOW_ERROR", repr(e.__class__))
+                self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
 
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def simple_cmd(self, func, *args):
         try:
@@ -269,7 +273,7 @@ class WebsocketControl(WebsocketControlBase):
             self.send_error(*e.args)
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def position(self):
         try:
@@ -280,7 +284,7 @@ class WebsocketControl(WebsocketControlBase):
             self.send_error(*e.args)
         except Exception as e:
             logger.exception("Unknow Error")
-            self.send_error("UNKNOW_ERROR", repr(e.__class__))
+            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def list_file(self, location=None):
         if location:
@@ -352,12 +356,15 @@ class WebsocketControl(WebsocketControlBase):
         elif uploadto.startswith("USB/"):
             uploadto = "USB " + uploadto[4:]
 
+        if mimetype == "text/gcode" and convert != '1':
+            self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
+            return
         if mimetype == "text/gcode" and convert == '1':
             self.convert = io.BytesIO()
             self.uploadto = uploadto
         else:
             self.convert = None
-            self.binary_sock = self.robot.begin_upload(mimetype, int(size), 
+            self.binary_sock = self.robot.begin_upload(mimetype, int(size),
                                                        uploadto=uploadto)
 
         self.binary_length = int(size)
@@ -395,7 +402,7 @@ class WebsocketControl(WebsocketControlBase):
 
         self.send_text(json.dumps({"status": "ok", "data": ret}))
 
-    def play_report(self):
+    def report_play(self):
         # TODO
         data = self.robot.report_play()
         if isinstance(data, dict):
@@ -431,6 +438,16 @@ class WebsocketControl(WebsocketControlBase):
                 sent += 4016
         self.send_ok()
 
+    def play_info(self):
+        metadata, images = self.robot.play_info()
+        metadata["status"] = "playinfo"
+        self.send_text(json.dumps(metadata))
+
+        for mime, buf in images:
+            self.send_binary_begin(mime, len(buf))
+            self.send_binary(buf)
+        self.send_ok()
+
     def begin_raw(self):
         self.raw_sock = RawSock(self.robot.raw_mode(), self)
         self.rlist.append(self.raw_sock)
@@ -448,7 +465,6 @@ class WebsocketControl(WebsocketControlBase):
     def g_to_f(self):
         fcode_output = io.BytesIO()
         m_GcodeToFcode = GcodeToFcode()
-        # print((self.convert.getvalue().decode()))
         m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'),
                                fcode_output)
         self.convert = None

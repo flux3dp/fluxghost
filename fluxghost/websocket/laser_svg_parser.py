@@ -23,7 +23,8 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             'get': [self.get],
             'compute': [self.compute],
             'go': [self.go],
-            'set_params': [self.set_params]
+            'set_params': [self.set_params],
+            'meta_option': [self.meta_option]
         }
 
     @property
@@ -87,7 +88,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             output_binary = self.m_laser_svg.fcode_generate(names, self)
 
             ########## fake code  ########################
-            with open('output.fcode', 'wb') as f:
+            with open('output.fc', 'wb') as f:
                 f.write(output_binary)
             ##############################################
 
@@ -108,4 +109,9 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
     def set_params(self, params):
         key, value = params.split()
         self.m_laser_svg.set_params(key, value)
+        self.send_ok()
+
+    def meta_option(self, params):
+        key, value = params.split()
+        self.m_laser_bitmap.ext_metadata[key] = value
         self.send_ok()

@@ -25,7 +25,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         if "slic3r" in os.environ:
             self.m_stl_slicer = StlSlicer(os.environ["slic3r"])
         else:
-            self.m_stl_slicer = StlSlicer("../slic3r/slic3r")
+            self.m_stl_slicer = StlSlicer("../Slic3r/slic3r.pl")
 
         self.cmd_mapping = {
             'upload': [self.begin_recv_stl, 'upload'],
@@ -35,8 +35,10 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             'delete': [self.delete],
             'set_params': [self.set_params],
             'advanced_setting': [self.advanced_setting],
-            'get_path': [self.get_path]
+            'get_path': [self.get_path],
+            'meta_option': [self.meta_option]
         }
+        self.ext_metadata = {}
 
     def begin_recv_stl(self, params, flag):
         if flag == 'upload':
@@ -82,16 +84,15 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
     def advanced_setting(self, params):
         lines = params.split('\n')
         bad_lines = self.m_stl_slicer.advanced_setting(lines)
-        if bad_lines == []:
-            self.send_ok()
-        else:
+        if bad_lines != []:
             for line_num, err_msg in bad_lines:
                 self.send_error('line %d: %s' % (line_num, err_msg))
                 logger.debug('line %d: %s' % (line_num, err_msg))
+        self.send_ok()
 
     def gcode_generate(self, params):
         names = params.split()
-        if names[-1] == '-g' or names[-1] == 'g':  # TODO: delete 'g'
+        if names[-1] == '-g':
             output_type = '-g'
             names = names[:-1]
         elif names[-1] == '-f':
@@ -123,3 +124,8 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             self.send_ok()
         else:
             self.send_error(message)
+
+    def meta_option(self, params):
+        key, value = params.split()
+        self.m_stl_slicer.ext_metadata[key] = value
+        self.send_ok()

@@ -93,10 +93,16 @@ class WebSocketHandler(object):
             self.buf_view[self.recv_offset:] or \
             self.ext_buf_view[self.ext_recv_offset:]
 
-        length = self.request.recv_into(buf)
-        if length == 0:
+        try:
+            length = self.request.recv_into(buf)
+            if length == 0:
+                raise WebsocketError("Connection closed")
+        except socket.error as e:
             self._closed()
-            raise socket.error(errno.ECONNRESET, 'Connection reset')
+            raise WebsocketError("Connection closed") from e
+        except WebsocketError:
+            self._closed()
+            raise
 
         if self.recv_flag & WAIT_LARGE_DATA == 0:
             self.recv_offset += length
@@ -107,7 +113,7 @@ class WebSocketHandler(object):
             while self._handleBuffer():
                 pass
         except WebsocketError:
-            self.request.close()
+            self._closed()
             raise
 
     def _handleBuffer(self):
@@ -215,7 +221,12 @@ class WebSocketHandler(object):
     def _handle_message(self, opcode, message):
         # ref: opcode in RFC 6455 (Chp 5.5)
         if opcode == 0x1:
-            self.on_text_message(message.decode("utf8"))
+            # TODO: this if statement is only for ping-pong
+            # might be too fundamental, should we add another layer for this?
+            if message.decode("utf8") == "ping":
+                self.send_text('{"status": "pong"}')
+            else:
+                self.on_text_message(message.decode("utf8"))
         elif opcode == 0x2:
             self.on_binary_message(message)
         elif opcode == 0x8:
@@ -238,7 +249,7 @@ class WebSocketHandler(object):
 
     def _send(self, opcode, message):
         if self._is_closing and opcode != FRAME_CLOSE:
-            raise socket.error(errno.ECONNRESET, 'WebSocket is closed')
+            raise WebsocketError("Connection already closed")
 
         length = len(message)
 
@@ -246,15 +257,19 @@ class WebSocketHandler(object):
         flag += (opcode << 8)
         flag += FLAG_FIN
 
-        if length < 126:
-            self.request.send(struct.pack('>H', flag + length))
-        elif length < 2 ** 16:
-            self.request.send(struct.pack('>HH', flag + 126, length))
-        elif length < 2 ** 64:
-            self.request.send(struct.pack('>HQ', flag + 127, length))
-        else:
-            raise Exception("Can not send message larger then %i" %
-                            (2**64))
+        try:
+            if length < 126:
+                self.request.send(struct.pack('>H', flag + length))
+            elif length < 2 ** 16:
+                self.request.send(struct.pack('>HH', flag + 126, length))
+            elif length < 2 ** 64:
+                self.request.send(struct.pack('>HQ', flag + 127, length))
+            else:
+                raise Exception("Can not send message larger then %i" %
+                                (2 ** 64))
+        except socket.error as e:
+            self._closed()
+            raise WebsocketError("Connection closed") from e
 
         sent = 0
         buf = memoryview(message)

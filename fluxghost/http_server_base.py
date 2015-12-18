@@ -11,10 +11,14 @@ from fluxghost.http_handlers.file_handler import FileHandler
 
 
 class HttpServerBase(object):
+    runmode = None
+
     def __init__(self, assets_path, address, enable_discover=False,
                  backlog=10):
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
+        self.enable_discover = enable_discover
+        self.discover_devices = {}
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -41,21 +45,43 @@ class HttpServerBase(object):
     def serve_forever(self):
         self.running = True
 
-        args = ((self.sock, ) + self.discover_socks, (), (), 30.)
+        if self.enable_discover: # and self.runmode == "THREAD"
+            logger.info("Run discover in background")
+            from fluxclient.upnp.discover import UpnpDiscover
+            disc = UpnpDiscover()
+            args = ((self.sock, ) + disc.socks, (), (), 30.)
+        else:
+            args = ((self.sock, ), (), (), 30.)
+
         while self.running:
             try:
                 for sock in select(*args)[0]:
                     if sock == self.sock:
                         self.on_accept()
-                    elif sock in self.discover_socks:
-                        self.discover.try_recive(
-                            self.discover_socks,
-                            callback=self.on_discover_device,
-                            timeout=0.01)
+                    elif sock in disc.socks:
+                        try:
+                            disc.try_recive(
+                                disc.socks,
+                                callback=self.on_discover_device,
+                                timeout=0.01)
+                        except (OSError, socket.error):
+                            logger.debug("Discover error, recreate")
+                            disc = UpnpDiscover()
+                            args = ((self.sock, ) + disc.socks, (), (), 30.)
 
             except InterruptedError:
                 pass
 
+            except KeyboardInterrupt:
+                self.running = False
+
     def on_discover_device(self, discover_instance, uuid, **kw):
         kw["last_response"] = time()
-        self.discover_devices[uuid] = kw
+
+        if uuid in self.discover_devices:
+            exist = self.discover_devices[uuid]
+            real_delta = exist["timedelta"]
+            exist.update(kw)
+            exist["timedelta"] = real_delta
+        else:
+            self.discover_devices[uuid] = kw

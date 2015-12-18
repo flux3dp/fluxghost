@@ -5,7 +5,7 @@ import logging
 import os
 
 from fluxghost.utils.websocket import WebSocketHandler, ST_NORMAL, \
-    ST_GOING_AWAY, ST_INVALID_PAYLOAD
+    ST_GOING_AWAY, ST_INVALID_PAYLOAD, WebsocketError
 
 SIMULATE = "flux_simulate" in os.environ
 logger = logging.getLogger("WS.BASE")
@@ -31,6 +31,8 @@ class WebSocketBase(WebSocketHandler):
 
                 self.check_ttl()
                 self.on_loop()
+        except WebsocketError as e:
+            logger.info("%s", e)
         except Exception:
             logger.exception("Unhandle exception")
         finally:
@@ -108,7 +110,7 @@ class WebsocketBinaryHelperMixin(object):
 
     def on_loop(self):
         if self._binary_helper:
-            if time() - self._binary_helper.last_update > 10:
+            if time() - self._binary_helper.last_update > 20:
                 self.send_fatal('binary receive timeout')
                 raise RuntimeError('binary receive timeout')
 
@@ -126,7 +128,6 @@ class BinaryUploadHelper(object):
         self.last_update = time()
 
     def feed(self, buf):
-
         l = self.buf.write(buf)
         self.buffered += l
         self.last_update = time()

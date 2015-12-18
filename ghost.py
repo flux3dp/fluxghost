@@ -21,7 +21,7 @@ def check_fluxclient():
 check_fluxclient()
 
 
-def setup_logger(debug, logfile=None):
+def setup_logger(options):
     LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
     LOG_FORMAT = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
 
@@ -35,14 +35,21 @@ def setup_logger(debug, logfile=None):
             'class': 'logging.StreamHandler',
         }
 
-    if logfile:
+    if options.logfile:
         handlers['file'] = {
             'level': log_level,
             'formatter': 'default',
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': logfile,
+            'filename': options.logfile,
             'maxBytes': 5 * (2 ** 20),  # 10M
             'backupCount': 1
+        }
+
+    if options.sentry:
+        handlers['sentry'] = {
+            'level': 'ERROR',
+            'class': 'raven.handlers.logging.SentryHandler',
+            'dsn': options.sentry,
         }
 
     logging.config.dictConfig({
@@ -77,17 +84,32 @@ parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                     const=True, default=False, help='Enable debug')
 parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
                     const=True, default=False, help='Simulate data')
+parser.add_argument("--slic3r", dest='slic3r', type=str, default='../Slic3r/slic3r.pl',
+                    help="Set slic3r location")
+parser.add_argument("--sentry", dest='sentry', type=str, default=None,
+                    help="Use sentry logger")
+parser.add_argument('--test', dest='test', action='store_const',
+                    const=True, default=False, help='Run test')
 
 options = parser.parse_args()
-setup_logger(debug=options.debug, logfile=options.logfile)
+setup_logger(options)
 
 if options.debug:
     from fluxghost.http_server_debug import HttpServer
 else:
     from fluxghost.http_server import HttpServer
 
+if options.test:
+    from tests.main import main
+    main()
+    sys.exit(0)
+
 if options.simulate:
     os.environ["flux_simulate"] = "1"
+
+if options.slic3r:
+    os.environ["slic3r"] = options.slic3r
+
 
 if not options.assets:
     options.assets = os.path.join(

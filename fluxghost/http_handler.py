@@ -27,7 +27,7 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format, *args, **kw):
         if kw.get("error"):
-            logger.error("%s %s" % (self.address_string(), format % args))
+            logger.warn("%s %s" % (self.address_string(), format % args))
         else:
             logger.info("%s %s" % (self.address_string(), format % args))
 

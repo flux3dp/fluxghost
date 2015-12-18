@@ -8,36 +8,13 @@
   <meta charset="UTF-8">
   <script src="shared.js"></script>
   <script>
-  function addDevice(serial, name, version, password) {
-    var $item = $("<a></a>").
-      attr("href", "#").
-      addClass("list-group-item").
-      attr("data-serial", serial).
-      attr("data-password", password ? "true" : "false").
-      attr("data-name", name);
-
-    if(password) $item.append($("<span></span>").addClass("glyphicon glyphicon-lock"));
-    $item.append($("<span></span>").text(name));
-    $item.append(
-      $("<div></div>").append(
-        $("<span></span>").text(serial).addClass("label label-default"))
-    );
-
-    $("#devices").append($item);
-  }
-
-  function removeDevice(serial) {
-    $("[data-device=" + serial + "]").remove();
-  }
-
-
-  function touch_without_password(serial, name, has_password) {
+  function touch_without_password(uuid, name, has_password) {
     var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
     var close_normally = false;
 
     ws.onopen = function() {
-      appendLog("Try touch: " + name + " (" + serial + ")");
-      ws.send(JSON.stringify({serial: serial}));
+      appendLog("Try touch: " + name + " (" + uuid + ")");
+      ws.send(JSON.stringify({uuid: uuid}));
     }
     ws.onmessage = function(m) {
       close_normally = true;
@@ -46,9 +23,9 @@
       var data = JSON.parse(m.data);
 
       if(data.has_response && !data.auth && has_password) {
-        touch_with_password(serial, name, has_password)
+        touch_with_password(uuid, name, has_password)
       } else {
-        log_touch_result(serial, name, data);
+        log_touch_result(uuid, name, data);
       }
 
       ws = undefined;
@@ -56,22 +33,22 @@
     ws.onclose = ws_close_handler("Touch");
   }
 
-  function touch_with_password(serial, name, has_password) {
-    var pwd = prompt("Enter password for " + name + " (" + serial + ")");
+  function touch_with_password(uuid, name, has_password) {
+    var pwd = prompt("Enter password for " + name + " (" + uuid + ")");
     if(pwd) {
       var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
       var close_normally = false;
 
       ws.onopen = function() {
-        appendLog("Try touch: " + name + " (" + serial + ")");
-        ws.send(JSON.stringify({serial: serial, password: pwd}));
+        appendLog("Try touch: " + name + " (" + uuid + ")");
+        ws.send(JSON.stringify({uuid: uuid, password: pwd}));
       }
       ws.onmessage = function(m) {
         close_normally = true;
         ws.close();
 
         var data = JSON.parse(m.data);
-        log_touch_result(serial, name, JSON.parse(m.data));
+        log_touch_result(uuid, name, JSON.parse(m.data));
 
         ws = undefined;
       }
@@ -81,8 +58,8 @@
     }
   }
 
-  function log_touch_result(serial, name, payload) {
-    var log_text = name + " (" + serial + ") ";
+  function log_touch_result(uuid, name, payload) {
+    var log_text = name + " (" + uuid + ") ";
     if(payload.has_response) {
       log_text += (payload.reachable?" is reachable ":" is NOT reachable ");
       log_text += (payload.auth?" and auth SUCCESS":" and auth FAILED");
@@ -107,15 +84,17 @@
       }
     }).trigger("click");
 
-    $("#devices").on("click", "[data-serial]", function() {
-      var serial = $(this).attr("data-serial");
+    $("#devices").on("click", "[data-uuid]", function() {
+      var uuid = $(this).attr("data-uuid");
       var name = $(this).attr("data-name");
       var has_password = $(this).attr("data-password") === "true";
-      touch_without_password(serial, name, has_password);
+      touch_without_password(uuid, name, has_password);
     });
   });
-
   </script>
+  <style>
+  .device .details {display: none;}
+  </style>
 </head>
 <body>
   <div class="container-fluid">

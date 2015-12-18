@@ -22,6 +22,7 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 
 class WebsocketDiscover(WebSocketBase):
     def __init__(self, *args):
+        self.POOL_TIME = 1.0
         WebSocketBase.__init__(self, *args)
 
         if SIMULATE:
@@ -30,10 +31,10 @@ class WebsocketDiscover(WebSocketBase):
                 self.build_response(
                     uuid=u, serial="SIMULATE00", model_id="magic",
                     timestemp=0, name="Simulate Device", version="god knows",
-                    has_password=False, ipaddrs="1.1.1.1"))
+                    has_password=False, ipaddr="1.1.1.1"))
 
-        self.alive_devices = []
-        self.POOL_TIME = 1.0
+        self.alive_devices = set()
+        self.server.discover_devices.items()
 
     def on_review_devices(self):
         t = time()
@@ -42,39 +43,42 @@ class WebsocketDiscover(WebSocketBase):
             if t - data.get("last_response", 0) > 30:
                 # Dead devices
                 if uuid in self.alive_devices:
-                    self.alive_devices.pop()
+                    self.alive_devices.remove(uuid)
                     self.send_text(self.build_dead_response(uuid))
             else:
                 # Alive devices
-                if uuid not in self.alive_devices:
-                    self.alive_devices.append(uuid)
-                    self.send_text(self.build_response(uuid, **data))
+                self.alive_devices.add(uuid)
+                self.send_text(self.build_response(uuid, **data))
 
     def on_loop(self):
         self.on_review_devices()
         self.POOL_TIME = min(self.POOL_TIME + 1.0, 3.0)
 
     def build_dead_response(self, uuid):
-        # TODO: serial -- uuid.hex to real serial
         return json.dumps({
             "uuid": uuid.hex,
-            "serial": uuid.hex,
             "alive": False
         })
 
     def build_response(self, uuid, serial, model_id, name, version,
-                       has_password, ipaddr, **kw):
-        # TODO: serial -- uuid.hex to real serial
+                       has_password, ipaddr, st_ts=None, st_id=None,
+                       st_prog=None, head_module=None, error_label=None, **kw):
         payload = {
             "uuid": uuid.hex,
             "serial": serial,
             "version": version,
             "alive": True,
-            "name": name,
+            "name": repr(name)[1:-1],
             "ipaddr": ipaddr[0],
 
             "model": model_id,
             "password": has_password,
-            "source": "lan"
+            "source": "lan",
+
+            "st_ts": st_ts,
+            "st_id": st_id,
+            "st_prog": st_prog,
+            "head_module": head_module,
+            "error_label": error_label
         }
         return json.dumps(payload)
