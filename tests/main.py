@@ -11,7 +11,7 @@ def try_import(module_name):
 
         m = import_module(module_name)
 
-        sys.stdout.write("OK (%s)\n" % m)
+        sys.stdout.write("OK\n")
         sys.stdout.flush()
     except ImportError as e:
         sys.stdout.write("ERROR: %s" % e)
@@ -19,6 +19,8 @@ def try_import(module_name):
 
 
 def main():
+    try_import("scipy")
+    try_import("scipy.interpolate.rbf")
     try_import("Crypto")
     try_import("serial")
     try_import("PIL")
