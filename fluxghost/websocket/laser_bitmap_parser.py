@@ -73,6 +73,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
 
     def clear_imgs(self):
         self.images = []
+        self.send_ok()
 
     def go(self, *args):
         logger.debug('  start process images')
