@@ -43,12 +43,13 @@ class WebsocketTouch(WebSocketBase):
         try:
             if uuid.hex == "0" * 32:
                 self.send_text(json.dumps({
-                "serial": "SIMULATE00",
-                "name": "Simulate Device",
-                "has_response": True,
-                "reachable": True,
-                "auth": True
-            }))
+                    "serial": "SIMULATE00",
+                    "name": "Simulate Device",
+                    "has_response": True,
+                    "reachable": True,
+                    "auth": True
+                }))
+                return
 
             task = UpnpTask(uuid, lookup_timeout=30.0)
             resp = self._run_auth(task, password)

@@ -29,6 +29,10 @@ block_cipher = None
 a = Analysis(['ghost.py'],
              hiddenimports=[
                "serial",
+               "scipy.integrate",
+               "scipy.interpolate.rbf",
+               "scipy.linalg.cython_blas",
+               "scipy.linalg.cython_lapack",
                "fluxclient.printer._printer",
                "fluxclient.scanner._scanner",
                "fluxghost.websocket",

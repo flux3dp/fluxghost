@@ -65,6 +65,9 @@ class WebSocketBase(WebSocketHandler):
     def send_progress(self, message, percentage):
         self.send_text('{"status": "computing", "message": "%s", "percentage": %.2f}' % (message, percentage))
 
+    def send_warning(self, message):
+        self.send_text('{"status": "warning", "message" : "%s"}' % (message))
+
     def on_read(self):
         self.timer = time()
         self.do_recv()

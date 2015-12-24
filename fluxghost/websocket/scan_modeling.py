@@ -80,6 +80,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         self.send_text('{"status": "continue"}')
 
     def _end_upload(self, buf, flag, name, *args):
+        o_flag = True
         if flag == 1:
             left_len, right_len = args
             left_points = buf[:left_len * 24]
@@ -87,8 +88,11 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             self.m_pc_process.upload(name, left_points, right_points, left_len, right_len)
         elif flag == 2:
             filetype = args[0]
-            self.m_pc_process.import_file(name, buf, filetype)
-        self.send_ok()
+            o_flag, message = self.m_pc_process.import_file(name, buf, filetype)
+        if o_flag:
+            self.send_ok()
+        else:
+            self.send_error(message)
 
     def cut(self, params):
         name_in, name_out, mode, direction, value = params.split()
@@ -150,6 +154,6 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
 
     def import_file(self, params):
         name, filetype, file_length = params.split()
-        helepr = BinaryUploadHelper(file_length, self._end_upload, 2, name, filetype)
+        helepr = BinaryUploadHelper(int(file_length), self._end_upload, 2, name, filetype)
         self.set_binary_helper(helepr)
         self.send_text('{"status": "continue"}')

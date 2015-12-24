@@ -361,6 +361,8 @@ class WebsocketControl(WebsocketControlBase):
             return
         if mimetype == "text/gcode" and convert == '1':
             self.convert = io.BytesIO()
+            if uploadto.endswith('.gcode'):
+                uploadto = uploadto[:-5] + 'fc'
             self.uploadto = uploadto
         else:
             self.convert = None

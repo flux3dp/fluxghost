@@ -36,6 +36,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             'set_params': [self.set_params],
             'advanced_setting': [self.advanced_setting],
             'get_path': [self.get_path],
+            'duplicate': [self.duplicate],
             'meta_option': [self.meta_option]
         }
         self.ext_metadata = {}
@@ -56,6 +57,14 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         elif args[1] == 'upload_image':
             self.m_stl_slicer.upload_image(buf)
         self.send_ok()
+
+    def duplicate(self, params):
+        name_in, name_out = params.split()
+        flag = self.m_stl_slicer.duplicate(name_in, name_out)
+        if flag:
+            self.send_ok()
+        else:
+            self.send_error('{} not exist'.format(name_in))
 
     def set(self, params):
         params = params.split()
