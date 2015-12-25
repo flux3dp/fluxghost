@@ -373,6 +373,7 @@ class WebsocketControl(WebsocketControlBase):
         else:
             self.convert = None
             self.binary_sock = self.robot.begin_upload(mimetype, int(size),
+                                                       cmd="file upload"
                                                        uploadto=uploadto)
 
         self.binary_length = int(size)
