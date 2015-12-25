@@ -213,6 +213,12 @@
       }
     });
 
+    $("[data-cmd-guide]").bind("click", function() {
+      $("#controlcmd")
+        .val($(this).attr("data-cmd-guide"))
+        .focus();
+    });
+
     $("[data-cmd]").bind("click", function() {
       cl = $(this).attr("data-cmd").split(",")
       for(var i=0;i<cl.length;i++) {
@@ -368,8 +374,31 @@
           </ul>
         </div>
         <span data-cmd="-1 ping *33" class="btn btn-xs btn-default">Ping Head</span>
-
         <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
+
+        <div class="btn-group btn-xs dropup">
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span>Config</span>
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li class="dropdown-header">correction: A a H N</li>
+            <li data-cmd="config get correction" style="cursor: pointer"><a>GET</a></li>
+            <li data-cmd-guide="config set correction " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config del correction" style="cursor: pointer"><a>DEL</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">filament_detect: Y N</li>
+            <li data-cmd="config get filament_detect" style="cursor: pointer"><a>GET</a></li>
+            <li data-cmd-guide="config set filament_detect " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config del filament_detect" style="cursor: pointer"><a>DEL</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">head_error_level: A number</li>
+            <li data-cmd="config get head_error_level" style="cursor: pointer"><a>GET</a></li>
+            <li data-cmd-guide="config set head_error_level " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
@@ -405,7 +434,7 @@
     <div class="col-xs-12">
       <span class="btn btn-xs btn-danger fileinput-button">
           <i class="glyphicon glyphicon-upload"></i>
-          <span>** Update Marlin Fireware **</span>
+          <span>** Update Device Fireware **</span>
           <input type="file" class="fileinput-button" data-file-cmd="update_fw" name="file" />
       </span>
     </div>

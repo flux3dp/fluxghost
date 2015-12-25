@@ -165,6 +165,12 @@ class WebsocketControl(WebsocketControlBase):
             "eadj": self.maintain_eadj,
             "cor_h": self.maintain_corh,
 
+            "config": {
+                "set": self.config_set,
+                "get": self.config_get,
+                "del": self.config_del
+            },
+
             "play": {
                 "info": self.play_info,
                 "report": self.report_play,
@@ -448,6 +454,21 @@ class WebsocketControl(WebsocketControlBase):
         for mime, buf in images:
             self.send_binary_begin(mime, len(buf))
             self.send_binary(buf)
+        self.send_ok()
+
+    def config_set(self, key, value):
+        self.robot.config_set(key, value)
+        self.send_ok()
+
+    def config_get(self, key):
+        value = self.robot.config_get(key)
+        if value:
+            self.send_text("ok VAL %s" % value)
+        else:
+            self.send_text("ok EMPTY")
+
+    def config_del(self, key):
+        self.robot.config_del(key)
         self.send_ok()
 
     def begin_raw(self):
