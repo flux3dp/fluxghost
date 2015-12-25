@@ -37,7 +37,12 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             'advanced_setting': [self.advanced_setting],
             'get_path': [self.get_path],
             'duplicate': [self.duplicate],
-            'meta_option': [self.meta_option]
+            'meta_option': [self.meta_option],
+            'begin_slicing': [self.begin_slicing],
+            'end_slicing': [self.end_slicing],
+            'report_slicing': [self.report_slicing],
+            'get_result': [self.get_result]
+
         }
         self.ext_metadata = {}
 
@@ -118,6 +123,32 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         else:
             self.send_error(metadata)
             logger.debug('slicing fail')
+
+    def begin_slicing(self, params):
+        names = params.split()
+        if names[-1] == '-g':
+            output_type = '-g'
+            names = names[:-1]
+        elif names[-1] == '-f':
+            output_type = '-f'
+            names = names[:-1]
+        else:
+            output_type = '-f'
+        self.m_stl_slicer.begin_slicing(names, self, output_type)
+        self.send_ok()
+
+    def end_slicing(self, *args):
+        self.m_stl_slicer.end_slicing()
+        self.send_ok()
+
+    def report_slicing(self, *args):
+        for m in self.m_stl_slicer.report_slicing():
+            self.send_text(m)
+        self.send_ok()
+
+    def get_result(self, *args):
+        self.send_ok(str(len(self.m_stl_slicer.output)))
+        # self.send_binary(m_stl_slicer.output)
 
     def get_path(self, *args):
         path = self.m_stl_slicer.get_path()
