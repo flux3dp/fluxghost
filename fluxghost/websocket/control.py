@@ -395,7 +395,7 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
 
-    def update_mbfw(self, ):
+    def update_mbfw(self, mimetype, size):
         self.binary_sock = self.robot.begin_upload(mimetype, int(size),
                                                    cmd="update_mbfw")
         self.binary_length = int(size)
