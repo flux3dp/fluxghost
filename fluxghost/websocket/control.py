@@ -204,7 +204,9 @@ class WebsocketControl(WebsocketControlBase):
                         f.write(f_buf)
                     ########################################
 
-                    self.binary_sock = self.robot.begin_upload('application/fcode', len(f_buf), uploadto=self.uploadto)
+                    self.binary_sock = self.robot.begin_upload(
+                        'application/fcode', len(f_buf),
+                        cmd="file upload", uploadto=self.uploadto)
                     self.binary_sock.send(f_buf)
                     del self.uploadto
                     self.convert = None
