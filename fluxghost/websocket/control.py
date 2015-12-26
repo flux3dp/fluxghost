@@ -52,9 +52,9 @@ class WebsocketControlBase(WebSocketBase):
 
         self.send_text(STAGE_DISCOVER)
         logger.debug("DISCOVER")
-        task = self._discover(self.uuid)
 
         try:
+            task = self._discover(self.uuid)
             self.send_text(STAGE_ROBOT_CONNECTING)
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.slave_key,
@@ -133,7 +133,7 @@ class WebsocketControl(WebsocketControlBase):
             "pause": self.robot.pause_play,
             "resume": self.robot.resume_play,
             "abort": self.robot.abort_play,
-            "quit": self.robot.quit_task,
+            "quit": self.robot.quit_play,
 
             "scan": self.robot.begin_scan,
             "scan_backward": self.robot.scan_backward,
@@ -177,6 +177,11 @@ class WebsocketControl(WebsocketControlBase):
                 "pause": self.fast_wrapper(self.robot.pause_play),
                 "resume": self.fast_wrapper(self.robot.resume_play),
                 "abort": self.fast_wrapper(self.robot.abort_play),
+                "quit": self.fast_wrapper(self.robot.quit_play)
+            },
+
+            "task": {
+                "quit": self.fast_wrapper(self.robot.quit_task)
             }
         }
 
@@ -478,7 +483,7 @@ class WebsocketControl(WebsocketControlBase):
         self.send_ok()
 
     def on_raw_message(self, message):
-        if message == "quit":
+        if message == "quit" or message == "task quit":
             self.rlist.remove(self.raw_sock)
             self.raw_sock = None
             self.robot.quit_raw_mode()
