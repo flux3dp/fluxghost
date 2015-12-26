@@ -157,6 +157,7 @@ class WebsocketControl(WebsocketControlBase):
             "upload": self.upload_file,
             "upload_g": self.upload_file,
             "update_fw": self.update_fw,
+            "update_mbfw": self.update_mbfw,
             "oneshot": self.oneshot,
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
@@ -390,6 +391,13 @@ class WebsocketControl(WebsocketControlBase):
     def update_fw(self, mimetype, size):
         self.binary_sock = self.robot.begin_upload(mimetype, int(size),
                                                    cmd="update_fw")
+        self.binary_length = int(size)
+        self.binary_sent = 0
+        self.send_text('{"status":"continue"}')
+
+    def update_mbfw(self, ):
+        self.binary_sock = self.robot.begin_upload(mimetype, int(size),
+                                                   cmd="update_mbfw")
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
