@@ -172,8 +172,10 @@ class WebsocketControl(WebsocketControlBase):
             "maintain": {
                 "load_filament": self.maintain_load_filament,
                 "unload_filament": self.maintain_unload_filament,
-                "calibrating": self.maintain_eadj,
-                "zprobe": self.maintain_corh,
+                "calibrating": self.maintain_calibrating,
+                "zprobe": self.maintain_zprobe,
+                "headinfo": self.maintain_headinfo,
+                "home": self.fast_wrapper(self.robot.maintain_home)
             },
 
             "config": {
@@ -416,19 +418,19 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
 
-    def maintain_eadj(self, *args):
+    def maintain_calibrating(self, *args):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
         if "clean" in args:
-            ret = self.robot.maintain_eadj(navigate_callback=callback,
+            ret = self.robot.maintain_calibrating(navigate_callback=callback,
                                            clean=True)
         else:
-            ret = self.robot.maintain_eadj(navigate_callback=callback)
+            ret = self.robot.maintain_calibrating(navigate_callback=callback)
         self.send_text(json.dumps({
             "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
         }))
 
-    def maintain_corh(self, *args):
+    def maintain_zprobe(self, *args):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
 
@@ -451,6 +453,11 @@ class WebsocketControl(WebsocketControlBase):
             self.send_text(json.dumps({"status": "loading", "nav": n}))
         self.robot.maintain_unload_filament(int(index), float(temp), nav)
         self.send_ok()
+
+    def maintain_headinfo(self):
+        info = self.robot.maintain_headinfo()
+        info["status"] = "headinfo"
+        self.send_text(json.dumps(info))
 
     def report_play(self):
         # TODO
