@@ -327,12 +327,43 @@
     <div class="col-xs-12">
       <div style="margin: 5px 0">
         懶懶 DER
-        <span data-cmd="position" class="btn btn-xs btn-default">Position</span>
         <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
         <span data-cmd="ls" class="btn btn-xs btn-default">List files</span>
-        <span data-cmd="start" class="btn btn-xs btn-primary">Start</span>
-        <span data-cmd="abort,quit" class="btn btn-xs btn-danger">Abort+Quit</span>
-        <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="task start" class="btn btn-xs btn-primary">
+            <i class="glyphicon glyphicon-play"></i>
+            Start
+          </span>
+          <button type="button" class="btn btn-xs btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li data-cmd="play abort" style="cursor: pointer">
+              <a><i class="glyphicon glyphicon-eject"></i> Pause</a>
+            </li>
+            <li data-cmd="play resume" style="cursor: pointer">
+              <a><i class="glyphicon glyphicon-play"></i> Resume</a>
+            </li>
+            <li data-cmd="play pause" style="cursor: pointer">
+              <a><i class="glyphicon glyphicon-pause"></i> Abort</a>
+            </li>
+          </ul>
+        </div>
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li data-cmd="maintain load_filament 0 210" style="cursor: pointer"><a>Load filament</a></li>
+            <li data-cmd="maintain unload_filament 0 210" style="cursor: pointer"><a>Unload filament</a></li>
+            <li data-cmd="maintain calibrating" style="cursor: pointer"><a>Level calibrating</a></li>
+            <li data-cmd="maintain calibrating clean" style="cursor: pointer"><a>Level calibrating (from 0)</a></li>
+            <li data-cmd="maintain zprobe" style="cursor: pointer"><a>Z-probe</a></li>
+          </ul>
+        </div>
         <span data-cmd="raw" class="btn btn-xs btn-info">Raw</span>
         <span data-cmd="G28" class="btn btn-xs btn-primary">G28</span>
         <div class="btn-group btn-xs dropup">
@@ -374,8 +405,8 @@
           </ul>
         </div>
         <span data-cmd="-1 ping *33" class="btn btn-xs btn-default">Ping Head</span>
+        <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
         <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
-
         <div class="btn-group btn-xs dropup">
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <span>Config</span>
@@ -399,6 +430,7 @@
             <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
           </ul>
         </div>
+        <span data-cmd="position" class="btn btn-xs btn-default">Position</span>
       </div>
     </div>
   </div>

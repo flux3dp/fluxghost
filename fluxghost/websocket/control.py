@@ -140,8 +140,13 @@ class WebsocketControl(WebsocketControlBase):
             "scan_next": self.robot.scan_next,
             "kick": self.robot.kick,
 
-            "maintain": self.robot.begin_maintain,
             "home": self.robot.maintain_home,
+
+            "task": {
+                "start": self.robot.start_play,
+                "maintain": self.robot.begin_maintain,
+                "scan": self.robot.begin_scan,
+            }
         }
 
         self.cmd_mapping = {
@@ -163,8 +168,13 @@ class WebsocketControl(WebsocketControlBase):
             "raw": self.begin_raw,
 
             "report": self.report_play,
-            "eadj": self.maintain_eadj,
-            "cor_h": self.maintain_corh,
+
+            "maintain": {
+                "load_filament": self.maintain_load_filament,
+                "unload_filament": self.maintain_unload_filament,
+                "calibrating": self.maintain_eadj,
+                "zprobe": self.maintain_corh,
+            },
 
             "config": {
                 "set": self.config_set,
@@ -282,7 +292,11 @@ class WebsocketControl(WebsocketControlBase):
 
     def simple_cmd(self, func, *args):
         try:
-            self.send_text('{"status":"%s"}' % func(*args))
+            ret = func(*args)
+            if ret:
+                self.send_text('{"status":"%s"}' % ret)
+            else:
+                self.send_text('{"status":"ok"}')
         except RuntimeError as e:
             self.send_error(*e.args)
         except Exception as e:
@@ -425,6 +439,18 @@ class WebsocketControl(WebsocketControlBase):
             ret = self.robot.maintain_hadj(navigate_callback=callback)
 
         self.send_text(json.dumps({"status": "ok", "data": ret}))
+
+    def maintain_load_filament(self, index, temp):
+        def nav(n):
+            self.send_text(json.dumps({"status": "loading", "nav": n}))
+        self.robot.maintain_load_filament(int(index), float(temp), nav)
+        self.send_ok()
+
+    def maintain_unload_filament(self, index, temp):
+        def nav(n):
+            self.send_text(json.dumps({"status": "loading", "nav": n}))
+        self.robot.maintain_unload_filament(int(index), float(temp), nav)
+        self.send_ok()
 
     def report_play(self):
         # TODO
