@@ -129,28 +129,18 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_error("ALREADY_READY")
 
         try:
-            position = self.robot.position()
-            if position != "CommandTask":
-                ret = self.robot.quit_task()
-                if ret != "ok":
-                    self.send_error("DEVICE_ERROR", ret)
-                    return
+            self.robot.begin_scan()
+
         except RuntimeError as err:
             if err.args[0] == "RESOURCE_BUSY":
-                ret = self.robot.kick()
-                if ret != "ok":
-                    self.send_error("DEVICE_ERROR", ret)
-                    return
+                self.robot.kick()
             else:
                 self.send_error("DEVICE_ERROR", err.args[0])
                 return
 
-        ret = self.robot.begin_scan()
-        if ret == "ok":
+            ret = self.robot.begin_scan()
             self.send_text('{"status": "ready"}')
             self.ready = True
-        else:
-            self.send_error("DEVICE_ERROR %s", ret)
 
     def fetch_image(self):
         if not self.ready:

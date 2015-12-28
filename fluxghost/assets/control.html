@@ -185,6 +185,8 @@
   }
 
   $(window).ready(function() {
+    $('[data-toggle="tooltip"]').tooltip();
+
     $("[data-role=discover]").on("click", function() {
       if(window.discover_ws) {
         stopDiscover()
@@ -330,25 +332,11 @@
         <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
         <span data-cmd="ls" class="btn btn-xs btn-default">List files</span>
         <div class="btn-group btn-xs dropup">
-          <span data-cmd="task start" class="btn btn-xs btn-primary">
-            <i class="glyphicon glyphicon-play"></i>
-            Start
-          </span>
-          <button type="button" class="btn btn-xs btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <span class="caret"></span>
-              <span class="sr-only">Toggle Dropdown</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li data-cmd="play abort" style="cursor: pointer">
-              <a><i class="glyphicon glyphicon-eject"></i> Pause</a>
-            </li>
-            <li data-cmd="play resume" style="cursor: pointer">
-              <a><i class="glyphicon glyphicon-play"></i> Resume</a>
-            </li>
-            <li data-cmd="play pause" style="cursor: pointer">
-              <a><i class="glyphicon glyphicon-pause"></i> Abort</a>
-            </li>
-          </ul>
+          <span data-cmd="task start" class="btn btn-xs btn-primary"><i class="glyphicon glyphicon-fire"></i> Start</span>
+          <span data-cmd="play info" class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Playing Info"><i class="glyphicon glyphicon-info-sign"></i></span>
+          <span data-cmd="play pause" class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause"><i class="glyphicon glyphicon-pause"></i></span>
+          <span data-cmd="play resume" class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume"><i class="glyphicon glyphicon-play"></i></span>
+          <span data-cmd="play abort" class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort"><i class="glyphicon glyphicon-eject"></i></span>
         </div>
         <div class="btn-group btn-xs dropup">
           <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
