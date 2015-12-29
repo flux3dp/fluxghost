@@ -50,6 +50,11 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.try_control()
         self.cab = None
         self.serial = serial
+        self.config = {}
+
+    def __del__(self):
+        self.robot.robot.quit_task()
+        self.robot.close()
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
@@ -71,6 +76,9 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "calibrate":
             self.calibrate()
             self.get_cab()
+
+        elif message.startswith('set_params'):
+            self.set_params(message)
 
         elif message.startswith("resolution "):
 
@@ -210,6 +218,17 @@ class Websocket3DScanControl(WebsocketControlBase):
         res = self.robot.calibrate()
         self.send_ok(res[3:])
 
+    def set_params(self, message):
+        m = message.split()
+        if len(m) != 3:
+            self.send_error('{} format error'.format(m[1:]))
+        key, value = m[1], float(m[2])
+        if key in ['LongestLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment']:
+            self.config[key] = value
+            self.send_ok()
+        else:
+            self.send_error('{} key not exist'.format(key))
+
 
 class SimulateWebsocket3DScanControl(WebSocketBase):
     steps = 200
@@ -271,10 +290,15 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         elif message == "quit":
             self.send_text("bye")
             self.close()
+
         elif message == "scan_check":
             self.scan_check()
+
         elif message == "calibrate":
             self.calibrate()
+
+        elif message.startswith('set_params'):
+            self.set_params(message)
 
         else:
             self.send_error("UNKNOW_COMMAND", message)
@@ -446,3 +470,14 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         from time import sleep
         sleep(1)
         self.send_ok()
+
+    def set_params(self, message):
+        m = message.split()
+        if len(m) != 3:
+            self.send_error('{} format error'.format(m[1:]))
+        key, value = m[1], float(m[2])
+        if key in ['LongestLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment']:
+            self.config[key] = value
+            self.send_ok()
+        else:
+            self.send_error('{} key not exist'.format(key))

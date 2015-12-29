@@ -53,11 +53,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'apply_transform': [self.apply_transform],
             'merge': [self.merge],
             'auto_alignment': [self.auto_alignment],
-
-            ############### fake code #####################
-            # for downward compatibility
-            'auto_merge': [self.auto_alignment],
-            ################################################
+            'set_params': [self.set_params],
             'import_file': [self.import_file]
         }
 
@@ -157,3 +153,11 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         helepr = BinaryUploadHelper(int(file_length), self._end_upload, 2, name, filetype)
         self.set_binary_helper(helepr)
         self.send_text('{"status": "continue"}')
+
+    def set_params(self, params):
+        key, value = params.split()
+        if key in ['NeighborhoodDistance', 'CloseBottom', 'CloseBottomTop', 'SegmentationDistance']:
+            self.config[key] = float(value)
+            self.send_ok()
+        else:
+            self.send_error('{} key not exist'.format(key))
