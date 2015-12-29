@@ -27,6 +27,7 @@ from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, SIMULATE, OnTextMessageMixin
 
 from fluxclient import SUPPORT_PCL
+from fluxclient.scanner.scan_settings import ScanSetting
 from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
 
 logger = logging.getLogger("WS.3DSCAN-MODELING")
@@ -39,7 +40,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         SIMULATE = False
         ###################################
         if not SIMULATE:
-            self.m_pc_process = PcProcess()
+            self.m_pc_process = PcProcess(ScanSetting())
             logger.debug('using PcProcess')
         if SIMULATE:
             self.m_pc_process = PcProcessNoPCL()
@@ -156,8 +157,8 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
 
     def set_params(self, params):
         key, value = params.split()
-        if key in ['NeighborhoodDistance', 'CloseBottom', 'CloseBottomTop', 'SegmentationDistance']:
-            self.config[key] = float(value)
+        if key in ['NeighborhoodDistance', 'CloseBottom', 'CloseTop', 'SegmentationDistance', 'NoiseNeighbors']:
+            setattr(self.m_pc_process.settings, key, float(value))
             self.send_ok()
         else:
             self.send_error('{} key not exist'.format(key))
