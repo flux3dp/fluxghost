@@ -49,10 +49,9 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.scan_settings = ScanSetting()
         self.cab = None
 
-    def on_close(self, message):
+    def on_closed(self):
         self.robot.quit_task()
         self.robot.close()
-        super().on_close(message)
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
