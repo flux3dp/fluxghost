@@ -52,9 +52,10 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.serial = serial
         self.config = {}
 
-    def __del__(self):
-        self.robot.robot.quit_task()
+    def on_close(self, message):
+        self.robot.quit_task()
         self.robot.close()
+        super().on_close(message)
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
@@ -164,7 +165,6 @@ class Websocket3DScanControl(WebsocketControlBase):
     def scan_check(self):
         # s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
         message = self.robot.scan_check()
-        print(message, file=sys.stderr)
         message = int(message.split()[-1])
         if message & 1 == 0:
             message = "not open"
@@ -216,7 +216,11 @@ class Websocket3DScanControl(WebsocketControlBase):
     def calibrate(self):
         self.send_text('{"status": "continue"}')
         res = self.robot.calibrate()
-        self.send_ok(res[3:])
+        res = res.split()
+        if res[1] == 'fail':
+            self.send_text('{"status": "fail", "message": "no laser"}')
+        else:
+            self.send_text('{"status": "ok"}')
 
     def set_params(self, message):
         m = message.split()
