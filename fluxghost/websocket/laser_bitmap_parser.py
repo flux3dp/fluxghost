@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from os import environ
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
@@ -93,14 +94,16 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         if '-g' in args:
             output_binary = self.m_laser_bitmap.gcode_generate().encode()
             ########## fake code  ########################
-            with open('output.gcode', 'wb') as f:
-                f.write(output_binary)
+            if environ.get("flux_debug") == '1':
+                with open('output.gcode', 'wb') as f:
+                    f.write(output_binary)
             ##############################################
         else:
             output_binary = self.m_laser_bitmap.fcode_generate()
             ########## fake code  ########################
-            with open('output.fc', 'wb') as f:
-                f.write(output_binary)
+            if environ.get("flux_debug") == '1':
+                with open('output.fc', 'wb') as f:
+                    f.write(output_binary)
             ##############################################
 
         self.send_progress('finishing', 1.0)

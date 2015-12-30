@@ -227,7 +227,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         if len(m) != 3:
             self.send_error('{} format error'.format(m[1:]))
         key, value = m[1], float(m[2])
-        if key in ['MAXLaserRange', 'MINLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment']:
+        if key in ['MAXLaserRange', 'MINLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment', 'MagnitudeThreshold']:
             setattr(self.scan_settings, key, value)
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
             self.send_ok()

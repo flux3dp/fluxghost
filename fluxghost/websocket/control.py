@@ -7,6 +7,7 @@ import socket
 import shlex
 import json
 import io
+from os import environ
 
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
@@ -210,11 +211,11 @@ class WebsocketControl(WebsocketControlBase):
             elif self.binary_sent == self.binary_length:
                 if isinstance(self.convert, io.BytesIO):
                     f_buf = self.g_to_f()
-                    print('f_buf', len(f_buf), self.uploadto)
 
                     ################ fake code ################
-                    with open('tmp.fcode', 'wb') as f:
-                        f.write(f_buf)
+                    if environ.get("flux_debug") == '1':
+                        with open('tmp.fcode', 'wb') as f:
+                            f.write(f_buf)
                     ########################################
 
                     self.binary_sock = self.robot.begin_upload(

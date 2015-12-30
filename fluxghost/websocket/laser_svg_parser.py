@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from os import environ
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
@@ -88,16 +89,18 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             output_binary = self.m_laser_svg.fcode_generate(names, self)
 
             ########## fake code  ########################
-            with open('output.fc', 'wb') as f:
-                f.write(output_binary)
+            if environ.get("flux_debug") == '1':
+                with open('output.fc', 'wb') as f:
+                    f.write(output_binary)
             ##############################################
 
         elif gen_flag == '-g':
             output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
 
             ########## fake code  ########################
-            with open('output.gcode', 'wb') as f:
-                f.write(output_binary)
+            if environ.get("flux_debug") == '1':
+                with open('output.gcode', 'wb') as f:
+                    f.write(output_binary)
             ##############################################
 
         self.send_progress('finishing', 1.0)

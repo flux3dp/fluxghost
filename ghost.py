@@ -95,6 +95,7 @@ options = parser.parse_args()
 setup_logger(options)
 
 if options.debug:
+    os.environ["flux_debug"] = "1"
     from fluxghost.http_server_debug import HttpServer
 else:
     from fluxghost.http_server import HttpServer
