@@ -174,8 +174,15 @@ class Websocket3DScanControl(WebsocketControlBase):
     def get_cab(self):
         # self.cab = [float(i) for i in self.robot.get_calibrate().split()[2:]]
         self.cab = True
-        self.scan_settings.LLaserAdjustment = int(float(self.robot.get_calibrate().split()[1])) - (self.scan_settings.img_width / 2)
-        self.scan_settings.RLaserAdjustment = int(float(self.robot.get_calibrate().split()[1])) - (self.scan_settings.img_width / 2)
+        self.scan_settings.cab_m, self.scan_settings.cab_l, self.scan_settings.cab_r = map(float, self.robot.get_calibrate().split()[1:])
+        self.cameraX
+
+        self.scan_settings.LLaserAdjustment = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
+        self.scan_settings.RLaserAdjustment = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
+        # self.scan_settings.LLaserAdjustment /= 2
+        # self.scan_settings.RLaserAdjustment /= 2
+
+        self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
         return
 
     def scan(self):
