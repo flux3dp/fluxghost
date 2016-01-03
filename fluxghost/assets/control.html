@@ -2,9 +2,9 @@
 <html>
 <head>
   <title>FLUXStudio - Control</title>
-  <script src="/res/jquery-2.1.4.min.js"></script>
-  <script src="/res/bootstrap/js/bootstrap.min.js"></script>
-  <link href="/res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="res/jquery-2.1.4.min.js"></script>
+  <script src="res/bootstrap/js/bootstrap.min.js"></script>
+  <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
   <style>
@@ -244,6 +244,8 @@
         mimetype = "application/fcode";
       } else if (fileext == "bin"){
         mimetype = "binary/fireware";
+      } else if (fileext == "fxfw") {
+        mimetype = "binary/flux-firmware";
       } else {
         alert("Unknow file type");
         return
@@ -301,9 +303,7 @@
     </div>
   </div>
   <hr />
-  <div class="container-fluid device_select_ui">
-      <div class="list-group" id="devices"></div>
-  </div>
+  <div class="container-fluid device_select_ui" id="devices"></div>
   <div class="container-fluid" style="margin-bottom: 5px;">
     <div class="col-xs-8">
       <a class="btn btn-sm btn-success device_select_ui" data-role="discover">Start Discover</a>
