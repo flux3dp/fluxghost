@@ -29,6 +29,8 @@ block_cipher = None
 a = Analysis(['ghost.py'],
              hiddenimports=[
                "serial",
+               "PIL",
+               "pillow",
                "scipy.integrate",
                "scipy.interpolate.rbf",
                "scipy.linalg.cython_blas",
