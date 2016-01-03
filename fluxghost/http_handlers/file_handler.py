@@ -99,7 +99,7 @@ class FileHandler(object):
                     sent = 0
                     while sent != l:
                         select.select((), (fd_dist, ), ())
-                        sent += handler.wfile.write(mv[:l])
+                        sent += handler.wfile.write(mv[sent:l])
                 else:
                     break
 
