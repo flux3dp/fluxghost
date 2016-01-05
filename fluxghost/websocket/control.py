@@ -1,6 +1,5 @@
 
 from errno import EPIPE
-from time import sleep
 from uuid import UUID
 import logging
 import socket
@@ -12,7 +11,7 @@ from os import environ
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
 from fluxclient.fcode.g_to_f import GcodeToFcode
-from .base import WebSocketBase, WebsocketBinaryHelperMixin, ST_NORMAL
+from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
 
@@ -47,8 +46,8 @@ class WebsocketControlBase(WebSocketBase):
     simple_mapping = None
     cmd_mapping = None
 
-    def __init__(self, *args, serial):
-        WebSocketBase.__init__(self, *args)
+    def __init__(self, request, client, server, path, serial):
+        WebSocketBase.__init__(self, request, client, server, path)
         self.uuid = UUID(hex=serial)
 
         self.send_text(STAGE_DISCOVER)
@@ -113,9 +112,12 @@ class WebsocketControl(WebsocketControlBase):
     raw_sock = None
     convert = None
 
-    def __init__(self, *args, serial):
-        WebsocketControlBase.__init__(self, *args, serial=serial)
-        self.set_hooks()
+    def __init__(self, *args, **kw):
+        try:
+            WebsocketControlBase.__init__(self, *args, **kw)
+            self.set_hooks()
+        except RuntimeError:
+            pass
 
     def fast_wrapper(self, func):
         def wrapper(*args, **kw):
@@ -212,11 +214,11 @@ class WebsocketControl(WebsocketControlBase):
                 if isinstance(self.convert, io.BytesIO):
                     f_buf = self.g_to_f()
 
-                    ################ fake code ################
+                    # ############### fake code ################
                     if environ.get("flux_debug") == '1':
                         with open('tmp.fcode', 'wb') as f:
                             f.write(f_buf)
-                    ########################################
+                    # #######################################
 
                     self.binary_sock = self.robot.begin_upload(
                         'application/fcode', len(f_buf),
@@ -424,7 +426,7 @@ class WebsocketControl(WebsocketControlBase):
             self.send_text("DEBUG: %s" % nav)
         if "clean" in args:
             ret = self.robot.maintain_calibrating(navigate_callback=callback,
-                                           clean=True)
+                                                  clean=True)
         else:
             ret = self.robot.maintain_calibrating(navigate_callback=callback)
         self.send_text(json.dumps({
@@ -537,9 +539,9 @@ class WebsocketControl(WebsocketControlBase):
 
     def g_to_f(self):
         fcode_output = io.BytesIO()
-        m_GcodeToFcode = GcodeToFcode()
-        m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'),
-                               fcode_output)
+        g2f = GcodeToFcode()
+        g2f.process(self.convert.getvalue().decode().split('\n'),
+                    fcode_output)
         self.convert = None
         return fcode_output.getvalue()
 

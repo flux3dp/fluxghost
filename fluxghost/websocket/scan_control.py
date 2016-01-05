@@ -16,11 +16,10 @@ ws.send("image")
 
 
 import logging
+import random
 import struct
 import math
 import os
-import sys
-import random
 
 from fluxclient.scanner.tools import read_pcd
 from fluxclient.scanner import image_to_pc
@@ -42,10 +41,9 @@ class Websocket3DScanControl(WebsocketControlBase):
     current_step = 0
     proc = None
 
-    def __init__(self, *args, serial):
-        WebsocketControlBase.__init__(self, *args, serial=serial)
+    def __init__(self, *args, **kw):
+        WebsocketControlBase.__init__(self, *args, **kw)
         self.try_control()
-        self.serial = serial
         self.scan_settings = ScanSetting()
         self.cab = None
 
@@ -263,12 +261,11 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         mode = 'box'
     mode = 'box'
 
-    def __init__(self, *args, serial):
+    def __init__(self, *args, **kw):
         WebSocketBase.__init__(self, *args)
         with open(SIMULATE_IMG_FILE, "rb") as f:
             self.image_buf = f.read()
 
-        self.serial = serial
         self.send_text('{"status": "connected"}')
         self.send_text('{"status": "ready"}')
 
