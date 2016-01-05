@@ -40,7 +40,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         name, file_length = message.split()
         helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag, args[0])
         self.set_binary_helper(helper)
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
 
     def end_recv_svg(self, buf, name, *args):
         self.POOL_TIME = self.POOL_TIME_

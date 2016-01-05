@@ -74,7 +74,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         helepr = BinaryUploadHelper(totel_length, self._end_upload,
                                     1, name, llen, rlen)
         self.set_binary_helper(helepr)
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
 
     def _end_upload(self, buf, flag, name, *args):
         o_flag = True
@@ -153,7 +153,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         name, filetype, file_length = params.split()
         helepr = BinaryUploadHelper(int(file_length), self._end_upload, 2, name, filetype)
         self.set_binary_helper(helepr)
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
 
     def set_params(self, params):
         key, value = params.split()

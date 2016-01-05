@@ -56,7 +56,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         helper = BinaryUploadHelper(image_size, self.end_recv_image,
                                     (x1, y1, x2, y2), (w, h), rotation, thres)
         self.set_binary_helper(helper)
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
 
     def end_recv_image(self, buf, position, size, rotation, thres):
         self.images.append((position, size, rotation, thres, buf))

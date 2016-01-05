@@ -30,7 +30,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
 
         helper = BinaryUploadHelper(file_size, self.end_recv_image)
         self.set_binary_helper(helper)
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
 
     def end_recv_image(self, buf):
         if self.m_fcode_parser.upload_content(buf):

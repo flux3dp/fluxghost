@@ -217,7 +217,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_ok()
 
     def calibrate(self):
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
         res = self.robot.calibrate()
         res = res.split()
         if res[1] == 'fail':
@@ -478,7 +478,7 @@ class SimulateWebsocket3DScanControl(WebSocketBase):
         self.send_text('{"status": "ok", "message": "%s"}' % (s))
 
     def calibrate(self):
-        self.send_text('{"status": "continue"}')
+        self.send_continue()
         from time import sleep
         sleep(1)
         self.send_ok()
