@@ -32,10 +32,6 @@ ws.send("ls")
 
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
-STAGE_AUTH = '{"status": "connecting", "stage": "auth"}'
-STAGE_ROBOT_INIT = '{"status": "connecting", "stage": "initial"}'
-STAGE_ROBOT_LAUNGING = '{"status": "connecting", "stage": "launching"}'
-STAGE_ROBOT_LAUNCHED = '{"status": "connecting", "stage": "launched"}'
 STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
