@@ -52,9 +52,14 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         elif flag == 'upload_image':
             name = ''
             file_length = params
-        helper = BinaryUploadHelper(int(file_length), self.end_recv_stl, name, flag)
-        self.set_binary_helper(helper)
-        self.send_text('{"status": "continue"}')
+        if int(file_length) == 0:
+            self.send_error('empty file!')
+            # self.send_text('{"status": "continue"}')
+            # self.send_ok()
+        else:
+            helper = BinaryUploadHelper(int(file_length), self.end_recv_stl, name, flag)
+            self.set_binary_helper(helper)
+            self.send_text('{"status": "continue"}')
 
     def end_recv_stl(self, buf, *args):
         if args[1] == 'upload':
