@@ -45,6 +45,9 @@ class WebSocketBase(WebSocketHandler):
         else:
             self.send_text('{"status": "ok"}')
 
+    def send_continue(self):
+        self.send_text('{"status": "continue"}')
+
     def send_binary_begin(self, mime, length):
         self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
                        (length, mime))

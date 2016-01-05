@@ -15,14 +15,14 @@ def fork_entry(request, client, server):
 
 def check_autoreload():
     if "fluxghost.http_handler" in sys.modules:
-        logger.error("Warning!! The fluxghost.http_handler has been "
-                     "loaded before fork, auto-reload moudle function is"
-                     " not work anymore.")
+        logger.warn("Warning!! The fluxghost.http_handler has been "
+                    "loaded before fork, auto-reload moudle function is"
+                    " not work anymore.")
         return
     if "fluxclient" in sys.modules:
-        logger.error("Warning!! The fluxclient has been "
-                     "loaded before fork, auto-reload moudle function is"
-                     " not work anymore.")
+        logger.warn("Warning!! The fluxclient has been "
+                    "loaded before fork, auto-reload moudle function is"
+                    " not work anymore.")
         return
 
 

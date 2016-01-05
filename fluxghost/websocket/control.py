@@ -1,17 +1,17 @@
 
 from errno import EPIPE
-from time import sleep
 from uuid import UUID
 import logging
 import socket
 import shlex
 import json
 import io
+from os import environ
 
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
 from fluxclient.fcode.g_to_f import GcodeToFcode
-from .base import WebSocketBase, WebsocketBinaryHelperMixin, ST_NORMAL
+from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
 
@@ -32,10 +32,6 @@ ws.send("ls")
 
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
-STAGE_AUTH = '{"status": "connecting", "stage": "auth"}'
-STAGE_ROBOT_INIT = '{"status": "connecting", "stage": "initial"}'
-STAGE_ROBOT_LAUNGING = '{"status": "connecting", "stage": "launching"}'
-STAGE_ROBOT_LAUNCHED = '{"status": "connecting", "stage": "launched"}'
 STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
@@ -46,15 +42,15 @@ class WebsocketControlBase(WebSocketBase):
     simple_mapping = None
     cmd_mapping = None
 
-    def __init__(self, *args, serial):
-        WebSocketBase.__init__(self, *args)
+    def __init__(self, request, client, server, path, serial):
+        WebSocketBase.__init__(self, request, client, server, path)
         self.uuid = UUID(hex=serial)
 
         self.send_text(STAGE_DISCOVER)
         logger.debug("DISCOVER")
-        task = self._discover(self.uuid)
 
         try:
+            task = self._discover(self.uuid)
             self.send_text(STAGE_ROBOT_CONNECTING)
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.slave_key,
@@ -112,9 +108,12 @@ class WebsocketControl(WebsocketControlBase):
     raw_sock = None
     convert = None
 
-    def __init__(self, *args, serial):
-        WebsocketControlBase.__init__(self, *args, serial=serial)
-        self.set_hooks()
+    def __init__(self, *args, **kw):
+        try:
+            WebsocketControlBase.__init__(self, *args, **kw)
+            self.set_hooks()
+        except RuntimeError:
+            pass
 
     def fast_wrapper(self, func):
         def wrapper(*args, **kw):
@@ -133,15 +132,20 @@ class WebsocketControl(WebsocketControlBase):
             "pause": self.robot.pause_play,
             "resume": self.robot.resume_play,
             "abort": self.robot.abort_play,
-            "quit": self.robot.quit_task,
+            "quit": self.robot.quit_play,
 
             "scan": self.robot.begin_scan,
             "scan_backward": self.robot.scan_backward,
             "scan_next": self.robot.scan_next,
             "kick": self.robot.kick,
 
-            "maintain": self.robot.begin_maintain,
             "home": self.robot.maintain_home,
+
+            "task": {
+                "start": self.robot.start_play,
+                "maintain": self.robot.begin_maintain,
+                "scan": self.robot.begin_scan,
+            }
         }
 
         self.cmd_mapping = {
@@ -157,13 +161,27 @@ class WebsocketControl(WebsocketControlBase):
             "upload": self.upload_file,
             "upload_g": self.upload_file,
             "update_fw": self.update_fw,
+            "update_mbfw": self.update_mbfw,
             "oneshot": self.oneshot,
             "scanimages": self.scanimages,
             "raw": self.begin_raw,
 
             "report": self.report_play,
-            "eadj": self.maintain_eadj,
-            "cor_h": self.maintain_corh,
+
+            "maintain": {
+                "load_filament": self.maintain_load_filament,
+                "unload_filament": self.maintain_unload_filament,
+                "calibrating": self.maintain_calibrating,
+                "zprobe": self.maintain_zprobe,
+                "headinfo": self.maintain_headinfo,
+                "home": self.fast_wrapper(self.robot.maintain_home)
+            },
+
+            "config": {
+                "set": self.config_set,
+                "get": self.config_get,
+                "del": self.config_del
+            },
 
             "play": {
                 "info": self.play_info,
@@ -171,6 +189,11 @@ class WebsocketControl(WebsocketControlBase):
                 "pause": self.fast_wrapper(self.robot.pause_play),
                 "resume": self.fast_wrapper(self.robot.resume_play),
                 "abort": self.fast_wrapper(self.robot.abort_play),
+                "quit": self.fast_wrapper(self.robot.quit_play)
+            },
+
+            "task": {
+                "quit": self.fast_wrapper(self.robot.quit_task)
             }
         }
 
@@ -186,14 +209,16 @@ class WebsocketControl(WebsocketControlBase):
             elif self.binary_sent == self.binary_length:
                 if isinstance(self.convert, io.BytesIO):
                     f_buf = self.g_to_f()
-                    print('f_buf', len(f_buf), self.uploadto)
 
-                    ################ fake code ################
-                    with open('tmp.fcode', 'wb') as f:
-                        f.write(f_buf)
-                    ########################################
+                    # ############### fake code ################
+                    if environ.get("flux_debug") == '1':
+                        with open('tmp.fcode', 'wb') as f:
+                            f.write(f_buf)
+                    # #######################################
 
-                    self.binary_sock = self.robot.begin_upload('application/fcode', len(f_buf), uploadto=self.uploadto)
+                    self.binary_sock = self.robot.begin_upload(
+                        'application/fcode', len(f_buf),
+                        cmd="file upload", uploadto=self.uploadto)
                     self.binary_sock.send(f_buf)
                     del self.uploadto
                     self.convert = None
@@ -248,7 +273,7 @@ class WebsocketControl(WebsocketControlBase):
             elif self.invoke_command(self.cmd_mapping, args):
                 pass
             else:
-                logger.error("Unknow Command: %s" % message)
+                logger.warn("Unknow Command: %s" % message)
                 self.send_error("UNKNOWN_COMMAND", "ws")
 
         except RuntimeError as e:
@@ -259,20 +284,24 @@ class WebsocketControl(WebsocketControlBase):
             if e.args[0] == EPIPE:
                 self.send_fatal("DISCONNECTED", repr(e.__class__))
             else:
-                logger.exception("Unknow Error")
+                logger.exception("Unknow socket error")
                 self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
 
         except Exception as e:
-            logger.exception("Unknow Error")
+            logger.exception("Unknow error while process text")
             self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def simple_cmd(self, func, *args):
         try:
-            self.send_text('{"status":"%s"}' % func(*args))
+            ret = func(*args)
+            if ret:
+                self.send_text('{"status":"%s"}' % ret)
+            else:
+                self.send_text('{"status":"ok"}')
         except RuntimeError as e:
             self.send_error(*e.args)
         except Exception as e:
-            logger.exception("Unknow Error")
+            logger.exception("Command error")
             self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def position(self):
@@ -282,9 +311,6 @@ class WebsocketControl(WebsocketControlBase):
                            location)
         except RuntimeError as e:
             self.send_error(*e.args)
-        except Exception as e:
-            logger.exception("Unknow Error")
-            self.send_error("UNKNOWN_ERROR", repr(e.__class__))
 
     def list_file(self, location=None):
         if location:
@@ -367,6 +393,7 @@ class WebsocketControl(WebsocketControlBase):
         else:
             self.convert = None
             self.binary_sock = self.robot.begin_upload(mimetype, int(size),
+                                                       cmd="file upload",
                                                        uploadto=uploadto)
 
         self.binary_length = int(size)
@@ -380,19 +407,26 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
 
-    def maintain_eadj(self, *args):
+    def update_mbfw(self, mimetype, size):
+        self.binary_sock = self.robot.begin_upload(mimetype, int(size),
+                                                   cmd="update_mbfw")
+        self.binary_length = int(size)
+        self.binary_sent = 0
+        self.send_text('{"status":"continue"}')
+
+    def maintain_calibrating(self, *args):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
         if "clean" in args:
-            ret = self.robot.maintain_eadj(navigate_callback=callback,
-                                           clean=True)
+            ret = self.robot.maintain_calibrating(navigate_callback=callback,
+                                                  clean=True)
         else:
-            ret = self.robot.maintain_eadj(navigate_callback=callback)
+            ret = self.robot.maintain_calibrating(navigate_callback=callback)
         self.send_text(json.dumps({
             "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
         }))
 
-    def maintain_corh(self, *args):
+    def maintain_zprobe(self, *args):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
 
@@ -403,6 +437,23 @@ class WebsocketControl(WebsocketControlBase):
             ret = self.robot.maintain_hadj(navigate_callback=callback)
 
         self.send_text(json.dumps({"status": "ok", "data": ret}))
+
+    def maintain_load_filament(self, index, temp):
+        def nav(n):
+            self.send_text(json.dumps({"status": "loading", "nav": n}))
+        self.robot.maintain_load_filament(int(index), float(temp), nav)
+        self.send_ok()
+
+    def maintain_unload_filament(self, index, temp):
+        def nav(n):
+            self.send_text(json.dumps({"status": "loading", "nav": n}))
+        self.robot.maintain_unload_filament(int(index), float(temp), nav)
+        self.send_ok()
+
+    def maintain_headinfo(self):
+        info = self.robot.maintain_headinfo()
+        info["status"] = "headinfo"
+        self.send_text(json.dumps(info))
 
     def report_play(self):
         # TODO
@@ -450,13 +501,28 @@ class WebsocketControl(WebsocketControlBase):
             self.send_binary(buf)
         self.send_ok()
 
+    def config_set(self, key, value):
+        self.robot.config_set(key, value)
+        self.send_ok()
+
+    def config_get(self, key):
+        value = self.robot.config_get(key)
+        if value:
+            self.send_text("ok VAL %s" % value)
+        else:
+            self.send_text("ok EMPTY")
+
+    def config_del(self, key):
+        self.robot.config_del(key)
+        self.send_ok()
+
     def begin_raw(self):
         self.raw_sock = RawSock(self.robot.raw_mode(), self)
         self.rlist.append(self.raw_sock)
         self.send_ok()
 
     def on_raw_message(self, message):
-        if message == "quit":
+        if message == "quit" or message == "task quit":
             self.rlist.remove(self.raw_sock)
             self.raw_sock = None
             self.robot.quit_raw_mode()
@@ -466,9 +532,9 @@ class WebsocketControl(WebsocketControlBase):
 
     def g_to_f(self):
         fcode_output = io.BytesIO()
-        m_GcodeToFcode = GcodeToFcode()
-        m_GcodeToFcode.process(self.convert.getvalue().decode().split('\n'),
-                               fcode_output)
+        g2f = GcodeToFcode()
+        g2f.process(self.convert.getvalue().decode().split('\n'),
+                    fcode_output)
         self.convert = None
         return fcode_output.getvalue()
 
