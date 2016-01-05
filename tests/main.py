@@ -9,7 +9,7 @@ def try_import(module_name):
         sys.stdout.write("Import %s ... " % module_name)
         sys.stdout.flush()
 
-        m = import_module(module_name)
+        import_module(module_name)
 
         sys.stdout.write("OK\n")
         sys.stdout.flush()
@@ -38,3 +38,12 @@ def main():
     try_import("fluxclient.scanner._scanner")
     try_import("fluxclient.upnp")
 
+    sys.stdout.write("Open resource fluxclient::assets/flux3dp-icon.png ... ")
+    sys.stdout.flush()
+    try:
+        import pkg_resources
+        pkg_resources.resource_stream("fluxclient", "assets/flux3dp-icon.png")
+        sys.stdout.write("OK\n")
+    except Exception as e:
+        sys.stdout.write("ERROR: %s" % e)
+        sys.stdout.flush()
