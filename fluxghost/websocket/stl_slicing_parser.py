@@ -160,7 +160,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         if path:
             self.send_text(path)
         else:
-            self.send_error('no path data to send')
+            self.send_error('No path data to send')
 
     def delete(self, params):
         name = params.rstrip()
