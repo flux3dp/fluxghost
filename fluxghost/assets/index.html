@@ -27,28 +27,6 @@
     });
   </script>
   <style>
-  body {
-    background-color: rgb(11, 16, 19);
-    background-attachment: scroll;
-    background-image: url("res/texture.png");
-    color: #FCFAF2;
-  }
-
-  .bgmask {
-    z-index: -100;
-    position: absolute;
-    top: 0;
-    background-attachment: scroll;
-    background-image: url("res/gloss.png");
-    height: 478px;
-    width: 100%;
-  }
-
-  ol.breadcrumb {
-    background-color: initial;
-    color: #FCFAF2;
-  }
-
   .task {
     margin: 0.4em;
   }
@@ -71,7 +49,7 @@
   }
   </style>
 </head>
-<body>
+<body class="dark">
   <div class="bgmask"></div>
   <div class="container-fluid banner">
     <ol class="breadcrumb">
@@ -91,7 +69,7 @@
       <a href="discover.html">Devices dashboard</a>
     </div>
     <div class="task">
-      <a href="#">
+      <a href="g2f.html">
         <span>G-code</span>
         <span class="glyphicon glyphicon-arrow-right"></span>
         <span>F-code</span>
@@ -99,7 +77,7 @@
       </a>
     </div>
     <div class="task">
-      <a href="#">
+      <a href="g2f.html">
         <span>F-code</span>
         <span class="glyphicon glyphicon-arrow-right"></span>
         <span>G-code</span>

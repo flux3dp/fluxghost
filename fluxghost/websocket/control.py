@@ -156,7 +156,6 @@ class WebsocketControl(WebsocketControlBase):
             "upload": self.upload_file,
             "update_fw": self.update_fw,
             "update_mbfw": self.update_mbfw,
-            "raw": self.begin_raw,
 
             "report": self.report_play,
             "kick": self.fast_wrapper(self.robot.kick),
@@ -167,7 +166,8 @@ class WebsocketControl(WebsocketControlBase):
                 "rmdir": self.rmdir,
                 "rmfile": self.rmfile,
                 "cpfile": self.cpfile,
-                "fileinfo": self.fileinfo,
+                "info": self.fileinfo,
+                "md5": self.filemd5,
             },
 
             "maintain": {
@@ -202,9 +202,10 @@ class WebsocketControl(WebsocketControlBase):
                 "scanimages": self.scanimages,
             },
             "task": {
-                "maintain": self.fast_wrapper(self.robot.begin_maintain),
-                "scan": self.fast_wrapper(self.robot.begin_scan),
-                "quit": self.fast_wrapper(self.robot.quit_task)
+                "maintain": self.task_begin_maintain,
+                "scan": self.task_begin_scan,
+                "raw": self.task_begin_raw,
+                "quit": self.task_quit,
             }
         }
 
@@ -331,8 +332,8 @@ class WebsocketControl(WebsocketControlBase):
                 else:
                     files.append(name)
 
-            payload = {"status": "ok", "path": location, "directories": dirs,
-                       "files": files}
+            payload = {"status": "ok", "path": location,
+                       "directories": dirs, "files": files}
             self.send_text(json.dumps(payload))
         else:
             self.send_text('{"status": "ok", "path": "", "directories": '
@@ -355,6 +356,15 @@ class WebsocketControl(WebsocketControlBase):
 
         info["status"] = "ok"
         self.send_text(json.dumps(info))
+
+    def filemd5(self, file):
+        entry, path = file.split("/", 1)
+        hash = self.robot.md5(entry, path)
+        self.send_text(json.dumps({
+            "status": "ok",
+            "cmd": "md5",
+            "file": file,
+            "md5": hash}))
 
     def mkdir(self, file):
         if file.startswith("SD/"):
@@ -382,7 +392,7 @@ class WebsocketControl(WebsocketControlBase):
         params = source.split("/", 1) + target.split("/", 1)
         self.simple_cmd(self.robot.cpfile, *params)
 
-    def upload_file(self, mimetype, size, uploadto="#", convert='0'):
+    def upload_file(self, mimetype, size, uploadto="#"):
         if uploadto == "#":
             pass
         elif uploadto.startswith("SD/"):
@@ -390,19 +400,19 @@ class WebsocketControl(WebsocketControlBase):
         elif uploadto.startswith("USB/"):
             uploadto = "USB " + uploadto[4:]
 
-        if mimetype == "text/gcode" and convert != '1':
-            self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
-            return
-        if mimetype == "text/gcode" and convert == '1':
+        if mimetype == "text/gcode":
             self.convert = io.BytesIO()
             if uploadto.endswith('.gcode'):
                 uploadto = uploadto[:-5] + 'fc'
             self.uploadto = uploadto
-        else:
+        elif mimetype == "application/fcode":
             self.convert = None
             self.binary_sock = self.robot.begin_upload(mimetype, int(size),
                                                        cmd="file upload",
                                                        uploadto=uploadto)
+        else:
+            self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
+            return
 
         self.binary_length = int(size)
         self.binary_sent = 0
@@ -421,6 +431,23 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
+
+    def task_begin_scan(self):
+        self.robot.begin_scan()
+        self.send_text('{"status":"ok", "task": "scan"}')
+
+    def task_begin_maintain(self):
+        self.robot.begin_maintain()
+        self.send_text('{"status":"ok", "task": "maintain"}')
+
+    def task_begin_raw(self):
+        self.raw_sock = RawSock(self.robot.raw_mode(), self)
+        self.rlist.append(self.raw_sock)
+        self.send_text('{"status":"ok", "task": "raw"}')
+
+    def task_quit(self):
+        self.robot.quit_task()
+        self.send_text('{"status":"ok", "task": ""}')
 
     def maintain_calibrating(self, *args):
         def callback(nav):
@@ -524,17 +551,12 @@ class WebsocketControl(WebsocketControlBase):
         self.robot.config_del(key)
         self.send_ok()
 
-    def begin_raw(self):
-        self.raw_sock = RawSock(self.robot.raw_mode(), self)
-        self.rlist.append(self.raw_sock)
-        self.send_ok()
-
     def on_raw_message(self, message):
         if message == "quit" or message == "task quit":
             self.rlist.remove(self.raw_sock)
             self.raw_sock = None
             self.robot.quit_raw_mode()
-            self.send_ok()
+            self.send_text('{"status": "ok", "task": ""}')
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
 

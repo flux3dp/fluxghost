@@ -3,8 +3,28 @@ body {
     min-width: 1024px;
 }
 
-.body-bg {
+body.dark {
+    background-color: rgb(11, 16, 19);
+    background-attachment: scroll;
+    background-image: url("texture.png");
+    color: #FCFAF2;
 }
+
+body.dark .bgmask {
+    z-index: -100;
+    position: absolute;
+    top: 0;
+    background-attachment: scroll;
+    background-image: url("gloss.png");
+    height: 478px;
+    width: 100%;
+}
+
+body.dark ol.breadcrumb {
+    background-color: initial;
+    color: #FCFAF2;
+}
+
 
 .banner {
     margin-top: 0.5em;
