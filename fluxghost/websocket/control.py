@@ -39,7 +39,6 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 class WebsocketControlBase(WebSocketBase):
     robot = None
-    simple_mapping = None
     cmd_mapping = None
 
     def __init__(self, request, client, server, path, serial):
@@ -80,7 +79,6 @@ class WebsocketControlBase(WebSocketBase):
         if self.robot:
             self.robot.close()
             self.robot = None
-        self.simple_mapping = None
         self.cmd_mapping = None
 
     def _disc_callback(self, *args):
@@ -127,46 +125,50 @@ class WebsocketControl(WebsocketControlBase):
         return wrapper
 
     def set_hooks(self):
-        self.simple_mapping = {
-            "start": self.robot.start_play,
-            "pause": self.robot.pause_play,
-            "resume": self.robot.resume_play,
-            "abort": self.robot.abort_play,
-            "quit": self.robot.quit_play,
-
-            "scan": self.robot.begin_scan,
-            "scan_backward": self.robot.scan_backward,
-            "scan_next": self.robot.scan_next,
-            "kick": self.robot.kick,
-
-            "home": self.robot.maintain_home,
-
-            "task": {
-                "start": self.robot.start_play,
-                "maintain": self.robot.begin_maintain,
-                "scan": self.robot.begin_scan,
-            }
-        }
-
         self.cmd_mapping = {
+            # deprecated
+            "start": self.fast_wrapper(self.robot.start_play),
+            # deprecated
+            "pause": self.fast_wrapper(self.robot.pause_play),
+            # deprecated
+            "resume": self.fast_wrapper(self.robot.resume_play),
+            # deprecated
+            "abort": self.fast_wrapper(self.robot.abort_play),
+            # deprecated
+            "quit": self.fast_wrapper(self.robot.quit_play),
+            # deprecated
             "position": self.position,
-
+            # deprecated
             "ls": self.list_file,
+            # deprecated
             "select": self.select_file,
+            # deprecated
             "mkdir": self.mkdir,
+            # deprecated
             "rmdir": self.rmdir,
+            # deprecated
             "rmfile": self.rmfile,
+            # deprecated
             "cpfile": self.cpfile,
+            # deprecated
             "fileinfo": self.fileinfo,
+
             "upload": self.upload_file,
-            "upload_g": self.upload_file,
             "update_fw": self.update_fw,
             "update_mbfw": self.update_mbfw,
-            "oneshot": self.oneshot,
-            "scanimages": self.scanimages,
             "raw": self.begin_raw,
 
             "report": self.report_play,
+            "kick": self.fast_wrapper(self.robot.kick),
+
+            "file": {
+                "ls": self.list_file,
+                "mkdir": self.mkdir,
+                "rmdir": self.rmdir,
+                "rmfile": self.rmfile,
+                "cpfile": self.cpfile,
+                "fileinfo": self.fileinfo,
+            },
 
             "maintain": {
                 "load_filament": self.maintain_load_filament,
@@ -184,6 +186,7 @@ class WebsocketControl(WebsocketControlBase):
             },
 
             "play": {
+                "start": self.fast_wrapper(self.robot.start_play),
                 "info": self.play_info,
                 "report": self.report_play,
                 "pause": self.fast_wrapper(self.robot.pause_play),
@@ -192,7 +195,15 @@ class WebsocketControl(WebsocketControlBase):
                 "quit": self.fast_wrapper(self.robot.quit_play)
             },
 
+            "scan": {
+                "backward": self.robot.scan_backward,
+                "forward": self.robot.scan_next,
+                "oneshot": self.oneshot,
+                "scanimages": self.scanimages,
+            },
             "task": {
+                "maintain": self.fast_wrapper(self.robot.begin_maintain),
+                "scan": self.fast_wrapper(self.robot.begin_scan),
                 "quit": self.fast_wrapper(self.robot.quit_task)
             }
         }
@@ -267,10 +278,7 @@ class WebsocketControl(WebsocketControlBase):
         args = shlex.split(message)
 
         try:
-            if self.invoke_command(self.simple_mapping, args,
-                                   self.simple_cmd):
-                pass
-            elif self.invoke_command(self.cmd_mapping, args):
+            if self.invoke_command(self.cmd_mapping, args):
                 pass
             else:
                 logger.warn("Unknow Command: %s" % message)
