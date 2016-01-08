@@ -7,6 +7,7 @@
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
+  <link href="res/shared.css" rel="stylesheet" />
   <style>
   .fileinput-button {
     position: relative;
@@ -35,10 +36,6 @@
   </style>
   <script>
   function beginControl(uuid, name) {
-    stopDiscover()
-    $(".device_select_ui").hide();
-    $(".device_control_ui").show();
-
     $("#device_label").
       text(name + " (" + uuid + ")").
       attr("data-serial", uuid);
@@ -185,16 +182,6 @@
   }
 
   $(window).ready(function() {
-    $('[data-toggle="tooltip"]').tooltip();
-
-    $("[data-role=discover]").on("click", function() {
-      if(window.discover_ws) {
-        stopDiscover()
-      } else {
-        startDiscover()
-      }
-    });
-
     $("[data-role=reset-control]").on("click", function() {
       connectControl();
     });
@@ -227,8 +214,6 @@
         send_cmd(cl[i]);
       }
     });
-
-    $(".device_control_ui").hide();
 
     // Upload File Codes
     $("input[name=file]").on("change", function(evt) {
@@ -274,58 +259,38 @@
     // End Upload File Codes
 
     // Begin UI
-    $(window).bind('hashchange', function(e) {
-      var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
-      if(matchs != undefined && matchs.length == 1) {
-        var tags = matchs[0].split(";");
-        var serial = tags[0].substr(1);
-        var name = tags.slice(1).join(";");
+    var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    if(matchs != undefined && matchs.length == 1) {
+      var tags = matchs[0].split(";");
+      var serial = tags[0].substr(1);
+      var name = tags.slice(1).join(";");
 
-        beginControl(serial, name);
-      } else {
-        $(".device_select_ui").show();
-        $(".device_control_ui").hide();
-        startDiscover();
-      }
-    }).trigger("hashchange");;
+      beginControl(serial, name);
+    } else {
+      window.location = "discover.html";
+    }
   });
   </script>
 </head>
 <body>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li><a href="discover.html">Control</a></li>
+      <li>
+        <span id="device_label"></span>
+        <a class="btn btn-xs btn-warning" data-role="reset-control">
+          <i class="glyphicon glyphicon-repeat"></i>
+        </a>
+      </li>
+    </ol>
+  </div>
   <div class="container-fluid">
-    <div class="row" style="padding-top: 1em">
-      <div class="col-xs-10">
-        <strong>./fluxghost/assets/control.html</strong>
-      </div>
-      <div class="col-xs-2">
-        <a href="index.html" class="btn btn-xs btn-primary">Back to Index</a>
-      </div>
-    </div>
-  </div>
-  <hr />
-  <div class="container-fluid device_select_ui" id="devices"></div>
-  <div class="container-fluid" style="margin-bottom: 5px;">
-    <div class="col-xs-8">
-      <a class="btn btn-sm btn-success device_select_ui" data-role="discover">Start Discover</a>
-      <label id="device_label" class="device_control_ui"></label>
-    </div>
-    <div class="col-xs-4 text-right">
-      <a class="btn btn-sm btn-warning device_control_ui" data-role="reset-control">
-        <i class="glyphicon glyphicon-repeat"></i>
-        Reset Connection
-      </a>
-      <a href="#" class="btn btn-sm btn-default device_control_ui" data-role="end-control">
-        <i class="glyphicon glyphicon-th-list"></i>
-        Back to device lists
-      </a>
-    </div>
-  </div>
-  <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
       <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
     </div>
   </div>
-  <div class="container-fluid device_control_ui">
+  <div class="container-fluid">
     <div class="col-xs-12">
       <div style="margin: 5px 0">
         懶懶 DER
@@ -424,7 +389,7 @@
       </div>
     </div>
   </div>
-  <div class="container-fluid device_control_ui">
+  <div class="container-fluid">
     <div class="col-xs-12">
       <div class="input-group input-group">
         <span class="input-group-addon">
@@ -452,7 +417,7 @@
       </div>
     </div>
   </div>
-  <div class="container-fluid device_control_ui" style="margin-top: 10px;">
+  <div class="container-fluid" style="margin-top: 10px;">
     <div class="col-xs-12">
       <span class="btn btn-xs btn-default fileinput-button">
           <i class="glyphicon glyphicon-upload"></i>

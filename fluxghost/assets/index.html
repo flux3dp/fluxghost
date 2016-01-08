@@ -6,22 +6,110 @@
   <script src="res/bootstrap/js/bootstrap.min.js"></script>
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
+  <link href="res/shared.css" rel="stylesheet" />
+  <script>
+    $(window).ready(function() {
+      var ws = new WebSocket("ws://" + window.location.host + "/ws/ver");
+      ws.onopen = function() {
+        console.log("/ws/ver Connected");
+      };
+      ws.onmessage = function(m) {
+        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
+        $("[data-tag=fluxclient]").
+          text("fluxclient " + payload.fluxclient).
+          fadeIn(1200);
+        setTimeout(function() {
+          $("[data-tag=fluxghost]").
+            text("fluxghost " + payload.fluxghost).
+            fadeIn(1200);
+        }, 900);
+      }
+    });
+  </script>
+  <style>
+  body {
+    background-color: rgb(11, 16, 19);
+    background-attachment: scroll;
+    background-image: url("res/texture.png");
+    color: #FCFAF2;
+  }
+
+  .bgmask {
+    z-index: -100;
+    position: absolute;
+    top: 0;
+    background-attachment: scroll;
+    background-image: url("res/gloss.png");
+    height: 478px;
+    width: 100%;
+  }
+
+  ol.breadcrumb {
+    background-color: initial;
+    color: #FCFAF2;
+  }
+
+  .task {
+    margin: 0.4em;
+  }
+  .task a {
+    background-image: url("res/texture.png");
+    display: block;
+    border: 1px gray solid;
+    border-radius: 0.1em;
+    padding: 0.3em 0.4em;
+    width: 20em;
+    color: #FEDFE1;
+    opacity: 1;
+    transition: 0.1s;
+  }
+
+  .task a:hover {
+    text-decoration: none;
+    color: #724832;
+    background-color: #FEDFE1;
+  }
+  </style>
 </head>
 <body>
-  <div class="container"><h1>./fluxghost/assets/index.html</h1></div>
-  <hr />
-  <div class="container">
-    <div><label>General</label></div>
-    <ul>
-      <li><a href="echo.html">Echo</a></li>
-    </ul>
-    <div><label>Device Related</label></div>
-    <ul>
-      <li><a href="discover.html">Discover</a></li>
-      <li><a href="touch.html">Touch</a></li>
-      <li><a href="control.html">Control</a></li>
-      <li><a href="usb-config.html">Usb Config</a></li>
-    </ul>
+  <div class="bgmask"></div>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li>Ghost</li>
+      <li data-tag="fluxclient" style="display: none">fluxclient ...</li>
+      <li data-tag="fluxghost" style="display: none">fluxghost ...</li>
+    </ol>
   </div>
+  <div class="container" style="padding-bottom: 0.3em; border-bottom: 1px gray solid">
+    <img src="res/flux-light.png" height="42px"/>
+  </div>
+  <div class="container a" style="padding: 0.5em; font-size: 1.2em">
+    What do you want?
+  </div>
+  <div class="container" style="padding: 0.5em; font-size: 1.2em">
+    <div class="task">
+      <a href="discover.html">Devices dashboard</a>
+    </div>
+    <div class="task">
+      <a href="#">
+        <span>G-code</span>
+        <span class="glyphicon glyphicon-arrow-right"></span>
+        <span>F-code</span>
+        <span style="font-size: 0.5em">(無法使用)</span>
+      </a>
+    </div>
+    <div class="task">
+      <a href="#">
+        <span>F-code</span>
+        <span class="glyphicon glyphicon-arrow-right"></span>
+        <span>G-code</span>
+        <span style="font-size: 0.5em">(無法使用)</span>
+      </a>
+    </div>
+    <div class="task">
+      <a href="usb-config.html">Setting device via USB</a>
+    </div>
+  </div>
+  <div class="text-center foot">FLUX Inc. All Rights Reserved.</div>
 </body>
 </html>

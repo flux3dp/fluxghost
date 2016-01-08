@@ -1,0 +1,64 @@
+
+body {
+    min-width: 1024px;
+}
+
+.body-bg {
+}
+
+.banner {
+    margin-top: 0.5em;
+}
+
+.device {
+    border-radius: 4px;
+    margin-bottom: 1em;
+    border: 1px #ccc solid;
+}
+
+.device .profile {
+    padding: 0.4em 0;
+    height: 5.2em;
+}
+
+.device .details {
+    background-color: #eee;
+    font-size: 0.9em;
+    padding: 0.2em;
+}
+
+.device .nickname {
+    white-space: nowrap;
+}
+
+[data-mode=""] .playing {
+    display: none;
+}
+
+[data-mode="playing"] .playing {
+    display: block;
+}
+
+[data-mode=""] [data-tag="st_prog"] {
+    display: none;
+}
+
+[data-tag="st_prog"] {
+    font-size: 0.8em;
+}
+
+.device .playing {
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+}
+.device .playing .progress {
+    margin-bottom: 0;
+    margin-top: 0.5em;
+    height: 0.8em;
+}
+
+
+[data-st-id="offline"] {
+    background-color: #ccc;
+    opacity: 0.5;
+}
