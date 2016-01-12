@@ -7,7 +7,45 @@
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
+  <link href="res/shared.css" rel="stylesheet" />
   <style>
+  .file-node {
+    overflow: hidden;
+  }
+
+  .file-node:hover {
+    z-index: 100;
+    overflow: initial;
+  }
+
+
+  .file-node a {
+    cursor: pointer;
+  }
+
+  .file-node .file-node-container {
+    white-space: nowrap;
+    padding: 0.2em 0.4em;
+    border: 1px white solid;
+  }
+
+  .file-node:hover .file-node-container {
+    background-color: #FEDFE1;
+    border: 1px gray solid;
+  }
+
+  .file-node a[data-tag="info"] {
+    display: none;
+  }
+
+  .file-node:hover a[data-tag="info"] {
+    display: initial;
+  }
+
+  .file-node:hover a[data-tag="select"] {
+    display: inline-block;
+  }
+
   .fileinput-button {
     position: relative;
     overflow: hidden;
@@ -35,10 +73,6 @@
   </style>
   <script>
   function beginControl(uuid, name) {
-    stopDiscover()
-    $(".device_select_ui").hide();
-    $(".device_control_ui").show();
-
     $("#device_label").
       text(name + " (" + uuid + ")").
       attr("data-serial", uuid);
@@ -79,7 +113,6 @@
 
           ws.onmessage = cb_standard;
           send_ping();
-          send_cmd("position");
         } else {
           appendLog("✗ Error: "+ m.data + " 😭", "red");
         }
@@ -98,43 +131,86 @@
     var payload;
     try {
       payload = JSON.parse(m.data);
-    } catch (e) {}
+    } catch (e) {
+      appendLog(m.data, "#F05E1C");
+      return;
+    }
 
-    if(payload != undefined && payload.status === "ok" &&
-       payload.path != undefined && payload.directories != undefined &&
-       payload.files != undefined) {
-      // List file
-      appendLog("List " + payload.path + ":");
-
-      var path = payload.path;
-      if(path != "" && path[path.length - 1] != "/") {
-        path = path + "/";
+    if(payload.status === "ok") {
+      if(payload.task != undefined) {
+        $("[data-cmd-group]").hide()
+        if(payload.task === "") {
+          $("[data-tag=current_task]").text("");
+          $("[data-cmd-group=root]").show();
+        } else {
+          $("[data-tag=current_task]").text(payload.task);
+          $("[data-cmd-group=" + payload.task + "]").show();
+        }
+        appendLog("ok");
+        return;
       }
+      if(payload.path != undefined) {
+        appendLog("List " + payload.path + ":");
 
-      for(var i=0;i<payload.directories.length;i++) {
-        var dirname = payload.directories[i];
-        var $row = $("<div></div>");
-        $row.append($("<span>Dir&nbsp;</span>"));
-        $row.append(
-          $("<a></a>").
-            css("cursor", "pointer").
-            attr("data-cmd", "ls " + path + dirname).
-            text("[" + path + dirname + "]"));
-        appendHtmlLog($row);
-      }
+        var path = payload.path;
+        if(path != "" && path[path.length - 1] != "/") {
+          path = path + "/";
+        }
 
-      for(var i=0;i<payload.files.length;i++) {
-        var filename = payload.files[i];
-        var $row = $("<div></div>");
-        $row.append($("<span>File&nbsp;</span>"));
-        $row.append(
-          $("<a></a>").
-            css("cursor", "pointer").
-            attr("data-cmd", "select " + path + filename).
-            text("[" + path + filename + "]"));
-        appendHtmlLog($row);
+        if(payload.directories != undefined) {
+          var $row = $('<div class="row"></div>');
+          for(var i=0;i<payload.directories.length;i++) {
+            var dirname = payload.directories[i];
+            var $item = $(' \
+              <div class="col-xs-3 col-md-2 col-lg-1 file-node"> \
+                <span class="file-node-container"> \
+                  <span class="glyphicon glyphicon-folder-close"></span> \
+                    <a style="cursor: pointer;" > \
+                      <span data-tag="name"></span> \
+                    </a> \
+                  </span> \
+                </span> \
+              </div>');
+            $("a", $item).attr("data-cmd", "file ls " + path + dirname);
+            $("[data-tag=name]", $item).text("[" + path + dirname + "]");
+            $row.append($item);
+            appendHtmlLog($row);
+          }
+        }
+
+        if(payload.files) {
+          var $row = $('<div class="row"></div>');
+          for(var i=0;i<payload.files.length;i++) {
+            var filename = payload.files[i];
+            var $item = $(' \
+              <div class="col-xs-3 col-md-2 col-lg-1 file-node"> \
+                <span class="file-node-container"> \
+                  <span class="glyphicon glyphicon-picture"></span> \
+                  <a data-tag="select" style="cursor: pointer;"> \
+                    <span data-tag="name"></span> \
+                  </a> \
+                  <a data-tag="info" class="btn btn-xs btn-default"> \
+                    <span class="glyphicon glyphicon-info-sign"></span> \
+                  </a> \
+                </span> \
+                </span> \
+              </div>');
+            $("a[data-tag=select]", $item).attr("data-cmd", "select " + path + filename);
+            $("a[data-tag=info]", $item).attr("data-cmd", "file info " + path + filename);
+            $("[data-tag=name]", $item).text("[" + filename + "]");
+            $row.append($item);
+            appendHtmlLog($row);
+          }
+        }
+        return;
       }
-    } else if(payload != undefined && payload.status === "pong") {
+      if(payload.cmd === "md5") {
+        appendLog("MD5 " + payload.file + " " + payload.md5);
+        return;
+      }
+    }
+
+    if(payload != undefined && payload.status === "pong") {
       setTimeout(send_ping, 30 * 1000);
     } else {
       var lines = m.data.split("\n");
@@ -149,7 +225,7 @@
       var data = JSON.parse(m.data)
 
       if(data.status === "continue") {
-        appendLog("Uploading file, do not send any commnad before you recive 'ok'");
+        appendLog("Uploading file...");
         var reader = new FileReader();
         reader.onload = file_uploader;
         reader.readAsArrayBuffer(window.upload_file)
@@ -165,7 +241,33 @@
   }
 
   function file_uploader(f) {
+    appendLog("File opened");
     window.control_ws.send(f.target.result);
+    var $prog = $(' \
+      <div style="padding: 0 2em;"> \
+        <span class="text_prog"></span> \
+      </div> \
+      <div class="progress" style="height: 0.5em; margin-bottom: 0.05em;"> \
+        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"> \
+        </div> \
+      </div> \
+      <div style="font-size: 5px !important; margin-bottom: 0.5em;"> \
+        Note: 檔案上傳有快有慢，進度條進度僅供使用者參考不代表設備實際狀況，機器不動時請先詳閱檔案上傳狀態。\
+      </div>');
+    appendHtmlLog($prog);
+
+    var updator = function() {
+      var p = 1 - (window.control_ws.bufferedAmount / f.target.result.byteLength);
+      p = Math.round(p * 1000) / 10;
+      $(".progress-bar", $prog).css("width", p + "%");
+      $(".text_prog", $prog).text(
+        window.control_ws.bufferedAmount + " byte(s) left");
+      if(window.control_ws.bufferedAmount > 0) {
+        setTimeout(updator, 500);
+      }
+    }
+    updator()
+    setTimeout(updator, 500);
   }
 
   function send_cmd(cmd) {
@@ -185,16 +287,6 @@
   }
 
   $(window).ready(function() {
-    $('[data-toggle="tooltip"]').tooltip();
-
-    $("[data-role=discover]").on("click", function() {
-      if(window.discover_ws) {
-        stopDiscover()
-      } else {
-        startDiscover()
-      }
-    });
-
     $("[data-role=reset-control]").on("click", function() {
       connectControl();
     });
@@ -228,8 +320,6 @@
       }
     });
 
-    $(".device_control_ui").hide();
-
     // Upload File Codes
     $("input[name=file]").on("change", function(evt) {
       var f = evt.target.files[0];
@@ -252,13 +342,14 @@
       }
 
       if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-        if($(this).attr("data-file-cmd") == "upload_g"){
-          var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size + " # 1";
-          control_ws.flag = "g";
+        if($(this).attr("data-file-cmd") == "upload2sd"){
+          var target = prompt("Give SD location (like 'myfcode.fc'");
+          var cmd = "upload " + " " + mimetype + " " + 
+                      f.size + " SD/" + target;
+          console.log(cmd);
         }
         else{
           var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
-          control_ws.flag = "normal";
         }
 
         appendLog("Start uploading... (" + cmd + ")")
@@ -274,87 +365,41 @@
     // End Upload File Codes
 
     // Begin UI
-    $(window).bind('hashchange', function(e) {
-      var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
-      if(matchs != undefined && matchs.length == 1) {
-        var tags = matchs[0].split(";");
-        var serial = tags[0].substr(1);
-        var name = tags.slice(1).join(";");
+    var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    if(matchs != undefined && matchs.length == 1) {
+      var tags = matchs[0].split(";");
+      var serial = tags[0].substr(1);
+      var name = tags.slice(1).join(";");
 
-        beginControl(serial, name);
-      } else {
-        $(".device_select_ui").show();
-        $(".device_control_ui").hide();
-        startDiscover();
-      }
-    }).trigger("hashchange");;
+      beginControl(serial, name);
+    } else {
+      window.location = "discover.html";
+    }
   });
   </script>
 </head>
 <body>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li><a href="discover.html">Control</a></li>
+      <li>
+        <span id="device_label"></span>
+        <a class="btn btn-xs btn-warning" data-role="reset-control">
+          <i class="glyphicon glyphicon-repeat"></i>
+        </a>
+      </li>
+    </ol>
+  </div>
   <div class="container-fluid">
-    <div class="row" style="padding-top: 1em">
-      <div class="col-xs-10">
-        <strong>./fluxghost/assets/control.html</strong>
-      </div>
-      <div class="col-xs-2">
-        <a href="index.html" class="btn btn-xs btn-primary">Back to Index</a>
-      </div>
-    </div>
-  </div>
-  <hr />
-  <div class="container-fluid device_select_ui" id="devices"></div>
-  <div class="container-fluid" style="margin-bottom: 5px;">
-    <div class="col-xs-8">
-      <a class="btn btn-sm btn-success device_select_ui" data-role="discover">Start Discover</a>
-      <label id="device_label" class="device_control_ui"></label>
-    </div>
-    <div class="col-xs-4 text-right">
-      <a class="btn btn-sm btn-warning device_control_ui" data-role="reset-control">
-        <i class="glyphicon glyphicon-repeat"></i>
-        Reset Connection
-      </a>
-      <a href="#" class="btn btn-sm btn-default device_control_ui" data-role="end-control">
-        <i class="glyphicon glyphicon-th-list"></i>
-        Back to device lists
-      </a>
-    </div>
-  </div>
-  <div class="container-fluid device_control_ui">
     <div class="col-xs-12">
       <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
     </div>
   </div>
-  <div class="container-fluid device_control_ui">
+  <div class="container-fluid">
     <div class="col-xs-12">
-      <div style="margin: 5px 0">
-        懶懶 DER
-        <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
-        <span data-cmd="ls" class="btn btn-xs btn-default">List files</span>
-        <div class="btn-group btn-xs dropup">
-          <span data-cmd="task start" class="btn btn-xs btn-primary"><i class="glyphicon glyphicon-fire"></i> Start</span>
-          <span data-cmd="play info" class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Playing Info"><i class="glyphicon glyphicon-info-sign"></i></span>
-          <span data-cmd="play pause" class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause"><i class="glyphicon glyphicon-pause"></i></span>
-          <span data-cmd="play resume" class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume"><i class="glyphicon glyphicon-play"></i></span>
-          <span data-cmd="play abort" class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort"><i class="glyphicon glyphicon-eject"></i></span>
-        </div>
-        <div class="btn-group btn-xs dropup">
-          <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
-          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <span class="caret"></span>
-              <span class="sr-only">Toggle Dropdown</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li data-cmd="maintain load_filament 0 210" style="cursor: pointer"><a>Load filament</a></li>
-            <li data-cmd="maintain unload_filament 0 210" style="cursor: pointer"><a>Unload filament</a></li>
-            <li data-cmd="maintain calibrating" style="cursor: pointer"><a>Level calibrating</a></li>
-            <li data-cmd="maintain calibrating clean" style="cursor: pointer"><a>Level calibrating (from 0)</a></li>
-            <li data-cmd="maintain zprobe" style="cursor: pointer"><a>Z-probe</a></li>
-            <li data-cmd="maintain home" style="cursor: pointer"><a>Home</a></li>
-            <li data-cmd="maintain headinfo" style="cursor: pointer"><a>Headinfo</a></li>
-          </ul>
-        </div>
-        <span data-cmd="raw" class="btn btn-xs btn-info">Raw</span>
+      <div style="margin: 0.5em 0; display: none" data-cmd-group="raw">
+        <span>Mainboard</span>
         <span data-cmd="G28" class="btn btn-xs btn-primary">G28</span>
         <div class="btn-group btn-xs dropup">
           <span data-cmd="G92 E0,G1F250E50" class="btn btn-xs btn-default">送料</span>
@@ -383,6 +428,10 @@
             <li data-cmd="G92E0,G1F120E10" style="cursor: pointer"><a>擠少少</a></li>
           </ul>
         </div>
+
+        <span> | Head </span>
+        <span data-cmd="1 DEBUG" class="btn btn-xs btn-default">Enable Head</span>
+        <span data-cmd="1 PING *33" class="btn btn-xs btn-default">Ping Head</span>
         <div class="btn-group btn-xs dropup">
           <span data-cmd="-1 H:0 T:200 *15" class="btn btn-xs btn-default">Temp 200</span>
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -394,9 +443,76 @@
             <li data-cmd="-1 H:0 T:190 *5" style="cursor: pointer"><a>Temp 190</a></li>
           </ul>
         </div>
-        <span data-cmd="-1 ping *33" class="btn btn-xs btn-default">Ping Head</span>
         <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
-        <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
+      </div>
+
+      <div style="margin: 0.5em 0; display: none" data-cmd-group="maintain">
+        <!-- filament -->
+        <span data-cmd="maintain load_filament 0 210" class="btn btn-xs btn-default">Load filament</span>
+        <span data-cmd="maintain unload_filament 0 210" class="btn btn-xs btn-default">Unload filament</span>
+
+        <!-- calibrating -->
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="maintain calibrating" class="btn btn-xs btn-default">Calibrating</span>
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li data-cmd="maintain calibrating clean" style="cursor: pointer"><a>From clean</a></li>
+          </ul>
+        </div>
+
+        <span data-cmd="maintain zprobe" class="btn btn-xs btn-default">
+          Z-probe
+        </span>
+
+        <span data-cmd="maintain home" class="btn btn-xs btn-default">
+          Home
+        </span>
+
+        <span data-cmd="maintain headinfo" class="btn btn-xs btn-default">
+          Head Info
+        </span>
+
+        <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
+      </div>
+      <div style="margin: 0.5em 0" data-cmd-group="root">
+        <!-- Report -->
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
+          <span class="btn btn-xs btn-default">
+            <span class="glyphicon glyphicon-new-window"></span>
+          </span>
+        </div> 
+
+        <!-- List file -->
+        <span data-cmd="file ls" class="btn btn-xs btn-default">
+          <span class="glyphicon glyphicon-folder-open"></span> List files
+        </span>
+
+        <!-- Play -->
+        <span> | Play</span>
+        <div class="btn-group btn-xs">
+          <span data-cmd="play start" class="btn btn-xs btn-primary"><i class="glyphicon glyphicon-fire"></i> Start</span>
+          <span data-cmd="play info" class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Playing Info">
+            <i class="glyphicon glyphicon-info-sign"></i> Play info</span>
+          <span data-cmd="play pause" class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause">
+            <i class="glyphicon glyphicon-pause"></i> Pause</span>
+          <span data-cmd="play resume" class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
+            <i class="glyphicon glyphicon-play"></i> Resume</span>
+          <span data-cmd="play abort" class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
+            <i class="glyphicon glyphicon-eject"></i> Abort</span>
+        </div>
+
+        <!-- Tasks -->
+        <span> | Tasks</span>
+        <div class="btn-group btn-xs dropup">
+          <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
+          <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
+          <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
+        </div>
+
         <div class="btn-group btn-xs dropup">
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <span>Config</span>
@@ -420,18 +536,41 @@
             <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
           </ul>
         </div>
-        <span data-cmd="position" class="btn btn-xs btn-default">Position</span>
+
+        <!-- Update Device -->
+        <div class="btn-group btn-xs dropup">
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span>Update Device</span>
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li style="cursor: pointer; background-color: #E87A90"><a class="fileinput-button">
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>** Update Mainboard Fireware **</span>
+              <input type="file" class="fileinput-button" data-file-cmd="update_mbfw" name="file" />
+            </a></li>
+            <li style="cursor: pointer"><a class="fileinput-button">
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>Update Device Fireware</span>
+              <input type="file" class="fileinput-button" data-file-cmd="update_fw" name="file" />
+            </a></li>
+          </ul>
+        </div>
+
+        <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
       </div>
     </div>
   </div>
-  <div class="container-fluid device_control_ui">
+  <div class="container-fluid">
     <div class="col-xs-12">
       <div class="input-group input-group">
         <span class="input-group-addon">
           <i class="glyphicon glyphicon-console"></i>
+          <span data-tag="current_task"></span>
         </span>
         <input id="controlcmd" type="text" class="form-control" autocomplete="off" />
-        <div class="input-group-btn dropup">
+        <div data-cmd-group="root" class="input-group-btn dropup">
           <span class="btn btn-primary fileinput-button">
               <i class="glyphicon glyphicon-upload"></i>
               <span>Upload</span>
@@ -444,26 +583,12 @@
           <ul class="dropdown-menu dropdown-menu-right">
             <li class="fileinput-button"><a>
               <i class="glyphicon glyphicon-upload"></i>
-              <span>Upload As Fcode</span>
-              <input type="file" class="fileinput-button" data-file-cmd="upload_g" name="file" />
+              <span>Upload To SD</span>
+              <input type="file" class="fileinput-button" data-file-cmd="upload2sd" name="file" />
             </a></li>
           </ul>
         </div>
       </div>
-    </div>
-  </div>
-  <div class="container-fluid device_control_ui" style="margin-top: 10px;">
-    <div class="col-xs-12">
-      <span class="btn btn-xs btn-default fileinput-button">
-          <i class="glyphicon glyphicon-upload"></i>
-          <span>** Update Device Fireware **</span>
-          <input type="file" class="fileinput-button" data-file-cmd="update_fw" name="file" />
-      </span>
-      <span class="btn btn-xs btn-danger fileinput-button">
-          <i class="glyphicon glyphicon-upload"></i>
-          <span>** Update Mainboard Fireware **</span>
-          <input type="file" class="fileinput-button" data-file-cmd="update_mbfw" name="file" />
-      </span>
     </div>
   </div>
 </body>

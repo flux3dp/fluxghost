@@ -7,33 +7,295 @@
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
+  <link href="res/shared.css" rel="stylesheet" />
   <script>
+  function updateAttribute($dom, key, value) {
+    var attr = "data-" + key;
+    if($dom.attr(attr) == value) {
+      return false;
+    } else {
+      $dom.attr(attr, value);
+      return true;
+    }
+  }
+
+  function occupiedLabel(st_id) {
+    switch(st_id) {
+      case -1:
+        return "Maintain";
+      case -2:
+        return "Scan";
+      case -10:
+        return "Raw";
+      default:
+        return "(;ﾟдﾟ)";
+    }
+  }
+
+  function updateBasicProfile($dom, payload) {
+    if(payload.password != undefined) {
+      if(updateAttribute($dom, "password", payload.password)) {
+        if(payload.password) {
+          $(".glyphicon.glyphicon-lock", $dom).show();
+        } else {
+          $(".glyphicon.glyphicon-lock", $dom).hide();
+        }
+      }
+    }
+
+    if(payload.name !== undefined) {
+      if(updateAttribute($dom, "nickname", payload.name)) {
+        $(".nickname", $dom).text(payload.name);
+        $("a.nickname", $dom).attr("href", "control.html#" + payload.uuid + ";" + payload.name);
+      }
+    }
+
+    if(payload.version !== undefined) {
+      if(updateAttribute($dom, "version", payload.version)) {
+        $("[data-tag=version]", $dom).text(payload.version);
+      }
+    }
+
+    if(payload.ipaddr !== undefined) {
+      if(updateAttribute($dom, "ipaddr", payload.ipaddr)) {
+        $("[data-tag=ipaddr]", $dom).text(payload.ipaddr);
+      }
+    }
+  }
+
+  function updateDevice($dom, payload) {
+    if(payload.serial == "B11AZ30008") {
+      window.aa = payload;
+    }
+    updateBasicProfile($dom, payload);
+
+    if(payload.alive == false) {
+      $("[data-st-id]", $dom).attr("data-st-id", "offline");
+    }
+
+    if(payload.st_id !== undefined) {
+      var st_id = payload.st_id;
+      $("[data-st-id]", $dom).attr("data-st-id", st_id);
+
+      var $stlabel = $("[data-tag=st-label]", $dom);
+      $stlabel.removeClass (function (index, css) {
+          return (css.match (/(^|\s)label-\S+/g) || []).join(' ');
+      });
+
+      if(st_id === 0) {
+        $dom.attr("data-mode", "");
+        $stlabel.addClass("label-info").text("Idle");
+      } else if(st_id < 0) {
+        $dom.attr("data-mode", "");
+        var label = "Occupied :: " + occupiedLabel(st_id) + " by " + payload.error_label;
+        $stlabel.addClass("label-default").text(label);
+      } else {
+        var st_prog = Math.round(payload.st_prog * 1000) / 10;
+        if(st_id == 68 || st_id == 64) {
+          st_prog = 100;
+        }
+
+        $dom.attr("data-mode", "playing");
+        $("[data-tag=st_prog]", $dom).text(st_prog + "%");
+        $(".playing-bar", $dom).show();
+
+        var $progbar = $(".progress-bar", $dom);
+        $progbar.removeClass (function (index, css) {
+            return (css.match (/(^|\s)progress-bar-\S+/g) || []).join(' ');
+        });
+
+        switch(st_id) {
+          case 1:
+            $stlabel.addClass("label-primary").text(payload.st_label);
+            $progbar.
+              css("width", "0%");
+            break;
+          case 4:
+            $stlabel.addClass("label-primary").text(payload.st_label);
+            $progbar.
+              css("width", "0%");
+            break;
+          case 16:
+            window.aa = payload;
+            $stlabel.addClass("label-primary").text(payload.st_label || "RUNNING");
+            $progbar.
+              css("width", st_prog);
+            break;
+          case 38:
+          case 50:
+            if(payload.error_label) {
+              $stlabel.addClass("label-warning").
+                text("PAUSING :: " + payload.error_label);
+            } else {
+              $stlabel.addClass("label-warning").text("PAUSING");
+            }
+            $progbar.
+              css("width", st_prog).
+              addClass("progress-bar-warning progress-bar-striped");
+            break;
+          case 48:
+            if(payload.error_label) {
+              $stlabel.addClass("label-warning").
+                text("PAUSED :: " + payload.error_label);
+            } else {
+              $stlabel.addClass("label-warning").text("PAUSED");
+            }
+            $progbar.
+              css("width", st_prog).
+              addClass("progress-bar-warning progress-bar-striped");
+            break;
+          case 6:
+          case 18:
+            $stlabel.addClass("label-primary").text("RESUMING");
+            $progbar.
+              css("width", st_prog).
+              addClass("progress-bar-striped");
+            break;
+          case 66:
+            $stlabel.addClass("label-success").text("COMPLETING");
+            $progbar.
+              css("width", "100%").
+              addClass("progress-bar-success progress-bar-striped");
+            break;
+          case 64:
+            $stlabel.addClass("label-success").text("COMPLETED");
+            $progbar.css("width", "100%").addClass("progress-bar-success");
+            break;
+          case 130:
+            if(payload.error_label) {
+              $stlabel.addClass("label-danger").
+                text("ABORTING :: " + payload.error_label);
+            } else {
+              $stlabel.addClass("label-danger").text("ABORTING");
+            }
+            $progbar.
+              css("width", st_prog).
+              addClass("progress-bar-danger progress-bar-striped");
+            break;
+          case 128:
+            if(payload.error_label) {
+              $stlabel.addClass("label-danger").
+                text("ABORTED :: " + payload.error_label);
+            } else {
+              $stlabel.addClass("label-danger").text("ABORTED");
+            }
+            $progbar.
+              css("width", st_prog).
+              addClass("progress-bar-danger progress-bar-striped");
+            break;
+          case null:
+            $stlabel.addClass("label-default").text("UNKNOWN");
+          default:
+            $stlabel.
+              addClass("label-danger").
+              text("UNKNOWN :: " + st_id);
+        }
+
+        $(".progress-bar", $dom).
+          css("width", st_prog + "%");
+      }
+    }
+  }
+
+  function len(str) {
+    // Matches only the 10.. bytes that are non-initial characters in a multi-byte sequence.
+    var m = encodeURIComponent(str).match(/%[89ABab]/g);
+    return str.length + (m ? m.length : 0);
+  }
+
+  function insertDeviceIntoList($dom) {
+    var $objects = $("#devices").children();
+    var name = $(".nickname", $dom).text();
+    for(var i=0;i<$objects.length;i++) {
+      var $obj = $($objects[i]);
+      var oname = $(".nickname", $obj).text();
+      if(oname > name) {
+        $dom.insertBefore($obj);
+        return;
+      }
+    }
+    $("#devices").append($dom);
+  }
+
+  function createDeviceDom(uuid, serial, nickname) {
+    console.log("Add device: " + uuid);
+    var $d = $(
+      '<div class="col-xs-4 col-lg-3"> \
+        <div class="device" data-st-id="offline"> \
+          <div class="profile"> \
+            <div class="clearfix"> \
+              <div class="col-xs-11" style="white-space: nowrap; overflow: hidden"> \
+                <span class="glyphicon glyphicon-lock" style="font-size: 0.8em"></span> \
+                <a target="_blank" class="nickname"></a> \
+              </div> \
+            </div> \
+            <div class="clearfix"> \
+              <div class="col-xs-12 text-right"> \
+                <span data-tag="st_prog">10%</span> \
+                <span data-tag="st-label" class="label"></span> \
+              </div> \
+            </div> \
+            <div class="playing"> \
+              <div class="progress"> \
+                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div> \
+              </div> \
+            </div> \
+          </div> \
+          <div class="details"> \
+            <span class="serial"></span> \
+            <span>/</span> \
+            <span data-tag="ipaddr"></span> \
+            <span>/</span> \
+            <span data-tag="version"></span> \
+          </div> \
+        </div> \
+      </div>').attr("data-device", uuid);
+    $(".serial", $d).text(serial);
+    $("a.nickname", $d).attr("href", "control.html#" + uuid + ";" + nickname);
+    return $d;
+  }
+
+  function processDeviceInfo(uuid, dataset) {
+    var $dom = $("[data-device=" + uuid + "]", "#devices");
+    if($dom.length === 0) {
+      $dom = createDeviceDom(uuid, dataset.serial, dataset.name);
+      updateDevice($dom, dataset);
+      insertDeviceIntoList($dom);
+    } else {
+      updateDevice($dom, dataset);
+    }
+  }
+
   $(window).ready(function() {
     window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
     window.discover_ws.onopen = function() {
       appendLog("Connected", "#0000aa");
     };
+
     window.discover_ws.onclose = ws_close_handler("Discover");
     window.discover_ws.onmessage = function(m) {
-      var payload = JSON.parse(m.data);
-
-      if(payload.alive) {
-        var logtext = " + " + payload.name + " (" + payload.serial + ") VER: " + payload.version + " FROM " + payload.source + (payload.password?" with":" without") + " password" ;
-        appendLog(logtext, "#0000aa");
-      } else {
-        var logtext = " - " + payload.serial;
-        appendLog(logtext, "red");
-      }
+      try {
+        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
+        if (payload.uuid) {
+          processDeviceInfo(payload.uuid, payload);
+        } else {
+          console.log("Payload does not contain uuid");
+        }
+      } catch (err) {
+        console.log("Can not handle discover message: '" + m.data + "', err=" + err);
+      } 
     }
   });
   </script>
 </head>
 <body>
-  <div class="container"><h1>./fluxghost/assets/discover.html</h1></div>
-  <hr />
-  <div class="container"><div class="navbar">
-    <a href="index.html" class="btn btn-primary">Back to Index</a>
-  </div></div>
-  <div class="container" id="log"></div>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li>Control</li>
+    </ol>
+  </div>
+  <div class="container-fluid" id="devices"></div>
+  <div id="log" style="display: none"></div>
 </body>
 </html>

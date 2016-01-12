@@ -13,7 +13,7 @@ logger = logging.getLogger("WS.USBCONFIG")
 
 # TODO
 """
-This is a simple ECHO websocket for testing only
+This is a simple Usb websocket for testing only
 
 Javascript Example:
 

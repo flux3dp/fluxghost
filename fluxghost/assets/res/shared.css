@@ -1,0 +1,84 @@
+
+body {
+    min-width: 1024px;
+}
+
+body.dark {
+    background-color: rgb(11, 16, 19);
+    background-attachment: scroll;
+    background-image: url("texture.png");
+    color: #FCFAF2;
+}
+
+body.dark .bgmask {
+    z-index: -100;
+    position: absolute;
+    top: 0;
+    background-attachment: scroll;
+    background-image: url("gloss.png");
+    height: 478px;
+    width: 100%;
+}
+
+body.dark ol.breadcrumb {
+    background-color: initial;
+    color: #FCFAF2;
+}
+
+
+.banner {
+    margin-top: 0.5em;
+}
+
+.device {
+    border-radius: 4px;
+    margin-bottom: 1em;
+    border: 1px #ccc solid;
+}
+
+.device .profile {
+    padding: 0.4em 0;
+    height: 5.2em;
+}
+
+.device .details {
+    background-color: #eee;
+    font-size: 0.9em;
+    padding: 0.2em;
+}
+
+.device .nickname {
+    white-space: nowrap;
+}
+
+[data-mode=""] .playing {
+    display: none;
+}
+
+[data-mode="playing"] .playing {
+    display: block;
+}
+
+[data-mode=""] [data-tag="st_prog"] {
+    display: none;
+}
+
+[data-tag="st_prog"] {
+    font-size: 0.8em;
+}
+
+.device .playing {
+    padding-left: 0.2em;
+    padding-right: 0.2em;
+}
+.device .playing .progress {
+    margin-bottom: 0;
+    margin-top: 0.5em;
+    height: 0.8em;
+}
+
+
+[data-st-id="offline"] {
+    background-color: #ccc;
+    opacity: 0.5;
+}

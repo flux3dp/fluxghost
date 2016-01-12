@@ -39,7 +39,6 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 class WebsocketControlBase(WebSocketBase):
     robot = None
-    simple_mapping = None
     cmd_mapping = None
 
     def __init__(self, request, client, server, path, serial):
@@ -80,7 +79,6 @@ class WebsocketControlBase(WebSocketBase):
         if self.robot:
             self.robot.close()
             self.robot = None
-        self.simple_mapping = None
         self.cmd_mapping = None
 
     def _disc_callback(self, *args):
@@ -115,10 +113,14 @@ class WebsocketControl(WebsocketControlBase):
         except RuntimeError:
             pass
 
-    def fast_wrapper(self, func):
+    def fast_wrapper(self, func, cmd=None):
         def wrapper(*args, **kw):
             try:
-                self.send_text('{"status":"%s"}' % func(*args, **kw))
+                func(*args, **kw)
+                if cmd:
+                    self.send_text('{"status":"ok", "cmd": "%s"}' % cmd)
+                else:
+                    self.send_text('{"status":"ok"}')
             except RuntimeError as e:
                 self.send_error(*e.args)
             except Exception as e:
@@ -127,46 +129,50 @@ class WebsocketControl(WebsocketControlBase):
         return wrapper
 
     def set_hooks(self):
-        self.simple_mapping = {
-            "start": self.robot.start_play,
-            "pause": self.robot.pause_play,
-            "resume": self.robot.resume_play,
-            "abort": self.robot.abort_play,
-            "quit": self.robot.quit_play,
-
-            "scan": self.robot.begin_scan,
-            "scan_backward": self.robot.scan_backward,
-            "scan_next": self.robot.scan_next,
-            "kick": self.robot.kick,
-
-            "home": self.robot.maintain_home,
-
-            "task": {
-                "start": self.robot.start_play,
-                "maintain": self.robot.begin_maintain,
-                "scan": self.robot.begin_scan,
-            }
-        }
-
         self.cmd_mapping = {
+            # deprecated
+            "start": self.fast_wrapper(self.robot.start_play),
+            # deprecated
+            "pause": self.fast_wrapper(self.robot.pause_play),
+            # deprecated
+            "resume": self.fast_wrapper(self.robot.resume_play),
+            # deprecated
+            "abort": self.fast_wrapper(self.robot.abort_play),
+            # deprecated
+            "quit": self.fast_wrapper(self.robot.quit_play),
+            # deprecated
             "position": self.position,
-
+            # deprecated
             "ls": self.list_file,
+            # deprecated
             "select": self.select_file,
+            # deprecated
             "mkdir": self.mkdir,
+            # deprecated
             "rmdir": self.rmdir,
+            # deprecated
             "rmfile": self.rmfile,
+            # deprecated
             "cpfile": self.cpfile,
+            # deprecated
             "fileinfo": self.fileinfo,
+
             "upload": self.upload_file,
-            "upload_g": self.upload_file,
             "update_fw": self.update_fw,
             "update_mbfw": self.update_mbfw,
-            "oneshot": self.oneshot,
-            "scanimages": self.scanimages,
-            "raw": self.begin_raw,
 
             "report": self.report_play,
+            "kick": self.fast_wrapper(self.robot.kick),
+
+            "file": {
+                "ls": self.list_file,
+                "mkdir": self.mkdir,
+                "rmdir": self.rmdir,
+                "rmfile": self.rmfile,
+                "cpfile": self.cpfile,
+                "info": self.fileinfo,
+                "md5": self.filemd5,
+            },
 
             "maintain": {
                 "load_filament": self.maintain_load_filament,
@@ -184,6 +190,7 @@ class WebsocketControl(WebsocketControlBase):
             },
 
             "play": {
+                "start": self.fast_wrapper(self.robot.start_play),
                 "info": self.play_info,
                 "report": self.report_play,
                 "pause": self.fast_wrapper(self.robot.pause_play),
@@ -192,8 +199,17 @@ class WebsocketControl(WebsocketControlBase):
                 "quit": self.fast_wrapper(self.robot.quit_play)
             },
 
+            "scan": {
+                "backward": self.robot.scan_backward,
+                "forward": self.robot.scan_next,
+                "oneshot": self.oneshot,
+                "scanimages": self.scanimages,
+            },
             "task": {
-                "quit": self.fast_wrapper(self.robot.quit_task)
+                "maintain": self.task_begin_maintain,
+                "scan": self.task_begin_scan,
+                "raw": self.task_begin_raw,
+                "quit": self.task_quit,
             }
         }
 
@@ -267,10 +283,7 @@ class WebsocketControl(WebsocketControlBase):
         args = shlex.split(message)
 
         try:
-            if self.invoke_command(self.simple_mapping, args,
-                                   self.simple_cmd):
-                pass
-            elif self.invoke_command(self.cmd_mapping, args):
+            if self.invoke_command(self.cmd_mapping, args):
                 pass
             else:
                 logger.warn("Unknow Command: %s" % message)
@@ -323,8 +336,8 @@ class WebsocketControl(WebsocketControlBase):
                 else:
                     files.append(name)
 
-            payload = {"status": "ok", "path": location, "directories": dirs,
-                       "files": files}
+            payload = {"status": "ok", "path": location,
+                       "directories": dirs, "files": files}
             self.send_text(json.dumps(payload))
         else:
             self.send_text('{"status": "ok", "path": "", "directories": '
@@ -347,6 +360,15 @@ class WebsocketControl(WebsocketControlBase):
 
         info["status"] = "ok"
         self.send_text(json.dumps(info))
+
+    def filemd5(self, file):
+        entry, path = file.split("/", 1)
+        hash = self.robot.md5(entry, path)
+        self.send_text(json.dumps({
+            "status": "ok",
+            "cmd": "md5",
+            "file": file,
+            "md5": hash}))
 
     def mkdir(self, file):
         if file.startswith("SD/"):
@@ -374,7 +396,7 @@ class WebsocketControl(WebsocketControlBase):
         params = source.split("/", 1) + target.split("/", 1)
         self.simple_cmd(self.robot.cpfile, *params)
 
-    def upload_file(self, mimetype, size, uploadto="#", convert='0'):
+    def upload_file(self, mimetype, size, uploadto="#"):
         if uploadto == "#":
             pass
         elif uploadto.startswith("SD/"):
@@ -382,19 +404,19 @@ class WebsocketControl(WebsocketControlBase):
         elif uploadto.startswith("USB/"):
             uploadto = "USB " + uploadto[4:]
 
-        if mimetype == "text/gcode" and convert != '1':
-            self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
-            return
-        if mimetype == "text/gcode" and convert == '1':
+        if mimetype == "text/gcode":
             self.convert = io.BytesIO()
             if uploadto.endswith('.gcode'):
                 uploadto = uploadto[:-5] + 'fc'
             self.uploadto = uploadto
-        else:
+        elif mimetype == "application/fcode":
             self.convert = None
             self.binary_sock = self.robot.begin_upload(mimetype, int(size),
                                                        cmd="file upload",
                                                        uploadto=uploadto)
+        else:
+            self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
+            return
 
         self.binary_length = int(size)
         self.binary_sent = 0
@@ -413,6 +435,23 @@ class WebsocketControl(WebsocketControlBase):
         self.binary_length = int(size)
         self.binary_sent = 0
         self.send_text('{"status":"continue"}')
+
+    def task_begin_scan(self):
+        self.robot.begin_scan()
+        self.send_text('{"status":"ok", "task": "scan"}')
+
+    def task_begin_maintain(self):
+        self.robot.begin_maintain()
+        self.send_text('{"status":"ok", "task": "maintain"}')
+
+    def task_begin_raw(self):
+        self.raw_sock = RawSock(self.robot.raw_mode(), self)
+        self.rlist.append(self.raw_sock)
+        self.send_text('{"status":"ok", "task": "raw"}')
+
+    def task_quit(self):
+        self.robot.quit_task()
+        self.send_text('{"status":"ok", "task": ""}')
 
     def maintain_calibrating(self, *args):
         def callback(nav):
@@ -516,17 +555,12 @@ class WebsocketControl(WebsocketControlBase):
         self.robot.config_del(key)
         self.send_ok()
 
-    def begin_raw(self):
-        self.raw_sock = RawSock(self.robot.raw_mode(), self)
-        self.rlist.append(self.raw_sock)
-        self.send_ok()
-
     def on_raw_message(self, message):
         if message == "quit" or message == "task quit":
             self.rlist.remove(self.raw_sock)
             self.raw_sock = None
             self.robot.quit_raw_mode()
-            self.send_ok()
+            self.send_text('{"status": "ok", "task": ""}')
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
 
