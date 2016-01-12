@@ -87,7 +87,7 @@
         $stlabel.addClass("label-info").text("Idle");
       } else if(st_id < 0) {
         $dom.attr("data-mode", "");
-        var label = "Occupied :: " + occupiedLabel(st_id);
+        var label = "Occupied :: " + occupiedLabel(st_id) + " by " + payload.error_label;
         $stlabel.addClass("label-default").text(label);
       } else {
         var st_prog = Math.round(payload.st_prog * 1000) / 10;

@@ -113,10 +113,14 @@ class WebsocketControl(WebsocketControlBase):
         except RuntimeError:
             pass
 
-    def fast_wrapper(self, func):
+    def fast_wrapper(self, func, cmd=None):
         def wrapper(*args, **kw):
             try:
-                self.send_text('{"status":"%s"}' % func(*args, **kw))
+                func(*args, **kw)
+                if cmd:
+                    self.send_text('{"status":"ok", "cmd": "%s"}' % cmd)
+                else:
+                    self.send_text('{"status":"ok"}')
             except RuntimeError as e:
                 self.send_error(*e.args)
             except Exception as e:
