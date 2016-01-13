@@ -149,7 +149,7 @@
         appendLog("ok");
         return;
       }
-      if(payload.path != undefined) {
+      if(payload.cmd === "ls" && payload.path != undefined) {
         appendLog("List " + payload.path + ":");
 
         var path = payload.path;
@@ -195,7 +195,7 @@
                 </span> \
                 </span> \
               </div>');
-            $("a[data-tag=select]", $item).attr("data-cmd", "select " + path + filename);
+            $("a[data-tag=select]", $item).attr("data-cmd", "play select " + path + filename);
             $("a[data-tag=info]", $item).attr("data-cmd", "file info " + path + filename);
             $("[data-tag=name]", $item).text("[" + filename + "]");
             $row.append($item);

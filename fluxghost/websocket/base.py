@@ -2,6 +2,7 @@ from select import select
 from io import BytesIO
 from time import time
 import logging
+import json
 import os
 
 from fluxghost.utils.websocket import WebSocketHandler, ST_NORMAL, \
@@ -44,6 +45,12 @@ class WebSocketBase(WebSocketHandler):
             self.send_text('{"status": "ok", "info": "%s"}' % info)
         else:
             self.send_text('{"status": "ok"}')
+
+    def send_json(self, payload=None, **kw_payload):
+        if payload:
+            self.send_text(json.dumps(payload))
+        else:
+            self.send_text(json.dumps(kw_payload))
 
     def send_continue(self):
         self.send_text('{"status": "continue"}')
