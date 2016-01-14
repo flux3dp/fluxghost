@@ -4,7 +4,6 @@ from uuid import UUID
 import logging
 import socket
 import shlex
-import json
 import io
 from os import environ
 
@@ -162,7 +161,7 @@ class WebsocketControl(WebsocketControlBase):
             "update_mbfw": self.update_mbfw,
 
             "report": self.report_play,
-            "kick": self.fast_wrapper(self.robot.kick),
+            "kick": self.fast_wrapper(self.robot.kick, cmd="kick"),
 
             "file": {
                 "ls": self.list_file,
@@ -190,6 +189,7 @@ class WebsocketControl(WebsocketControlBase):
             },
 
             "play": {
+                "select": self.select_file,
                 "start": self.fast_wrapper(self.robot.start_play),
                 "info": self.play_info,
                 "report": self.report_play,
@@ -205,6 +205,7 @@ class WebsocketControl(WebsocketControlBase):
                 "oneshot": self.oneshot,
                 "scanimages": self.scanimages,
             },
+
             "task": {
                 "maintain": self.task_begin_maintain,
                 "scan": self.task_begin_scan,
@@ -336,65 +337,59 @@ class WebsocketControl(WebsocketControlBase):
                 else:
                     files.append(name)
 
-            payload = {"status": "ok", "path": location,
-                       "directories": dirs, "files": files}
-            self.send_text(json.dumps(payload))
+            self.send_json(status="ok", cmd="ls", path=location,
+                           directories=dirs, files=files)
         else:
-            self.send_text('{"status": "ok", "path": "", "directories": '
-                           '["SD", "USB"], "files": []}')
+            self.send_json(status="ok", cmd="ls", path="",
+                           directories=["SD", "USB"], files=[])
 
     def select_file(self, file):
         entry, path = file.split("/", 1)
         self.robot.select_file(entry, path)
-        self.send_text('{"status": "ok"}')
+        self.send_json({"status": "ok", "cmd": "select", "path": file})
 
     def fileinfo(self, file):
         entry, path = file.split("/", 1)
         info, binary = self.robot.fileinfo(entry, path)
         if binary:
-            self.send_text(json.dumps({
-                "status": "binary", "mimetype": binary[0],
-                "size": len(binary[1])
-            }))
+            self.send_json(status="binary", mimetype=binary[0],
+                           size=len(binary[1]))
             self.send_binary(binary[1])
 
         info["status"] = "ok"
-        self.send_text(json.dumps(info))
+        self.send_json(info)
 
     def filemd5(self, file):
         entry, path = file.split("/", 1)
         hash = self.robot.md5(entry, path)
-        self.send_text(json.dumps({
-            "status": "ok",
-            "cmd": "md5",
-            "file": file,
-            "md5": hash}))
+        self.send_json(status="ok", cmd="md5", file=file, md5=hash)
 
     def mkdir(self, file):
         if file.startswith("SD/"):
-            self.simple_cmd(self.robot.mkdir, "SD", file[3:])
+            self.robot.mkdir("SD", file[3:])
+            self.send_json(status="ok", cmd="mkdir", path=file)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def rmdir(self, file):
         if file.startswith("SD/"):
-            self.simple_cmd(self.robot.rmdir, "SD", file[3:])
+            self.robot.rmdir("SD", file[3:])
+            self.send_json(status="ok", cmd="rmdir", path=file)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def rmfile(self, file):
         if file.startswith("SD/"):
-            self.simple_cmd(self.robot.rmfile, "SD", file[3:])
+            self.robot.rmfile("SD", file[3:])
+            self.send_json(status="ok", cmd="rmfile", path=file)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
-    def cpfile(self, args):
-        if args.startswith("@"):
-            source, target = args[1:].split("#")
-        else:
-            source, target = args.split("\x00")
+    def cpfile(self, source, target):
         params = source.split("/", 1) + target.split("/", 1)
-        self.simple_cmd(self.robot.cpfile, *params)
+        self.robot.cpfile(*params)
+        self.send_json(status="ok", cmd="cpfile", source=source,
+                       target=target)
 
     def upload_file(self, mimetype, size, uploadto="#"):
         if uploadto == "#":
@@ -461,9 +456,7 @@ class WebsocketControl(WebsocketControlBase):
                                                   clean=True)
         else:
             ret = self.robot.maintain_calibrating(navigate_callback=callback)
-        self.send_text(json.dumps({
-            "status": "ok", "data": ret, "error": (max(*ret) - min(*ret))
-        }))
+        self.send_json(status="ok", data=ret, error=(max(*ret) - min(*ret)))
 
     def maintain_zprobe(self, *args):
         def callback(nav):
@@ -475,34 +468,31 @@ class WebsocketControl(WebsocketControlBase):
         else:
             ret = self.robot.maintain_hadj(navigate_callback=callback)
 
-        self.send_text(json.dumps({"status": "ok", "data": ret}))
+        self.send_json(status="ok", data=ret)
 
     def maintain_load_filament(self, index, temp):
         def nav(n):
-            self.send_text(json.dumps({"status": "loading", "nav": n}))
+            self.send_json(status="loading", nav=n)
         self.robot.maintain_load_filament(int(index), float(temp), nav)
         self.send_ok()
 
     def maintain_unload_filament(self, index, temp):
         def nav(n):
-            self.send_text(json.dumps({"status": "loading", "nav": n}))
+            self.send_json(status="unloading", nav=n)
         self.robot.maintain_unload_filament(int(index), float(temp), nav)
         self.send_ok()
 
     def maintain_headinfo(self):
         info = self.robot.maintain_headinfo()
-        info["status"] = "headinfo"
-        self.send_text(json.dumps(info))
+        info["cmd"] = "headinfo"
+        info["status"] = "ok"
+        self.send_json(info)
 
     def report_play(self):
-        # TODO
         data = self.robot.report_play()
-        if isinstance(data, dict):
-            data["status"] = "ok"
-            data["cmd"] = "report"
-            self.send_text(json.dumps(data))
-        else:
-            self.send_text(data)
+        data["status"] = "ok"
+        data["cmd"] = "report"
+        self.send_json(data)
 
     def oneshot(self):
         images = self.robot.oneshot()
@@ -533,7 +523,7 @@ class WebsocketControl(WebsocketControlBase):
     def play_info(self):
         metadata, images = self.robot.play_info()
         metadata["status"] = "playinfo"
-        self.send_text(json.dumps(metadata))
+        self.send_json(metadata)
 
         for mime, buf in images:
             self.send_binary_begin(mime, len(buf))
@@ -542,18 +532,16 @@ class WebsocketControl(WebsocketControlBase):
 
     def config_set(self, key, value):
         self.robot.config_set(key, value)
+        self.send_json(status="ok", cmd="set", key=key)
         self.send_ok()
 
     def config_get(self, key):
         value = self.robot.config_get(key)
-        if value:
-            self.send_text("ok VAL %s" % value)
-        else:
-            self.send_text("ok EMPTY")
+        self.send_json(status="ok", cmd="get", key=key, value=value)
 
     def config_del(self, key):
         self.robot.config_del(key)
-        self.send_ok()
+        self.send_json(status="ok", cmd="del", key=key)
 
     def on_raw_message(self, message):
         if message == "quit" or message == "task quit":

@@ -7,38 +7,185 @@
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
-  <script>
-  $(window).ready(function() {
-    window.echo_ws = new WebSocket("ws://" + window.location.host + "/ws/usb-config");
-    window.echo_ws.onopen = function() {
-      appendLog("USB Config Connected", "#0000aa");
-    };
-    window.echo_ws.onclose = ws_close_handler("Echo");
-    window.echo_ws.onmessage = function(m) {
-      appendLog("<< " + m.data, "#0000aa");
-    }
+  <link href="res/shared.css" rel="stylesheet" />
+  <style>
+  a.list-group-item {
+    background-color: #000;
+    color: #ccc;
+    cursor: pointer;
+    transition: 0.1s;
+  }
 
-    $("#cmdline").on("keypress", function(e) {
-      if(e.keyCode==13) {
-        var val = $(this).val();
-        window.echo_ws.send(val);
-        appendLog(">> " + val);
-        $(this).val("");
-        return false;
+  a.list-group-item:hover {
+    background-color: #444;
+  }
+
+  </style>
+  <script>
+  function on_bgauth(m, haspasswd) {
+    try {
+      var data = JSON.parse(m.data);
+      if(data.status == "ok") {
+
+      } else {
+        if(haspasswd) {
+          $("#deviceauth").fadeIn();
+        } else {
+          alert("Error: can not auth with device: " + data.error);
+        }
       }
+    } catch(err) {
+      window.err = err;
+      alert("Error: " + err);
+      m.srcElement.close();
+      throw err;
+    }
+  }
+
+  function on_connect(m) {
+    try {
+      var data = JSON.parse(m.data);
+      if(data.status == "ok") {
+        var $dashboard = $("#deviceinfo");
+        $("[data-tag=nickname]").text(data.name);
+        $("[data-tag=version]").text(data.version);
+        $("[data-tag=serial]").text(data.serial);
+        $("[data-tag=model]").text(data.model);
+        $dashboard.fadeIn();
+        window.ws.onmessage = function(n) {
+          on_bgauth(n, data.password);
+        };
+        window.ws.send("auth");
+      } else {
+        alert("Error: " + data.error + " (" + data.status + ")");
+        $("#listport").fadeIn();
+      }
+    } catch(err) {
+      window.err = err;
+      alert("Error: " + err);
+      m.srcElement.close();
+      throw err;
+    }
+  }
+
+  function on_listport(m) {
+      try {
+        var data = JSON.parse(m.data);
+        var $container = $(".list-group", "#listport")
+        $container.children().remove();
+        if(data.ports.length > 0) {
+          for (var i = data.ports.length - 1; i >= 0; i--) {
+            var $item = $("<a></a>").
+              addClass("list-group-item").
+              attr("data-port", data.ports[i]).
+              text(data.ports[i]).bind("click", function() {
+                window.ws.onmessage = on_connect;
+                var p = $(this).attr("data-port");
+                $("#listport").fadeOut(200, function() {
+                  window.ws.send("connect " + p);
+                });
+              });
+            $container.append($item);
+          };
+        } else {
+          $container.append("<div>No available port found</div>");
+        }
+      } catch(err) {
+        window.err = err;
+        alert("Error: " + err);
+        m.srcElement.close();
+        throw err;
+      }
+  }
+
+  function connectConfig() {
+    window.ws = new WebSocket("ws://" + window.location.host + "/ws/usb-config");
+    window.ws.onclose = function() {
+      $("#disconnect_dialog").modal('show');
+    };
+    window.ws.onmessage = on_listport;
+    window.ws.onopen = function() {
+      window.ws.send("list");
+    }
+  }
+
+  $(window).ready(function() {
+    $("#reconnect").bind("click", function() {
+      $("#disconnect_dialog").modal('hide');
+      connectConfig();
     });
+    connectConfig();
   });
   </script>
 </head>
-<body>
-  <div class="container"><h1>USB Config./fluxghost/assets/discover.html</h1></div>
-  <hr />
-  <div class="container"><div class="navbar">
-    <a href="index.html" class="btn btn-primary">Back to Index</a>
-  </div></div>
-  <div class="container"><div class="navbar">
-    <input type="text" class="form-control" id="cmdline"></input>
+<body class="dark">
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li>USB Config</li>
+    </ol>
   </div>
-  <div class="container" id="log"></div>
+
+  <!-- **** List port **** -->
+  <div class="container-fluid" id="listport">
+    <div class="row text-center">
+      <div class="col-xs-offset-3 col-md-offset-4 col-xs-6 col-md-4" style="font-size: 2em; display: inline-block; padding: 0.2em 2em;border-bottom: 1px gray solid">
+        <div class="pull-right">
+          <a class="btn btn-xs btn-warning" data-role="reset-control">
+            <i class="glyphicon glyphicon-repeat"></i>
+          </a>
+        </div>
+        <div>Choose a port</div>
+      </div>
+    </div>
+    <div class="row" style="margin-top: 1em">
+      <div class="col-xs-offset-3 col-md-offset-4 col-xs-6 col-md-4">
+        <div class="list-group" style="background-color: initial">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- **** Device info **** -->
+  <div class="container-fluid" id="deviceinfo" style="display: none;">
+    <div class="col-xs-offset-2 col-md-offset-3 col-xs-8 col-md-6 text-center" style="font-size: 1.2em">
+      <span class="label label-default" data-tag="serial">AAAAAAAAAA</span>
+      <span class="label" data-tag="nickname">WAREWARE</span> /
+      <span class="label" data-tag="model">Delta-1</span> /
+      <span class="label" data-tag="version">1.0b5</span>
+    </div>
+  </div>
+
+  <!-- **** Device auth **** -->
+  <div class="container-fluid" id="deviceauth" style="display: none; margin: 7em;">
+    <div class="col-xs-offset-1 col-md-offset-2 col-xs-10 col-md-8 text-center">
+      <div style="font-size: 1em; margin-bottom: 1em;">Password is required to access device over wifi</div>
+      <div class="input-group">
+        <input type="password" class="form-control input-lg" placeholder="Password">
+        <span class="input-group-btn">
+          <button class="btn btn-lg btn-primary" type="button">Submit</button>
+          <button class="btn btn-lg btn-warning" type="button">Skip</button>
+        </span>
+      </div><!-- /input-group -->
+    </div>
+  </div>
+
+  <!-- **** DISCONNECT **** -->
+  <div class="modal fade" tabindex="-1" role="dialog" id="disconnect_dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div>Disconnected</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-warning btn-sm" id="reconnect">
+            <i class="glyphicon glyphicon-repeat"></i>
+            Retry
+          </button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
 </body>
 </html>

@@ -266,13 +266,15 @@
     }
   }
 
-  $(window).ready(function() {
+  function connectDiscover() {
     window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
-    window.discover_ws.onopen = function() {
-      appendLog("Connected", "#0000aa");
-    };
+    window.discover_ws.onopen = function() {};
 
-    window.discover_ws.onclose = ws_close_handler("Discover");
+    window.discover_ws.onclose = function(m) {
+      $("[data-st-id]").attr("data-st-id", "offline");
+      $("#disconnect_dialog").modal('show');
+    }
+
     window.discover_ws.onmessage = function(m) {
       try {
         var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
@@ -285,6 +287,14 @@
         console.log("Can not handle discover message: '" + m.data + "', err=" + err);
       } 
     }
+  }
+
+  $(window).ready(function() {
+    $("#reconnect").bind("click", function() {
+      $("#disconnect_dialog").modal('hide');
+      connectDiscover();
+    });
+    connectDiscover();
   });
   </script>
 </head>
@@ -297,5 +307,22 @@
   </div>
   <div class="container-fluid" id="devices"></div>
   <div id="log" style="display: none"></div>
+
+  <div class="modal fade" tabindex="-1" role="dialog" id="disconnect_dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div>Connection broken</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-warning btn-sm" id="reconnect">
+            <i class="glyphicon glyphicon-repeat"></i>
+            Retry
+          </button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
 </body>
 </html>
