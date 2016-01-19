@@ -5,15 +5,14 @@ import json
 import sys
 
 from serial.tools import list_ports as _list_ports
-from fluxclient.usb.task import UsbTask, UsbTaskError
+from fluxclient.usb.task import UsbTask
 
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.USBCONFIG")
 
-# TODO
 """
-This is a simple ECHO websocket for testing only
+This is a simple Usb websocket
 
 Javascript Example:
 
@@ -32,6 +31,10 @@ ws.onopen = function() {
 class WebsocketUsbConfig(WebSocketBase):
     task = None
 
+    def __init__(self, *args, **kw):
+        super(WebsocketUsbConfig, self).__init__(*args, **kw)
+        self.task = NoneTask()
+
     def list_ports(self):
         payload = {"status": "ok"}
         if sys.platform.startswith('darwin'):
@@ -40,25 +43,28 @@ class WebsocketUsbConfig(WebSocketBase):
             payload["ports"] = [s[0] for s in _list_ports.comports()
                                 if s[2] != "n/a"]
 
-        self.send_text(json.dumps(payload))
+        # payload["ports"] += ["SIMULATE"]
+        self.send_json(payload)
 
     def connect_usb(self, port):
         if self.task:
             self.task.close()
             self.task = None
 
-        self.task = t = UsbTask(port=port)
-        self.send_text(
-            json.dumps({"status": "ok", "serial": t.serial,
-                        "version": t.remote_version, "name": t.name,
-                        "model": t.model_id, "password": t.has_password}))
+        if port == "SIMULATE":
+            self.task = t = SimulateTask()
+        else:
+            self.task = t = UsbTask(port=port)
+        self.send_json(status="ok", cmd="connect", serial=t.serial,
+                       version=t.remote_version, name=t.name, model=t.model_id,
+                       password=t.has_password)
 
     def auth(self, password=None):
         if password:
             self.task.auth(password)
         else:
             self.task.auth()
-        self.send_text('{"status": "ok"}')
+        self.send_text('{"status": "ok", "cmd": "auth"}')
 
     def config_general(self, params):
         options = json.loads(params)
@@ -68,8 +74,7 @@ class WebsocketUsbConfig(WebSocketBase):
     def scan_wifi(self):
         # TODO: simulate API!
         ret = self.task.list_ssid()
-        doc = json.dumps({"status": "ok", "wifi": ret})
-        self.send_text(doc)
+        self.send_json(status="ok", cmd="scan", wifi=ret)
 
     def config_network(self, params):
         options = json.loads(params)
@@ -77,15 +82,15 @@ class WebsocketUsbConfig(WebSocketBase):
         self.send_text('{"status": "ok"}')
 
     def get_network(self):
-        payload = {"status": "ok"}
+        payload = {"status": "ok", "cmd": "network"}
         payload["ssid"] = self.task.get_ssid()
         payload["ipaddr"] = self.task.get_ipaddr()
-        self.send_text(json.dumps(payload))
+        self.send_json(payload)
 
     def set_password(self, password):
         ret = self.task.set_password(password)
         if ret == "OK":
-            self.send_text('{"status": "ok"}')
+            self.send_text('{"status": "ok", "cmd": "password"}')
         else:
             self.send_error(ret)
 
@@ -110,16 +115,13 @@ class WebsocketUsbConfig(WebSocketBase):
             elif message.startswith("set password "):
                 self.set_password(message[13:])
             else:
-                self.send_text(
-                    '{"status": "error", "error": "UNKNOW_COMMAND"}')
+                self.send_error("UNKNOWN_COMMAND")
 
         except RuntimeError as e:
-            self.send_text(json.dumps({"status": "error", "error":
-                                       e.args[0]}))
+            self.send_json(status="error", error=e.args[0])
         except Exception:
             logger.exception("Unhandle Error")
-            self.send_text(json.dumps({"status": "error", "error":
-                                       "UNKNOW_ERROR"}))
+            self.send_error("UNKNOWN_ERROR")
 
     def on_binary_message(self, buf):
         pass
@@ -128,3 +130,29 @@ class WebsocketUsbConfig(WebSocketBase):
         if self.task:
             self.task.close()
             self.task = None
+
+
+class NoneTask(object):
+    def __getattr__(self, name):
+        raise RuntimeError("NOT_CONNECTED")
+
+    def close(self):
+        pass
+
+
+class SimulateTask(object):
+    remote_version = "1.0"
+    name = "simulate_device"
+    model_id = "SIMULATE"
+    serial = "SIMULATE"
+    has_password = True
+
+    def __init__(self, port=None):
+        pass
+
+    def auth(self, password=None):
+        if password != "WAGAMAMA":
+            raise RuntimeError("BAD_PASSWORD")
+
+    def close(self):
+        pass

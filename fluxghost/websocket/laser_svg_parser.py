@@ -86,7 +86,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         logger.debug("upload names:%s" % (" ".join(names)))
         self.send_progress('initializing', 0.01)
         if gen_flag == '-f':
-            output_binary = self.m_laser_svg.fcode_generate(names, self)
+            output_binary, m_GcodeToFcode = self.m_laser_svg.fcode_generate(names, self)
 
             ########## fake code  ########################
             if environ.get("flux_debug") == '1':
@@ -104,8 +104,8 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             ##############################################
 
         self.send_progress('finishing', 1.0)
+        self.send_text('{"status": "complete", "length": %d, "time": %.3f}' % (len(output_binary), float(m_GcodeToFcode.md['TIME_COST'])))
 
-        self.send_text('{"status": "complete","length": %d}' % len(output_binary))
         self.send_binary(output_binary)
         logger.debug('laser svg finish')
 

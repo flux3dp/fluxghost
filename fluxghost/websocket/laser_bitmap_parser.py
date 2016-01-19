@@ -99,7 +99,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
                     f.write(output_binary)
             ##############################################
         else:
-            output_binary = self.m_laser_bitmap.fcode_generate()
+            output_binary, m_GcodeToFcode = self.m_laser_bitmap.fcode_generate()
             ########## fake code  ########################
             if environ.get("flux_debug") == '1':
                 with open('output.fc', 'wb') as f:
@@ -107,6 +107,6 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
             ##############################################
 
         self.send_progress('finishing', 1.0)
-        self.send_text('{"status": "complete", "length": %d}' % len(output_binary))
+        self.send_text('{"status": "complete", "length": %d, "time": %.3f}' % (len(output_binary), float(m_GcodeToFcode.md['TIME_COST'])))
         self.send_binary(output_binary)
         logger.debug("laser bitmap finished")

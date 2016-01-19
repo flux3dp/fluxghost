@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio</title>
+  <script src="res/jquery-2.1.4.min.js"></script>
+  <script src="res/bootstrap/js/bootstrap.min.js"></script>
+  <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <link href="res/shared.css" rel="stylesheet" />
+  <script>
+      $(window).ready(function() {
+        $("body").bind("click", function() {
+            var mom = $("body").attr("data-where-are-you-mom");
+            if(mom == "notyet.html") {
+                return;
+            } else if(mom == "index.html") {
+                alert("讓我們一起回去找媽媽，按下確定後出發。");
+                window.location = "index.html";
+                return;
+            }
+            $("body").attr("data-where-are-you-mom", "notyet.html");
+            $("#r1").fadeIn(1000);
+            setTimeout(function() {
+                $("#r2").fadeIn(1000);
+            }, 900);
+            setTimeout(function() {
+                $("#r3").fadeIn(1000);
+            }, 1800);
+            setTimeout(function() {
+                $("body").attr("data-where-are-you-mom", "index.html");
+                $("#r4").fadeIn(1000);
+            }, 2700);
+        });
+      });
+  </script>
+</head>
+<body class="dark">
+  <div class="bgmask"></div>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li>Gcode 2 Fcode</li>
+    </ol>
+  </div>
+  <div class="container-fluid text-center" style="margin: 5em">
+    <div id="r1" style="display: none">有沒有跟你說無法使用</div>
+    <div id="r2" style="display: none; font-size: 1.2em">還點?</div>
+    <div id="r3" style="display: none;">趕快按上一頁回去找媽媽吧</div>
+  </div>
+  <div class="text-center foot" id="r4" style="display: none">FLUX Inc. All Rights Reserved.</div>
+</body>
+</html>

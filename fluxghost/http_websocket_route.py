@@ -6,8 +6,8 @@ import re
 ROUTES = [
     (re.compile("echo"),
      "fluxghost.websocket.echo.WebsocketEcho"),
-    (re.compile("file"),
-     "fluxghost.websocket.file.WebsocketFile"),
+    (re.compile("ver"),
+     "fluxghost.websocket.ver.WebsocketVer"),
     (re.compile("config"),
      "fluxghost.websocket.config.WebsocketConfig"),
     (re.compile("3d-scan-modeling"),

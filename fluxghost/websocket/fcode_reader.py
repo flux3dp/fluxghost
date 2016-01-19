@@ -2,6 +2,7 @@
 
 import logging
 import sys
+import json
 
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
@@ -20,7 +21,8 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
         self.cmd_mapping = {
             'upload': [self.begin_recv_image],
             'get_img': [self.get_img],
-            'get_meta': [self.get_meta]
+            'get_meta': [self.get_meta],
+            'get_path': [self.get_path]
         }
         self.m_fcode_parser = FcodeParser()
 
@@ -36,7 +38,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
         if self.m_fcode_parser.upload_content(buf):
             self.send_ok()
         else:
-            self.send_err('File Broken')
+            self.send_err('File broken')
 
     def get_img(self, *args):
         buf = self.m_fcode_parser.get_img()
@@ -47,8 +49,16 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             self.send_error('Nothing to send')
 
     def get_meta(self, *args):
-        meta = self.m_fcode_parser.get_meta()
+        meta = self.m_fcode_parser.get_metadata()
         if meta:
-            self.send_text('{"status": "complete", "metadata": %s}' % meta)
+            self.send_text('{"status": "complete", "metadata": %s}' % json.dumps(meta))
         else:
             self.send_error('Nothing to send')
+
+    def get_path(self, *args):
+        path = self.m_fcode_parser.get_path()
+        if path:
+            js_path = self.path_to_js(path)
+            self.send_text(js_path)
+        else:
+            self.send_error('No path data to send')
