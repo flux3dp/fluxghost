@@ -1,6 +1,7 @@
 # -*- mode: python -*-
 
 from pkg_resources import resource_listdir, resource_isdir, resource_filename
+from PyInstaller.utils.hooks.hookutils import collect_submodules
 import os
 
 
@@ -24,33 +25,18 @@ def fetch_datas():
 
 
 block_cipher = None
+hiddenimports = ["serial",
+                 "PIL",
+                 "scipy.integrate",
+                 "scipy.interpolate.rbf",
+                 "scipy.linalg.cython_blas",
+                 "scipy.linalg.cython_lapack"]
+hiddenimports += collect_submodules("fluxclient")
+hiddenimports += collect_submodules("fluxghost")
 
 
 a = Analysis(['ghost.py'],
-             hiddenimports=[
-               "serial",
-               "PIL",
-               "scipy.integrate",
-               "scipy.interpolate.rbf",
-               "scipy.linalg.cython_blas",
-               "scipy.linalg.cython_lapack",
-               "fluxclient.printer.stl_slicer",
-               "fluxclient.printer._printer",
-               "fluxclient.scanner._scanner",
-               "fluxghost.websocket",
-               "fluxghost.websocket.config",
-               "fluxghost.websocket.control",
-               "fluxghost.websocket.discover",
-               "fluxghost.websocket.echo",
-               "fluxghost.websocket.ver",
-               "fluxghost.websocket.laser_bitmap_parser",
-               "fluxghost.websocket.laser_svg_parser",
-               "fluxghost.websocket.scan_control",
-               "fluxghost.websocket.scan_modeling",
-               "fluxghost.websocket.fcode_reader",
-               "fluxghost.websocket.stl_slicing_parser",
-               "fluxghost.websocket.touch",
-               "fluxghost.websocket.usb_config"],
+             hiddenimports=hiddenimports,
              hookspath=None,
              runtime_hooks=None,
              excludes=None,
@@ -61,7 +47,7 @@ pyz = PYZ(a.pure,
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
-          name='ghost',
+          name='flux_api',
           debug=False,
           strip=None,
           upx=True,
@@ -72,4 +58,4 @@ coll = COLLECT(exe,
                a.datas,
                strip=None,
                upx=True,
-               name='ghost')
+               name='flux_api')
