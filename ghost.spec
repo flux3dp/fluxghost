@@ -1,7 +1,13 @@
 # -*- mode: python -*-
 
-from pkg_resources import resource_listdir, resource_isdir, resource_filename
-from PyInstaller.utils.hooks.hookutils import collect_submodules
+from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
+
+from PyInstaller import __version__ as PyInstallerVersion
+if parse_version(PyInstallerVersion) >= parse_version('3.1'):
+    from PyInstaller.utils.hooks import collect_submodules
+else:
+    from PyInstaller.utils.hooks.hookutils import collect_submodules
+
 import os
 
 
@@ -34,7 +40,6 @@ hiddenimports = ["serial",
 hiddenimports += collect_submodules("fluxclient")
 hiddenimports += collect_submodules("fluxghost")
 
-
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
              hookspath=None,
@@ -51,7 +56,7 @@ exe = EXE(pyz,
           debug=False,
           strip=None,
           upx=True,
-          console=True )
+          console=True)
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
