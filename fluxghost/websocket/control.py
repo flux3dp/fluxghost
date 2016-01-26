@@ -301,6 +301,9 @@ class WebsocketControl(WebsocketControlBase):
                 logger.exception("Unknow socket error")
                 self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
 
+        except TimeoutError as e:  # noqa
+                self.send_fatal("TIMEOUT", repr(e.args))
+
         except Exception as e:
             logger.exception("Unknow error while process text")
             self.send_error("UNKNOWN_ERROR", repr(e.__class__))
