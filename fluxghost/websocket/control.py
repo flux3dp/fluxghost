@@ -1,5 +1,5 @@
 
-from errno import EPIPE
+from errno import EPIPE, EHOSTDOWN, errorcode
 from uuid import UUID
 import logging
 import socket
@@ -53,6 +53,14 @@ class WebsocketControlBase(WebSocketBase):
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.slave_key,
                                        conn_callback=self._conn_callback)
+        except OSError as err:
+            error_no = err.args[0]
+            if error_no == EHOSTDOWN:
+                self.send_fatal("DISCONNECTED")
+            else:
+                self.send_fatal("UNKNOWN_ERROR",
+                                errorcode.get(error_no, error_no))
+            raise
         except RuntimeError as err:
             self.send_fatal(err.args[0], )
             raise
