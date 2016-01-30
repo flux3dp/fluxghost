@@ -1,11 +1,10 @@
 
-from errno import EPIPE
+from errno import EPIPE, EHOSTDOWN, errorcode
 from uuid import UUID
 import logging
 import socket
 import shlex
 import io
-from os import environ
 
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
@@ -37,8 +36,9 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
 class WebsocketControlBase(WebSocketBase):
-    robot = None
+    binary_handler = None
     cmd_mapping = None
+    robot = None
 
     def __init__(self, request, client, server, path, serial):
         WebSocketBase.__init__(self, request, client, server, path)
@@ -53,11 +53,70 @@ class WebsocketControlBase(WebSocketBase):
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.slave_key,
                                        conn_callback=self._conn_callback)
+        except OSError as err:
+            error_no = err.args[0]
+            if error_no == EHOSTDOWN:
+                self.send_fatal("DISCONNECTED")
+            else:
+                self.send_fatal("UNKNOWN_ERROR",
+                                errorcode.get(error_no, error_no))
+            raise
         except RuntimeError as err:
             self.send_fatal(err.args[0], )
             raise
 
         self.send_text(STAGE_CONNECTED)
+
+    def on_binary_message(self, buf):
+        if self.binary_handler:
+            self.binary_handler(buf)
+        else:
+            self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
+
+    def simple_binary_transfer(self, mimetype, size, cmd, upload_to=None):
+        bin_sock = self.robot.begin_upload(mimetype, int(size),
+                                           cmd=cmd, upload_to=upload_to)
+        upload_meta = {'sent': 0}
+
+        def binary_handler(buf):
+            bin_sock.send(buf)
+            sent = upload_meta['sent'] = upload_meta['sent'] + len(buf)
+            self.send_json(status="uploading", sent=sent)
+            if sent < size:
+                pass
+            elif sent == size:
+                self.binary_handler = None
+
+                resp = self.robot.get_resp().decode("ascii", "ignore")
+                if resp == "ok":
+                    self.send_ok()
+                else:
+                    errargs = resp.split(" ")
+                    self.send_error(*(errargs[1:]))
+            else:
+                self.send_fatal("NOT_MATCH", "binary data length error")
+
+        self.binary_handler = binary_handler
+        self.send_continue()
+
+    def simple_binary_receiver(self, size, continue_cb):
+        swap = io.BytesIO()
+        upload_meta = {'sent': 0}
+
+        def binary_handler(buf):
+            swap.write(buf)
+            sent = upload_meta['sent'] = upload_meta['sent'] + len(buf)
+
+            if sent < size:
+                pass
+            elif sent == size:
+                self.binary_handler = None
+                continue_cb(swap)
+            else:
+                self.send_fatal("NOT_MATCH", "binary data length error")
+
+        self.binary_handler = binary_handler
+        self.send_continue()
 
     def _fix_auth_error(self, task):
         self.send_text(STAGE_DISCOVER)
@@ -101,9 +160,7 @@ class WebsocketControlBase(WebSocketBase):
 
 
 class WebsocketControl(WebsocketControlBase):
-    binary_sock = None
     raw_sock = None
-    convert = None
 
     def __init__(self, *args, **kw):
         try:
@@ -179,7 +236,8 @@ class WebsocketControl(WebsocketControlBase):
                 "calibrating": self.maintain_calibrating,
                 "zprobe": self.maintain_zprobe,
                 "headinfo": self.maintain_headinfo,
-                "home": self.fast_wrapper(self.robot.maintain_home)
+                "home": self.fast_wrapper(self.robot.maintain_home),
+                "update_hbfw": self.maintain_update_hbfw
             },
 
             "config": {
@@ -213,47 +271,6 @@ class WebsocketControl(WebsocketControlBase):
                 "quit": self.task_quit,
             }
         }
-
-    def on_binary_message(self, buf):
-        if self.binary_sock or isinstance(self.convert, io.BytesIO):
-            if isinstance(self.convert, io.BytesIO):
-                self.binary_sent += self.convert.write(buf)
-            else:
-                self.binary_sent += self.binary_sock.send(buf)
-
-            if self.binary_sent < self.binary_length:
-                pass
-            elif self.binary_sent == self.binary_length:
-                if isinstance(self.convert, io.BytesIO):
-                    f_buf = self.g_to_f()
-
-                    # ############### fake code ################
-                    if environ.get("flux_debug") == '1':
-                        with open('tmp.fcode', 'wb') as f:
-                            f.write(f_buf)
-                    # #######################################
-
-                    self.binary_sock = self.robot.begin_upload(
-                        'application/fcode', len(f_buf),
-                        cmd="file upload", uploadto=self.uploadto)
-                    self.binary_sock.send(f_buf)
-                    del self.uploadto
-                    self.convert = None
-
-                self.binary_sock = None
-
-                resp = self.robot.get_resp().decode("ascii", "ignore")
-                if resp == "ok":
-                    self.send_text('{"status": "ok"}')
-                else:
-                    errargs = resp.split(" ")
-                    self.send_error(*(errargs[1:]))
-            else:
-                self.binary_sock = None
-                self.send_fatal("NOT_MATCH", "binary data length error")
-        else:
-            self.binary_sock = None
-            self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
     def invoke_command(self, ref, args, wrapper=None):
         if not args:
@@ -300,6 +317,9 @@ class WebsocketControl(WebsocketControlBase):
             else:
                 logger.exception("Unknow socket error")
                 self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
+
+        except TimeoutError as e:  # noqa
+                self.send_fatal("TIMEOUT", repr(e.args))
 
         except Exception as e:
             logger.exception("Unknow error while process text")
@@ -391,45 +411,88 @@ class WebsocketControl(WebsocketControlBase):
         self.send_json(status="ok", cmd="cpfile", source=source,
                        target=target)
 
-    def upload_file(self, mimetype, size, uploadto="#"):
-        if uploadto == "#":
+    def upload_file(self, mimetype, ssize, upload_to="#"):
+        if upload_to == "#":
             pass
-        elif uploadto.startswith("SD/"):
-            uploadto = "SD " + uploadto[3:]
-        elif uploadto.startswith("USB/"):
-            uploadto = "USB " + uploadto[4:]
+        elif upload_to.startswith("SD/"):
+            upload_to = "SD " + upload_to[3:]
+        elif upload_to.startswith("USB/"):
+            upload_to = "USB " + upload_to[4:]
 
+        size = int(ssize)
         if mimetype == "text/gcode":
-            self.convert = io.BytesIO()
-            if uploadto.endswith('.gcode'):
-                uploadto = uploadto[:-5] + 'fc'
-            self.uploadto = uploadto
+            if upload_to.endswith('.gcode'):
+                upload_to = upload_to[:-5] + 'fc'
+
+            def upload_callback(swap):
+                fcode_output = io.BytesIO()
+                g2f = GcodeToFcode()
+                g2f.process(swap.getvalue().decode().split('\n'),
+                            fcode_output)
+
+                fcode_len = fcode_output.truncate()
+                remote_sent = 0
+
+                fcode_output.seek(0)
+                sock = self.robot.begin_upload('application/fcode',
+                                               fcode_len,
+                                               cmd="file upload",
+                                               upload_to=upload_to)
+                self.send_json(status="uploading", sent=0,
+                               amount=fcode_len)
+                while remote_sent < fcode_len:
+                    remote_sent += sock.send(fcode_output.read(4096))
+                    self.send_json(status="uploading", sent=remote_sent)
+
+                resp = self.robot.get_resp().decode("ascii", "ignore")
+                if resp == "ok":
+                    self.send_ok()
+                else:
+                    errargs = resp.split(" ")
+                    self.send_error(*(errargs[1:]))
+
+            self.simple_binary_receiver(size, upload_callback)
+
         elif mimetype == "application/fcode":
-            self.convert = None
-            self.binary_sock = self.robot.begin_upload(mimetype, int(size),
-                                                       cmd="file upload",
-                                                       uploadto=uploadto)
+            self.simple_binary_transfer(mimetype, size, cmd="file upload",
+                                        upload_to=upload_to)
+
         else:
             self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
             return
 
-        self.binary_length = int(size)
-        self.binary_sent = 0
-        self.send_text('{"status":"continue"}')
+    def update_fw(self, mimetype, ssize):
+        self.simple_binary_transfer(mimetype, int(ssize), "update_fw")
 
-    def update_fw(self, mimetype, size):
-        self.binary_sock = self.robot.begin_upload(mimetype, int(size),
-                                                   cmd="update_fw")
-        self.binary_length = int(size)
-        self.binary_sent = 0
-        self.send_text('{"status":"continue"}')
+    def update_mbfw(self, mimetype, ssize):
+        self.simple_binary_transfer(mimetype, int(ssize), "update_mbfw")
 
-    def update_mbfw(self, mimetype, size):
-        self.binary_sock = self.robot.begin_upload(mimetype, int(size),
-                                                   cmd="update_mbfw")
-        self.binary_length = int(size)
-        self.binary_sent = 0
-        self.send_text('{"status":"continue"}')
+    def maintain_update_hbfw(self, mimetype, ssize):
+        size = int(ssize)
+
+        def update_cb(swap):
+            def nav_cb(nav):
+                args = nav.split(" ")
+                if args[1] == "UPLOADING":
+                    self.send_json(status="uploading", sent=int(args[2]))
+                elif args[1] == "WRITE":
+                    self.send_json(status="update_hbfw", stage="WRITE",
+                                   written=size - int(args[2]))
+                else:
+                    self.send_json(status="update_hbfw", stage=args[1])
+                logger.debug("--> %s", nav)
+            size = swap.truncate()
+            swap.seek(0)
+
+            try:
+                self.robot.maintain_update_hbfw(mimetype, swap, size, nav_cb)
+                self.send_ok()
+            except RuntimeError as e:
+                self.send_error(*e.args)
+            except Exception as e:
+                self.send_fatal("UNKNOWN_ERROR", e.args)
+
+        self.simple_binary_receiver(size, update_cb)
 
     def task_begin_scan(self):
         self.robot.begin_scan()
@@ -551,14 +614,6 @@ class WebsocketControl(WebsocketControlBase):
             self.send_text('{"status": "ok", "task": ""}')
         else:
             self.raw_sock.sock.send(message.encode() + b"\n")
-
-    def g_to_f(self):
-        fcode_output = io.BytesIO()
-        g2f = GcodeToFcode()
-        g2f.process(self.convert.getvalue().decode().split('\n'),
-                    fcode_output)
-        self.convert = None
-        return fcode_output.getvalue()
 
 
 class RawSock(object):

@@ -4,7 +4,7 @@ import logging
 import sys
 
 from fluxghost.websocket.laser_svg_parser import WebsocketLaserSvgParser
-from fluxclient.laser.pen_draw import PenDraw
+from fluxclient.laser.pen_svg import PenSvg
 
 logger = logging.getLogger("WS.Pen Draw")
 
@@ -12,7 +12,7 @@ MODE_PRESET = "preset"
 MODE_MANUALLY = "manually"
 
 
-class WebsocketPenDraw(WebsocketLaserSvgParser):
+class WebsocketPenSvgParser(WebsocketLaserSvgParser):
     self._m_pen_draw = None
 
     @property
@@ -22,5 +22,5 @@ class WebsocketPenDraw(WebsocketLaserSvgParser):
     @property
     def m_pen_draw(self):
         if self._m_pen_draw is None:
-            self._m_pen_draw = PenDraw()
+            self._m_pen_draw = PenSvg()
         return self.m_pen_draw

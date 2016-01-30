@@ -16,8 +16,8 @@ ROUTES = [
      "fluxghost.websocket.laser_bitmap_parser.WebsocketLaserBitmapParser"),
     (re.compile("svg-laser-parser"),
      "fluxghost.websocket.laser_svg_parser.WebsocketLaserSvgParser"),
-    (re.compile("pen-draw-parser"),
-     "fluxghost.websocket.pen_draw_parser.WebsocketPenDraw"),
+    (re.compile("pen-svg-parser"),
+     "fluxghost.websocket.pen_svg_parser.WebsocketPenSvgParser"),
     (re.compile("fcode-reader"),
      "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
 

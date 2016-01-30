@@ -1,7 +1,13 @@
 # -*- mode: python -*-
 
-from pkg_resources import resource_listdir, resource_isdir, resource_filename
-from PyInstaller.utils.hooks.hookutils import collect_submodules
+from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
+
+from PyInstaller import __version__ as PyInstallerVersion
+if parse_version(PyInstallerVersion) >= parse_version('3.1'):
+    from PyInstaller.utils.hooks import collect_submodules
+else:
+    from PyInstaller.utils.hooks.hookutils import collect_submodules
+
 import os
 
 
@@ -32,8 +38,38 @@ hiddenimports = ["serial",
                  "scipy.linalg.cython_blas",
                  "scipy.linalg.cython_lapack"]
 hiddenimports += collect_submodules("fluxclient")
-hiddenimports += collect_submodules("fluxghost")
 
+
+hiddenimports += collect_submodules("fluxghost")  # this is not working, manually hotfix below
+hiddenimports += ['fluxghost.websocket.scan_modeling',
+                  'fluxghost.websocket.stl_slicing_parser',
+                  'fluxghost.http_handler',
+                  'fluxghost.websocket.scan_control',
+                  'fluxghost.websocket.fcode_reader',
+                  'fluxghost.http_handlers.websocket_handler',
+                  'fluxghost.websocket.echo',
+                  'fluxghost.websocket.laser_pattern',
+                  'fluxghost.websocket.usb_config',
+                  'fluxghost.http_server',
+                  'fluxghost.http_handlers.file_handler',
+                  'fluxghost.utils.websocket',
+                  'fluxghost',
+                  'fluxghost.websocket.touch',
+                  'fluxghost.http_handlers',
+                  'fluxghost.websocket.laser_svg_parser',
+                  'fluxghost.websocket.pen_svg_parser',
+                  'fluxghost.http_server_base',
+                  'fluxghost.websocket.control',
+                  'fluxghost.http_websocket_route',
+                  'fluxghost.websocket.base',
+                  'fluxghost.websocket.laser_bitmap_parser',
+                  'fluxghost.websocket.ver',
+                  'fluxghost.websocket',
+                  'fluxghost.http_server_debug',
+                  'fluxghost.utils',
+                  'fluxghost.websocket.discover',
+                  'fluxghost.websocket.config',
+                  'fluxghost.websocket.file']
 
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
@@ -43,7 +79,7 @@ a = Analysis(['ghost.py'],
              cipher=block_cipher)
 a.datas += fetch_datas()
 pyz = PYZ(a.pure,
-             cipher=block_cipher)
+          cipher=block_cipher)
 exe = EXE(pyz,
           a.scripts,
           exclude_binaries=True,
@@ -51,7 +87,7 @@ exe = EXE(pyz,
           debug=False,
           strip=None,
           upx=True,
-          console=True )
+          console=True)
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
