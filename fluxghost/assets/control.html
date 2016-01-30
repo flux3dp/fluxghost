@@ -208,6 +208,24 @@
         appendLog("MD5 " + payload.file + " " + payload.md5);
         return;
       }
+    } else if(payload.status === "uploading") {
+      if(window.upload_updator) {
+        window.upload_updator(payload.sent, payload.amount);
+        return;
+      }
+    } else if(payload.status === "update_hbfw") {
+      if(payload.stage === "WRITE") {
+        if(window.last_update_write_hbfw) {
+          var d = new Date();
+          if((d - window.last_update_write_hbfw) < 1500) { return; }
+        }
+
+        window.last_update_write_hbfw = new Date();
+        appendLog("Update head fw: Write " + payload.written);
+      } else {
+        appendLog("Update head fw: " + payload.stage);
+      }
+      return;
     }
 
     if(payload != undefined && payload.status === "pong") {
@@ -242,7 +260,11 @@
 
   function file_uploader(f) {
     appendLog("File opened");
-    window.control_ws.send(f.target.result);
+    var offset = 0;
+    while(offset < f.target.result.byteLength) {
+      window.control_ws.send(f.target.result.slice(offset, offset + 3984));
+      offset += 3984;
+    }
     var $prog = $(' \
       <div style="padding: 0 2em;"> \
         <span class="text_prog"></span> \
@@ -250,24 +272,21 @@
       <div class="progress" style="height: 0.5em; margin-bottom: 0.05em;"> \
         <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"> \
         </div> \
-      </div> \
-      <div style="font-size: 5px !important; margin-bottom: 0.5em;"> \
-        Note: 檔案上傳有快有慢，進度條進度僅供使用者參考不代表設備實際狀況，機器不動時請先詳閱檔案上傳狀態。\
       </div>');
     appendHtmlLog($prog);
-
-    var updator = function() {
-      var p = 1 - (window.control_ws.bufferedAmount / f.target.result.byteLength);
+    var amount = f.target.result.byteLength;
+    var updator = function(sent, overwrite_amount) {
+      if(overwrite_amount) {
+        amount = overwrite_amount;
+      }
+      var p = sent / amount;
       p = Math.round(p * 1000) / 10;
       $(".progress-bar", $prog).css("width", p + "%");
       $(".text_prog", $prog).text(
-        window.control_ws.bufferedAmount + " byte(s) left");
-      if(window.control_ws.bufferedAmount > 0) {
-        setTimeout(updator, 500);
-      }
+        (amount - sent) + " byte(s) left");
     }
-    updator()
-    setTimeout(updator, 500);
+    window.upload_updator = updator;
+    updator(0);
   }
 
   function send_cmd(cmd) {
@@ -475,6 +494,10 @@
           Head Info
         </span>
 
+        <span class="btn btn-xs btn-default fileinput-button">
+          <span>** Update Head FW **</span>
+          <input type="file" class="fileinput-button" data-file-cmd="maintain update_hbfw" name="file" />
+        </span>
         <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
       </div>
       <div style="margin: 0.5em 0" data-cmd-group="root">

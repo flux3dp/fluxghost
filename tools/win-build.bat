@@ -11,10 +11,10 @@ cd C:\Dev\fluxghost
 rm -r C:\Dev\fluxghost\build
 rm -rf C:\Dev\fluxghost\dist
 pyinstaller ghost.spec
-cp -r C:/Dev/win-dll-%VERSION%/* C:\Dev\fluxghost\dist\ghost
+cp -r C:/Dev/win-dll-%VERSION%/* C:\Dev\fluxghost\dist\flux_api
 mkdir dist\fluxghost-win-latest-x64
-mv dist\ghost dist\fluxghost-win-latest-x64\ghost
+mv dist\flux_api dist\fluxghost-win-latest-x64\flux_api
 cd dist
 winrar a -afzip -r C:\Dev\fluxghost-win-latest-x64.zip fluxghost-win-latest-x64 > ../rar_log
 cd C:\Dev\fluxghost
-dist\fluxghost-win-latest-x64\ghost\ghost.exe --assets=C:\Dev\web-panel\public
+dist\fluxghost-win-latest-x64\flux_api\flux_api.exe --assets=C:\Dev\web-panel\public
