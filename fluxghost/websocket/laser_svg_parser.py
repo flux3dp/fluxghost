@@ -35,7 +35,7 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         return self._m_laser_svg
 
     def begin_recv_svg(self, message, flag, *args):
-        self.POOL_TIME_ = self.POOL_TIME
+        self.POOL_TIME_ = self.POOL_TIME  # record pool time
         self.POOL_TIME = 10
         name, file_length = message.split()
         helper = BinaryUploadHelper(int(file_length), self.end_recv_svg, name, flag, args[0])
@@ -47,12 +47,13 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
         if args[0] == 'upload':
             logger.debug("upload name:%s" % (name))
             try:
-                self.m_laser_svg.svgs[name] = self.m_laser_svg.preprocess(buf, name)
-                self.send_ok()
+                self.m_laser_svg.svgs[name] = self.m_laser_svg.preprocess(buf)
             except:
                 print(sys.exc_info(), file=sys.stderr)
-                sys.exc_info()[2].print_exception(file=sys.stderr)
+                # sys.exc_info()[2].print_exception(file=sys.stderr)
                 self.send_error('fail to parse svg')
+            else:
+                self.send_ok()
         elif args[0] == 'compute':
             logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
             params = args[1][:]  # copy
@@ -62,8 +63,11 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             self.send_ok()
 
     def get(self, name):
-        self.send_text('{"status": "continue", "length" : %d, "width": %f, "height": %f}' % (len(self.m_laser_svg.svgs[name][0]), self.m_laser_svg.svgs[name][1], self.m_laser_svg.svgs[name][2]))
-        self.send_binary(self.m_laser_svg.svgs[name][0])
+        if name in self.m_laser_svg.svgs:
+            self.send_text('{"status": "continue", "length" : %d, "width": %f, "height": %f}' % (len(self.m_laser_svg.svgs[name][0]), self.m_laser_svg.svgs[name][1], self.m_laser_svg.svgs[name][2]))
+            self.send_binary(self.m_laser_svg.svgs[name][0])
+        else:
+            self.send_error('%s not uploaded yet' % (name))
 
     def compute(self, params):
         options = params.split()
