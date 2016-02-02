@@ -13,7 +13,7 @@ MODE_MANUALLY = "manually"
 
 
 class WebsocketPenSvgParser(WebsocketLaserSvgParser):
-    self._m_pen_draw = None
+    _m_pen_draw = None
 
     @property
     def m_laser_svg(self):
@@ -23,4 +23,4 @@ class WebsocketPenSvgParser(WebsocketLaserSvgParser):
     def m_pen_draw(self):
         if self._m_pen_draw is None:
             self._m_pen_draw = PenSvg()
-        return self.m_pen_draw
+        return self._m_pen_draw
