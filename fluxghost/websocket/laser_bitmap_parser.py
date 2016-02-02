@@ -93,6 +93,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.send_progress('generating gcode', 0.97)
         if '-g' in args:
             output_binary = self.m_laser_bitmap.gcode_generate().encode()
+            time_need = 0
             ########## fake code  ########################
             if environ.get("flux_debug") == '1':
                 with open('output.gcode', 'wb') as f:
@@ -100,6 +101,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
             ##############################################
         else:
             output_binary, m_GcodeToFcode = self.m_laser_bitmap.fcode_generate()
+            time_need = float(m_GcodeToFcode.md['TIME_COST'])
             ########## fake code  ########################
             if environ.get("flux_debug") == '1':
                 with open('output.fc', 'wb') as f:
@@ -107,6 +109,6 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
             ##############################################
 
         self.send_progress('finishing', 1.0)
-        self.send_text('{"status": "complete", "length": %d, "time": %.3f}' % (len(output_binary), float(m_GcodeToFcode.md['TIME_COST'])))
+        self.send_text('{"status": "complete", "length": %d, "time": %.3f}' % (len(output_binary), time_need))
         self.send_binary(output_binary)
         logger.debug("laser bitmap finished")

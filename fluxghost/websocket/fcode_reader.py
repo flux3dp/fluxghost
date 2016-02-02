@@ -58,7 +58,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
     def get_path(self, *args):
         path = self.m_fcode_parser.get_path()
         if path:
-            js_path = self.path_to_js(path)
+            js_path = self.m_fcode_parser.path_to_js(path)
             self.send_text(js_path)
         else:
             self.send_error('No path data to send')
