@@ -26,6 +26,7 @@ def setup_logger(options):
     LOG_FORMAT = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
 
     log_level = logging.DEBUG if options.debug else logging.INFO
+    log_level = logging.DEBUG
 
     handlers = {}
     if sys.stdout.isatty():
