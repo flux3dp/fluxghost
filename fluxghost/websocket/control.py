@@ -4,7 +4,7 @@ from uuid import UUID
 import logging
 import socket
 import shlex
-import io
+from io import BytesIO
 
 from fluxclient.robot import connect_robot
 from fluxclient.upnp.task import UpnpTask
@@ -100,7 +100,7 @@ class WebsocketControlBase(WebSocketBase):
         self.send_continue()
 
     def simple_binary_receiver(self, size, continue_cb):
-        swap = io.BytesIO()
+        swap = BytesIO()
         upload_meta = {'sent': 0}
 
         def binary_handler(buf):
@@ -425,7 +425,7 @@ class WebsocketControl(WebsocketControlBase):
                 upload_to = upload_to[:-5] + 'fc'
 
             def upload_callback(swap):
-                fcode_output = io.BytesIO()
+                fcode_output = BytesIO()
                 g2f = GcodeToFcode()
                 g2f.process(swap.getvalue().decode().split('\n'),
                             fcode_output)
