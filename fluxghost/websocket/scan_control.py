@@ -172,7 +172,8 @@ class Websocket3DScanControl(WebsocketControlBase):
     def get_cab(self):
         # self.cab = [float(i) for i in self.robot.get_calibrate().split()[2:]]
         self.cab = True
-        tmp = map(float, self.robot.get_calibrate().split()[1:])
+        tmp = list(map(float, self.robot.get_calibrate().split()[1:]))
+
         if len(tmp) == 3:
             self.scan_settings.cab_m, self.scan_settings.cab_l, self.scan_settings.cab_r = tmp
         elif len(tmp) == 2:
