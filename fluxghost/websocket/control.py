@@ -318,7 +318,7 @@ class WebsocketControl(WebsocketControlBase):
                 logger.exception("Unknow socket error")
                 self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
 
-        except TimeoutError as e:  # noqa
+        except (TimeoutError, socket.timeout) as e:  # noqa
                 self.send_fatal("TIMEOUT", repr(e.args))
 
         except Exception as e:
