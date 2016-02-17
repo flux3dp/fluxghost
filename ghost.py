@@ -12,18 +12,22 @@ from fluxclient.utils.version import StrictVersion
 
 
 def check_fluxclient():
-    from fluxclient import __version__ as V
+    from fluxclient import __version__ as v
     sys.modules.pop("fluxclient")
-    if StrictVersion(V) < StrictVersion('0.7a3'):
+    if StrictVersion(v) < StrictVersion('0.7a3'):
         raise RuntimeError("Your fluxclient need to update (>=0.7a3)")
 
 
-check_fluxclient()
+def show_version(verbose):
+    from fluxghost import __version__ as gfv
+    print("fluxghost %s" % gfv)
+    from fluxclient import __version__ as cfv
+    print("fluxclient %s" % cfv)
 
 
 def setup_logger(options):
-    LOG_DATEFMT = "%Y-%m-%d %H:%M:%S"
-    LOG_FORMAT = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
+    log_datefmt = "%Y-%m-%d %H:%M:%S"
+    log_format = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
 
     log_level = logging.DEBUG if options.debug else logging.INFO
     log_level = logging.DEBUG
@@ -58,8 +62,8 @@ def setup_logger(options):
         'disable_existing_loggers': True,
         'formatters': {
             'default': {
-                'format': LOG_FORMAT,
-                'datefmt': LOG_DATEFMT
+                'format': log_format,
+                'datefmt': log_datefmt
             }
         },
         'handlers': handlers,
@@ -84,18 +88,27 @@ def main():
                         help="Output log to specific")
     parser.add_argument('-d', '--debug', dest='debug', action='store_const',
                         const=True, default=False, help='Enable debug')
-    parser.add_argument('-s', '--simulate', dest='simulate', action='store_const',
-                        const=True, default=False, help='Simulate data')
-    parser.add_argument("--slic3r", dest='slic3r', type=str, default='../Slic3r/slic3r.pl',
+    parser.add_argument('-s', '--simulate', dest='simulate',
+                        action='store_const', const=True, default=False,
+                        help='Simulate data')
+    parser.add_argument("--slic3r", dest='slic3r', type=str,
+                        default='../Slic3r/slic3r.pl',
                         help="Set slic3r location")
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
                         help="Use sentry logger")
     parser.add_argument('--test', dest='test', action='store_const',
                         const=True, default=False, help='Run test')
+    parser.add_argument('--version', dest='version', action='store_const',
+                        const=True, default=False, help='Show version')
 
     options = parser.parse_args()
     setup_logger(options)
 
+    if options.version:
+        show_version(options.debug)
+        sys.exit(0)
+
+    check_fluxclient()
     if options.debug:
         os.environ["flux_debug"] = "1"
         from fluxghost.http_server_debug import HttpServer
