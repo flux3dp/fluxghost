@@ -94,11 +94,6 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         if '-g' in args:
             output_binary = self.m_laser_bitmap.gcode_generate().encode()
             time_need = 0
-            ########## fake code  ########################
-            if environ.get("flux_debug") == '1':
-                with open('output.gcode', 'wb') as f:
-                    f.write(output_binary)
-            ##############################################
         else:
             output_binary, m_GcodeToFcode = self.m_laser_bitmap.fcode_generate()
             time_need = float(m_GcodeToFcode.md['TIME_COST'])
