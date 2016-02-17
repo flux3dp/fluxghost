@@ -30,7 +30,6 @@ def setup_logger(options):
     log_format = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
 
     log_level = logging.DEBUG if options.debug else logging.INFO
-    log_level = logging.DEBUG
 
     handlers = {}
     if sys.stdout.isatty():
@@ -56,7 +55,7 @@ def setup_logger(options):
             'class': 'raven.handlers.logging.SentryHandler',
             'dsn': options.sentry,
         }
-
+    print(handlers['console'])
     logging.config.dictConfig({
         'version': 1,
         'disable_existing_loggers': True,
@@ -111,9 +110,9 @@ def main():
     check_fluxclient()
     if options.debug:
         os.environ["flux_debug"] = "1"
-        from fluxghost.http_server_debug import HttpServer
-    else:
-        from fluxghost.http_server import HttpServer
+        # from fluxghost.http_server_debug import HttpServer
+
+    from fluxghost.http_server import HttpServer
 
     if options.test:
         from tests.main import main
