@@ -55,7 +55,6 @@ def setup_logger(options):
             'class': 'raven.handlers.logging.SentryHandler',
             'dsn': options.sentry,
         }
-    print(handlers['console'])
     logging.config.dictConfig({
         'version': 1,
         'disable_existing_loggers': True,
