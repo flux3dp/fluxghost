@@ -414,7 +414,7 @@ class WebsocketControl(WebsocketControlBase):
         entry, path = file.split("/", 1)
         buf = BytesIO()
         mimetype = self.robot.download_file(entry, path, buf, report)
-        if binary:
+        if mimetype:
             self.send_json(status="binary", mimetype=mimetype, size=buf.truncate())
             self.send_binary(buf.getvalue())
 
