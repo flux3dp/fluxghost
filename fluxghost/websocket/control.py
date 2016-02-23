@@ -74,7 +74,8 @@ class WebsocketControlBase(WebSocketBase):
         else:
             self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
 
-    def simple_binary_transfer(self, mimetype, size, cmd, upload_to=None):
+    def simple_binary_transfer(self, mimetype, size, cmd, upload_to=None,
+                               cb=None):
         bin_sock = self.robot.begin_upload(mimetype, int(size),
                                            cmd=cmd, upload_to=upload_to)
         upload_meta = {'sent': 0}
@@ -91,6 +92,8 @@ class WebsocketControlBase(WebSocketBase):
                 resp = self.robot.get_resp().decode("ascii", "ignore")
                 if resp == "ok":
                     self.send_ok()
+                    if cb:
+                        cb()
                 else:
                     errargs = resp.split(" ")
                     self.send_error(*(errargs[1:]))
@@ -491,7 +494,8 @@ class WebsocketControl(WebsocketControlBase):
             return
 
     def update_fw(self, mimetype, ssize):
-        self.simple_binary_transfer(mimetype, int(ssize), "update_fw")
+        self.simple_binary_transfer(mimetype, int(ssize), "update_fw",
+                                    cb=lambda: self.close())
 
     def update_mbfw(self, mimetype, ssize):
         self.simple_binary_transfer(mimetype, int(ssize), "update_mbfw")
