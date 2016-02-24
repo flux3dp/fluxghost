@@ -229,6 +229,7 @@ class WebsocketControl(WebsocketControlBase):
                 "cpfile": self.cpfile,
                 "info": self.fileinfo,
                 "md5": self.filemd5,
+                "download": self.download,
             },
 
             "maintain": {
@@ -405,6 +406,17 @@ class WebsocketControl(WebsocketControlBase):
             self.send_json(status="ok", cmd="rmfile", path=file)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+
+    def download(self, file):
+        logger.debug(file)
+
+        report = lambda left, size: self.send_json(status="continue", left=left, size=size)
+        entry, path = file.split("/", 1)
+        buf = BytesIO()
+        mimetype = self.robot.download_file(entry, path, buf, report)
+        if mimetype:
+            self.send_json(status="binary", mimetype=mimetype, size=buf.truncate())
+            self.send_binary(buf.getvalue())
 
     def cpfile(self, source, target):
         params = source.split("/", 1) + target.split("/", 1)

@@ -43,7 +43,6 @@ class WebsocketUsbConfig(WebSocketBase):
             payload["ports"] = [s[0] for s in _list_ports.comports()
                                 if s[2] != "n/a"]
 
-        # payload["ports"] += ["SIMULATE"]
         self.send_json(payload)
 
     def connect_usb(self, port):
@@ -51,13 +50,16 @@ class WebsocketUsbConfig(WebSocketBase):
             self.task.close()
             self.task = None
 
-        if port == "SIMULATE":
-            self.task = t = SimulateTask()
-        else:
-            self.task = t = UsbTask(port=port)
-        self.send_json(status="ok", cmd="connect", serial=t.serial,
-                       version=t.remote_version, name=t.name, model=t.model_id,
-                       password=t.has_password)
+        try:
+            if port == "SIMULATE":
+                self.task = t = SimulateTask()
+            else:
+                self.task = t = UsbTask(port=port)
+            self.send_json(status="ok", cmd="connect", serial=t.serial,
+                           version=t.remote_version, name=t.name,
+                           model=t.model_id, password=t.has_password)
+        except Exception as e:
+            self.send_json(status="error", error="DEVICE_ERROR", info=repr(e))
 
     def auth(self, password=None):
         if password:
@@ -72,7 +74,6 @@ class WebsocketUsbConfig(WebSocketBase):
         self.send_text('{"status": "ok"}')
 
     def scan_wifi(self):
-        # TODO: simulate API!
         ret = self.task.list_ssid()
         self.send_json(status="ok", cmd="scan", wifi=ret)
 
