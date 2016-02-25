@@ -137,6 +137,5 @@ def main():
 
     server.serve_forever()
 
-print(__name__)
 if __name__ == '__main__':
     main()
