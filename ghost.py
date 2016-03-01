@@ -32,12 +32,12 @@ def setup_logger(options):
     log_level = logging.DEBUG if options.debug else logging.INFO
 
     handlers = {}
-    if sys.stdout.isatty():
-        handlers['console'] = {
-            'level': log_level,
-            'formatter': 'default',
-            'class': 'logging.StreamHandler',
-        }
+    # if sys.stdout.isatty():
+    handlers['console'] = {
+        'level': log_level,
+        'formatter': 'default',
+        'class': 'logging.StreamHandler',
+    }
 
     if options.logfile:
         handlers['file'] = {
@@ -45,7 +45,7 @@ def setup_logger(options):
             'formatter': 'default',
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': options.logfile,
-            'maxBytes': 5 * (2 ** 20),  # 10M
+            'maxBytes': 5 * (1 << 20),  # 10M
             'backupCount': 1
         }
 
@@ -136,7 +136,6 @@ def main():
                         address=(options.ipaddr, options.port,),)
 
     server.serve_forever()
-
 
 if __name__ == '__main__':
     main()
