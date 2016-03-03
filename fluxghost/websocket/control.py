@@ -359,6 +359,8 @@ class WebsocketControl(WebsocketControlBase):
                 else:
                     files.append(name)
 
+            dirs.sort()
+            files.sort()
             self.send_json(status="ok", cmd="ls", path=location,
                            directories=dirs, files=files)
         else:
