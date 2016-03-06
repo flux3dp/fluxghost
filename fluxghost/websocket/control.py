@@ -376,9 +376,9 @@ class WebsocketControl(WebsocketControlBase):
         entry, path = file.split("/", 1)
         info, binary = self.robot.fileinfo(entry, path)
         if binary:
-            self.send_json(status="binary", mimetype=binary[0],
-                           size=len(binary[1]))
-            self.send_binary(binary[1])
+            self.send_json(status="binary", mimetype=binary[0][0],
+                           size=len(binary[0][1]))
+            self.send_binary(binary[0][1])
 
         info["status"] = "ok"
         self.send_json(info)
