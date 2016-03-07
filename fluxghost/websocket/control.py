@@ -313,15 +313,25 @@ class WebsocketControl(WebsocketControlBase):
             logger.debug("RuntimeError%s" % repr(e.args))
             self.send_error(*e.args)
 
+        except (TimeoutError, ConnectionResetError,  # noqa
+                socket.timeout, ) as e:
+            from fluxclient.robot.v0002 import FluxRobotV0002
+            import sys
+            _, _, t = sys.exc_info()
+            while t.tb_next:
+                t = t.tb_next
+                if "self" in t.tb_frame.f_locals:
+                    if isinstance(t.tb_frame.f_locals["self"], FluxRobotV0002):
+                        self.send_fatal("TIMEOUT", repr(e.args))
+                        return
+            self.send_error("UNKNOWN_ERROR2", repr(e.__class__))
+
         except socket.error as e:
             if e.args[0] == EPIPE:
                 self.send_fatal("DISCONNECTED", repr(e.__class__))
             else:
                 logger.exception("Unknow socket error")
                 self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
-
-        except (TimeoutError, socket.timeout) as e:  # noqa
-                self.send_fatal("TIMEOUT", repr(e.args))
 
         except Exception as e:
             logger.exception("Unknow error while process text")
@@ -376,9 +386,9 @@ class WebsocketControl(WebsocketControlBase):
         entry, path = file.split("/", 1)
         info, binary = self.robot.fileinfo(entry, path)
         if binary:
-            self.send_json(status="binary", mimetype=binary[0],
-                           size=len(binary[1]))
-            self.send_binary(binary[1])
+            self.send_json(status="binary", mimetype=binary[0][0],
+                           size=len(binary[0][1]))
+            self.send_binary(binary[0][1])
 
         info["status"] = "ok"
         self.send_json(info)
