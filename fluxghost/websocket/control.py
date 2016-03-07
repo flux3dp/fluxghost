@@ -440,7 +440,7 @@ class WebsocketControl(WebsocketControlBase):
                 upload_to = upload_to[:-5] + 'fc'
 
             def upload_callback(swap):
-                gcode_content = swap.getvalue().decode().split('\n')
+                gcode_content = swap.getvalue().decode("ascii", "ignore").split('\n')
 
                 if gcode_content[1] == ';Laser Gcode':
                     head_type = "LASER"
