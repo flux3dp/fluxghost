@@ -48,7 +48,6 @@ hiddenimports += ['fluxghost.websocket.scan_modeling',
                   'fluxghost.websocket.fcode_reader',
                   'fluxghost.http_handlers.websocket_handler',
                   'fluxghost.websocket.echo',
-                  'fluxghost.websocket.laser_pattern',
                   'fluxghost.websocket.usb_config',
                   'fluxghost.http_server',
                   'fluxghost.http_handlers.file_handler',
@@ -68,8 +67,7 @@ hiddenimports += ['fluxghost.websocket.scan_modeling',
                   'fluxghost.http_server_debug',
                   'fluxghost.utils',
                   'fluxghost.websocket.discover',
-                  'fluxghost.websocket.config',
-                  'fluxghost.websocket.file']
+                  'fluxghost.websocket.config']
 
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
