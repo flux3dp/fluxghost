@@ -49,17 +49,13 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             try:
                 warning, content = self.m_laser_svg.preprocess(buf)
 
-                if warning:
-                    if warning[-1] == 'EMPTY':
-                        for w in warning[:-1]:
-                            self.send_warning(w)
-                        self.send_error('EMPTY')
-                    else:
-                        for w in warning:
-                            self.send_warning(w)
-                        self.m_laser_svg.svgs[name] = content
-                        self.send_ok()
+                if warning and warning[-1] == 'EMPTY':
+                    for w in warning[:-1]:
+                        self.send_warning(w)
+                    self.send_error(warning[-1])
                 else:
+                    for w in warning:
+                        self.send_warning(w)
                     self.m_laser_svg.svgs[name] = content
                     self.send_ok()
             except:
