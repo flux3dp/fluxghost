@@ -7,6 +7,7 @@ import shlex
 from io import BytesIO
 from os import environ
 
+from fluxclient.commands.misc import get_or_create_default_key  # TODO
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.upnp.task import UpnpTask
@@ -54,6 +55,7 @@ class WebsocketControlBase(WebSocketBase):
             self.send_text(STAGE_ROBOT_CONNECTING)
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.slave_key,
+                                       client_key=get_or_create_default_key(),
                                        conn_callback=self._conn_callback)
         except OSError as err:
             error_no = err.args[0]
@@ -153,10 +155,13 @@ class WebsocketControlBase(WebSocketBase):
     def _discover(self, uuid):
         profile = self.server.discover_devices.get(uuid)
         if profile:
-            task = UpnpTask(self.uuid, remote_profile=profile,
-                            lookup_timeout=4.0)
+            # TODO
+            task = UpnpTask(self.uuid, client_key=get_or_create_default_key(),
+                            remote_profile=profile, lookup_timeout=4.0)
         else:
-            task = UpnpTask(self.uuid, lookup_callback=self._disc_callback)
+            # TODO
+            task = UpnpTask(self.uuid, client_key=get_or_create_default_key(),
+                            lookup_callback=self._disc_callback)
 
         self.ipaddr = task.endpoint[0]
         return task
