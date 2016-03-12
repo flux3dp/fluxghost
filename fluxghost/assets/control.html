@@ -4,6 +4,7 @@
   <title>FLUXStudio - Control</title>
   <script src="res/jquery-2.1.4.min.js"></script>
   <script src="res/bootstrap/js/bootstrap.min.js"></script>
+  <script src="res/jsencrypt.js"></script>
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
@@ -75,7 +76,8 @@
   function beginControl(uuid, name) {
     $("#device_label").
       text(name + " (" + uuid + ")").
-      attr("data-serial", uuid);
+      attr("data-uuid", uuid).
+      attr("data-name", name);
     connectControl();
   }
 
@@ -85,10 +87,14 @@
       window.control_ws.close();
       window.control_ws = undefined;
     }
-    var serial = $("#device_label").attr("data-serial");
+    var serial = $("#device_label").attr("data-uuid");
     appendLog("Connect to " + serial);
     var ws = new WebSocket("ws://" + window.location.host + "/ws/control/" + serial);
     window.control_ws = ws;
+
+    ws.onopen = function(v) {
+      ws.send(getKeyPem());
+    }
 
     ws.onclose = function(v) {
       if(self.control_ws === ws) {
@@ -114,7 +120,14 @@
           ws.onmessage = cb_standard;
           send_ping();
         } else {
-          appendLog("✗ Error: "+ m.data + " 😭", "red");
+          if(payload.status === "fatal" && payload.error === "AUTH_ERROR") {
+            var $label = $("#device_label");
+            appendLog("✗ Error: Auth failed", "red");
+            appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
+                          ';' + $label.attr("data-name") + '">Go to auth page</a>');
+          } else {
+            appendLog("✗ Error: "+ m.data + " 😭", "red");
+          }
         }
 
       } catch(err) {

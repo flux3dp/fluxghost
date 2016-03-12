@@ -3,7 +3,7 @@ from uuid import UUID
 import logging
 import json
 
-from fluxclient.commands.misc import get_or_create_default_key  # TODO
+from fluxclient.encryptor import KeyObject
 from fluxclient.upnp.task import UpnpTask
 from .base import WebSocketBase
 
@@ -18,9 +18,10 @@ class WebsocketTouch(WebSocketBase):
         try:
             payload = json.loads(message)
             uuid = UUID(hex=payload["uuid"])
-
+            client_key = KeyObject.load_keyobj(payload["key"])
             password = payload.get("password")
-            self.touch_device(uuid, password)
+
+            self.touch_device(client_key, uuid, password)
         except Exception:
             logger.exception("Touch error")
             self.close()
@@ -40,7 +41,7 @@ class WebsocketTouch(WebSocketBase):
                 else:
                     raise
 
-    def touch_device(self, uuid, password=None):
+    def touch_device(self, client_key, uuid, password=None):
         try:
             if uuid.hex == "0" * 32:
                 self.send_text(json.dumps({
@@ -53,8 +54,7 @@ class WebsocketTouch(WebSocketBase):
                 return
 
             # TODO
-            task = UpnpTask(uuid, client_key=get_or_create_default_key(),
-                            lookup_timeout=30.0)
+            task = UpnpTask(uuid, client_key=client_key, lookup_timeout=30.0)
             resp = self._run_auth(task, password)
 
             self.send_text(json.dumps({

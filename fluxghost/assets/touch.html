@@ -8,13 +8,21 @@
   <meta charset="UTF-8">
   <script src="shared.js"></script>
   <script>
+  function beginControl(uuid, name) {
+    $("#device_label").
+      text(name + " (" + uuid + ")").
+      attr("data-uuid", uuid).
+      attr("data-name", name);
+    touch_without_password(uuid, name, true);
+  }
+
   function touch_without_password(uuid, name, has_password) {
     var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
     var close_normally = false;
 
     ws.onopen = function() {
       appendLog("Try touch: " + name + " (" + uuid + ")");
-      ws.send(JSON.stringify({uuid: uuid}));
+      ws.send(JSON.stringify({uuid: uuid, key: getKeyPem()}));
     }
     ws.onmessage = function(m) {
       close_normally = true;
@@ -41,7 +49,7 @@
 
       ws.onopen = function() {
         appendLog("Try touch: " + name + " (" + uuid + ")");
-        ws.send(JSON.stringify({uuid: uuid, password: pwd}));
+        ws.send(JSON.stringify({uuid: uuid, password: pwd, key: getKeyPem()}));
       }
       ws.onmessage = function(m) {
         close_normally = true;
@@ -65,6 +73,13 @@
       log_text += (payload.auth?" and auth SUCCESS":" and auth FAILED");
 
       appendLog(log_text, (payload.auth?"#31B404":"#0000AA"))
+
+      if(payload.auth) {
+        var $label = $("#device_label");
+        appendHtmlLog('<a href="control.html#' + $label.attr("data-uuid") + 
+              ';' + $label.attr("data-name") + '">Go to control page</a>');
+
+      }
     } else {
       log_text += "NO response";
       appendLog(log_text, "red");
@@ -72,23 +87,20 @@
   }
 
   $(window).ready(function() {
-    $("[data-role=discover]").on("click", function() {
-      if(window.discover_ws) {
-        window.discover_ws.close();
-        window.discover_ws = undefined;
-        $(this).removeClass("btn-warning").addClass("btn-success").text("Start Discover");
-      } else {
-        $("#devices").children().remove();
-        window.discover_ws = new DiscoverWS(addDevice, removeDevice);
-        $(this).removeClass("btn-success").addClass("btn-warning").text("Stop Discover");
-      }
-    }).trigger("click");
+    var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    if(matchs != undefined && matchs.length == 1) {
+      var tags = matchs[0].split(";");
+      var serial = tags[0].substr(1);
+      var name = tags.slice(1).join(";");
 
-    $("#devices").on("click", "[data-uuid]", function() {
-      var uuid = $(this).attr("data-uuid");
-      var name = $(this).attr("data-name");
-      var has_password = $(this).attr("data-password") === "true";
-      touch_without_password(uuid, name, has_password);
+      beginControl(serial, name);
+    } else {
+      window.location = "discover.html";
+    }
+
+    $("[data-role=reset-control]").bind("click", function() {
+      var $label = $("#device_label");
+      touch_without_password($label.attr("data-uuid"), $label.attr("data-name"), true);
     });
   });
   </script>
@@ -97,36 +109,21 @@
   </style>
 </head>
 <body>
-  <div class="container-fluid">
-    <div class="row" style="padding-top: 1em">
-      <div class="col-xs-10">
-        <strong>./fluxghost/assets/touch.html</strong>
-      </div>
-      <div class="col-xs-2">
-        <a href="index.html" class="btn btn-xs btn-primary">Back to Index</a>
-      </div>
-    </div>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li><a href="discover.html">Touch</a></li>
+      <li>
+        <span id="device_label"></span>
+        <a class="btn btn-xs btn-warning" data-role="reset-control">
+          <i class="glyphicon glyphicon-repeat"></i>
+        </a>
+      </li>
+    </ol>
   </div>
-  <hr />
-  <div class="container-fluid"><div class="navbar">
-      <a href="#" class="btn btn-success" data-role="discover">Start Discover</a>
-  </div></div>
   <div class="container-fluid">
     <div class="row">
-      <div class="col-xs-4">
-        <div class="list-group" id="devices">
-          <a href="#" class="list-group-item">
-            <span class="glyphicon glyphicon-lock"></span>
-            My 3D Printer
-            <label class="label label-default">AAAAAAAAAAAAAAAAAAAAAAAAA</label>
-          </a>
-          <a href="#" class="list-group-item">
-            <span class="glyphicon glyphicon-lock"></span>
-            My 3D Printer
-          </a>
-        </div>
-      </div>
-      <div class="col-xs-8" id="log"></div>
+      <div class="col-xs-12" id="log"></div>
     </div>
   </div>
 </body>

@@ -55,7 +55,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.text_send("Protocol error")
         self.close()
 
-    def on_text_message(self, message):
+    def on_command(self, message):
         if message == "take_control":
             self.take_control()
 
