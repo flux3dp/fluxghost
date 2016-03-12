@@ -7,9 +7,10 @@ import shlex
 from io import BytesIO
 from os import environ
 
-from fluxclient.robot import connect_robot
-from fluxclient.upnp.task import UpnpTask
+from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.upnp.task import UpnpTask
+from fluxclient.robot import connect_robot
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -66,6 +67,7 @@ class WebsocketControlBase(WebSocketBase):
             self.send_fatal(err.args[0], )
             raise
 
+        self.remote_version = task.remote_version
         self.send_text(STAGE_CONNECTED)
 
     def on_binary_message(self, buf):
@@ -186,6 +188,13 @@ class WebsocketControl(WebsocketControlBase):
         return wrapper
 
     def set_hooks(self):
+        if self.remote_version < StrictVersion("1.0b13"):
+            logger.warn("Remote version is too old, allow update fw only")
+            self.cmd_mapping = {
+                "update_fw": self.update_fw,
+            }
+            return
+
         self.cmd_mapping = {
             # deprecated
             "start": self.fast_wrapper(self.robot.start_play),
@@ -307,7 +316,7 @@ class WebsocketControl(WebsocketControlBase):
                 pass
             else:
                 logger.warn("Unknow Command: %s" % message)
-                self.send_error("UNKNOWN_COMMAND", "ws")
+                self.send_error("UNKNOWN_COMMAND", "LEVEL: websocket")
 
         except RuntimeError as e:
             logger.debug("RuntimeError%s" % repr(e.args))
