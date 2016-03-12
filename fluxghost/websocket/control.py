@@ -431,12 +431,15 @@ class WebsocketControl(WebsocketControlBase):
     def download(self, file):
         logger.debug(file)
 
-        report = lambda left, size: self.send_json(status="continue", left=left, size=size)
+        def report(left, size):
+            self.send_json(status="continue", left=left, size=size)
+
         entry, path = file.split("/", 1)
         buf = BytesIO()
         mimetype = self.robot.download_file(entry, path, buf, report)
         if mimetype:
-            self.send_json(status="binary", mimetype=mimetype, size=buf.truncate())
+            self.send_json(status="binary", mimetype=mimetype,
+                           size=buf.truncate())
             self.send_binary(buf.getvalue())
 
     def cpfile(self, source, target):
@@ -459,7 +462,8 @@ class WebsocketControl(WebsocketControlBase):
                 upload_to = upload_to[:-5] + 'fc'
 
             def upload_callback(swap):
-                gcode_content = swap.getvalue().decode("ascii", "ignore").split('\n')
+                gcode_content = swap.getvalue().decode("ascii", "ignore")
+                gcode_content = gcode_content.split('\n')
 
                 if gcode_content[1] == ';Laser Gcode':
                     head_type = "LASER"
@@ -471,14 +475,15 @@ class WebsocketControl(WebsocketControlBase):
                     head_type = "EXTRUDER"
 
                 fcode_output = BytesIO()
-                g2f = GcodeToFcode(head_type=head_type, ext_metadata={"CORRECTION": "A"})
+                g2f = GcodeToFcode(head_type=head_type,
+                                   ext_metadata={"CORRECTION": "A"})
 
                 g2f.process(gcode_content, fcode_output)
-                ########## fake code  ########################
+                # ######### fake code  ########################
                 if environ.get("flux_debug") == '1':
                     with open('output.fc', 'wb') as ff:
                         ff.write(fcode_output.getvalue())
-                ##################################################
+                # #################################################
 
                 fcode_len = fcode_output.truncate()
                 remote_sent = 0
