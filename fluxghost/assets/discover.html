@@ -266,13 +266,23 @@
     }
   }
 
+  function ping() {
+    if(window.discover_ws) {
+      window.discover_ws.send("ping");
+      setTimeout(ping, 5000);
+    }
+  }
+
   function connectDiscover() {
     window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
-    window.discover_ws.onopen = function() {};
+    window.discover_ws.onopen = function() {
+      setTimeout(ping, 5000);
+    };
 
     window.discover_ws.onclose = function(m) {
       $("[data-st-id]").attr("data-st-id", "offline");
       $("#disconnect_dialog").modal('show');
+      window.discover_ws = undefined;
     }
 
     window.discover_ws.onmessage = function(m) {
