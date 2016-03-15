@@ -24,6 +24,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             'get_meta': [self.get_meta],
             'get_path': [self.get_path]
         }
+        self.fcode = None
 
     def begin_recv_buf(self, length, buf_type='f'):
         logger.debug("begin upload g/f code")
@@ -57,8 +58,8 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
 
             fcode_output = BytesIO()
 
-            self.data_parser = GcodeToFcode()
             self.data_parser.process(f, fcode_output)
+            self.fcode = fcode_output.getvalue()
 
     def get_img(self, *args):
         buf = self.data_parser.get_img()
@@ -68,7 +69,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
 
             self.send_binary(buf)
         else:
-            logger.debug('get image: othing to send')
+            logger.debug('get image: nothing to send')
             self.send_error('Nothing to send')
 
     def get_meta(self, *args):
@@ -77,7 +78,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             self.send_text('{"status": "complete", "metadata": %s}' % json.dumps(meta))
             logger.debug('sending metadata %d' % (len(meta)))
         else:
-            logger.debug('get meta: othing to send')
+            logger.debug('get meta: nothing to send')
             self.send_error('Nothing to send')
 
     def get_path(self, *args):
@@ -87,8 +88,14 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             logger.debug('sending path %d' % (len(path)))
             self.send_text(js_path)
         else:
-            logger.debug('get path: othing to send')
+            logger.debug('get path: nothing to send')
             self.send_error('No path data to send')
 
     def get_fcode(self):
-        print()
+        if self.fcode:
+            logger.debug('sending fcode %d' % (len(self.fcode)))
+            self.send_text('{"status": "complete", "length": %d}' % len(self.fcode))
+            self.send_binary(self.fcode)
+        else:
+            logger.debug('get fcode: nothing to send')
+            self.send_error('No fcode to send')
