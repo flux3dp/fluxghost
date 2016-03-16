@@ -7,9 +7,11 @@ import shlex
 from io import BytesIO
 from os import environ
 
-from fluxclient.robot import connect_robot
-from fluxclient.upnp.task import UpnpTask
+from fluxclient.commands.misc import get_or_create_default_key  # TODO
+from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.upnp.task import UpnpTask
+from fluxclient.robot import connect_robot
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -53,6 +55,7 @@ class WebsocketControlBase(WebSocketBase):
             self.send_text(STAGE_ROBOT_CONNECTING)
             self.robot = connect_robot((self.ipaddr, 23811),
                                        server_key=task.slave_key,
+                                       client_key=get_or_create_default_key(),
                                        conn_callback=self._conn_callback)
         except OSError as err:
             error_no = err.args[0]
@@ -66,6 +69,7 @@ class WebsocketControlBase(WebSocketBase):
             self.send_fatal(err.args[0], )
             raise
 
+        self.remote_version = task.remote_version
         self.send_text(STAGE_CONNECTED)
 
     def on_binary_message(self, buf):
@@ -151,10 +155,13 @@ class WebsocketControlBase(WebSocketBase):
     def _discover(self, uuid):
         profile = self.server.discover_devices.get(uuid)
         if profile:
-            task = UpnpTask(self.uuid, remote_profile=profile,
-                            lookup_timeout=4.0)
+            # TODO
+            task = UpnpTask(self.uuid, client_key=get_or_create_default_key(),
+                            remote_profile=profile, lookup_timeout=4.0)
         else:
-            task = UpnpTask(self.uuid, lookup_callback=self._disc_callback)
+            # TODO
+            task = UpnpTask(self.uuid, client_key=get_or_create_default_key(),
+                            lookup_callback=self._disc_callback)
 
         self.ipaddr = task.endpoint[0]
         return task
@@ -186,6 +193,13 @@ class WebsocketControl(WebsocketControlBase):
         return wrapper
 
     def set_hooks(self):
+        if self.remote_version < StrictVersion("1.0b13"):
+            logger.warn("Remote version is too old, allow update fw only")
+            self.cmd_mapping = {
+                "update_fw": self.update_fw,
+            }
+            return
+
         self.cmd_mapping = {
             # deprecated
             "start": self.fast_wrapper(self.robot.start_play),
@@ -307,7 +321,7 @@ class WebsocketControl(WebsocketControlBase):
                 pass
             else:
                 logger.warn("Unknow Command: %s" % message)
-                self.send_error("UNKNOWN_COMMAND", "ws")
+                self.send_error("UNKNOWN_COMMAND", "LEVEL: websocket")
 
         except RuntimeError as e:
             logger.debug("RuntimeError%s" % repr(e.args))
@@ -422,12 +436,15 @@ class WebsocketControl(WebsocketControlBase):
     def download(self, file):
         logger.debug(file)
 
-        report = lambda left, size: self.send_json(status="continue", left=left, size=size)
+        def report(left, size):
+            self.send_json(status="continue", left=left, size=size)
+
         entry, path = file.split("/", 1)
         buf = BytesIO()
         mimetype = self.robot.download_file(entry, path, buf, report)
         if mimetype:
-            self.send_json(status="binary", mimetype=mimetype, size=buf.truncate())
+            self.send_json(status="binary", mimetype=mimetype,
+                           size=buf.truncate())
             self.send_binary(buf.getvalue())
 
     def cpfile(self, source, target):
@@ -450,7 +467,8 @@ class WebsocketControl(WebsocketControlBase):
                 upload_to = upload_to[:-5] + 'fc'
 
             def upload_callback(swap):
-                gcode_content = swap.getvalue().decode("ascii", "ignore").split('\n')
+                gcode_content = swap.getvalue().decode("ascii", "ignore")
+                gcode_content = gcode_content.split('\n')
 
                 if gcode_content[1] == ';Laser Gcode':
                     head_type = "LASER"
@@ -462,14 +480,15 @@ class WebsocketControl(WebsocketControlBase):
                     head_type = "EXTRUDER"
 
                 fcode_output = BytesIO()
-                g2f = GcodeToFcode(head_type=head_type, ext_metadata={"CORRECTION": "A"})
+                g2f = GcodeToFcode(head_type=head_type,
+                                   ext_metadata={"CORRECTION": "A"})
 
                 g2f.process(gcode_content, fcode_output)
-                ########## fake code  ########################
+                # ######### fake code  ########################
                 if environ.get("flux_debug") == '1':
                     with open('output.fc', 'wb') as ff:
                         ff.write(fcode_output.getvalue())
-                ##################################################
+                # #################################################
 
                 fcode_len = fcode_output.truncate()
                 remote_sent = 0

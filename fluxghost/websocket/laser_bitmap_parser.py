@@ -73,7 +73,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         self.send_ok()
 
     def clear_imgs(self, params):
-        print('clear_imgs')
+        logger.debug('clear_imgs')
         self.images = []
         self.m_laser_bitmap.reset_image()
         self.send_ok()

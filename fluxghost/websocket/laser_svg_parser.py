@@ -48,17 +48,22 @@ class WebsocketLaserSvgParser(OnTextMessageMixin, WebsocketBinaryHelperMixin, We
             logger.debug("upload name:%s" % (name))
             try:
                 warning, content = self.m_laser_svg.preprocess(buf)
-                if warning:
+
+                if warning and warning[-1] == 'EMPTY':
+                    for w in warning[:-1]:
+                        self.send_warning(w)
+                    self.send_error(warning[-1])
+                else:
                     for w in warning:
-                        self.send_error(w)
-                self.m_laser_svg.svgs[name] = content
+                        self.send_warning(w)
+                    self.m_laser_svg.svgs[name] = content
+                    self.send_ok()
             except:
                 import traceback
                 traceback.print_tb(sys.exc_info()[2], file=sys.stderr)
                 logger.debug(repr(sys.exc_info()))
-                self.send_error('fail to parse svg')
-            else:
-                self.send_ok()
+                self.send_error('SVG_BROKEN')
+
         elif args[0] == 'compute':
             logger.debug("compute name:%s w[%.3f] h[%.3f] p1[%.3f, %.3f] p2[%.3f, %.3f] r[%f]" % (name, args[1][0], args[1][1], args[1][2], args[1][3], args[1][4], args[1][5], args[1][6]))
             params = args[1][:]  # copy
