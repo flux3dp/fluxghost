@@ -49,7 +49,6 @@ class HttpServerBase(object):
         while self.running:
             try:
                 for sock in select(*args)[0]:
-                    print(sock)
                     if sock == self.sock:
                         self.on_accept()
                     elif sock in disc.socks:
