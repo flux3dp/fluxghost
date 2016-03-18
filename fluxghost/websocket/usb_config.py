@@ -60,6 +60,7 @@ class WebsocketUsbConfig(WebSocketBase):
                            model=t.model_id, password=t.has_password)
         except Exception as e:
             self.send_json(status="error", error="DEVICE_ERROR", info=repr(e))
+            logger.exception("Error while connect to usb")
 
     def auth(self, password=None):
         if password:
