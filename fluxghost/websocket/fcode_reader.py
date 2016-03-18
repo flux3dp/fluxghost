@@ -26,14 +26,14 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
         }
         self.fcode = None
 
-    def begin_recv_buf(self, length, buf_type='f'):
+    def begin_recv_buf(self, length, buf_type='-f'):
         logger.debug("begin upload g/f code")
         file_size = int(length)
-        if buf_type != 'g' and buf_type != 'f':
+        if buf_type != '-g' and buf_type != '-f':
             self.send_fatal('TYPE_ERROR')
         else:
             self.buf_type = buf_type
-            if buf_type == 'f':
+            if buf_type == '-f':
                 self.data_parser = FcodeParser()
             else:
                 self.data_parser = GcodeToFcode()
@@ -43,7 +43,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             self.send_continue()
 
     def end_recv_buf(self, buf):
-        if self.buf_type == 'f':
+        if self.buf_type == '-f':
             if self.data_parser.upload_content(buf):
                 tmp = io.StringIO()
                 self.data_parser.f_to_g(tmp)
