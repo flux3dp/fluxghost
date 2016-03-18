@@ -22,15 +22,25 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             'upload': [self.begin_recv_buf],
             'get_img': [self.get_img],
             'get_meta': [self.get_meta],
-            'get_path': [self.get_path]
+            'get_path': [self.get_path],
+            'get_fcode': [self.get_fcode]
         }
         self.fcode = None
+        self.buf_type = '-f'
 
-    def begin_recv_buf(self, length, buf_type='-f'):
+    def begin_recv_buf(self, length):
         logger.debug("begin upload g/f code")
+        buf_type = '-f'
+
+        length = length.split()
+        print((length, len(length)))
+        if len(length) == 2:
+            length, buf_type = length
+        else:
+            length = length[0]
         file_size = int(length)
         if buf_type != '-g' and buf_type != '-f':
-            self.send_fatal('TYPE_ERROR')
+            self.send_fatal('TYPE_ERROR {}'.format(buf_type))
         else:
             self.buf_type = buf_type
             if buf_type == '-f':
@@ -47,19 +57,22 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             if self.data_parser.upload_content(buf):
                 tmp = io.StringIO()
                 self.data_parser.f_to_g(tmp)
+                self.fcode = buf
                 logger.debug("fcode parsing done")
                 self.send_ok()
             else:
                 self.send_error('File broken')
         else:
-            f = StringIO()
+            f = io.StringIO()
             f.write(buf.decode('ascii', 'ignore'))
             f.seek(0)
 
-            fcode_output = BytesIO()
+            fcode_output = io.BytesIO()
 
             self.data_parser.process(f, fcode_output)
             self.fcode = fcode_output.getvalue()
+            logger.debug("gcode parsing done")
+            self.send_ok()
 
     def get_img(self, *args):
         buf = self.data_parser.get_img()
@@ -91,7 +104,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             logger.debug('get path: nothing to send')
             self.send_error('No path data to send')
 
-    def get_fcode(self):
+    def get_fcode(self, *args):
         if self.fcode:
             logger.debug('sending fcode %d' % (len(self.fcode)))
             self.send_text('{"status": "complete", "length": %d}' % len(self.fcode))
