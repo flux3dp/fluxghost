@@ -54,7 +54,14 @@ class WebsocketTouch(WebSocketBase):
                 return
 
             # TODO
-            task = UpnpTask(uuid, client_key=client_key, lookup_timeout=30.0)
+            profile = self.server.discover_devices.get(uuid)
+            if profile:
+                task = UpnpTask(uuid, client_key=client_key,
+                                remote_profile=profile, lookup_timeout=30.0)
+            else:
+                task = UpnpTask(uuid, client_key=client_key,
+                                lookup_timeout=30.0)
+
             resp = self._run_auth(task, password)
 
             self.send_text(json.dumps({

@@ -4,10 +4,10 @@ from time import time
 import logging
 import socket
 
-logger = logging.getLogger("HTTPServer")
-
 from fluxghost.http_handlers.websocket_handler import WebSocketHandler
 from fluxghost.http_handlers.file_handler import FileHandler
+
+logger = logging.getLogger("HTTPServer")
 
 
 class HttpServerBase(object):
@@ -34,24 +34,17 @@ class HttpServerBase(object):
         logger.info("Listen HTTP on %s:%s" % address)
 
         self.discover_devices = {}
-        if enable_discover:
-            from fluxclient.upnp.discover import UpnpDiscover
-            self.discover = UpnpDiscover()
-            self.discover_socks = self.discover.socks
-        else:
-            self.discover = None
-            self.discover_socks = ()
+        self.launch_discover()
+
+    def launch_discover(self):
+        from fluxclient.upnp.discover import UpnpDiscover
+        self.discover = UpnpDiscover()
+        self.discover_socks = self.discover.socks
 
     def serve_forever(self):
         self.running = True
-
-        if self.enable_discover: # and self.runmode == "THREAD"
-            logger.info("Run discover in background")
-            from fluxclient.upnp.discover import UpnpDiscover
-            disc = UpnpDiscover()
-            args = ((self.sock, ) + disc.socks, (), (), 30.)
-        else:
-            args = ((self.sock, ), (), (), 30.)
+        disc = self.discover
+        args = ((self.sock, ) + self.discover_socks, (), (), 30.)
 
         while self.running:
             try:
@@ -66,8 +59,6 @@ class HttpServerBase(object):
                                 timeout=0.01)
                         except (OSError, socket.error):
                             logger.debug("Discover error, recreate")
-                            disc = UpnpDiscover()
-                            args = ((self.sock, ) + disc.socks, (), (), 30.)
 
             except InterruptedError:
                 pass

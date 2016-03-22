@@ -64,9 +64,6 @@
   }
 
   function updateDevice($dom, payload) {
-    if(payload.serial == "B11AZ30008") {
-      window.aa = payload;
-    }
     updateBasicProfile($dom, payload);
 
     if(payload.alive == false) {
@@ -133,6 +130,7 @@
               css("width", st_prog).
               addClass("progress-bar-warning progress-bar-striped");
             break;
+          case 36:
           case 48:
             if(payload.error_label) {
               $stlabel.addClass("label-warning").
@@ -266,13 +264,23 @@
     }
   }
 
+  function ping() {
+    if(window.discover_ws) {
+      window.discover_ws.send("ping");
+      setTimeout(ping, 5000);
+    }
+  }
+
   function connectDiscover() {
     window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
-    window.discover_ws.onopen = function() {};
+    window.discover_ws.onopen = function() {
+      setTimeout(ping, 5000);
+    };
 
     window.discover_ws.onclose = function(m) {
       $("[data-st-id]").attr("data-st-id", "offline");
       $("#disconnect_dialog").modal('show');
+      window.discover_ws = undefined;
     }
 
     window.discover_ws.onmessage = function(m) {
@@ -285,7 +293,7 @@
         }
       } catch (err) {
         console.log("Can not handle discover message: '" + m.data + "', err=" + err);
-      } 
+      }
     }
   }
 
@@ -295,11 +303,26 @@
       connectDiscover();
     });
     connectDiscover();
+
+    $("#poke_ipaddr").bind("click", function() {
+      var ipaddr = $("#ipaddr").val();
+      if(/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipaddr)) {
+
+        var pl = {cmd: "poke", ipaddr: ipaddr};
+        window.discover_ws.send(JSON.stringify(pl));
+      } else {
+        alert("Bad IP Address");
+      }
+    });
   });
   </script>
 </head>
 <body>
   <div class="container-fluid banner">
+    <div class="pull-right form-inline" style="margin: 3px;">
+      <input type="text" id="ipaddr" class="form-control input-sm" placeholder="IP Address" value="192.168.18.94"/>
+      <div id="poke_ipaddr" class="btn btn-sm btn-primary">Poke</div>
+    </div>
     <ol class="breadcrumb">
       <li><a href="index.html">Ghost</a></li>
       <li>Control</li>
