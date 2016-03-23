@@ -50,6 +50,19 @@ class WebsocketDiscover(WebSocketBase):
                 self.alive_devices.add(uuid)
                 self.send_text(self.build_response(uuid, **data))
 
+    def on_text_message(self, message):
+        try:
+            payload = json.loads(message)
+        except Exception as e:
+            self.send_error("BAD_PARAMS", info=repr(e))
+            return
+
+        cmd = payload.get("cmd")
+        if cmd == "poke":
+            self.server.discover.poke(payload["ipaddr"])
+        else:
+            self.send_error("UNKNOWN_COMMAND")
+
     def on_loop(self):
         self.on_review_devices()
         self.POOL_TIME = min(self.POOL_TIME + 1.0, 3.0)

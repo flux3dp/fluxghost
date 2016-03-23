@@ -90,7 +90,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
             logger.debug("add image at %s pixel: %s" % (position, size))
 
         logger.debug("add image finished, generating gcode")
-        self.send_progress('generating gcode', 0.97)
+        self.send_progress('generating fcode', 0.97)
         if '-g' in args:
             output_binary = self.m_laser_bitmap.gcode_generate().encode()
             time_need = 0
