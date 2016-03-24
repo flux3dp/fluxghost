@@ -28,7 +28,7 @@ from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
 
 from fluxclient import SUPPORT_PCL
 from fluxclient.scanner.scan_settings import ScanSetting
-from fluxclient.scanner.pc_process import PcProcess, PcProcessNoPCL
+from fluxclient.scanner.pc_process import PcProcess
 
 logger = logging.getLogger("WS.3DSCAN-MODELING")
 

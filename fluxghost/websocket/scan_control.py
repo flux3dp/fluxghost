@@ -181,6 +181,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.scan_settings.cab_r += tmp[1]
         else:
             pass
+        L.info('callibration: m:{} l:{} r:{}'.format(self.scan_settings.cab_m, self.scan_settings.cab_l, self.scan_settings.cab_r))
         # self.cameraX += self.scan_settings.cab_m - (self.scan_settings.img_width / 2) / 125 *
 
         self.scan_settings.LLaserAdjustment = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
