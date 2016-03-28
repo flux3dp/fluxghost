@@ -64,9 +64,6 @@
   }
 
   function updateDevice($dom, payload) {
-    if(payload.serial == "B11AZ30008") {
-      window.aa = payload;
-    }
     updateBasicProfile($dom, payload);
 
     if(payload.alive == false) {
@@ -296,7 +293,7 @@
         }
       } catch (err) {
         console.log("Can not handle discover message: '" + m.data + "', err=" + err);
-      } 
+      }
     }
   }
 
@@ -306,11 +303,26 @@
       connectDiscover();
     });
     connectDiscover();
+
+    $("#poke_ipaddr").bind("click", function() {
+      var ipaddr = $("#ipaddr").val();
+      if(/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipaddr)) {
+
+        var pl = {cmd: "poke", ipaddr: ipaddr};
+        window.discover_ws.send(JSON.stringify(pl));
+      } else {
+        alert("Bad IP Address");
+      }
+    });
   });
   </script>
 </head>
 <body>
   <div class="container-fluid banner">
+    <div class="pull-right form-inline" style="margin: 3px;">
+      <input type="text" id="ipaddr" class="form-control input-sm" placeholder="IP Address" value="192.168.18.94"/>
+      <div id="poke_ipaddr" class="btn btn-sm btn-primary">Poke</div>
+    </div>
     <ol class="breadcrumb">
       <li><a href="index.html">Ghost</a></li>
       <li>Control</li>
