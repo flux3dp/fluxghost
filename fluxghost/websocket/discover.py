@@ -59,7 +59,10 @@ class WebsocketDiscover(WebSocketBase):
 
         cmd = payload.get("cmd")
         if cmd == "poke":
-            self.server.discover.poke(payload["ipaddr"])
+            try:
+                self.server.discover.poke(payload["ipaddr"])
+            except Exception as e:
+                logger.error("Poke error: %s", repr(e))
         else:
             self.send_error("UNKNOWN_COMMAND")
 
