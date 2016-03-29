@@ -10,6 +10,7 @@ from os import environ
 from fluxclient.commands.misc import get_or_create_default_key  # TODO
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.robot.errors import RobotError
 from fluxclient.upnp.task import UpnpTask
 from fluxclient.robot import connect_robot
 from .base import WebSocketBase
@@ -65,7 +66,7 @@ class WebsocketControlBase(WebSocketBase):
                 self.send_fatal("UNKNOWN_ERROR",
                                 errorcode.get(error_no, error_no))
             raise
-        except RuntimeError as err:
+        except RobotError as err:
             self.send_fatal(err.args[0], )
             raise
 
@@ -177,7 +178,7 @@ class WebsocketControl(WebsocketControlBase):
         try:
             WebsocketControlBase.__init__(self, *args, **kw)
             self.set_hooks()
-        except RuntimeError:
+        except RobotError:
             pass
 
     def fast_wrapper(self, func, cmd=None):
@@ -188,7 +189,7 @@ class WebsocketControl(WebsocketControlBase):
                     self.send_text('{"status":"ok", "cmd": "%s"}' % cmd)
                 else:
                     self.send_text('{"status":"ok"}')
-            except RuntimeError as e:
+            except RobotError as e:
                 self.send_error(*e.args)
             except Exception as e:
                 logger.exception("Unknow Error")
@@ -326,19 +327,19 @@ class WebsocketControl(WebsocketControlBase):
                 logger.warn("Unknow Command: %s" % message)
                 self.send_error("UNKNOWN_COMMAND", "LEVEL: websocket")
 
-        except RuntimeError as e:
-            logger.debug("RuntimeError%s" % repr(e.args))
+        except RobotError as e:
+            logger.debug("RobotError%s" % repr(e.args))
             self.send_error(*e.args)
 
         except (TimeoutError, ConnectionResetError,  # noqa
                 socket.timeout, ) as e:
-            from fluxclient.robot.v0002 import FluxRobotV0002
+            from fluxclient.robot.robot import FluxRobot
             import sys
             _, _, t = sys.exc_info()
             while t.tb_next:
                 t = t.tb_next
                 if "self" in t.tb_frame.f_locals:
-                    if isinstance(t.tb_frame.f_locals["self"], FluxRobotV0002):
+                    if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
                         self.send_fatal("TIMEOUT", repr(e.args))
                         return
             self.send_error("UNKNOWN_ERROR2", repr(e.__class__))
@@ -361,7 +362,7 @@ class WebsocketControl(WebsocketControlBase):
                 self.send_text('{"status":"%s"}' % ret)
             else:
                 self.send_text('{"status":"ok"}')
-        except RuntimeError as e:
+        except RobotError as e:
             self.send_error(*e.args)
         except Exception as e:
             logger.exception("Command error")
@@ -372,7 +373,7 @@ class WebsocketControl(WebsocketControlBase):
             location = self.robot.position()
             self.send_text('{"status": "position", "location": "%s"}' %
                            location)
-        except RuntimeError as e:
+        except RobotError as e:
             self.send_error(*e.args)
 
     def list_file(self, location=None):
@@ -551,7 +552,7 @@ class WebsocketControl(WebsocketControlBase):
             try:
                 self.robot.maintain_update_hbfw(mimetype, swap, size, nav_cb)
                 self.send_ok()
-            except RuntimeError as e:
+            except RobotError as e:
                 self.send_error(*e.args)
             except Exception as e:
                 self.send_fatal("UNKNOWN_ERROR", e.args)
