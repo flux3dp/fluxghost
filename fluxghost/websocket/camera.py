@@ -71,7 +71,7 @@ class CameraWrapper(object):
     def __init__(self, ws, camera):
         self.ws = ws
         self.camera = camera
-        self._fileno = camera.fileno()
+        self._fileno = camera.sock.fileno()
 
     def fileno(self):
         return self._fileno
