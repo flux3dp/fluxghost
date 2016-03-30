@@ -10,6 +10,14 @@
   <script src="shared.js"></script>
   <link href="res/shared.css" rel="stylesheet" />
   <style>
+  .frame_sign {
+    background-color: white;
+    width: 0.7em; height: 0.7em; margin: 0.2em;
+    background-color: #333;
+    box-shadow: 0 0 3px #000033, 0 0 5px #000033;
+    opacity: 0.0;
+    display: inline-block;
+  }
   </style>
   <script>
   function beginControl(uuid, name) {
@@ -59,7 +67,8 @@
           ws.onmessage = cb_standard;
           send_ping();
         } else {
-          if(payload.status === "fatal" && payload.error === "AUTH_ERROR") {
+          if(payload.status === "fatal" && (payload.error === "AUTH_ERROR" ||
+              payload.error === "UNKNOWN_HOST")) {
             var $label = $("#device_label");
             appendLog("✗ Error: Auth failed", "red");
             appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
@@ -81,12 +90,18 @@
 
   function cb_standard(m) {
     if(m.data.constructor == Blob) {
-      window.a = m.data;
       var r = new window.FileReader();
       r.readAsDataURL(m.data); 
       r.onloadend = function(f) {
         $("#streaming").attr("src", f.target.result);
         window.imgfrm += 1;
+
+        window.frameindex = (window.frameindex + 1) % 20;
+        var $f = $("#fs" + window.frameindex);
+        $f.css("opacity", 1.0);
+        $f.animate({
+          opacity: 0
+        }, 1600);
       }
     } else {
       try {
@@ -104,6 +119,7 @@
 
   $(window).ready(function() {
     window.imgfrm = 0;
+    window.frameindex = -1;
 
     setInterval(function() {
       if(window.imgfrm > 0) {
@@ -151,7 +167,33 @@
         <div class="form-control" style="height: 460px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
       </div>
       <div class="container-fluid"><div style="margin: 5px;">
-        Frame: <span id="imgfrm">-</span>/s
+        <div class="pull-right">
+          Frame: <span id="imgfrm">-</span>/s
+        </div>
+        <div>
+          <div class="frame_sign" id="fs0"></div>
+          <div class="frame_sign" id="fs1"></div>
+          <div class="frame_sign" id="fs2"></div>
+          <div class="frame_sign" id="fs3"></div>
+          <div class="frame_sign" id="fs4"></div>
+          <div class="frame_sign" id="fs5"></div>
+          <div class="frame_sign" id="fs6"></div>
+          <div class="frame_sign" id="fs7"></div>
+          <div class="frame_sign" id="fs8"></div>
+          <div class="frame_sign" id="fs9"></div>
+        </div>
+        <div>
+          <div class="frame_sign" id="fs19"></div>
+          <div class="frame_sign" id="fs18"></div>
+          <div class="frame_sign" id="fs17"></div>
+          <div class="frame_sign" id="fs16"></div>
+          <div class="frame_sign" id="fs15"></div>
+          <div class="frame_sign" id="fs14"></div>
+          <div class="frame_sign" id="fs13"></div>
+          <div class="frame_sign" id="fs12"></div>
+          <div class="frame_sign" id="fs11"></div>
+          <div class="frame_sign" id="fs10"></div>
+        </div>
       </div></div>
     </div>
     <div class="col-xs-8">

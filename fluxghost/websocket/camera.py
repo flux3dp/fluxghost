@@ -3,6 +3,7 @@ from errno import EHOSTDOWN, errorcode
 import logging
 
 from fluxclient.robot import connect_camera
+from fluxclient.robot.errors import RobotError
 from fluxclient.encryptor import KeyObject
 from .control import WebsocketControlBase
 
@@ -54,7 +55,7 @@ class WebsocketCamera(WebsocketControlBase):
                     self.send_fatal("UNKNOWN_ERROR",
                                     errorcode.get(error_no, error_no))
                 raise
-            except RuntimeError as err:
+            except RobotError as err:
                 self.send_fatal(err.args[0], )
                 raise
 
