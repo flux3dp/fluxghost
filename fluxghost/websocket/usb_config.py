@@ -107,7 +107,7 @@ class WebsocketUsbConfig(WebSocketBase):
             if message == "list":
                 self.list_ports()
             elif message.startswith("key "):
-                pem = message.split(" ", 1)
+                pem = message.split(" ", 1)[-1]
                 self.client_key = KeyObject.load_keyobj(pem)
                 self.send_json(status="ok")
             elif message.startswith("connect "):

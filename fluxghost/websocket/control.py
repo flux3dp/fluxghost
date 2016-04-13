@@ -592,10 +592,10 @@ class WebsocketControl(WebsocketControlBase):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
         if "clean" in args:
-            ret = self.robot.maintain_calibrating(navigate_callback=callback,
+            ret = self.robot.maintain_calibration(navigate_callback=callback,
                                                   clean=True)
         else:
-            ret = self.robot.maintain_calibrating(navigate_callback=callback)
+            ret = self.robot.maintain_calibration(navigate_callback=callback)
         self.send_json(status="ok", data=ret, error=(max(*ret) - min(*ret)))
 
     def maintain_zprobe(self, *args):
