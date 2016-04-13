@@ -43,7 +43,6 @@ class Websocket3DScanControl(WebsocketControlBase):
 
     def __init__(self, *args, **kw):
         WebsocketControlBase.__init__(self, *args, **kw)
-        self.try_control()
         self.scan_settings = ScanSetting()
         self.cab = None
 
@@ -55,7 +54,10 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.text_send("Protocol error")
         self.close()
 
-    def on_text_message(self, message):
+    def on_connected(self):
+        self.try_control()
+
+    def on_command(self, message):
         if message == "take_control":
             self.take_control()
 

@@ -1,4 +1,24 @@
 
+function getKeyPem() {
+  if(typeof(Storage) !== "undefined") {
+    if(localStorage["flux_identify"]) {
+      return localStorage["flux_identify"];
+    } else {
+      return createKeyPem();
+    }
+  } else {
+    appendLog("Can not use storage to save identify", "#red")
+  }
+}
+
+function createKeyPem() {
+    appendLog("Creating user identify", "blue")
+    var k = new JSEncrypt({default_key_size: 1024});
+    localStorage["flux_identify"] = k.getPrivateKey();
+    appendLog("User identify created", "blue")
+    return localStorage["flux_identify"]
+}
+
 function _scrollLog() {
   setTimeout(function() {
       var h = $("#log")[0].scrollHeight;
