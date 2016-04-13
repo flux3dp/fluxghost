@@ -7,7 +7,7 @@ import shlex
 from io import BytesIO
 from os import environ
 
-from fluxclient.commands.misc import get_or_create_default_key  # TODO
+from fluxclient.encryptor import KeyObject
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.robot.errors import RobotError
@@ -42,36 +42,46 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 class WebsocketControlBase(WebSocketBase):
     binary_handler = None
     cmd_mapping = None
+    client_key = None
     robot = None
 
     def __init__(self, request, client, server, path, serial):
         WebSocketBase.__init__(self, request, client, server, path)
         self.uuid = UUID(hex=serial)
 
-        self.send_text(STAGE_DISCOVER)
-        logger.debug("DISCOVER")
+    def on_connected(self):
+        pass
 
-        try:
-            task = self._discover(self.uuid)
-            self.send_text(STAGE_ROBOT_CONNECTING)
-            self.robot = connect_robot((self.ipaddr, 23811),
-                                       server_key=task.slave_key,
-                                       client_key=get_or_create_default_key(),
-                                       conn_callback=self._conn_callback)
-        except OSError as err:
-            error_no = err.args[0]
-            if error_no == EHOSTDOWN:
-                self.send_fatal("DISCONNECTED")
-            else:
-                self.send_fatal("UNKNOWN_ERROR",
-                                errorcode.get(error_no, error_no))
-            raise
-        except RobotError as err:
-            self.send_fatal(err.args[0], )
-            raise
+    def on_text_message(self, message):
+        if self.client_key:
+            self.on_command(message)
+        else:
+            self.client_key = client_key = KeyObject.load_keyobj(message)
+            self.send_text(STAGE_DISCOVER)
+            logger.debug("DISCOVER")
 
-        self.remote_version = task.remote_version
-        self.send_text(STAGE_CONNECTED)
+            try:
+                task = self._discover(self.uuid, client_key)
+                self.send_text(STAGE_ROBOT_CONNECTING)
+                self.robot = connect_robot((self.ipaddr, 23811),
+                                           server_key=task.slave_key,
+                                           client_key=client_key,
+                                           conn_callback=self._conn_callback)
+            except OSError as err:
+                error_no = err.args[0]
+                if error_no == EHOSTDOWN:
+                    self.send_fatal("DISCONNECTED")
+                else:
+                    self.send_fatal("UNKNOWN_ERROR",
+                                    errorcode.get(error_no, error_no))
+                raise
+            except RobotError as err:
+                self.send_fatal(err.args[0], )
+                raise
+
+            self.remote_version = task.remote_version
+            self.send_text(STAGE_CONNECTED)
+            self.on_connected()
 
     def on_binary_message(self, buf):
         if self.binary_handler:
@@ -156,15 +166,15 @@ class WebsocketControlBase(WebSocketBase):
         self.send_text(STAGE_ROBOT_CONNECTING)
         return True
 
-    def _discover(self, uuid):
+    def _discover(self, uuid, client_key):
         profile = self.server.discover_devices.get(uuid)
         if profile:
             # TODO
-            task = UpnpTask(self.uuid, client_key=get_or_create_default_key(),
+            task = UpnpTask(self.uuid, client_key=client_key,
                             remote_profile=profile, lookup_timeout=4.0)
         else:
             # TODO
-            task = UpnpTask(self.uuid, client_key=get_or_create_default_key(),
+            task = UpnpTask(self.uuid, client_key=client_key,
                             lookup_callback=self._disc_callback)
 
         self.ipaddr = task.endpoint[0]
@@ -177,9 +187,11 @@ class WebsocketControl(WebsocketControlBase):
     def __init__(self, *args, **kw):
         try:
             WebsocketControlBase.__init__(self, *args, **kw)
-            self.set_hooks()
         except RobotError:
             pass
+
+    def on_connected(self):
+        self.set_hooks()
 
     def fast_wrapper(self, func, cmd=None):
         def wrapper(*args, **kw):
@@ -309,7 +321,7 @@ class WebsocketControl(WebsocketControlBase):
                 return True
         return False
 
-    def on_text_message(self, message):
+    def on_command(self, message):
         if message == "ping":
             self.send_text('{"status": "pong"}')
             return
@@ -580,10 +592,10 @@ class WebsocketControl(WebsocketControlBase):
         def callback(nav):
             self.send_text("DEBUG: %s" % nav)
         if "clean" in args:
-            ret = self.robot.maintain_calibrating(navigate_callback=callback,
+            ret = self.robot.maintain_calibration(navigate_callback=callback,
                                                   clean=True)
         else:
-            ret = self.robot.maintain_calibrating(navigate_callback=callback)
+            ret = self.robot.maintain_calibration(navigate_callback=callback)
         self.send_json(status="ok", data=ret, error=(max(*ret) - min(*ret)))
 
     def maintain_zprobe(self, *args):
