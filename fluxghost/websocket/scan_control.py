@@ -28,6 +28,7 @@ from fluxclient.hw_profile import HW_PROFILE
 
 from .base import WebSocketBase
 from .control import WebsocketControlBase
+from fluxclient.robot.errors import RobotError
 
 SIMULATE_IMG_FILE = os.path.join(os.path.dirname(__file__),
                                  "..", "assets", "miku_q.png")
@@ -47,8 +48,9 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.cab = None
 
     def on_closed(self):
-        self.robot.quit_task()
-        self.robot.close()
+        if self.robot:
+            self.robot.quit_task()
+            self.robot.close()
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
@@ -120,9 +122,11 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         try:
             position = self.robot.position()
+            print('position', position)
 
             if position == "CommandTask":
                 ret = self.robot.begin_scan()
+                print('ret', return)
                 if ret == "ok":
                     self.send_text('{"status": "ready"}')
                     self.ready = True
@@ -131,7 +135,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             else:
                 self.send_error('DEVICE_BUSY', position)
 
-        except RuntimeError as err:
+        except (RuntimeError, RobotError) as err:
             if err.args[0] == "RESOURCE_BUSY":
                 self.send_error('DEVICE_BUSY', err.args[-1])
             else:
@@ -144,7 +148,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         try:
             self.robot.begin_scan()
 
-        except RuntimeError as err:
+        except (RuntimeError, RobotError) as err:
             if err.args[0] == "RESOURCE_BUSY":
                 self.robot.kick()
             else:
