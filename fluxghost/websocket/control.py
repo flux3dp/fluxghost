@@ -7,6 +7,7 @@ import shlex
 from io import BytesIO
 from os import environ
 
+from fluxclient.upnp import UpnpError
 from fluxclient.encryptor import KeyObject
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
@@ -63,10 +64,10 @@ class WebsocketControlBase(WebSocketBase):
             try:
                 task = self._discover(self.uuid, client_key)
                 self.send_text(STAGE_ROBOT_CONNECTING)
-                self.robot = connect_robot((self.ipaddr, 23811),
-                                           server_key=task.slave_key,
-                                           client_key=client_key,
-                                           conn_callback=self._conn_callback)
+                self.robot = connect_robot(
+                    (self.ipaddr, 23811),
+                    server_key=task.device_meta["slave_key"],
+                    client_key=client_key, conn_callback=self._conn_callback)
             except OSError as err:
                 error_no = err.args[0]
                 if error_no == EHOSTDOWN:
@@ -75,11 +76,13 @@ class WebsocketControlBase(WebSocketBase):
                     self.send_fatal("UNKNOWN_ERROR",
                                     errorcode.get(error_no, error_no))
                 raise
+            except UpnpError as err:
+                self.send_fatal(err.error_label, )
             except RobotError as err:
                 self.send_fatal(err.args[0], )
                 raise
 
-            self.remote_version = task.remote_version
+            self.remote_version = task.version
             self.send_text(STAGE_CONNECTED)
             self.on_connected()
 
@@ -177,7 +180,7 @@ class WebsocketControlBase(WebSocketBase):
             task = UpnpTask(self.uuid, client_key=client_key,
                             lookup_callback=self._disc_callback)
 
-        self.ipaddr = task.endpoint[0]
+        self.ipaddr = task.ipaddr
         return task
 
 
