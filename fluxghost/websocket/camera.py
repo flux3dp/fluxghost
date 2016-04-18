@@ -43,10 +43,11 @@ class WebsocketCamera(WebsocketControlBase):
             try:
                 task = self._discover(self.uuid, client_key)
                 self.send_text(STAGE_ROBOT_CONNECTING)
-                self.robot = connect_camera((self.ipaddr, 23812),
-                                            server_key=task.slave_key,
-                                            client_key=client_key,
-                                            conn_callback=self._conn_callback)
+                self.robot = connect_camera(
+                    (self.ipaddr, 23812),
+                    server_key=task.device_meta["master_key"],
+                    metadata=task.device_meta,
+                    client_key=client_key, conn_callback=self._conn_callback)
             except OSError as err:
                 error_no = err.args[0]
                 if error_no == EHOSTDOWN:
