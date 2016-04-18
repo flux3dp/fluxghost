@@ -48,7 +48,7 @@ class WebsocketDiscover(WebSocketBase):
             else:
                 # Alive devices
                 self.alive_devices.add(uuid)
-                self.send_text(self.build_response(uuid, **data))
+                self.send_text(self.build_response(**data))
 
     def on_text_message(self, message):
         try:

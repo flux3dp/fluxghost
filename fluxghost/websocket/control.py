@@ -66,7 +66,8 @@ class WebsocketControlBase(WebSocketBase):
                 self.send_text(STAGE_ROBOT_CONNECTING)
                 self.robot = connect_robot(
                     (self.ipaddr, 23811),
-                    server_key=task.device_meta["slave_key"],
+                    server_key=task.device_meta["master_key"],
+                    metadata=task.device_meta,
                     client_key=client_key, conn_callback=self._conn_callback)
             except OSError as err:
                 error_no = err.args[0]
@@ -78,6 +79,7 @@ class WebsocketControlBase(WebSocketBase):
                 raise
             except UpnpError as err:
                 self.send_fatal(err.error_label, )
+                raise
             except RobotError as err:
                 self.send_fatal(err.args[0], )
                 raise
@@ -170,11 +172,11 @@ class WebsocketControlBase(WebSocketBase):
         return True
 
     def _discover(self, uuid, client_key):
-        profile = self.server.discover_devices.get(uuid)
-        if profile:
+        metadata = self.server.discover_devices.get(uuid)
+        if metadata:
             # TODO
             task = UpnpTask(self.uuid, client_key=client_key,
-                            remote_profile=profile, lookup_timeout=4.0)
+                            remote_profile=metadata, lookup_timeout=4.0)
         else:
             # TODO
             task = UpnpTask(self.uuid, client_key=client_key,
