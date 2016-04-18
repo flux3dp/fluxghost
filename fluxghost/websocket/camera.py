@@ -60,7 +60,7 @@ class WebsocketCamera(WebsocketControlBase):
                 self.send_fatal(err.args[0], )
                 raise
 
-            self.remote_version = task.remote_version
+            self.remote_version = task.version
             self.send_text(STAGE_CONNECTED)
             self.on_connected()
             self.rlist.append(CameraWrapper(self, self.robot))
