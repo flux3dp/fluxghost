@@ -4,7 +4,7 @@ import logging
 import json
 
 from fluxclient.encryptor import KeyObject
-from fluxclient.upnp import UpnpTask, AuthError, TimeoutError, UpnpError
+from fluxclient.upnp import UpnpTask, UpnpError
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.DISCOVER")
@@ -71,16 +71,24 @@ class WebsocketTouch(WebSocketBase):
                 "uuid": uuid.hex, "has_response": True, "reachable": True,
                 "auth": True
             }))
-        except AuthError:
-            self.send_text(json.dumps({
-                "uuid": uuid.hex, "has_response": True, "reachable": True,
-                "auth": False
-            }))
-        except TimeoutError:
-            self.send_text(json.dumps({
-                "uuid": uuid.hex, "has_response": False, "reachable": False,
-                "auth": False
-            }))
+        except UpnpError as e:
+            if e.err_symbol == ("AUTH_ERROR", ):
+                self.send_text(json.dumps({
+                    "uuid": uuid.hex, "has_response": True, "reachable": True,
+                    "auth": False
+                }))
+            elif e.err_symbol == ("TIMEOUT", ):
+                self.send_text(json.dumps({
+                    "uuid": uuid.hex, "has_response": True, "reachable": True,
+                    "auth": False
+                }))
+            else:
+                logger.error("Touch error: %s", e.err_symbol)
+                self.send_text(json.dumps({
+                    "uuid": uuid.hex, "has_response": True, "reachable": True,
+                    "auth": False
+                }))
+
         except (RuntimeError, UpnpError) as err:
             logger.debug("Error: %s" % err)
             self.send_text(json.dumps({
