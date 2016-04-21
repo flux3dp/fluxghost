@@ -111,7 +111,6 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == 'fatal':
             del self.robot
             self.send_fatal('fatal by command')
-
 #########################
         else:
             self.send_error("UNKNOW_COMMAND", message)
@@ -122,11 +121,9 @@ class Websocket3DScanControl(WebsocketControlBase):
 
         try:
             position = self.robot.position()
-            print('position', position)
 
             if position == "CommandTask":
                 ret = self.robot.begin_scan()
-                print('ret', return)
                 if ret == "ok":
                     self.send_text('{"status": "ready"}')
                     self.ready = True

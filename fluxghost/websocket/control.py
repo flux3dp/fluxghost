@@ -78,7 +78,7 @@ class WebsocketControlBase(WebSocketBase):
                                     errorcode.get(error_no, error_no))
                 raise
             except UpnpError as err:
-                self.send_fatal(err.error_label, )
+                self.send_fatal(*err.err_symbol)
                 raise
             except RobotError as err:
                 self.send_fatal(err.args[0], )

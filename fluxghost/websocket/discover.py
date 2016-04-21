@@ -85,7 +85,7 @@ class WebsocketDiscover(WebSocketBase):
             "version": version,
             "alive": True,
             "name": repr(name)[1:-1],
-            "ipaddr": ipaddr[0],
+            "ipaddr": ipaddr,
 
             "model": model_id,
             "password": has_password,
