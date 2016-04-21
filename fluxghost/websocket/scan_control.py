@@ -28,6 +28,7 @@ from fluxclient.hw_profile import HW_PROFILE
 
 from .base import WebSocketBase
 from .control import WebsocketControlBase
+from fluxclient.robot.errors import RobotError
 
 SIMULATE_IMG_FILE = os.path.join(os.path.dirname(__file__),
                                  "..", "assets", "miku_q.png")
@@ -43,19 +44,22 @@ class Websocket3DScanControl(WebsocketControlBase):
 
     def __init__(self, *args, **kw):
         WebsocketControlBase.__init__(self, *args, **kw)
-        self.try_control()
         self.scan_settings = ScanSetting()
         self.cab = None
 
     def on_closed(self):
-        self.robot.quit_task()
-        self.robot.close()
+        if self.robot:
+            self.robot.quit_task()
+            self.robot.close()
 
     def on_binary_message(self, buf):
         self.text_send("Protocol error")
         self.close()
 
-    def on_text_message(self, message):
+    def on_connected(self):
+        self.try_control()
+
+    def on_command(self, message):
         if message == "take_control":
             self.take_control()
 
@@ -90,17 +94,24 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
             self.send_ok(str(self.steps))
 
-        elif message == "scan":
+        elif message.startswith("scan"):
             if self.cab is None:
                 self.get_cab()
-            self.scan()
+            if len(message.split()) > 1:
+                self.scan(step=int(message.split()[1]))
+            else:
+                self.scan()
 
         elif message == "quit":
             if self.robot.position() == "ScanTask":
                 self.robot.quit_task()
             self.send_text("bye")
             self.close()
-
+#########################
+        elif message == 'fatal':
+            del self.robot
+            self.send_fatal('fatal by command')
+#########################
         else:
             self.send_error("UNKNOW_COMMAND", message)
 
@@ -121,7 +132,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             else:
                 self.send_error('DEVICE_BUSY', position)
 
-        except RuntimeError as err:
+        except (RuntimeError, RobotError) as err:
             if err.args[0] == "RESOURCE_BUSY":
                 self.send_error('DEVICE_BUSY', err.args[-1])
             else:
@@ -134,7 +145,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         try:
             self.robot.begin_scan()
 
-        except RuntimeError as err:
+        except (RuntimeError, RobotError) as err:
             if err.args[0] == "RESOURCE_BUSY":
                 self.robot.kick()
             else:
@@ -192,7 +203,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
         return
 
-    def scan(self):
+    def scan(self, step=None):
         if not self.ready:
             self.send_error("NOT_READY")
             return
@@ -200,6 +211,9 @@ class Websocket3DScanControl(WebsocketControlBase):
         if not self.proc:
             self.send_error("BAD_PARAMS", "resolution")
             return
+
+        if step:
+            self.current_step = step
 
         L.debug('Do scan %d' % (self.current_step))
 
@@ -244,258 +258,6 @@ class Websocket3DScanControl(WebsocketControlBase):
         if key in ['MAXLaserRange', 'MINLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment', 'MagnitudeThreshold']:
             setattr(self.scan_settings, key, value)
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
-            self.send_ok()
-        else:
-            self.send_error('{} key not exist'.format(key))
-
-
-class SimulateWebsocket3DScanControl(WebSocketBase):
-    steps = 200
-    current_step = 0
-    mode = 'box'
-    mode = 'merge'
-    model_l = []
-    if mode == 'merge':
-        PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
-        for i in range(1, 10):
-            try:
-                model_l.append(read_pcd('/var/pcd/%d.pcd' % i))
-            except:
-
-                pass
-                # raise
-    else:
-        pass
-    if len(model_l) == 0:
-        mode = 'box'
-    mode = 'box'
-
-    def __init__(self, *args, **kw):
-        WebSocketBase.__init__(self, *args)
-        with open(SIMULATE_IMG_FILE, "rb") as f:
-            self.image_buf = f.read()
-
-        self.send_text('{"status": "connected"}')
-        self.send_text('{"status": "ready"}')
-
-    def on_text_message(self, message):
-        if message == "image":
-            self.send_binary_begin(SIMULATE_IMG_MIME, len(self.image_buf))
-            self.send_binary(self.image_buf)
-            self.send_ok()
-
-        elif message == "mode ":
-            mode = message.split(maxsplit=1)
-            if mode not in ['cube', 'pcd', 'hemisphere', 'box']:
-                self.send_error("BAD_PARAMS", info=mode)
-            else:
-                self.mode = mode
-                self.send_ok(info=mode)
-
-        elif message.startswith("resolution "):
-            s_step = message.split(maxsplit=1)[-1]
-            self.steps = int(s_step, 10)
-            # self.current_step = 0
-            self.send_ok(str(self.steps))
-
-        elif message == "scan":
-            self.scan()
-
-        elif message == "ping":
-            self.send_text('{"status": "pong"}')
-            return
-
-        elif message == "quit":
-            self.send_text("bye")
-            self.close()
-
-        elif message == "scan_check":
-            self.scan_check()
-
-        elif message == "calibrate":
-            self.calibrate()
-
-        elif message.startswith('set_params'):
-            self.set_params(message)
-
-        else:
-            self.send_error("UNKNOW_COMMAND", message)
-
-    def scan(self):
-        if self.mode == 'merge':
-
-            # PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..", "assets")
-            if self.current_step // self.steps < len(self.model_l):
-                pc = self.model_l[self.current_step // self.steps]
-                tmp = len(pc) // self.steps
-
-                self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
-                buf = []
-                for p in pc[tmp * (self.current_step - (self.current_step // self.steps) * self.steps): tmp * ((self.current_step - (self.current_step // self.steps) * self.steps) + 1)]:
-                    buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-                               p[3] / 255., p[4] / 255., p[5] / 255.))
-                buf = b''.join(buf)
-                self.send_binary(buf)
-            else:
-                self.send_text('{"status": "chunk", "left": 0, "right": 0}')
-                self.send_binary(b'')
-
-            # if self.current_step < self.steps:
-
-            #     tmp = len(self.pc_L) // self.steps
-
-            #     self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
-            #     buf = []
-            #     for p in self.pc_L[tmp * self.current_step: tmp * (self.current_step + 1)]:
-            #         buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-            #                    p[3] / 255., p[4] / 255., p[5] / 255.))
-            #     buf = b''.join(buf)
-            #     self.send_binary(buf)
-
-            # elif self.current_step < self.steps * 2:
-
-            #     tmp = len(self.pc_R) // self.steps
-            #     self.send_text('{"status": "chunk", "left": %d, "right": 0}' % tmp)
-            #     buf = []
-            #     for p in self.pc_R[tmp * (self.current_step - self.steps): tmp * (self.current_step + 1 - self.steps)]:
-            #         buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-            #                    p[3] / 255., p[4] / 255., p[5] / 255.))
-            #     buf = b''.join(buf)
-            #     self.send_binary(buf)
-            self.current_step += 1
-            self.send_ok()
-
-        elif self.mode == 'pcd':
-            if self.current_step > 0 or self.current_step > self.steps:
-                self.send_text('{"status": "chunk", "left": 0, "right": 0}')
-                self.send_binary(b'')
-                self.send_ok()
-                return
-
-            self.current_step += 1
-            PCD_LOCATION = os.path.join(os.path.dirname(__file__), "..",
-                                        "assets")
-
-            pc_L = read_pcd(PCD_LOCATION + '/LL.pcd')
-            self.send_text('{"status": "chunk", "left": %d, "right": 0}' %
-                           len(pc_L))
-            buf = []
-            for p in pc_L:
-                buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-                           p[3] / 255., p[4] / 255., p[5] / 255.))
-            buf = b''.join(buf)
-            self.send_binary(buf)
-
-            pc_R = read_pcd(PCD_LOCATION + '/RR.pcd')
-            self.send_text('{"status": "chunk", "left": 0, "right": %d}' %
-                           len(pc_R))
-            buf = []
-            for p in pc_R:
-                buf.append(struct.pack('<' + 'f' * 6, p[0], p[1], p[2],
-                           p[3] / 255., p[4] / 255., p[5] / 255.))
-            buf = b''.join(buf)
-            self.send_binary(buf)
-            self.send_ok()
-
-        elif self.mode == 'hemisphere':
-            i = self.current_step
-            self.current_step += 1
-
-            step = math.pi * 2 / self.steps
-            r = step * i
-
-            try:
-                c = math.cos(r) / math.sin(r)
-            except ZeroDivisionError:
-                c = float("INF")
-
-            self.send_text('{"status": "chunk", "left": 100, "right": 100}')
-
-            buf = b""
-            for iz in range(-100, 100):
-                z = iz / 200
-                x = math.sqrt((1 - (z ** 2)) / (1 + c ** 2))
-
-                if step > math.pi / 2 and step < (math.pi * 3 / 4):
-                    x = -x
-
-                y = x * c if c != float("INF") else 1
-
-                buf += struct.pack("<ffffff", x, y, z, 1.0, 1.0, 1.0)
-            self.send_binary(buf)
-            self.send_ok()
-
-        elif self.mode == 'box':
-            buf = []
-            if self.current_step < self.steps:
-                for z in range(500 * self.current_step // self.steps, 500 * (self.current_step + 1) // self.steps, 8):
-                    for s in range(-125, 125, 8):
-                        buf.append([s, -62, z])
-                        buf.append([s, 62, z])
-
-                    for s in range(-62, 62, 8):
-                        buf.append([-125, s, z])
-                        buf.append([125, s, z])
-                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
-
-            elif self.current_step < self.steps * 2:
-                for z in range(500 * (self.current_step - self.steps) // self.steps - 250, 500 * (self.current_step - self.steps + 1) // self.steps - 250, 8):
-                    for s in range(-125, 125, 8):
-                        buf.append([z, s, 0])
-                        buf.append([z, s, 125])
-                    for s in range(0, 125, 8):
-                        buf.append([z, -125, s])
-                        buf.append([z, 125, s])
-                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
-            else:
-                for z in range(1000):
-                    buf.append([random.randint(-99, 99), random.randint(-99, 99), random.randint(0, 990)])
-                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, 0, 0, 0) for x, y, z in buf]
-
-            # self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(buf))
-            self.send_text('{"status": "chunk", "left": %d, "right": %d}' % (len(buf) // 2, len(buf) // 2))
-            buf = b''.join(buf)
-            self.send_binary(buf)
-            self.send_ok()
-
-            self.current_step += 1
-
-        elif self.mode == 'cube':
-
-            buf = []
-            if self.current_step < self.steps:
-                for x in range(10000 // self.steps):
-                    buf.append([random.randint(-250, 250), random.randint(-250, 250), random.randint(500 * self.current_step // self.steps, 500 * (self.current_step + 1) // self.steps)])
-                buf = [struct.pack("<ffffff", x / 10, y / 10, z / 10, z / 500., z / 500., (500 - z) / 500) for x, y, z in buf]
-            else:
-                buf = []
-
-            self.send_text('{"status": "chunk", "left": %d, "right": 0}' % len(buf))
-            buf = b''.join(buf)
-            self.send_binary(buf)
-            self.send_ok()
-
-            self.current_step += 1
-
-    def scan_check(self):
-        import random
-        s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
-        s = "good"
-        self.send_text('{"status": "ok", "message": "%s"}' % (s))
-
-    def calibrate(self):
-        self.send_continue()
-        from time import sleep
-        sleep(1)
-        self.send_ok()
-
-    def set_params(self, message):
-        m = message.split()
-        if len(m) != 3:
-            self.send_error('{} format error'.format(m[1:]))
-        key, value = m[1], float(m[2])
-        if key in ['LongestLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment']:
-            self.config[key] = value
             self.send_ok()
         else:
             self.send_error('{} key not exist'.format(key))

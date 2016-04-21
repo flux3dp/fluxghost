@@ -14,8 +14,8 @@ from fluxclient.utils.version import StrictVersion
 def check_fluxclient():
     from fluxclient import __version__ as v
     sys.modules.pop("fluxclient")
-    if StrictVersion(v) < StrictVersion('0.8b16'):
-        raise RuntimeError("Your fluxclient need to update (>=0.8b16)")
+    if StrictVersion(v) < StrictVersion('0.8b19'):
+        raise RuntimeError("Your fluxclient need to update (>=0.8b19)")
 
 
 def show_version(verbose):

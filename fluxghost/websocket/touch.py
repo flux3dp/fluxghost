@@ -3,8 +3,8 @@ from uuid import UUID
 import logging
 import json
 
-from fluxclient.commands.misc import get_or_create_default_key  # TODO
-from fluxclient.upnp.task import UpnpTask
+from fluxclient.encryptor import KeyObject
+from fluxclient.upnp import UpnpTask, UpnpError
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.DISCOVER")
@@ -18,9 +18,10 @@ class WebsocketTouch(WebSocketBase):
         try:
             payload = json.loads(message)
             uuid = UUID(hex=payload["uuid"])
-
+            client_key = KeyObject.load_keyobj(payload["key"])
             password = payload.get("password")
-            self.touch_device(uuid, password)
+
+            self.touch_device(client_key, uuid, password)
         except Exception:
             logger.exception("Touch error")
             self.close()
@@ -40,9 +41,9 @@ class WebsocketTouch(WebSocketBase):
                 else:
                     raise
 
-    def touch_device(self, uuid, password=None):
+    def touch_device(self, client_key, uuid, password=None):
         try:
-            if uuid.hex == "0" * 32:
+            if uuid.int == 0:
                 self.send_text(json.dumps({
                     "serial": "SIMULATE00",
                     "name": "Simulate Device",
@@ -53,25 +54,42 @@ class WebsocketTouch(WebSocketBase):
                 return
 
             # TODO
-            profile = self.server.discover_devices.get(uuid)
-            if profile:
-                task = UpnpTask(uuid, client_key=get_or_create_default_key(),
-                                remote_profile=profile, lookup_timeout=30.0)
+            metadata = self.server.discover_devices.get(uuid)
+            backend_options = {}
+
+            if password:
+                backend_options["password"] = password
+
+            if metadata:
+                UpnpTask(uuid, client_key=client_key, remote_profile=metadata,
+                         backend_options=backend_options, lookup_timeout=30.0)
             else:
-                task = UpnpTask(uuid, client_key=get_or_create_default_key(),
-                                lookup_timeout=30.0)
-            resp = self._run_auth(task, password)
+                UpnpTask(uuid, client_key=client_key,
+                         backend_options=backend_options, lookup_timeout=30.0)
 
             self.send_text(json.dumps({
-                "uuid": uuid.hex,
-                "serial": task.serial,
-                "name": task.name,
-                "has_response": resp is not None,
-                "reachable": True,
-                "auth": resp and resp.get("status") == "ok"
+                "uuid": uuid.hex, "has_response": True, "reachable": True,
+                "auth": True
             }))
+        except UpnpError as e:
+            if e.err_symbol == ("AUTH_ERROR", ):
+                self.send_text(json.dumps({
+                    "uuid": uuid.hex, "has_response": True, "reachable": True,
+                    "auth": False
+                }))
+            elif e.err_symbol == ("TIMEOUT", ):
+                self.send_text(json.dumps({
+                    "uuid": uuid.hex, "has_response": True, "reachable": True,
+                    "auth": False
+                }))
+            else:
+                logger.error("Touch error: %s", e.err_symbol)
+                self.send_text(json.dumps({
+                    "uuid": uuid.hex, "has_response": True, "reachable": True,
+                    "auth": False
+                }))
 
-        except RuntimeError as err:
+        except (RuntimeError, UpnpError) as err:
             logger.debug("Error: %s" % err)
             self.send_text(json.dumps({
                 "uuid": uuid.hex,
