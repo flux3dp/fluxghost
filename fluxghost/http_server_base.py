@@ -66,7 +66,8 @@ class HttpServerBase(object):
             except KeyboardInterrupt:
                 self.running = False
 
-    def on_discover_device(self, discover_instance, uuid, **kw):
+    def on_discover_device(self, discover_instance, **kw):
+        uuid = kw["uuid"]
         kw["last_response"] = time()
 
         if uuid in self.discover_devices:

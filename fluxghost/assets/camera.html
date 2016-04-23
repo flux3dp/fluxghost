@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio - Control</title>
+  <script src="res/jquery-2.1.4.min.js"></script>
+  <script src="res/bootstrap/js/bootstrap.min.js"></script>
+  <script src="res/jsencrypt.js"></script>
+  <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <script src="shared.js"></script>
+  <link href="res/shared.css" rel="stylesheet" />
+  <style>
+  .frame_sign {
+    background-color: white;
+    width: 0.7em; height: 0.7em; margin: 0.2em;
+    background-color: #333;
+    box-shadow: 0 0 3px #000033, 0 0 5px #000033;
+    opacity: 0.0;
+    display: inline-block;
+  }
+  </style>
+  <script>
+  function beginControl(uuid, name) {
+    $("#device_label").
+      text(name + " (" + uuid + ")").
+      attr("data-uuid", uuid).
+      attr("data-name", name);
+    connectControl();
+  }
+
+  function connectControl() {
+    if(window.control_ws) {
+      appendLog("Clean old control session", "red");
+      window.control_ws.close();
+      window.control_ws = undefined;
+    }
+    var serial = $("#device_label").attr("data-uuid");
+    appendLog("Connect to " + serial);
+    var ws = new WebSocket("ws://" + window.location.host + "/ws/camera/" + serial);
+    window.control_ws = ws;
+
+    ws.onopen = function(v) {
+      ws.send(getKeyPem());
+    }
+
+    ws.onclose = function(v) {
+      if(self.control_ws === ws) {
+        self.control_ws = undefined;
+      }
+      ws_close_handler("Control")(v);
+    };
+
+    ws.onmessage = function(m) {
+      if(window.control_ws !== ws) { return; }
+
+      try {
+        var payload = JSON.parse(m.data);
+        if(payload.status === "connecting") {
+          appendLog("Connecting... (" + payload.stage + ")", "#444");
+        } else if(payload.status === "connected") {
+          appendLog("➜ Ready")
+          appendHtmlLog('<div>' +
+            '<img src="ready.png?" height="60px" />' +
+            '<img src="ready.png?" height="60px" />' +
+            '<img src="ready.png?" height="60px" />' + '</div>');
+
+          ws.onmessage = cb_standard;
+          send_ping();
+        } else {
+          if(payload.status === "fatal" && (payload.error === "AUTH_ERROR" ||
+              payload.error === "UNKNOWN_HOST")) {
+            var $label = $("#device_label");
+            appendLog("✗ Error: Auth failed", "red");
+            appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
+                          ';' + $label.attr("data-name") + '">Go to auth page</a>');
+          } else {
+            appendLog("✗ Error: "+ m.data + " 😭", "red");
+          }
+        }
+
+      } catch(err) {
+        appendLog("✗ Exception: "+ err.message + " 😭", "red");
+      }
+    };
+  }
+
+  function send_ping() {
+    if(window.control_ws) window.control_ws.send("ping");
+  }
+
+  function cb_standard(m) {
+    if(m.data.constructor == Blob) {
+      var r = new window.FileReader();
+      r.readAsDataURL(m.data); 
+      r.onloadend = function(f) {
+        $("#streaming").attr("src", f.target.result);
+        window.imgfrm += 1;
+
+        window.frameindex = (window.frameindex + 1) % 20;
+        var $f = $("#fs" + window.frameindex);
+        $f.css("opacity", 1.0);
+        $f.animate({
+          opacity: 0
+        }, 1600);
+      }
+    } else {
+      try {
+        payload = JSON.parse(m.data);
+        if(payload.status === "pong") {
+
+        } else {
+          appendLog(m.data, "#F05E1C");
+        }
+      } catch (e) {
+        appendLog(m.data, "#F05E1C");
+      }
+    }
+  }
+
+  $(window).ready(function() {
+    window.imgfrm = 0;
+    window.frameindex = -1;
+
+    setInterval(function() {
+      if(window.imgfrm > 0) {
+        $("#imgfrm").text(window.imgfrm / 4);
+        window.imgfrm = 0;
+      } else {
+        $("#imgfrm").text("-");
+      }
+    }, 4000);
+
+    $("[data-role=reset-control]").on("click", function() {
+      connectControl();
+    });
+
+    // Begin UI
+    var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    if(matchs != undefined && matchs.length == 1) {
+      var tags = matchs[0].split(";");
+      var serial = tags[0].substr(1);
+      var name = tags.slice(1).join(";");
+
+      beginControl(serial, name);
+    } else {
+      window.location = "discover.html";
+    }
+  });
+  </script>
+</head>
+<body>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li><a href="discover.html">Control</a></li>
+      <li>
+        <span id="device_label"></span>
+        <a class="btn btn-xs btn-warning" data-role="reset-control">
+          <i class="glyphicon glyphicon-repeat"></i>
+        </a>
+      </li>
+    </ol>
+  </div>
+  <div class="container-fluid">
+    <div class="col-xs-4">
+      <div class="container-fluid">
+        <div class="form-control" style="height: 460px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+      </div>
+      <div class="container-fluid"><div style="margin: 5px;">
+        <div class="pull-right">
+          Frame: <span id="imgfrm">-</span>/s
+        </div>
+        <div>
+          <div class="frame_sign" id="fs0"></div>
+          <div class="frame_sign" id="fs1"></div>
+          <div class="frame_sign" id="fs2"></div>
+          <div class="frame_sign" id="fs3"></div>
+          <div class="frame_sign" id="fs4"></div>
+          <div class="frame_sign" id="fs5"></div>
+          <div class="frame_sign" id="fs6"></div>
+          <div class="frame_sign" id="fs7"></div>
+          <div class="frame_sign" id="fs8"></div>
+          <div class="frame_sign" id="fs9"></div>
+        </div>
+        <div>
+          <div class="frame_sign" id="fs19"></div>
+          <div class="frame_sign" id="fs18"></div>
+          <div class="frame_sign" id="fs17"></div>
+          <div class="frame_sign" id="fs16"></div>
+          <div class="frame_sign" id="fs15"></div>
+          <div class="frame_sign" id="fs14"></div>
+          <div class="frame_sign" id="fs13"></div>
+          <div class="frame_sign" id="fs12"></div>
+          <div class="frame_sign" id="fs11"></div>
+          <div class="frame_sign" id="fs10"></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="col-xs-8">
+      <img id="streaming" class="img-thumbnail" />
+    </div>
+  </div>
+</body>
+</html>

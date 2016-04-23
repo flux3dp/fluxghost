@@ -48,7 +48,7 @@ class WebsocketDiscover(WebSocketBase):
             else:
                 # Alive devices
                 self.alive_devices.add(uuid)
-                self.send_text(self.build_response(uuid, **data))
+                self.send_text(self.build_response(**data))
 
     def on_text_message(self, message):
         try:
@@ -59,7 +59,10 @@ class WebsocketDiscover(WebSocketBase):
 
         cmd = payload.get("cmd")
         if cmd == "poke":
-            self.server.discover.poke(payload["ipaddr"])
+            try:
+                self.server.discover.poke(payload["ipaddr"])
+            except Exception as e:
+                logger.error("Poke error: %s", repr(e))
         else:
             self.send_error("UNKNOWN_COMMAND")
 
@@ -82,7 +85,7 @@ class WebsocketDiscover(WebSocketBase):
             "version": version,
             "alive": True,
             "name": repr(name)[1:-1],
-            "ipaddr": ipaddr[0],
+            "ipaddr": ipaddr,
 
             "model": model_id,
             "password": has_password,

@@ -5,6 +5,7 @@ import json
 import sys
 
 from serial.tools import list_ports as _list_ports
+from fluxclient.encryptor import KeyObject
 from fluxclient.usb.task import UsbTask
 
 from .base import WebSocketBase
@@ -30,6 +31,7 @@ ws.onopen = function() {
 
 class WebsocketUsbConfig(WebSocketBase):
     task = None
+    client_key = None
 
     def __init__(self, *args, **kw):
         super(WebsocketUsbConfig, self).__init__(*args, **kw)
@@ -51,10 +53,14 @@ class WebsocketUsbConfig(WebSocketBase):
             self.task = None
 
         try:
+            if not self.client_key:
+                self.send_json(status="error", error="KEY_ERROR")
+                return
+
             if port == "SIMULATE":
                 self.task = t = SimulateTask()
             else:
-                self.task = t = UsbTask(port=port)
+                self.task = t = UsbTask(port=port, client_key=self.client_key)
             self.send_json(status="ok", cmd="connect", serial=t.serial,
                            version=t.remote_version, name=t.name,
                            model=t.model_id, password=t.has_password)
@@ -100,6 +106,10 @@ class WebsocketUsbConfig(WebSocketBase):
         try:
             if message == "list":
                 self.list_ports()
+            elif message.startswith("key "):
+                pem = message.split(" ", 1)[-1]
+                self.client_key = KeyObject.load_keyobj(pem)
+                self.send_json(status="ok")
             elif message.startswith("connect "):
                 self.connect_usb(message.split(" ", 1)[-1])
             elif message == "auth":

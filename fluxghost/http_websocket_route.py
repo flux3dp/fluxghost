@@ -31,10 +31,12 @@ ROUTES = [
      "fluxghost.websocket.touch.WebsocketTouch"),
     (re.compile("control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.control.WebsocketControl"),
-    (re.compile("3dprint-slicing"),
-     "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
+    (re.compile("camera/(?P<serial>[0-9a-fA-F]{32})"),
+     "fluxghost.websocket.camera.WebsocketCamera"),
     (re.compile("3d-scan-control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
+    (re.compile("3dprint-slicing"),
+     "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
     (re.compile("usb-config"),
      "fluxghost.websocket.usb_config.WebsocketUsbConfig")]
 
