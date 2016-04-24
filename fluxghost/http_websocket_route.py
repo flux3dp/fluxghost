@@ -38,7 +38,9 @@ ROUTES = [
     (re.compile("3dprint-slicing"),
      "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
     (re.compile("usb-config"),
-     "fluxghost.websocket.usb_config.WebsocketUsbConfig")]
+     "fluxghost.websocket.usb_config.WebsocketUsbConfig"),
+    (re.compile("upnp-config"),
+     "fluxghost.websocket.upnp_ws.WebsocketUpnp")]
 
 
 def get_match_ws_service(path):
