@@ -57,7 +57,13 @@ class WebsocketControlBase(WebSocketBase):
         if self.client_key:
             self.on_command(message)
         else:
-            self.client_key = client_key = KeyObject.load_keyobj(message)
+            try:
+                self.client_key = client_key = KeyObject.load_keyobj(message)
+            except Exception:
+                logger.error("RSA Key load error: %s", message)
+                self.send_fatal("BAD_PARAMS")
+                raise
+
             self.send_text(STAGE_DISCOVER)
             logger.debug("DISCOVER")
 
