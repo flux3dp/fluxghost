@@ -8,7 +8,7 @@ import os
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE, OnTextMessageMixin
-from fluxclient.printer.stl_slicer import StlSlicer
+from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerCura
 
 logger = logging.getLogger("WS.slicing")
 
@@ -27,13 +27,14 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         else:
             self.m_stl_slicer = StlSlicer("../Slic3r/slic3r.pl")
 
+        self.m_stl_slicer = StlSlicerCura(None)
+
         self.cmd_mapping = {
             'upload': [self.begin_recv_stl, 'upload'],
             'upload_image': [self.begin_recv_stl, 'upload_image'],
             'set': [self.set],
             'go': [self.gcode_generate],
             'delete': [self.delete],
-            'set_params': [self.set_params],
             'advanced_setting': [self.advanced_setting],
             'get_path': [self.get_path],
             'duplicate': [self.duplicate],
@@ -98,13 +99,6 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
         logger.debug('{} {} {} {} {} {} {} {} {} {}'.format(name, position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z))
         self.send_ok()
-
-    def set_params(self, params):
-        key, value = params.split()
-        if self.m_stl_slicer.set_params(key, value):  # will check if key is valid
-            self.send_ok()
-        else:
-            self.send_error('wrong parameter: %s' % key)
 
     def advanced_setting(self, params):
         lines = params.split('\n')
