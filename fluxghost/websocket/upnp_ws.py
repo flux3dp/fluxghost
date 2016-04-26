@@ -8,17 +8,22 @@ from serial.tools import list_ports as _list_ports
 from fluxclient.encryptor import KeyObject
 # from fluxclient.upnp import UpnpDiscover
 from fluxclient.upnp.task import UpnpTask
+from fluxclient.upnp import UpnpError
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, BinaryUploadHelper, SIMULATE, OnTextMessageMixin
 
 logger = logging.getLogger(__name__)
 
 
 def check_task(func):
+    '''
+    check whether it's connected to a delta
+    or send_error
+    '''
     def f(self, *args, **kwargs):
         if self.upnp_task:
             return func(self, *args, **kwargs)
         else:
-            self.send_errer('Not connected')
+            self.send_error('Not connected')
             return
     return f
 
@@ -37,7 +42,9 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
             'upload_key': [self.upload_key],
             'upload_password': [self.upload_password],
             'add_key': [self.add_key],
-            'config_network': [self.config_network]
+            'config_network': [self.config_network],
+            'set_name': [self.set_name],
+            'set_password': [self.set_password],
         }
 
     def upload_key(self, params):
@@ -87,37 +94,22 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
         self.task.config_network(options)
         self.send_text('{"status": "ok"}')
 
-    # def auth(self, password=None):
-    #     if password:
-    #         self.task.auth(password)
-    #     else:
-    #         self.task.auth()
-    #     self.send_text('{"status": "ok", "cmd": "auth"}')
+    @check_task
+    def set_password(self, params):
+        old, new = params.split()
+        try:
+            self.task.modify_password(old, new)
+        except UpnpError:
+            self.send_error('password changing fail')
+        else:
+            self.send_ok()
 
-    # def config_general(self, params):
-    #     options = json.loads(params)
-    #     self.task.config_general(options)
-    #     self.send_text('{"status": "ok"}')
+    @check_task
+    def set_name(self, params):
+        new_name = params.strip()
+        self.task.rename(new_name)
+        self.send_ok()
 
-    # def scan_wifi(self):
-    #     ret = self.task.list_ssid()
-    #     self.send_json(status="ok", cmd="scan", wifi=ret)
-
-    # def get_network(self):
-    #     payload = {"status": "ok", "cmd": "network"}
-    #     payload["ssid"] = self.task.get_ssid()
-    #     payload["ipaddr"] = self.task.get_ipaddr()
-    #     self.send_json(payload)
-
-    # def set_password(self, password):
-    #     ret = self.task.set_password(password)
-    #     if ret == "OK":
-    #         self.send_text('{"status": "ok", "cmd": "password"}')
-    #     else:
-    #         self.send_error(ret)
-
-    # def on_binary_message(self, buf):
-    #     pass
     def on_close(self, message):
         self.close_task()
 
