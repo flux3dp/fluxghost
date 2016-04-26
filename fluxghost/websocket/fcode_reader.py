@@ -4,12 +4,13 @@ import logging
 import sys
 import json
 from io import StringIO, BytesIO
+from os import environ
 
 from PIL import Image
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
-from fluxclient.utils.fcode_parser import FcodeParser
+from fluxclient.utils.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
                 return
             self.buf_type = buf_type
             if buf_type == '-f':
-                self.data_parser = FcodeParser()
+                self.data_parser = FcodeToGcode()
             else:
                 self.data_parser = GcodeToFcode()
         elif flag == 'change_img':
@@ -83,6 +84,12 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
                 self.send_ok()
         elif flag == 'change_img':
             self.change_img(buf)
+
+        ########################
+        if environ.get("flux_debug") == '1':
+            with open('output.fc', 'wb') as f:
+                f.write(self.fcode)
+        ########################
 
     def get_img(self, *args):
         buf = self.data_parser.get_img()
@@ -137,7 +144,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             self.data_parser.change_img(img_bytes)
             self.fcode = self.data_parser.data
         else:
-            tmp_data_parser = FcodeParser()
+            tmp_data_parser = FcodeToGcode()
             tmp_data_parser.upload_content(self.fcode)
             tmp_data_parser.change_img(img_bytes)
 
