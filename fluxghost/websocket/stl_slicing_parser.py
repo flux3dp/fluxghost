@@ -9,6 +9,7 @@ import os
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE, OnTextMessageMixin
 from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerCura
+from fluxclient import check_platform
 
 logger = logging.getLogger("WS.slicing")
 
@@ -22,11 +23,9 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
         logger.info("Using StlSlicer()")
-        if "slic3r" in os.environ:
-            self.m_stl_slicer = StlSlicer(os.environ["slic3r"])
-        else:
-            self.m_stl_slicer = StlSlicer("../Slic3r/slic3r.pl")
 
+        self.m_stl_slicer = StlSlicer('')
+        self.change_engine('slic3r default')
         self.change_engine('cura /Applications/Cura/Cura.app/Contents/Resources')
 
         self.cmd_mapping = {
@@ -178,9 +177,32 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
 
     def change_engine(self, params):
         engine, engine_path = params.split()
+
         if engine == 'slic3r':
+            if engine_path == 'dafault':
+                if 'slic3r' in os.environ:
+                    engine_path = os.environ["slic3r"]
+                else:
+                    engine_path = "../Slic3r/slic3r.pl"
             self.m_stl_slicer = StlSlicer(engine_path).from_other(self.m_stl_slicer)
         elif engine == 'cura':
+            if engine_path == 'dafault':
+                if 'cura' in os.environ:
+                    engine_path = os.environ["cura"]
+                else:
+                    p = check_platform()
+                    if p[0] == 'OSX':
+                        engine_path = "/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
+                    elif p[0] == "Linux":
+                        engine_path = "/usr/share/cura/CuraEngine"
+                    elif p[0] == "Windows":
+                        if p[1] == '64bit':
+                            engine_path = "C:\Program Files (x86)\Cura_15.04.5\CuraEngine.exe"
+                        elif p[1] == '32bit':
+                            engine_path = "C:\Program Files\Cura_15.04.5\CuraEngine.exe"
+                    else:
+                        raise RuntimeError("Unknow Platform: {}".format(p))
+
             self.m_stl_slicer = StlSlicerCura(engine_path).from_other(self.m_stl_slicer)
         else:
             self.send_error('wrong engine {}, should be "cura" or "slic3r"'.format(engine))
