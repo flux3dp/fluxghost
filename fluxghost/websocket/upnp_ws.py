@@ -3,6 +3,7 @@ from glob import glob
 import logging
 import json
 import sys
+from uuid import UUID
 
 from serial.tools import list_ports as _list_ports
 from fluxclient.encryptor import KeyObject
@@ -31,7 +32,7 @@ def check_task(func):
 class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
 
     def __init__(self, *args, **kw):
-        super(WebsocketUsbConfig, self).__init__(*args, **kw)
+        super(WebsocketUpnp, self).__init__(*args, **kw)
 
         self.client_key = None
         self.password = None
@@ -48,17 +49,28 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
         }
 
     def upload_key(self, params):
+        logger.debug('upload_key:' + params)
         pem = params
         self.client_key = KeyObject.load_keyobj(pem)
         self.send_json(status="ok")
 
     def upload_password(self, params):
+        logger.debug('upload_password: ' + params)
         self.password = params.strip()
         self.send_json(status="ok")
 
     def connect(self, params):
+
         self.close_task()
-        uuid, params = params.split(None, 1)
+        params = params.split(None, 1)
+        if len(params) == 1:
+            uuid = params[0].strip()
+            params = "{}"
+        else:
+            uuid, params = params
+        logger.debug('connect: ' + uuid)
+
+        uuid = UUID(hex=uuid)
 
         params = json.loads(params)
         # uuid, client_key, ipaddr=None, device_metadata=None,
@@ -73,7 +85,7 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
             valid_patams['backend_options'] = valid_patams.get('backend_options', {})
             valid_patams['backend_options']['password'] = self.password
 
-        if 'uuid' in valid_patams and valid_patams[client_key]:
+        if 'uuid' in valid_patams and valid_patams["client_key"]:
             self.upnp_task = UpnpTask(**valid_patams)
             self.send_ok()
         else:
@@ -82,20 +94,24 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
 
     @check_task
     def scan_wifi(self, params):
+        logger.debug('scan_wifi')
         self.send_json(status="ok", wifi=self.upnp_task.get_wifi_list())
 
     @check_task
     def add_key(self, params):
+        logger.debug('add_key')
         self.upnp_task.add_trust()
 
     @check_task
     def config_network(self, params):
+        logger.debug('config_network')
         options = json.loads(params)
         self.task.config_network(options)
         self.send_text('{"status": "ok"}')
 
     @check_task
     def set_password(self, params):
+        logger.debug('set_password')
         old, new = params.split()
         try:
             self.task.modify_password(old, new)
@@ -106,14 +122,17 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
 
     @check_task
     def set_name(self, params):
+        logger.debug('set_name')
         new_name = params.strip()
         self.task.rename(new_name)
         self.send_ok()
 
     def on_close(self, message):
+        logger.debug('on_close')
         self.close_task()
 
     def close_task(self):
+        logger.debug('close_task')
         if self.upnp_task:
             self.upnp_task.close()
             self.upnp_task = None
