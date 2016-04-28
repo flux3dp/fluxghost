@@ -25,8 +25,8 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         logger.info("Using StlSlicer()")
 
         self.m_stl_slicer = StlSlicer('')
-        self.change_engine('slic3r default')
-        self.change_engine('cura /Applications/Cura/Cura.app/Contents/Resources')
+        # self.change_engine('slic3r default')
+        self.change_engine('cura default')
 
         self.cmd_mapping = {
             'upload': [self.begin_recv_stl, 'upload'],
@@ -179,14 +179,14 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         engine, engine_path = params.split()
 
         if engine == 'slic3r':
-            if engine_path == 'dafault':
+            if engine_path == 'default':
                 if 'slic3r' in os.environ:
                     engine_path = os.environ["slic3r"]
                 else:
                     engine_path = "../Slic3r/slic3r.pl"
             self.m_stl_slicer = StlSlicer(engine_path).from_other(self.m_stl_slicer)
         elif engine == 'cura':
-            if engine_path == 'dafault':
+            if engine_path == 'default':
                 if 'cura' in os.environ:
                     engine_path = os.environ["cura"]
                 else:
