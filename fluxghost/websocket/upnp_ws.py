@@ -64,19 +64,19 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
         self.close_task()
         params = params.split(None, 1)
         if len(params) == 1:
-            uuid = params[0].strip()
+            self.uuid = params[0].strip()
             params = "{}"
         else:
-            uuid, params = params
-        logger.debug('connect: ' + uuid)
+            self.uuid, params = params
+        logger.debug('connect: ' + self.uuid)
 
-        uuid = UUID(hex=uuid)
+        self.uuid = UUID(hex=self.uuid)
 
         params = json.loads(params)
         # uuid, client_key, ipaddr=None, device_metadata=None,
         #          remote_profile=None, backend_options={}, lookup_callback=None,
         #          lookup_timeout=float("INF")
-        valid_patams = {'client_key': self.client_key, 'uuid': uuid}
+        valid_patams = {'client_key': self.client_key, 'uuid': self.uuid}
         for i in ['ipaddr', 'device_metadata', 'remote_profile', 'backend_options', 'lookup_callback', 'lookup_timeout']:
             if i in params:
                 valid_patams[i] = params[i]
