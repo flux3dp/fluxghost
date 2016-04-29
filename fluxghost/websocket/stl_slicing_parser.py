@@ -22,7 +22,6 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
 
     def __init__(self, *args):
         WebSocketBase.__init__(self, *args)
-        logger.info("Using StlSlicer()")
 
         self.m_stl_slicer = StlSlicer('')
         # self.change_engine('slic3r default')
@@ -179,6 +178,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         engine, engine_path = params.split()
 
         if engine == 'slic3r':
+            logger.debug("Using slic3r()")
             if engine_path == 'default':
                 if 'slic3r' in os.environ:
                     engine_path = os.environ["slic3r"]
@@ -186,6 +186,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                     engine_path = "../Slic3r/slic3r.pl"
             self.m_stl_slicer = StlSlicer(engine_path).from_other(self.m_stl_slicer)
         elif engine == 'cura':
+            logger.debug("Using cura")
             if engine_path == 'default':
                 if 'cura' in os.environ:
                     engine_path = os.environ["cura"]
