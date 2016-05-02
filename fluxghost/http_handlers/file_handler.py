@@ -1,5 +1,5 @@
 
-from mimetypes import types_map as MIME_TYPE
+from mimetypes import types_map as MIME_TYPE  # noqa
 import platform
 import logging
 import select
@@ -29,10 +29,6 @@ if platform.platform().startswith("Windows"):
     def get_last_modify(filepath):
         return time.strftime("%a, %d %b %Y %H:%M:%S UTC",
                              time.gmtime(os.path.getmtime(filepath)))
-        
-        return os.path.getmtime(filepath)
-
-    
 else:
     def get_last_modify(filepath):
         return time.strftime("%a, %d %b %Y %H:%M:%S %Z",
@@ -63,12 +59,15 @@ class FileHandler(object):
     def handle_request(self, handler, path):
         path = self.clean_path(path)
 
-        if not self.url_check(path):
-            handler.response_403(body="BAD PATH")
-        elif not os.path.isfile(path):
-            handler.response_404()
-        else:
-            self.make_response(handler, path)
+        try:
+            if not self.url_check(path):
+                handler.response_403(body="BAD PATH")
+            elif not os.path.isfile(path):
+                handler.response_404()
+            else:
+                self.make_response(handler, path)
+        except BrokenPipeError as e:
+            logger.debug("Error: %s", e)
 
     def make_response(self, handler, filepath):
         length = os.path.getsize(filepath)

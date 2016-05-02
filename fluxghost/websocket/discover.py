@@ -39,16 +39,17 @@ class WebsocketDiscover(WebSocketBase):
     def on_review_devices(self):
         t = time()
 
-        for uuid, data in self.server.discover_devices.items():
-            if t - data.get("last_response", 0) > 30:
-                # Dead devices
-                if uuid in self.alive_devices:
-                    self.alive_devices.remove(uuid)
-                    self.send_text(self.build_dead_response(uuid))
-            else:
-                # Alive devices
-                self.alive_devices.add(uuid)
-                self.send_text(self.build_response(**data))
+        with self.server.discover_mutex:
+            for uuid, data in self.server.discover_devices.items():
+                if t - data.get("last_response", 0) > 30:
+                    # Dead devices
+                    if uuid in self.alive_devices:
+                        self.alive_devices.remove(uuid)
+                        self.send_text(self.build_dead_response(uuid))
+                else:
+                    # Alive devices
+                    self.alive_devices.add(uuid)
+                    self.send_text(self.build_response(**data))
 
     def on_text_message(self, message):
         try:
