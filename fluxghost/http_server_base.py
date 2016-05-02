@@ -1,4 +1,5 @@
 
+from threading import Lock
 from select import select
 from time import time
 import logging
@@ -12,9 +13,11 @@ logger = logging.getLogger("HTTPServer")
 
 class HttpServerBase(object):
     runmode = None
+    discover_mutex = None
 
     def __init__(self, assets_path, address, enable_discover=False,
                  backlog=10):
+        self.discover_mutex = Lock()
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
         self.enable_discover = enable_discover
@@ -70,10 +73,11 @@ class HttpServerBase(object):
         uuid = kw["uuid"]
         kw["last_response"] = time()
 
-        if uuid in self.discover_devices:
-            exist = self.discover_devices[uuid]
-            real_delta = exist["timedelta"]
-            exist.update(kw)
-            exist["timedelta"] = real_delta
-        else:
-            self.discover_devices[uuid] = kw
+        with self.discover_mutex:
+            if uuid in self.discover_devices:
+                exist = self.discover_devices[uuid]
+                real_delta = exist["timedelta"]
+                exist.update(kw)
+                exist["timedelta"] = real_delta
+            else:
+                self.discover_devices[uuid] = kw
