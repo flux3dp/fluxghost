@@ -79,10 +79,10 @@ class WebsocketControlBase(WebSocketBase):
                 raise
             except UpnpError as err:
                 self.send_fatal(*err.err_symbol)
-                raise
+                return
             except RobotError as err:
                 self.send_fatal(err.args[0], )
-                raise
+                return
 
             self.remote_version = task.version
             self.send_text(STAGE_CONNECTED)

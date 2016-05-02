@@ -1,4 +1,5 @@
 
+from getpass import getuser
 from uuid import UUID
 import logging
 import json
@@ -55,22 +56,34 @@ class WebsocketTouch(WebSocketBase):
 
             # TODO
             metadata = self.server.discover_devices.get(uuid)
-            backend_options = {}
-
-            if password:
-                backend_options["password"] = password
 
             if metadata:
-                UpnpTask(uuid, client_key=client_key, remote_profile=metadata,
-                         backend_options=backend_options, lookup_timeout=30.0)
+                task = UpnpTask(uuid, client_key=client_key,
+                                remote_profile=metadata, lookup_timeout=30.0)
             else:
-                UpnpTask(uuid, client_key=client_key,
-                         backend_options=backend_options, lookup_timeout=30.0)
+                task = UpnpTask(uuid,
+                                client_key=client_key,
+                                lookup_timeout=30.0)
+
+            if not task.authorized:
+                if password:
+                    task.authorize_with_password(password)
+                else:
+                    self.send_text(json.dumps({
+                        "uuid": uuid.hex, "has_response": True,
+                        "reachable": True, "auth": False}))
+
+            try:
+                task.add_trust(getuser(),
+                               client_key.public_key_pem.decode())
+            except UpnpError:
+                pass
 
             self.send_text(json.dumps({
                 "uuid": uuid.hex, "has_response": True, "reachable": True,
                 "auth": True
             }))
+
         except UpnpError as e:
             if e.err_symbol == ("AUTH_ERROR", ):
                 self.send_text(json.dumps({
