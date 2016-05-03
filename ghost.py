@@ -14,8 +14,10 @@ from fluxclient.utils.version import StrictVersion
 def check_fluxclient():
     from fluxclient import __version__ as v
     sys.modules.pop("fluxclient")
-    if StrictVersion(v) < StrictVersion('0.8b19'):
-        raise RuntimeError("Your fluxclient need to update (>=0.8b19)")
+    if StrictVersion(v) < StrictVersion('0.8b22'):
+        raise RuntimeError("Your fluxclient need to update (>=0.8b22)")
+    if StrictVersion(v) >= StrictVersion('0.8b25'):
+        raise RuntimeError("fluxclient is too new (<0.8b25)")
 
 
 def show_version(verbose):
@@ -110,7 +112,6 @@ def main():
     check_fluxclient()
     if options.debug:
         os.environ["flux_debug"] = "1"
-        # from fluxghost.http_server_debug import HttpServer
 
     from fluxghost.http_server import HttpServer
 
