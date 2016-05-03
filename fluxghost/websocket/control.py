@@ -87,6 +87,13 @@ class WebsocketControlBase(WebSocketBase):
                 self.send_fatal(*err.err_symbol)
                 return
             except RobotError as err:
+                if err.args[0] == "REMOTE_IDENTIFY_ERROR":
+                    mk = task.device_meta.get("master_key")
+                    sk = task.device_meta.get("slave_key")
+                    ms = mk.public_key_pem if mk else "N/A"
+                    ss = sk.public_key_pem if sk else "N/A"
+                    logger.error("RIE\nMasterKey:\n%s\nSlaveKey:\n%s",
+                                 ms.decode(), ss.decode())
                 self.send_fatal(err.args[0], )
                 return
 
