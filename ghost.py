@@ -95,6 +95,10 @@ def main():
     parser.add_argument("--slic3r", dest='slic3r', type=str,
                         default='../Slic3r/slic3r.pl',
                         help="Set slic3r location")
+    parser.add_argument("--cura", dest='cura', type=str,
+                        default='',
+                        help="Set cura location")
+
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
                         help="Use sentry logger")
     parser.add_argument('--test', dest='test', action='store_const',
@@ -125,6 +129,9 @@ def main():
 
     if options.slic3r:
         os.environ["slic3r"] = options.slic3r
+
+    if options.cura:
+        os.environ["cura"] = options.cura
 
     if not options.assets:
         options.assets = os.path.join(
