@@ -106,7 +106,7 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
     def config_network(self, params):
         logger.debug('config_network')
         options = json.loads(params)
-        self.task.config_network(options)
+        self.upnp_task.modify_network(**options)
         self.send_text('{"status": "ok"}')
 
     @check_task
@@ -114,7 +114,7 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
         logger.debug('set_password')
         old, new = params.split()
         try:
-            self.task.modify_password(old, new)
+            self.upnp_task.modify_password(old, new)
         except UpnpError:
             self.send_error('password changing fail')
         else:
@@ -122,9 +122,11 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
 
     @check_task
     def set_name(self, params):
-        logger.debug('set_name')
         new_name = params.strip()
-        self.task.rename(new_name)
+        logger.debug('set_name ' + new_name)
+        print(new_name)
+        self.upnp_task.rename(new_name)
+        print('rename done')
         self.send_ok()
 
     def on_close(self, message):
