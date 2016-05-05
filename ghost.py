@@ -14,8 +14,10 @@ from fluxclient.utils.version import StrictVersion
 def check_fluxclient():
     from fluxclient import __version__ as v
     sys.modules.pop("fluxclient")
-    if StrictVersion(v) < StrictVersion('0.8b19'):
-        raise RuntimeError("Your fluxclient need to update (>=0.8b19)")
+    if StrictVersion(v) < StrictVersion('0.8b22'):
+        raise RuntimeError("Your fluxclient need to update (>=0.8b22)")
+    if StrictVersion(v) >= StrictVersion('0.8b25'):
+        raise RuntimeError("fluxclient is too new (<0.8b25)")
 
 
 def show_version(verbose):
@@ -93,6 +95,10 @@ def main():
     parser.add_argument("--slic3r", dest='slic3r', type=str,
                         default='../Slic3r/slic3r.pl',
                         help="Set slic3r location")
+    parser.add_argument("--cura", dest='cura', type=str,
+                        default='',
+                        help="Set cura location")
+
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
                         help="Use sentry logger")
     parser.add_argument('--test', dest='test', action='store_const',
@@ -110,7 +116,6 @@ def main():
     check_fluxclient()
     if options.debug:
         os.environ["flux_debug"] = "1"
-        # from fluxghost.http_server_debug import HttpServer
 
     from fluxghost.http_server import HttpServer
 
@@ -124,6 +129,9 @@ def main():
 
     if options.slic3r:
         os.environ["slic3r"] = options.slic3r
+
+    if options.cura:
+        os.environ["cura"] = options.cura
 
     if not options.assets:
         options.assets = os.path.join(
