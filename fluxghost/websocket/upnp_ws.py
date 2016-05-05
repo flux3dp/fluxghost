@@ -76,21 +76,36 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
         # uuid, client_key, ipaddr=None, device_metadata=None,
         #          remote_profile=None, backend_options={}, lookup_callback=None,
         #          lookup_timeout=float("INF")
-        valid_patams = {'client_key': self.client_key, 'uuid': self.uuid}
+        valid_params = {'client_key': self.client_key, 'uuid': self.uuid}
         for i in ['ipaddr', 'device_metadata', 'remote_profile', 'backend_options', 'lookup_callback', 'lookup_timeout']:
             if i in params:
-                valid_patams[i] = params[i]
+                valid_params[i] = params[i]
 
         if self.password:
-            valid_patams['backend_options'] = valid_patams.get('backend_options', {})
-            valid_patams['backend_options']['password'] = self.password
+            valid_params['backend_options'] = valid_params.get('backend_options', {})
+            valid_params['backend_options']['password'] = self.password
 
-        if 'uuid' in valid_patams and valid_patams["client_key"]:
-            self.upnp_task = UpnpTask(**valid_patams)
-            self.send_ok()
+        if 'uuid' in valid_params and valid_params["client_key"]:
+            self.upnp_task = UpnpTask(**valid_params)
+            if self.upnp_task.authorized:
+                self.send_ok()
+                print('rsa success')
+            elif self.password:  # rsa connection fail
+                self.upnp_task.authorize_with_password(self.password)
+                if self.upnp_task.authorized:
+                    self.send_ok()
+                    print('pass success')
+                else:
+                    self.send_error('UPNP_CONNECTION_FAIL')
+                    print('pass fail')
+
+            else:
+                self.send_error('UPNP_CONNECTION_FAIL')
+                print('rsa fail')
+
         else:
-            self.send_fatal('api fail')
-            print('valid_patams', valid_patams)
+            self.send_fatal('API FAIL')
+            print('valid_params', valid_params)
 
     @check_task
     def scan_wifi(self, params):
