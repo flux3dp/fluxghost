@@ -24,7 +24,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         WebSocketBase.__init__(self, *args)
 
         self.m_stl_slicer = StlSlicer('')
-        self.change_engine('slic3r default')
+        self._change_engine('slic3r default')
         # self.change_engine('cura default')
 
         self.cmd_mapping = {
@@ -49,6 +49,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
     def begin_recv_stl(self, params, flag):
         if flag == 'upload':
             params = params.split()
+
             if len(params) == 2:
                 name, file_length = params
                 buf_type = 'stl'
@@ -60,23 +61,30 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             buf_type = ''
             file_length = params
 
+        print(name, file_length, buf_type)
         if int(file_length) == 0:
             self.send_error('empty file!')
         else:
             helper = BinaryUploadHelper(int(file_length), self.end_recv_stl, name, flag, buf_type)
             self.set_binary_helper(helper)
+
             self.send_continue()
+            print('continue')
 
     def end_recv_stl(self, buf, *args):
         if args[1] == 'upload':
             self.m_stl_slicer.upload(args[0], buf, args[2])
+            logger.debug('upload ' + args[0])
         elif args[1] == 'upload_image':
             self.m_stl_slicer.upload_image(buf)
+        print('okok')
         self.send_ok()
 
     def duplicate(self, params):
+        logger.debug('duplicate ' + params)
         name_in, name_out = params.split()
         flag = self.m_stl_slicer.duplicate(name_in, name_out)
+        print("flag:", flag)
         if flag:
             self.send_ok()
         else:
@@ -175,9 +183,15 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.send_ok()
 
     def change_engine(self, params):
-        logger.debug('change_engine' + params)
+        logger.debug('change_engine ' + params)
         engine, engine_path = params.split()
+        if self._change_engine(params):
+            self.send_ok()
+        else:
+            self.send_error('wrong engine {}, should be "cura" or "slic3r"'.format(engine))
 
+    def _change_engine(self, params):
+        engine, engine_path = params.split()
         if engine == 'slic3r':
             logger.debug("Using slic3r()")
             if engine_path == 'default':
@@ -207,6 +221,5 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
 
             self.m_stl_slicer = StlSlicerCura(engine_path).from_other(self.m_stl_slicer)
         else:
-            self.send_error('wrong engine {}, should be "cura" or "slic3r"'.format(engine))
-            return
-        self.send_ok()
+            return False
+        return True
