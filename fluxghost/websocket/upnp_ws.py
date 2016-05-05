@@ -3,12 +3,13 @@ from glob import glob
 import logging
 import json
 import sys
+import getpass
 from uuid import UUID
 
 from serial.tools import list_ports as _list_ports
 from fluxclient.encryptor import KeyObject
 # from fluxclient.upnp import UpnpDiscover
-from fluxclient.upnp.task import UpnpTask
+from fluxclient.upnp.task import UpnpTask, UpnpException
 from fluxclient.upnp import UpnpError
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, BinaryUploadHelper, SIMULATE, OnTextMessageMixin
 
@@ -91,20 +92,20 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
                 self.send_ok()
                 print('rsa success')
             elif self.password:  # rsa connection fail
-                self.upnp_task.authorize_with_password(self.password)
-                if self.upnp_task.authorized:
-                    self.send_ok()
-                    print('pass success')
-                else:
-                    self.send_error('UPNP_CONNECTION_FAIL')
+                try:
+                    self.upnp_task.authorize_with_password(self.password)
+                    if self.upnp_task.authorized:
+                        self.send_ok()
+                        print('pass success')
+                except:
+                    self.send_error('UPNP_PASSWORD_FAIL')
                     print('pass fail')
-
             else:
                 self.send_error('UPNP_CONNECTION_FAIL')
                 print('rsa fail')
 
         else:
-            self.send_fatal('API FAIL')
+            self.send_fatal('API_FAIL')
             print('valid_params', valid_params)
 
     @check_task
@@ -114,15 +115,20 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
 
     @check_task
     def add_key(self, params):
-        logger.debug('add_key')
-        self.upnp_task.add_trust()
+
+        label = params.strip()
+        if not label:
+            label = getpass.getuser()
+        logger.debug('add_key ' + label + ' ' + self.client_key.get_access_id())
+        self.upnp_task.add_trust(label, self.client_key.public_key_pem.decode())
+        self.send_ok()
 
     @check_task
     def config_network(self, params):
         logger.debug('config_network')
         options = json.loads(params)
         self.upnp_task.modify_network(**options)
-        self.send_text('{"status": "ok"}')
+        self.send_ok()
 
     @check_task
     def set_password(self, params):
