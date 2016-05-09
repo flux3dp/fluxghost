@@ -61,7 +61,6 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             buf_type = ''
             file_length = params
 
-        print(name, file_length, buf_type)
         if int(file_length) == 0:
             self.send_error('empty file!')
         else:
@@ -69,7 +68,6 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             self.set_binary_helper(helper)
 
             self.send_continue()
-            print('continue')
 
     def end_recv_stl(self, buf, *args):
         if args[1] == 'upload':
@@ -77,14 +75,12 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             logger.debug('upload ' + args[0])
         elif args[1] == 'upload_image':
             self.m_stl_slicer.upload_image(buf)
-        print('okok')
         self.send_ok()
 
     def duplicate(self, params):
         logger.debug('duplicate ' + params)
         name_in, name_out = params.split()
         flag = self.m_stl_slicer.duplicate(name_in, name_out)
-        print("flag:", flag)
         if flag:
             self.send_ok()
         else:
