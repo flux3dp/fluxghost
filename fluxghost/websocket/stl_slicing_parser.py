@@ -60,6 +60,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             name = ''
             buf_type = ''
             file_length = params
+            logger.debug('upload_image {}'.format(file_length))
 
         if int(file_length) == 0:
             self.send_error('empty file!')
@@ -100,7 +101,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         scale_y = float(params[8])
         scale_z = float(params[9])
         self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
-        logger.debug('{} {} {} {} {} {} {} {} {} {}'.format(name, position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z))
+        logger.debug('set {} {} {} {} {} {} {} {} {} {}'.format(name, position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z))
         self.send_ok()
 
     def advanced_setting(self, params):
@@ -179,6 +180,9 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.send_ok()
 
     def change_engine(self, params):
+        """
+        change_engine for front-end
+        """
         logger.debug('change_engine ' + params)
         engine, engine_path = params.split()
         if self._change_engine(params):
@@ -187,6 +191,9 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             self.send_error('wrong engine {}, should be "cura" or "slic3r"'.format(engine))
 
     def _change_engine(self, params):
+        """
+        normal chaning engine
+        """
         engine, engine_path = params.split()
         if engine == 'slic3r':
             logger.debug("Using slic3r()")
