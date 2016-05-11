@@ -30,7 +30,7 @@ def check_task(func):
     return f
 
 
-class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
+class WebsocketUpnp(WebsocketBinaryHelperMixin, WebSocketBase):
 
     def __init__(self, *args, **kw):
         super(WebsocketUpnp, self).__init__(*args, **kw)
@@ -49,6 +49,39 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
             'set_password': [self.set_password],
         }
 
+    def on_text_message(self, message):
+        try:
+            if not self.has_binary_helper():
+                message = message.rstrip().split(maxsplit=1)
+                if len(message) == 1:
+                    cmd = message[0]
+                    params = ''
+                else:
+                    cmd = message[0]
+                    params = message[1]
+
+                if cmd in self.cmd_mapping:
+                    self.cmd_mapping[cmd][0](params, *self.cmd_mapping[cmd][1:])
+                else:
+                    logger.exception("receive message: %s" % (message))
+                    raise ValueError('Undefine command %s' % (cmd))
+            else:
+                logger.exception("receive message: %s" % (message))
+                raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
+
+        except UpnpError as err:
+            print('hello')
+            self.send_fatal(*err.err_symbol, suberror=err.args[0])
+            return
+
+        except ValueError:
+            logger.exception("receive message: %s" % (message))
+            self.send_fatal("BAD_PARAM_TYPE")
+
+        except RuntimeError as e:
+            logger.exception("receive message: %s" % (message))
+            self.send_fatal(e.args[0])
+
     def upload_key(self, params):
         logger.debug('upload_key:' + params)
         pem = params
@@ -61,7 +94,6 @@ class WebsocketUpnp(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBas
         self.send_json(status="ok")
 
     def connect(self, params):
-
         self.close_task()
         params = params.split(None, 1)
         if len(params) == 1:
