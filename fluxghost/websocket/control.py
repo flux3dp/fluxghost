@@ -84,7 +84,7 @@ class WebsocketControlBase(WebSocketBase):
                                     errorcode.get(error_no, error_no))
                 raise
             except UpnpError as err:
-                self.send_fatal(*err.err_symbol)
+                self.send_fatal(*err.err_symbol, suberror=err.args[0])
                 return
             except RobotError as err:
                 if err.args[0] == "REMOTE_IDENTIFY_ERROR":
