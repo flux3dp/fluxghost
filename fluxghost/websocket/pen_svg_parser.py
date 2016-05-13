@@ -15,6 +15,9 @@ MODE_MANUALLY = "manually"
 class WebsocketPenSvgParser(WebsocketLaserSvgParser):
     _m_pen_draw = None
 
+    def __init__(self, *args):
+        super(WebsocketPenSvgParser, self).__init__(*args)
+
     @property
     def m_laser_svg(self):
         return self.m_pen_draw
