@@ -21,6 +21,7 @@ import struct
 import math
 import os
 
+from fluxclient.robot import errors
 from fluxclient.scanner.tools import read_pcd
 from fluxclient.scanner import image_to_pc
 from fluxclient.scanner.scan_settings import ScanSetting
@@ -70,7 +71,10 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.fetch_image()
 
         elif message == "scan_check":
-            self.scan_check()
+            try:
+                self.scan_check()
+            except errors.RobotDisconnected():
+                self.send_fatal("DISCONNECTED")
 
         elif message == "calibrate":
             self.calibrate()
@@ -95,12 +99,15 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_ok(str(self.steps))
 
         elif message.startswith("scan"):
-            if self.cab is None:
-                self.get_cab()
-            if len(message.split()) > 1:
-                self.scan(step=int(message.split()[1]))
-            else:
-                self.scan()
+            try:
+                if self.cab is None:
+                    self.get_cab()
+                if len(message.split()) > 1:
+                    self.scan(step=int(message.split()[1]))
+                else:
+                    self.scan()
+            except Exception:
+                self.send_fatal
 
         elif message == "quit":
             if self.robot.position() == "ScanTask":
