@@ -4,7 +4,7 @@ from io import BytesIO
 import logging
 import sys
 import os
-
+import subprocess
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE, OnTextMessageMixin
@@ -12,6 +12,25 @@ from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerCura
 from fluxclient import check_platform
 
 logger = logging.getLogger("WS.slicing")
+
+
+def get_default_cura():
+    if 'cura' in os.environ:
+        engine_path = os.environ["cura"]
+    else:
+        p = check_platform()
+        if p[0] == 'OSX':
+            engine_path = "/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
+        elif p[0] == "Linux":
+            engine_path = "/usr/share/cura/CuraEngine"
+        elif p[0] == "Windows":
+            if p[1] == '64bit':
+                engine_path = "C:\Program Files (x86)\Cura_15.04.5\CuraEngine.exe"
+            elif p[1] == '32bit':
+                engine_path = "C:\Program Files\Cura_15.04.5\CuraEngine.exe"
+        else:
+            raise RuntimeError("Unknow Platform: {}".format(p))
+    return engine_path
 
 
 class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
@@ -41,7 +60,8 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             'end_slicing': [self.end_slicing],
             'report_slicing': [self.report_slicing],
             'get_result': [self.get_result],
-            'change_engine': [self.change_engine]
+            'change_engine': [self.change_engine],
+            'check_engine': [self.check_engine],
 
         }
         self.ext_metadata = {}
@@ -206,23 +226,43 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         elif engine == 'cura':
             logger.debug("Using cura")
             if engine_path == 'default':
-                if 'cura' in os.environ:
-                    engine_path = os.environ["cura"]
-                else:
-                    p = check_platform()
-                    if p[0] == 'OSX':
-                        engine_path = "/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
-                    elif p[0] == "Linux":
-                        engine_path = "/usr/share/cura/CuraEngine"
-                    elif p[0] == "Windows":
-                        if p[1] == '64bit':
-                            engine_path = "C:\Program Files (x86)\Cura_15.04.5\CuraEngine.exe"
-                        elif p[1] == '32bit':
-                            engine_path = "C:\Program Files\Cura_15.04.5\CuraEngine.exe"
-                    else:
-                        raise RuntimeError("Unknow Platform: {}".format(p))
-
+                engine_path = get_default_cura()
             self.m_stl_slicer = StlSlicerCura(engine_path).from_other(self.m_stl_slicer)
         else:
             return False
         return True
+
+    def check_engine(self, params):
+        engine = params
+        error_code, ret = self._check_engine(engine)
+        if error_code == 0:
+            self.send_ok()
+        elif error_code < 5:
+            self.send_error(str(error_code), info=ret)
+        else:
+            self.send_fatal(str(error_code), info=ret)
+
+    def _check_engine(self, params):
+        engine, engine_path = params.split()
+        if engine == 'cura':
+            if engine_path == 'default':
+                engine_path = get_default_cura()
+
+            if os.path.isfile(engine_path):
+                try:
+                    out = subprocess.check_output(engine_path, stderr=subprocess.STDOUT, timeout=5)
+                except:
+                    return 1, 'execution fail'
+                else:
+                    out = out.split(b'\n')[0]
+                    if out.startswith(b'Cura_SteamEngine version'):
+                        if out.endswith(b'15.04.5'):
+                            return 0, 'ok'
+                        else:
+                            return 2, 'version error:{}'.format(out.split()[-1].decode())
+                    else:
+                        return 3, '{} is not cura'.format(engine_path)
+            else:
+                return 4, '{} not exist'.format(engine_path)
+        else:
+            return 5, '{} check not supported'.format(engine)

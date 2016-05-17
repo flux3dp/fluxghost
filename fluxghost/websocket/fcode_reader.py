@@ -12,6 +12,7 @@ from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
 from fluxclient.utils.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.hw_profile import HW_PROFILE
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             if buf_type != '-g' and buf_type != '-f':
                 self.send_fatal('TYPE_ERROR {}'.format(buf_type))
                 return
+
             self.buf_type = buf_type
             if buf_type == '-f':
                 self.data_parser = FcodeToGcode()
@@ -63,15 +65,20 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
     def end_recv_buf(self, buf, flag):
         if flag == 'upload':
             if self.buf_type == '-f':
-                if self.data_parser.upload_content(buf):
+                res = self.data_parser.upload_content(buf)
+                if res == 'ok' or res == 'out_of_bound':
                     tmp = StringIO()
                     self.data_parser.f_to_g(tmp)
                     self.fcode = buf
                     logger.debug("fcode parsing done")
-                    self.send_ok()
-                else:
+                    if res == 'ok':
+                        self.send_ok()
+                    elif res == 'out_of_bound':
+                        self.send_error("gcode area too big")
+
+                elif res == 'broken':
                     self.send_error('File broken')
-            else:
+            else:  # -g gcode
                 f = StringIO()
                 f.write(buf.decode('ascii', 'ignore'))
                 f.seek(0)
@@ -80,8 +87,19 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
 
                 self.data_parser.process(f, fcode_output)
                 self.fcode = fcode_output.getvalue()
+
+                if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
+                    self.send_error("gcode area too big")
+                elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
+                    self.send_error("gcode area too big")
+                elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
+                    self.send_error("gcode area too big")
+                elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
+                    self.send_error("gcode area too big")
+                else:
+                    self.send_ok()
                 logger.debug("gcode parsing done")
-                self.send_ok()
+
         elif flag == 'change_img':
             self.change_img(buf)
 
