@@ -2,8 +2,9 @@
 from errno import EHOSTDOWN, errorcode
 import logging
 
-from fluxclient.robot import connect_camera
+from fluxclient.utils.version import StrictVersion
 from fluxclient.robot.errors import RobotError
+from fluxclient.robot import connect_camera
 from fluxclient.encryptor import KeyObject
 from .control import WebsocketControlBase
 
@@ -42,6 +43,10 @@ class WebsocketCamera(WebsocketControlBase):
 
             try:
                 task = self._discover(self.uuid, client_key)
+                if task.version < StrictVersion("1.1"):
+                    self.send_fatal("NOT_SUPPORT")
+                    return
+
                 self.send_text(STAGE_ROBOT_CONNECTING)
                 self.robot = connect_camera(
                     (self.ipaddr, 23812),
