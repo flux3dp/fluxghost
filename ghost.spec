@@ -68,7 +68,8 @@ hiddenimports += ['fluxghost.websocket.scan_modeling',
                   'fluxghost.http_server_debug',
                   'fluxghost.utils',
                   'fluxghost.websocket.discover',
-                  'fluxghost.websocket.config']
+                  'fluxghost.websocket.config',
+                  'fluxghost.websocket.camera']
 
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
