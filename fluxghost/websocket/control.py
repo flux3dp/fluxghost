@@ -72,7 +72,6 @@ class WebsocketControlBase(WebSocketBase):
                 self.send_text(STAGE_ROBOT_CONNECTING)
                 self.robot = connect_robot(
                     (self.ipaddr, 23811),
-                    server_key=task.device_meta["master_key"],
                     metadata=task.device_meta,
                     client_key=client_key, conn_callback=self._conn_callback)
             except OSError as err:
