@@ -265,5 +265,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                         return 3, '{} is not cura'.format(engine_path)
             else:
                 return 4, '{} not exist'.format(engine_path)
+        elif engine == 'slic3r':
+            return 0, 'ok'
         else:
             return 5, '{} check not supported'.format(engine)
