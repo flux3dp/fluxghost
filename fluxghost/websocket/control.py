@@ -7,13 +7,11 @@ import shlex
 from io import BytesIO
 from os import environ
 
-from fluxclient.upnp import UpnpError
 from fluxclient.encryptor import KeyObject
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.robot.errors import RobotError
 from fluxclient.upnp.task import UpnpTask
-from fluxclient.robot import connect_robot
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -49,32 +47,33 @@ class WebsocketControlBase(WebSocketBase):
     def __init__(self, request, client, server, path, serial):
         WebSocketBase.__init__(self, request, client, server, path)
         self.uuid = UUID(hex=serial)
+        self.POOL_TIME = 1.5
 
     def on_connected(self):
         pass
 
-    def on_text_message(self, message):
-        if self.client_key:
-            self.on_command(message)
-        else:
-            try:
-                self.client_key = client_key = KeyObject.load_keyobj(message)
-            except Exception:
-                logger.error("RSA Key load error: %s", message)
-                self.send_fatal("BAD_PARAMS")
-                raise
+    def on_loop(self):
+        if self.client_key and not self.robot:
+            self.try_connect()
 
-            self.send_text(STAGE_DISCOVER)
-            logger.debug("DISCOVER")
+    def get_robot_from_device(self, device):
+        return device.connect_robot(
+            self.client_key, conn_callback=self._conn_callback)
+
+    def try_connect(self):
+        self.send_text(STAGE_DISCOVER)
+        logger.debug("DISCOVER")
+        uuid = self.uuid
+
+        if uuid in self.server.discover_devices:
+            device = self.server.discover_devices[uuid]
+            self.remote_version = device.version
+            self.ipaddr = device.ipaddr
 
             try:
-                task = self._discover(self.uuid, client_key)
                 self.send_text(STAGE_ROBOT_CONNECTING)
-                self.robot = connect_robot(
-                    (self.ipaddr, 23811),
-                    server_key=task.device_meta["master_key"],
-                    metadata=task.device_meta,
-                    client_key=client_key, conn_callback=self._conn_callback)
+                self.robot = self.get_robot_from_device(device)
+
             except OSError as err:
                 error_no = err.args[0]
                 if error_no == EHOSTDOWN:
@@ -82,14 +81,12 @@ class WebsocketControlBase(WebSocketBase):
                 else:
                     self.send_fatal("UNKNOWN_ERROR",
                                     errorcode.get(error_no, error_no))
-                raise
-            except UpnpError as err:
-                self.send_fatal(*err.err_symbol, suberror=err.args[0])
                 return
+
             except RobotError as err:
                 if err.args[0] == "REMOTE_IDENTIFY_ERROR":
-                    mk = task.device_meta.get("master_key")
-                    sk = task.device_meta.get("slave_key")
+                    mk = device.master_key
+                    sk = device.slave_key
                     ms = mk.public_key_pem if mk else "N/A"
                     ss = sk.public_key_pem if sk else "N/A"
                     logger.error("RIE\nMasterKey:\n%s\nSlaveKey:\n%s",
@@ -97,9 +94,22 @@ class WebsocketControlBase(WebSocketBase):
                 self.send_fatal(err.args[0], )
                 return
 
-            self.remote_version = task.version
             self.send_text(STAGE_CONNECTED)
+            self.POOL_TIME = 30.0
             self.on_connected()
+
+    def on_text_message(self, message):
+        if self.client_key:
+            self.on_command(message)
+        else:
+            try:
+                self.client_key = KeyObject.load_keyobj(message)
+            except Exception:
+                logger.error("RSA Key load error: %s", message)
+                self.send_fatal("BAD_PARAMS")
+                raise
+
+            self.try_connect()
 
     def on_binary_message(self, buf):
         if self.binary_handler:
