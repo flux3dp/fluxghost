@@ -16,7 +16,7 @@ def check_fluxclient():
     sys.modules.pop("fluxclient")
     lower_bound = '0.8b26'
     upper_bound = '0.9a1'
-    if StrictVersion(v) <= StrictVersion(lower_bound):
+    if StrictVersion(v) < StrictVersion(lower_bound):
         raise RuntimeError(
             "Your fluxclient need to update (>={})".format(lower_bound))
     if StrictVersion(v) > StrictVersion(upper_bound):
