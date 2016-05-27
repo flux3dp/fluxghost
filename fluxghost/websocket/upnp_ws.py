@@ -70,7 +70,7 @@ class WebsocketUpnp(WebsocketBinaryHelperMixin, WebSocketBase):
                 raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
 
         except UpnpError as err:
-            print('hello')
+            logger.exception("UpnpError message: %s" % (err.args[0]))
             self.send_fatal(*err.err_symbol, suberror=err.args[0])
             return
 
@@ -147,7 +147,9 @@ class WebsocketUpnp(WebsocketBinaryHelperMixin, WebSocketBase):
 
     @check_task
     def add_key(self, params):
-
+        """
+        add current client_key into trust list
+        """
         label = params.strip()
         if not label:
             label = getpass.getuser()
