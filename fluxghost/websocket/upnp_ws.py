@@ -1,17 +1,14 @@
 
-from glob import glob
 import logging
 import json
-import sys
 import getpass
 from uuid import UUID
 
-from serial.tools import list_ports as _list_ports
 from fluxclient.encryptor import KeyObject
 # from fluxclient.upnp import UpnpDiscover
 from fluxclient.upnp.task import UpnpTask, UpnpException
 from fluxclient.upnp import UpnpError
-from .base import WebSocketBase, WebsocketBinaryHelperMixin, BinaryUploadHelper, SIMULATE, OnTextMessageMixin
+from .base import WebSocketBase, WebsocketBinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
 logger = logging.getLogger(__name__)
 
@@ -107,10 +104,10 @@ class WebsocketUpnp(WebsocketBinaryHelperMixin, WebSocketBase):
 
         params = json.loads(params)
         # uuid, client_key, ipaddr=None, device_metadata=None,
-        #          remote_profile=None, backend_options={}, lookup_callback=None,
+        #          backend_options={}, lookup_callback=None,
         #          lookup_timeout=float("INF")
         valid_params = {'client_key': self.client_key, 'uuid': self.uuid}
-        for i in ['ipaddr', 'device_metadata', 'remote_profile', 'backend_options', 'lookup_callback', 'lookup_timeout']:
+        for i in ['ipaddr', 'device_metadata', 'backend_options', 'lookup_callback', 'lookup_timeout']:
             if i in params:
                 valid_params[i] = params[i]
 

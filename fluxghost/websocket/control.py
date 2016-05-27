@@ -194,20 +194,6 @@ class WebsocketControlBase(WebSocketBase):
         self.send_text(STAGE_ROBOT_CONNECTING)
         return True
 
-    def _discover(self, uuid, client_key):
-        metadata = self.server.discover_devices.get(uuid)
-        if metadata:
-            # TODO
-            task = UpnpTask(self.uuid, client_key=client_key,
-                            remote_profile=metadata, lookup_timeout=4.0)
-        else:
-            # TODO
-            task = UpnpTask(self.uuid, client_key=client_key,
-                            lookup_callback=self._disc_callback)
-
-        self.ipaddr = task.ipaddr
-        return task
-
 
 class WebsocketControl(WebsocketControlBase):
     raw_sock = None

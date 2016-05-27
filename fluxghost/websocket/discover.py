@@ -78,7 +78,7 @@ class WebsocketDiscover(WebSocketBase):
         })
 
     def build_response(self, device):
-        st = device.status()
+        st = device.status
         payload = {
             "uuid": device.uuid.hex,
             "serial": device.serial,

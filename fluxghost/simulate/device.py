@@ -26,6 +26,7 @@ class SimulateDevice(object):
     def last_update(self):
         return time()
 
+    @property
     def status(self):
         return {
             "st_id": self.st_id,
