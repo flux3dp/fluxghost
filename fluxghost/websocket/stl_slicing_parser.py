@@ -92,8 +92,9 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
 
     def end_recv_stl(self, buf, *args):
         if args[1] == 'upload':
+            logger.debug('upload ' + args[0] + args[2])
             self.m_stl_slicer.upload(args[0], buf, args[2])
-            logger.debug('upload ' + args[0])
+
         elif args[1] == 'upload_image':
             self.m_stl_slicer.upload_image(buf)
         self.send_ok()
@@ -254,7 +255,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                 except:
                     return 1, 'execution fail'
                 else:
-                    out = out.split(b'\n')[0]
+                    out = out.split(b'\n')[0].rstrip()
                     if out.startswith(b'Cura_SteamEngine version'):
                         if out.endswith(b'15.04.5'):
                             return 0, 'ok'
@@ -264,5 +265,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                         return 3, '{} is not cura'.format(engine_path)
             else:
                 return 4, '{} not exist'.format(engine_path)
+        elif engine == 'slic3r':
+            return 0, 'ok'
         else:
             return 5, '{} check not supported'.format(engine)
