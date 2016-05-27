@@ -1,7 +1,6 @@
 
 from threading import Lock
 from select import select
-from time import time
 import logging
 import socket
 
@@ -16,12 +15,13 @@ class HttpServerBase(object):
     discover_mutex = None
 
     def __init__(self, assets_path, address, enable_discover=False,
-                 backlog=10):
+                 backlog=10, debug=False):
         self.discover_mutex = Lock()
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
         self.enable_discover = enable_discover
         self.discover_devices = {}
+        self.debug = debug
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -37,6 +37,12 @@ class HttpServerBase(object):
         logger.info("Listen HTTP on %s:%s" % address)
 
         self.discover_devices = {}
+
+        if debug:
+            from fluxghost.simulate import SimulateDevice
+            self.simulate_device = s = SimulateDevice()
+            self.discover_devices[s.uuid] = s
+
         self.launch_discover()
 
     def launch_discover(self):
@@ -69,15 +75,7 @@ class HttpServerBase(object):
             except KeyboardInterrupt:
                 self.running = False
 
-    def on_discover_device(self, discover_instance, **kw):
-        uuid = kw["uuid"]
-        kw["last_response"] = time()
-
+    def on_discover_device(self, discover_instance, uuid, device, **kw):
         with self.discover_mutex:
-            if uuid in self.discover_devices:
-                exist = self.discover_devices[uuid]
-                real_delta = exist["timedelta"]
-                exist.update(kw)
-                exist["timedelta"] = real_delta
-            else:
-                self.discover_devices[uuid] = kw
+            if uuid not in self.discover_devices:
+                self.discover_devices[uuid] = device

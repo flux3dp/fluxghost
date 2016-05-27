@@ -16,24 +16,15 @@ ws.send("image")
 
 
 import logging
-import random
-import struct
-import math
-import os
 
 from fluxclient.robot import errors
-from fluxclient.scanner.tools import read_pcd
 from fluxclient.scanner import image_to_pc
 from fluxclient.scanner.scan_settings import ScanSetting
 from fluxclient.hw_profile import HW_PROFILE
 
-from .base import WebSocketBase
 from .control import WebsocketControlBase
 from fluxclient.robot.errors import RobotError
 
-SIMULATE_IMG_FILE = os.path.join(os.path.dirname(__file__),
-                                 "..", "assets", "miku_q.png")
-SIMULATE_IMG_MIME = "image/png"
 L = logging.getLogger("WS.3DSCAN-CTRL")
 
 
@@ -88,10 +79,13 @@ class Websocket3DScanControl(WebsocketControlBase):
             s_step = message.split(maxsplit=1)[-1]
             self.steps = int(s_step, 10)
             if self.steps in HW_PROFILE['model-1']['step_setting']:
-                self.robot.set_scanlen(HW_PROFILE['model-1']['step_setting'][self.steps][1])
+                self.robot.set_scanlen(
+                    HW_PROFILE['model-1']['step_setting'][self.steps][1])
             else:
-                self.steps = 400  # this will cause frontend couldn't adjust the numbers of steps
-                self.robot.set_scanlen(HW_PROFILE['model-1']['step_setting'][400][1])
+                # this will cause frontend couldn't adjust the numbers of steps
+                self.steps = 400
+                self.robot.set_scanlen(
+                    HW_PROFILE['model-1']['step_setting'][400][1])
 
             self.scan_settings.scan_step = self.steps
             self.current_step = 0
@@ -159,7 +153,7 @@ class Websocket3DScanControl(WebsocketControlBase):
                 self.send_error("DEVICE_ERROR", err.args[0])
                 return
 
-            ret = self.robot.begin_scan()
+            self.robot.begin_scan()
             self.send_text('{"status": "ready"}')
             self.ready = True
 
@@ -175,7 +169,6 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_ok()
 
     def scan_check(self):
-        # s = random.choice(["not open", "not open", "no object", "no object", "good", "no laser"])
         message = self.robot.scan_check()
         message = int(message.split()[-1])
         if message & 1 == 0:
@@ -188,24 +181,24 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_text('{"status": "ok", "message": "%s"}' % (message))
 
     def get_cab(self):
-        # self.cab = [float(i) for i in self.robot.get_calibrate().split()[2:]]
         self.cab = True
         tmp = list(map(float, self.robot.get_calibrate().split()[1:]))
 
         if len(tmp) == 3:
-            self.scan_settings.cab_m, self.scan_settings.cab_l, self.scan_settings.cab_r = tmp
+            self.scan_settings.cab_m, self.scan_settings.cab_l, \
+                self.scan_settings.cab_r = tmp
         elif len(tmp) == 2:
             self.scan_settings.cab_l += tmp[0]
             self.scan_settings.cab_r += tmp[1]
         else:
             pass
-        L.info('callibration: m:{} l:{} r:{}'.format(self.scan_settings.cab_m, self.scan_settings.cab_l, self.scan_settings.cab_r))
-        # self.cameraX += self.scan_settings.cab_m - (self.scan_settings.img_width / 2) / 125 *
+        L.info('callibration: m:{} l:{} r:{}', self.scan_settings.cab_m,
+               self.scan_settings.cab_l, self.scan_settings.cab_r)
 
-        self.scan_settings.LLaserAdjustment = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
-        self.scan_settings.RLaserAdjustment = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
-        # self.scan_settings.LLaserAdjustment /= 2
-        # self.scan_settings.RLaserAdjustment /= 2
+        l = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
+        r = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
+        self.scan_settings.LLaserAdjustment = l
+        self.scan_settings.RLaserAdjustment = r
 
         self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
         return
@@ -234,7 +227,10 @@ class Websocket3DScanControl(WebsocketControlBase):
         # ###################
 
         il, ir, io = self.robot.scanimages()
-        left_r, right_r = self.proc.feed(io[1], il[1], ir[1], self.current_step, -self.scan_settings.LLaserAdjustment, -self.scan_settings.RLaserAdjustment)
+        left_r, right_r = self.proc.feed(
+            io[1], il[1], ir[1], self.current_step,
+            -self.scan_settings.LLaserAdjustment,
+            -self.scan_settings.RLaserAdjustment)
 
         self.current_step += 1
 
@@ -262,7 +258,12 @@ class Websocket3DScanControl(WebsocketControlBase):
         if len(m) != 3:
             self.send_error('{} format error'.format(m[1:]))
         key, value = m[1], float(m[2])
-        if key in ['MAXLaserRange', 'MINLaserRange', 'LaserRangeMergeDistance', 'LLaserAdjustment', 'RLaserAdjustment', 'MagnitudeThreshold']:
+        if key in ['MAXLaserRange',
+                   'MINLaserRange',
+                   'LaserRangeMergeDistance',
+                   'LLaserAdjustment',
+                   'RLaserAdjustment',
+                   'MagnitudeThreshold']:
             setattr(self.scan_settings, key, value)
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
             self.send_ok()

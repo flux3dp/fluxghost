@@ -20,11 +20,6 @@ ROUTES = [
      "fluxghost.websocket.pen_svg_parser.WebsocketPenSvgParser"),
     (re.compile("fcode-reader"),
      "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
-
-    # Simulate
-    (re.compile("3d-scan-control/(?P<serial>[0]{32})"),
-     "fluxghost.websocket.scan_control.SimulateWebsocket3DScanControl"),
-
     (re.compile("discover"),
      "fluxghost.websocket.discover.WebsocketDiscover"),
     (re.compile("touch"),
