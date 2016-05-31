@@ -144,7 +144,8 @@ def main():
 
     server = HttpServer(assets_path=options.assets,
                         enable_discover=True,
-                        address=(options.ipaddr, options.port,),)
+                        address=(options.ipaddr, options.port,),
+                        debug=options.debug)
 
     server.serve_forever()
 
