@@ -85,7 +85,7 @@ class WebsocketLaserBitmapParser(OnTextMessageMixin, WebsocketBinaryHelperMixin,
         layer_index = 0
         for position, size, rotation, thres, buf in self.images:
             layer_index += 1
-            self.send_progress('processing image %d' % (layer_index), (layer_index / len(self.images) * 0.6 + 0.03))
+            self.send_progress('processing image', (layer_index / len(self.images) * 0.6 + 0.03))
             self.m_laser_bitmap.add_image(buf, size[0], size[1], position[0], position[1], position[2], position[3], rotation, thres)
             logger.debug("add image at %s pixel: %s" % (position, size))
 

@@ -130,10 +130,9 @@ class WebsocketFcodeReader(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSo
             self.send_error('Nothing to send')
 
     def get_path(self, *args):
-        path = self.data_parser.get_path()
-        if path:
-            js_path = self.data_parser.path_to_js(path)
-            logger.debug('sending path %d' % (len(path)))
+        if self.data_parser.path:
+            js_path = self.data_parser.get_path(path_type='js')
+            logger.debug('sending path %d' % (len(js_path)))
             self.send_text(js_path)
         else:
             logger.debug('get path: nothing to send')
