@@ -14,10 +14,11 @@ from fluxclient.utils.version import StrictVersion
 def check_fluxclient():
     from fluxclient import __version__ as v
     sys.modules.pop("fluxclient")
-    lower_bound = '0.8b22'
-    upper_bound = '0.8b25'
+    lower_bound = '0.8b26'
+    upper_bound = '0.9a1'
     if StrictVersion(v) < StrictVersion(lower_bound):
-        raise RuntimeError("Your fluxclient need to update (>={})".format(lower_bound))
+        raise RuntimeError(
+            "Your fluxclient need to update (>={})".format(lower_bound))
     if StrictVersion(v) > StrictVersion(upper_bound):
         raise RuntimeError("fluxclient is too new (<{})".format(upper_bound))
 

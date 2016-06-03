@@ -54,12 +54,10 @@ class WebsocketTouch(WebSocketBase):
                 }))
                 return
 
-            # TODO
-            metadata = self.server.discover_devices.get(uuid)
+            device = self.server.discover_devices.get(uuid)
 
-            if metadata:
-                task = UpnpTask(uuid, client_key=client_key,
-                                remote_profile=metadata, lookup_timeout=30.0)
+            if device:
+                task = device.manage_device(client_key)
             else:
                 task = UpnpTask(uuid,
                                 client_key=client_key,

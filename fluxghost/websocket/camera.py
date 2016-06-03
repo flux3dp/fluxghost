@@ -1,11 +1,6 @@
 
-from errno import EHOSTDOWN, errorcode
 import logging
 
-from fluxclient.utils.version import StrictVersion
-from fluxclient.robot.errors import RobotError
-from fluxclient.robot import connect_camera
-from fluxclient.encryptor import KeyObject
 from .control import WebsocketControlBase
 
 logger = logging.getLogger("WS.CAMERA")
@@ -33,41 +28,12 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
 class WebsocketCamera(WebsocketControlBase):
-    def on_text_message(self, message):
-        if self.client_key:
-            self.on_command(message)
-        else:
-            self.client_key = client_key = KeyObject.load_keyobj(message)
-            self.send_text(STAGE_DISCOVER)
-            logger.debug("DISCOVER")
+    def get_robot_from_device(self, device):
+        return device.connect_camera(
+            self.client_key, conn_callback=self._conn_callback)
 
-            try:
-                task = self._discover(self.uuid, client_key)
-                if task.version < StrictVersion("1.1"):
-                    self.send_fatal("NOT_SUPPORT")
-                    return
-
-                self.send_text(STAGE_ROBOT_CONNECTING)
-                self.robot = connect_camera(
-                    (self.ipaddr, 23812),
-                    metadata=task.device_meta,
-                    client_key=client_key, conn_callback=self._conn_callback)
-            except OSError as err:
-                error_no = err.args[0]
-                if error_no == EHOSTDOWN:
-                    self.send_fatal("DISCONNECTED")
-                else:
-                    self.send_fatal("UNKNOWN_ERROR",
-                                    errorcode.get(error_no, error_no))
-                raise
-            except RobotError as err:
-                self.send_fatal(err.args[0], )
-                raise
-
-            self.remote_version = task.version
-            self.send_text(STAGE_CONNECTED)
-            self.on_connected()
-            self.rlist.append(CameraWrapper(self, self.robot))
+    def on_connected(self):
+        self.rlist.append(CameraWrapper(self, self.robot))
 
     def on_image(self, camera, image):
         self.send_binary(image)
@@ -77,6 +43,7 @@ class CameraWrapper(object):
     def __init__(self, ws, camera):
         self.ws = ws
         self.camera = camera
+        # TODO: `camera.sock.fileno()` to `camera.fileno()`
         self._fileno = camera.sock.fileno()
 
     def fileno(self):

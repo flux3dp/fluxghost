@@ -40,8 +40,8 @@ class WebsocketDiscover(WebSocketBase):
         t = time()
 
         with self.server.discover_mutex:
-            for uuid, data in self.server.discover_devices.items():
-                if t - data.get("last_response", 0) > 30:
+            for uuid, device in self.server.discover_devices.items():
+                if t - device.last_update > 30:
                     # Dead devices
                     if uuid in self.alive_devices:
                         self.alive_devices.remove(uuid)
@@ -49,7 +49,7 @@ class WebsocketDiscover(WebSocketBase):
                 else:
                     # Alive devices
                     self.alive_devices.add(uuid)
-                    self.send_text(self.build_response(**data))
+                    self.send_text(self.build_response(device))
 
     def on_text_message(self, message):
         try:
@@ -77,25 +77,24 @@ class WebsocketDiscover(WebSocketBase):
             "alive": False
         })
 
-    def build_response(self, uuid, serial, model_id, name, version,
-                       has_password, ipaddr, st_ts=None, st_id=None,
-                       st_prog=None, head_module=None, error_label=None, **kw):
+    def build_response(self, device):
+        st = device.status
         payload = {
-            "uuid": uuid.hex,
-            "serial": serial,
-            "version": version,
+            "uuid": device.uuid.hex,
+            "serial": device.serial,
+            "version": str(device.version),
             "alive": True,
-            "name": repr(name)[1:-1],
-            "ipaddr": ipaddr,
+            "name": device.name,
+            "ipaddr": device.ipaddr,
 
-            "model": model_id,
-            "password": has_password,
+            "model": device.model_id,
+            "password": device.has_password,
             "source": "lan",
 
-            "st_ts": st_ts,
-            "st_id": st_id,
-            "st_prog": st_prog,
-            "head_module": head_module,
-            "error_label": error_label
+            "st_ts": st.get("st_ts"),
+            "st_id": st.get("st_id"),
+            "st_prog": st.get("st_prog"),
+            "head_module": st.get("head_module"),
+            "error_label": st.get("error_label")
         }
         return json.dumps(payload)
