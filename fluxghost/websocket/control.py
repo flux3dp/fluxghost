@@ -11,7 +11,6 @@ from fluxclient.encryptor import KeyObject
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.robot.errors import RobotError
-from fluxclient.upnp.task import UpnpTask
 from .base import WebSocketBase
 
 logger = logging.getLogger("WS.CONTROL")
@@ -630,6 +629,11 @@ class WebsocketControl(WebsocketControlBase):
         info = self.robot.maintain_headinfo()
         info["cmd"] = "headinfo"
         info["status"] = "ok"
+        if "head_module" not in info:
+            if "TYPE" in info:
+                info["head_module"] = info.get("TYPE")
+            elif "module" in info:
+                info["head_module"] = info.get("module")
         self.send_json(info)
 
     def report_play(self):
