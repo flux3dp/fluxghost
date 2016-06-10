@@ -634,6 +634,11 @@ class WebsocketControl(WebsocketControlBase):
                 info["head_module"] = info.get("TYPE")
             elif "module" in info:
                 info["head_module"] = info.get("module")
+            else:
+                info["head_module"] = "N/A"
+        if "version" not in info:
+            info["version"] = info["VERSION"]
+
         self.send_json(info)
 
     def report_play(self):
