@@ -90,6 +90,7 @@ class WebsocketControlBase(WebSocketBase):
                     ss = sk.public_key_pem if sk else "N/A"
                     logger.error("RIE\nMasterKey:\n%s\nSlaveKey:\n%s",
                                  ms.decode(), ss.decode())
+                    self.server.discover_devices.pop(uuid)
                 self.send_fatal(err.args[0], )
                 return
 
@@ -735,7 +736,8 @@ class RawSock(object):
     def on_read(self):
         buf = self.sock.recv(128)
         if buf:
-            self.ws.send_text(buf.decode("ascii", "replace"))
+            self.ws.send_json(status="raw",
+                              text=buf.decode("ascii", "replace"))
         else:
             self.ws.rlist.remove(self)
             self.ws.send_fatal("DISCONNECTED")
