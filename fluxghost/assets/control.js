@@ -84,6 +84,7 @@
         var binaries = undefined;
         var additional = undefined;
 
+        var raw = false;
         var counter = 0;
 
         ws.onopen = function(v) {
@@ -169,6 +170,10 @@
                       additional = undefined;
                     }
 
+                    if(payload.task !== undefined) {
+                        raw = payload.task === "raw";
+                    }
+
                     if(obj.options.on_success) {
                         obj.options.on_success(self, obj.cmd, payload, obj.data);
                     }
@@ -214,7 +219,16 @@
                 }
                 fire()
             } else {
-                console.log("Recive message but command queue is empty.")
+                try {
+                    var payload = JSON.parse(m.data);
+                    if(payload.status === "raw") {
+                        if(options.on_raw) {
+                            options.on_raw(self, payload.text);
+                        }
+                        return;
+                    }
+                } catch(err) {}
+                console.log("Recive message but command queue is empty. (" + m.data + ")");
             }
         }
 
@@ -273,6 +287,11 @@
 
         this.send_command = function(command, options) {
             if(_status === "CONNECTED") {
+                if(raw && command !== "task quit" && command != "ping") {
+                    ws.send(command);
+                    return;
+                }
+
                 if(options.constructor === Function) {
                     options = {on_success: options};
                 }

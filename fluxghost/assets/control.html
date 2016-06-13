@@ -323,7 +323,11 @@
     ping: function(controller) {
       setTimeout(function() {
         if(controller.status() === "CONNECTED") {
-          controller.send_command("ping", callbacks.ping)
+          if(controller.is_busy()) {
+            callbacks.ping(controller);
+          } else {
+            controller.send_command("ping", callbacks.ping)
+          }
         } else {
           console.log("ping aborted because controller status = " +controller.status());
         }
@@ -389,6 +393,13 @@
         callbacks.ping(sender);
       },
       on_error: callbacks.error,
+      on_raw: function(sender, text) {
+        var lines = text.split("\n");
+        for(var i=0;i<lines.length;i++) {
+          var line = lines[i];
+          if(line.length > 0) appendLog(text);
+        }
+      },
       on_fatel: function(sender, errors) {
         if(errors[0] === "AUTH_ERROR") {
             var $label = $("#device_label");
@@ -627,7 +638,7 @@
             <li data-cmd="-1 H:0 T:190 *5" style="cursor: pointer"><a>Temp 190</a></li>
           </ul>
         </div>
-        <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
+        <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
       </div>
 
       <div style="margin: 0.5em 0; display: none" data-cmd-group="maintain">
