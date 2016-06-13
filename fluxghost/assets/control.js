@@ -111,6 +111,7 @@
                         options.on_fatal(self, "REMOTE", undefined,
                                          [payload.error])
                     }
+                    break;
                 default:
                     console.log("Unhandle status: " + payload.status);
             }
