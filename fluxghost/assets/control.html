@@ -305,6 +305,24 @@
       a.click();
       window.URL.revokeObjectURL(url);
     },
+    "config get": function(controller, cmd, payload) {
+      appendHtmlLog($("<div></div>")
+        .append($('<span class="label label-primary"></span>').text(payload.key))
+        .append($('<span>&nbsp;</span>'))
+        .append($('<span></span>').text(payload.value)));
+    },
+    "config set": function(controller, cmd, payload) {
+      var ll = cmd.split(" ");
+      var value = ll.slice(3).join(" ");
+      appendHtmlLog($("<div></div>")
+        .append($('<span class="label label-warning"></span>').text(payload.key))
+        .append($('<span>&nbsp;</span>'))
+        .append($('<span></span>').text(value)));
+    },
+    "config del": function(controller, cmd, payload) {
+      appendHtmlLog($("<div></div>")
+        .append($('<span class="label label-danger"></span>').text(payload.key)));
+    },
     task: function(controller, cmd, payload) {
       $("[data-cmd-group]").hide()
       if(payload.task === "") {
@@ -331,7 +349,7 @@
         } else {
           console.log("ping aborted because controller status = " +controller.status());
         }
-      }, 15000);
+      }, 60000);
     },
     "play info": function(controller, cmd, payload) {
       appendLog("Playing information recived.");

@@ -705,7 +705,6 @@ class WebsocketControl(WebsocketControlBase):
     def config_set(self, key, value):
         self.robot.config_set(key, value)
         self.send_json(status="ok", cmd="set", key=key)
-        self.send_ok()
 
     def config_get(self, key):
         value = self.robot.config_get(key)
