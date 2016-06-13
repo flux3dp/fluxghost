@@ -273,6 +273,7 @@ class WebsocketControl(WebsocketControlBase):
                 "info": self.fileinfo,
                 "md5": self.filemd5,
                 "download": self.download,
+                "download2": self.download2,
             },
 
             "maintain": {
@@ -463,8 +464,6 @@ class WebsocketControl(WebsocketControlBase):
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def download(self, file):
-        logger.debug(file)
-
         def report(left, size):
             self.send_json(status="continue", left=left, size=size)
 
@@ -475,6 +474,25 @@ class WebsocketControl(WebsocketControlBase):
             self.send_json(status="binary", mimetype=mimetype,
                            size=buf.truncate())
             self.send_binary(buf.getvalue())
+
+    def download2(self, file):
+        flag = []
+
+        def report(left, size):
+            if not flag:
+                flag.append(1)
+                self.send_json(status="transfer", completed=0, size=size)
+            self.send_json(status="transfer",
+                           completed=(size - left), size=size)
+
+        buf = BytesIO()
+        entry, path = file.split("/", 1)
+        mimetype = self.robot.download_file(entry, path, buf, report)
+        if mimetype:
+            self.send_json(status="binary", mimetype=mimetype,
+                           size=buf.truncate())
+            self.send_binary(buf.getvalue())
+            self.send_ok()
 
     def cpfile(self, source, target):
         params = source.split("/", 1) + target.split("/", 1)
@@ -627,6 +645,7 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_headinfo(self):
         info = self.robot.maintain_headinfo()
+        print(info)
         info["cmd"] = "headinfo"
         info["status"] = "ok"
         if "head_module" not in info:
@@ -634,8 +653,7 @@ class WebsocketControl(WebsocketControlBase):
                 info["head_module"] = info.get("TYPE")
             elif "module" in info:
                 info["head_module"] = info.get("module")
-            else:
-                info["head_module"] = "N/A"
+
         if "version" not in info:
             info["version"] = info["VERSION"]
 
