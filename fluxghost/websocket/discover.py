@@ -25,14 +25,6 @@ class WebsocketDiscover(WebSocketBase):
         self.POOL_TIME = 1.0
         WebSocketBase.__init__(self, *args)
 
-        if SIMULATE:
-            u = UUID(hex="0" * 32)
-            self.send_text(
-                self.build_response(
-                    uuid=u, serial="SIMULATE00", model_id="magic",
-                    timestemp=0, name="Simulate Device", version="god knows",
-                    has_password=False, ipaddr="1.1.1.1"))
-
         self.alive_devices = set()
         self.server.discover_devices.items()
 
