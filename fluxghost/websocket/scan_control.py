@@ -90,7 +90,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.scan_settings.scan_step = self.steps
             self.current_step = 0
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
-            self.send_ok(str(self.steps))
+            self.send_ok(info=str(self.steps))
 
         elif message.startswith("scan"):
             try:
