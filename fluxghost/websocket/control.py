@@ -91,6 +91,7 @@ class WebsocketControlBase(WebSocketBase):
                     logger.error("RIE\nMasterKey:\n%s\nSlaveKey:\n%s",
                                  ms.decode(), ss.decode())
                     self.server.discover_devices.pop(uuid)
+                    self.server.discover.devices.pop(uuid)
                 self.send_fatal(err.args[0], )
                 return
 
