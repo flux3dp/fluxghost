@@ -83,7 +83,7 @@ class WebsocketControlBase(WebSocketBase):
                 return
 
             except (RobotError, RobotSessionError) as err:
-                if err.args[0] == "REMOTE_IDENTIFY_ERROR":
+                if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
                     mk = device.master_key
                     sk = device.slave_key
                     ms = mk.public_key_pem if mk else "N/A"
