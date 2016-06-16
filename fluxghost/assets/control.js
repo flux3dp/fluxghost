@@ -31,7 +31,7 @@
 
     }
 
-    base.ControlWebsocket = function(uuid, options) {
+    base.FLUXControl = function(uuid, options) {
         /* options = {
             clientkey: "RSA key (pem)",
             baseurl: "http://localhost:8000",
@@ -117,6 +117,21 @@
             }
         }
 
+        function ParseJsonData(str) {
+            try {
+                return JSON.parse(str);
+            } catch(err) {
+                console.log(err);
+                // MONKEY PATCH // MONKEY PATCH // MONKEY PATCH // MONKEY PATCH
+                if(str.indexOf("NaN")) {
+                    console.log("Parse response failed but find magic str: NaN, try replace and parse again");
+                    console.log("Data: '" + str + "'")
+                    return ParseJsonData(str.replace("NaN", "null"));
+                }
+                throw err;
+            }
+        }
+
         ws.onmessage = function(m) {
             if(_status === ST_CONNECTING) {
                 try {
@@ -147,9 +162,10 @@
                 }
 
                 try {
-                    var payload = JSON.parse(m.data);
+                    var payload = ParseJsonData(m.data);
                 } catch(err) {
                     console.log("Unhandle response '" + m.data + "' from command: '" + obj.cmd + "'.");
+                    return;
                 }
 
                 if(payload.status === "ok" || payload.status === "pong") {
@@ -212,11 +228,19 @@
                         obj.options.on_transfer(self, payload.completed, payload.size, obj.options.data);
                     }
                 } else {
-                    if(!additional) {
-                        additional = {};
+                    var event_name = "on_" + payload.status;
+                    if(obj.options[event_name]) {
+                        obj.options[event_name](self, obj.cmd, payload, obj.options.data);
+                    } else {
+                        if(!additional) {
+                            additional = {};
+                        }
+                        if(!additional[payload.status]) {
+                            additional[payload.status] = [];
+                        }
+                        additional[payload.status].push(payload);
+                        delete payload.status;
                     }
-                    additional[payload.status] = payload;
-                    delete payload.status;
                 }
                 fire()
             } else {

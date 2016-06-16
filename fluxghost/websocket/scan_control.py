@@ -29,7 +29,7 @@ L = logging.getLogger("WS.3DSCAN-CTRL")
 
 
 class Websocket3DScanControl(WebsocketControlBase):
-    ready = False
+    task = None
     steps = 200
     current_step = 0
     proc = None
@@ -41,7 +41,6 @@ class Websocket3DScanControl(WebsocketControlBase):
 
     def on_closed(self):
         if self.robot:
-            self.robot.quit_task()
             self.robot.close()
 
     def on_binary_message(self, buf):
@@ -64,7 +63,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         elif message == "scan_check":
             try:
                 self.scan_check()
-            except errors.RobotDisconnected():
+            except errors.RobotSessionError:
                 self.send_fatal("DISCONNECTED")
 
         elif message == "calibrate":
@@ -79,18 +78,18 @@ class Websocket3DScanControl(WebsocketControlBase):
             s_step = message.split(maxsplit=1)[-1]
             self.steps = int(s_step, 10)
             if self.steps in HW_PROFILE['model-1']['step_setting']:
-                self.robot.set_scanlen(
+                self.task.step_length(
                     HW_PROFILE['model-1']['step_setting'][self.steps][1])
             else:
                 # this will cause frontend couldn't adjust the numbers of steps
                 self.steps = 400
-                self.robot.set_scanlen(
+                self.task.step_length(
                     HW_PROFILE['model-1']['step_setting'][400][1])
 
             self.scan_settings.scan_step = self.steps
             self.current_step = 0
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
-            self.send_ok(str(self.steps))
+            self.send_ok(info=str(self.steps))
 
         elif message.startswith("scan"):
             try:
@@ -104,8 +103,7 @@ class Websocket3DScanControl(WebsocketControlBase):
                 self.send_fatal
 
         elif message == "quit":
-            if self.robot.position() == "ScanTask":
-                self.robot.quit_task()
+            self.task.quit()
             self.send_text("bye")
             self.close()
 #########################
@@ -117,59 +115,51 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.send_error("UNKNOW_COMMAND", message)
 
     def try_control(self):
-        if self.ready:
+        if self.task:
             self.send_error("ALREADY_READY")
+            return
 
         try:
-            position = self.robot.position()
+            self.task = self.robot.scan()
+            self.send_text('{"status": "ready"}')
 
-            if position == "CommandTask":
-                ret = self.robot.begin_scan()
-                if ret == "ok":
-                    self.send_text('{"status": "ready"}')
-                    self.ready = True
-                else:
-                    self.send_error('DEVICE_ERROR', ret)
-            else:
-                self.send_error('DEVICE_BUSY', position)
-
-        except (RuntimeError, RobotError) as err:
-            if err.args[0] == "RESOURCE_BUSY":
+        except RobotError as err:
+            if err.error_symbol[0] == "RESOURCE_BUSY":
                 self.send_error('DEVICE_BUSY', err.args[-1])
             else:
-                self.send_error('DEVICE_ERROR', err.args[0])
+                self.send_error(err.error_symbol[0], *err.error_symbol[1:])
 
     def take_control(self):
-        if self.ready:
+        if self.task:
             self.send_error("ALREADY_READY")
+            return
 
         try:
-            self.robot.begin_scan()
+            self.robot.scan()
 
-        except (RuntimeError, RobotError) as err:
+        except RobotError as err:
             if err.args[0] == "RESOURCE_BUSY":
                 self.robot.kick()
             else:
                 self.send_error("DEVICE_ERROR", err.args[0])
                 return
 
-            self.robot.begin_scan()
+            self.task = self.robot.scan()
             self.send_text('{"status": "ready"}')
-            self.ready = True
 
     def fetch_image(self):
-        if not self.ready:
+        if not self.task:
             self.send_error("NOT_READY")
             return
 
-        images = self.robot.oneshot()
+        images = self.task.oneshot()
         for mime, buf in images:
             self.send_binary_begin(mime, len(buf))
             self.send_binary(buf)
         self.send_ok()
 
     def scan_check(self):
-        message = self.robot.scan_check()
+        message = self.task.check_camera()
         message = int(message.split()[-1])
         if message & 1 == 0:
             message = "not open"
@@ -182,7 +172,7 @@ class Websocket3DScanControl(WebsocketControlBase):
 
     def get_cab(self):
         self.cab = True
-        tmp = list(map(float, self.robot.get_calibrate().split()[1:]))
+        tmp = list(map(float, self.task.get_calibrate().split()[1:]))
 
         if len(tmp) == 3:
             self.scan_settings.cab_m, self.scan_settings.cab_l, \
@@ -204,7 +194,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         return
 
     def scan(self, step=None):
-        if not self.ready:
+        if not self.task:
             self.send_error("NOT_READY")
             return
 
@@ -226,7 +216,7 @@ class Websocket3DScanControl(WebsocketControlBase):
         #     return
         # ###################
 
-        il, ir, io = self.robot.scanimages()
+        il, ir, io = self.task.scanimages()
         left_r, right_r = self.proc.feed(
             io[1], il[1], ir[1], self.current_step,
             -self.scan_settings.LLaserAdjustment,
@@ -237,12 +227,12 @@ class Websocket3DScanControl(WebsocketControlBase):
         self.send_text('{"status": "chunk", "left": %d, "right": %d}' %
                        (len(left_r), len(right_r)))
         self.send_binary(b''.join(left_r + right_r))
-        self.robot.scan_next()
+        self.task.forward()
         self.send_ok()
 
     def calibrate(self):
         self.send_continue()
-        res = self.robot.calibrate()
+        res = self.task.calibrate()
         res = res.split()
         if res[1] == 'fail':
             if res[2] == 'laser':

@@ -103,9 +103,15 @@
 
     this.html = $html;
 
+    var size = 0;
     $(".text_title", $html).text(title);
 
+    this.get_size = function() {
+      return size;
+    }
+
     this.update = function(complete_size, total_size) {
+      size = total_size;
       var p = complete_size / total_size;
       p = Math.round(p * 1000) / 10;
       $(".progress-bar", $html).css("width", p + "%");
@@ -188,6 +194,26 @@
       attributes.push([key, metadata[key]]);
     }
     filesinfo[filename] = {attributes: attributes, previews: previews};
+  }
+
+  function global_on_operating(controller, cmd, payload, data) {
+    var stage = payload.stage[0];
+    var params = payload.stage.slice(1).join(' ');
+
+    if(payload.stage[0] == "UPDATE_THFW" && payload.stage[1] == "WRITE") {
+      if(!data.fw_prog) {
+        data.fw_prog = new ProgressBar("Write firmware");
+        appendHtmlLog(data.fw_prog.html);
+      }
+      data.fw_prog.update(payload.written, data.get_size());
+
+      return;
+    }
+
+    appendHtmlLog($('<div></div>')
+      .append($('<span></span>').text("Operating "))
+      .append($('<span class="label label-primary"></span>').text(stage))
+      .append($('<span></span>').text(params)));
   }
 
   var callbacks = {
@@ -336,7 +362,7 @@
     },
     "play select": function(controller, cmd, payload) {
       appendLog("File '" + payload.path + "' is selected");
-      appendHtmlLog($('<div class="btn btn-primary btn-lg" data-cmd="play start"><i class="glyphicon glyphicon-fire"></i> GO!!</div>'));
+      appendHtmlLog($('<div class="btn btn-primary btn-lg" data-cmd="play start"><i class="glyphicon glyphicon-fire"></i> Start</div>'));
     },
     ping: function(controller) {
       setTimeout(function() {
@@ -360,6 +386,23 @@
       delete payload.status;
       delete payload.cmd;
       appendLog(JSON.stringify(payload));
+    },
+    "scan oneshot": function(controller, cmd, payload, data) {
+      var width = (Math.round(100 / payload.binaries.length) - 1) + "%";
+      var $r = $("<div></div>");
+
+      for(var i=0;i<payload.binaries.length;i++) {
+        var url = window.URL.createObjectURL(payload.binaries[i]);
+        $r.append(
+          $('<img class="img-thumbnail" />')
+            .attr("src", url)
+            .attr("width", width));
+      }
+      appendHtmlLog($r);
+      appendLog("ok");
+    },
+    "scan scanimages": function(controller, cmd, payload, data) {
+      callbacks["scan oneshot"](controller, cmd, payload, data);
     },
     default: function(controller, cmd, payload) {
       if(payload.constructor === String) {
@@ -397,7 +440,7 @@
     var uuid = $("#device_label").attr("data-uuid");
     appendLog("Connect to " + uuid);
 
-    window.controller = new ControlWebsocket(uuid, {
+    window.controller = new FLUXControl(uuid, {
       clientkey: getKeyPem(),
       on_connecting: function(sender, stage) {
         appendLog("Connecting... (" + stage + ")", "#444");
@@ -435,25 +478,6 @@
         ws_close_handler("Control")(wsparam)
       }
     });
-
-    if(window.discover) {
-      window.discover.close();
-    }
-    window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
-    window.discover.onopen = function() {};
-    window.discover.onmessage = function(m) {
-      try {
-        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
-        if (payload.uuid === uuid) {
-          if((bcst_status && bcst_status.st_id) !== payload.st_id) {
-            render_buttons(payload.st_id);
-          }
-          bcst_status = payload;
-        }
-      } catch (err) {
-        console.log("Can not handle discover message: '" + m.data + "', err=" + err);
-      }
-    }
   }
 
   function dispatch_handler(cmd) {
@@ -481,10 +505,11 @@
               data.transfer_prog.update(recivedsize, datasize);
             }
           },
+          on_operating: global_on_operating,
           data: (data || {})
         });
 
-        appendLog("➦ " + cmd);
+        appendLog("➦ " + cmd, undefined, "#eeeeee");
       } catch(err) {
         appendLog("⚠️ Error: " + err, "rgb(208, 142, 40)");
       }
@@ -522,9 +547,18 @@
     });
 
     $("[data-cmd]").bind("click", function() {
-      cmds = $(this).attr("data-cmd").split(",");
-      for(var i=0;i<cmds.length;i++) {
-        send_cmd(cmds[i]);
+      if($(this).attr("data-cmd-require-param")) {
+        var val = prompt($(this).attr("data-cmd-param-help").replace(/\\n/g, "\n"));
+        if(!val) {
+          appendLog("Command canceled: '" + $(this).attr("data-cmd") + "'");
+        }
+        var cmd = $(this).attr("data-cmd").replace(/{}/g, val);
+        send_cmd(cmd);
+      } else {
+        cmds = $(this).attr("data-cmd").split(",");
+        for(var i=0;i<cmds.length;i++) {
+          send_cmd(cmds[i]);
+        }
       }
     });
 
@@ -570,24 +604,64 @@
           prog.update(sent, amount);
         },
         on_success: function(sender, cmd, result, prog) {
-          // $(".progress-bar", $prog).addClass("progress-bar-success");
+          appendLog("ok");
         },
+        on_operating: global_on_operating,
         file: f,
       });
     });
     // End Upload File Codes
 
+    // Begin status management
+    function onDiscoverMessage(m) {
+      try {
+        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
+        if (payload.uuid === window.device_information.uuid) {
+          if((bcst_status && bcst_status.st_id) !== payload.st_id) {
+            render_buttons(payload.st_id);
+          }
+          bcst_status = payload;
+        }
+      } catch (err) {
+        console.log("Can not handle discover message: '" + m.data + "', err=" + err);
+      }
+    }
+
+    function discoverManager() {
+      if(window.discover && window.discover.readyState != 1) {
+        window.discover.close();
+        window.discover = undefined;
+      }
+
+      if(!window.discover) {
+        window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
+        window.discover.onopen = function() {};
+        window.discover.onmessage = onDiscoverMessage;
+        window.discover.onclose = function() {
+          discoverManager();
+        }
+        setTimeout(discoverManager, 15000);
+      } else {
+        window.discover.send("ping");
+        setTimeout(discoverManager, 15000);
+      }
+    }
+    discoverManager();
+
     // Begin UI
     var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
     if(matchs != undefined && matchs.length == 1) {
       var tags = matchs[0].split(";");
-      var serial = tags[0].substr(1);
+      var uuid = tags[0].substr(1);
       var name = tags.slice(1).join(";");
 
-      beginControl(serial, name);
+      beginControl(uuid, name);
+      window.device_information = {uuid: uuid, name: name};
     } else {
       window.location = "discover.html";
     }
+
+    $("[data-sg]").hide();
   });
   </script>
 </head>
@@ -659,6 +733,26 @@
         <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
       </div>
 
+      <div style="margin: 0.5em 0; display: none" data-cmd-group="scan">
+        <span data-cmd="scan oneshot" class="btn btn-xs btn-default">One shot</span>
+        <span data-cmd="scan scanimages" class="btn btn-xs btn-default">Imagesets</span>
+
+        <span class="btn-group">
+          <span data-cmd="scan backward" class="btn btn-xs btn-default">
+            <i class="glyphicon glyphicon-chevron-left"></i>
+          </span>
+          <span data-cmd="scan forward" class="btn btn-xs btn-default">
+            <i class="glyphicon glyphicon-chevron-right"></i>
+          </span>
+        </span>
+
+        <span data-cmd="scan step {}" data-cmd-require-param="1" data-cmd-param-help="Give step length" class="btn btn-xs btn-default">
+          Set step
+        </span>
+
+        <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
+      </div>
+
       <div style="margin: 0.5em 0; display: none" data-cmd-group="maintain">
         <!-- filament -->
         <span data-cmd="maintain load_filament 0 210" class="btn btn-xs btn-default">Load filament</span>
@@ -688,6 +782,10 @@
           Head Info
         </span>
 
+        <span data-cmd="maintain headstatus" class="btn btn-xs btn-default">
+          Head Status
+        </span>
+
         <span class="btn btn-xs btn-default fileinput-button">
           <span>** Update Head FW **</span>
           <input type="file" class="fileinput-button" data-file-cmd="maintain update_hbfw" name="file" />
@@ -715,20 +813,25 @@
           <i class="glyphicon glyphicon-info-sign"></i> Playing info</span>
         <span data-cmd="play pause" data-sg data-sg4 data-sg16 class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause">
           <i class="glyphicon glyphicon-pause"></i> Pause</span>
-        <span data-cmd="play resume" data-sg data-sg data-sg32 data-sg48 class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
+        <span data-cmd="play resume" data-sg data-sg data-sg data-sg36 data-sg48 class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
           <i class="glyphicon glyphicon-play"></i> Resume</span>
-        <span data-cmd="play abort" data-sg data-sg4 data-sg16 class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
+        <span data-cmd="play abort" data-sg data-sg4 data-sg36 data-sg48 data-sg16 class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
           <i class="glyphicon glyphicon-remove"></i> Abort</span>
         <span data-cmd="play quit" data-sg data-sg64 data-sg128 class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Quit">
           <i class="glyphicon glyphicon-eject"></i> Quit</span>
+        <span data-cmd="kick" data-sg data-sgn style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
 
         <!-- Tasks -->
-        <span> | Tasks</span>
-        <div class="btn-group btn-xs dropup">
-          <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
-          <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
-          <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
-        </div>
+        <span data-sg data-sg0>
+          <span> | Tasks</span>
+          <div class="btn-group btn-xs dropup">
+            <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
+            <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
+            <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
+          </div>
+        </span>
+
+        <span> | </span>
 
         <div class="btn-group btn-xs dropup">
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -739,17 +842,28 @@
           <ul class="dropdown-menu dropdown-menu-right">
             <li class="dropdown-header">correction: A a H N</li>
             <li data-cmd="config get correction" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd-guide="config set correction " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config set correction {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction"
+                style="cursor: pointer">
+              <a>SET</a></li>
             <li data-cmd="config del correction" style="cursor: pointer"><a>DEL</a></li>
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">filament_detect: Y N</li>
             <li data-cmd="config get filament_detect" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd-guide="config set filament_detect " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config set filament_detect {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable"
+                style="cursor: pointer">
+              <a>SET</a></li>
             <li data-cmd="config del filament_detect" style="cursor: pointer"><a>DEL</a></li>
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">head_error_level: A number</li>
             <li data-cmd="config get head_error_level" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd-guide="config set head_error_level " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config set head_error_level {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Head error level:"
+                style="cursor: pointer"><a>SET</a></li>
             <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
           </ul>
         </div>
@@ -775,7 +889,6 @@
           </ul>
         </div>
 
-        <span data-cmd="kick" data-sg data-sgn style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
       </div>
     </div>
   </div>
