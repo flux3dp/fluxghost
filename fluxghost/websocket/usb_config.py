@@ -59,7 +59,7 @@ class WebsocketUsbConfig(WebSocketBase):
         if port == "SIMULATE":
             self.task = t = SimulateTask()
         else:
-            self.task = t = UsbTask(port=port + "a", client_key=self.client_key)
+            self.task = t = UsbTask(port=port, client_key=self.client_key)
         self.send_json(status="ok", cmd="connect", serial=t.serial,
                        version=t.remote_version, name=t.name,
                        model=t.model_id, password=t.has_password)
@@ -126,7 +126,7 @@ class WebsocketUsbConfig(WebSocketBase):
                 self.send_error("UNKNOWN_COMMAND")
 
         except UsbTaskException as e:
-            self.send_error(" ".join(e.args))
+            self.send_error(" ".join(e.args), info=str(e))
             if self.task:
                 self.task.close()
                 self.task = None
