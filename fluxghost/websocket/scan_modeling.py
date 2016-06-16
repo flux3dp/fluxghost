@@ -38,7 +38,9 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'merge': [self.merge],
             'auto_alignment': [self.auto_alignment],
             'set_params': [self.set_params],
-            'import_file': [self.import_file]
+            'import_file': [self.import_file],
+            'export_threading': [self.export_threading],
+            'export_collect': [self.export_collect],
         }
 
     def _begin_upload(self, params):  # name, left_len, right_len="0"
@@ -138,20 +140,20 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
     def export_threading(self, params):
         name, file_foramt = params.split()
         collect_name = self.m_pc_process.export_threading(name, file_foramt)
-        self.send_text('{{"status": "ok", "collect_name": {}}}'.format(collect_name))
+        self.send_text('{{"status": "ok", "collect_name": "{}"}}'.format(collect_name))
         logger.debug('export {} as .{} file in thread'.format(name, file_foramt))
 
     def export_collect(self, params):
         collect_name = params
         buf = self.m_pc_process.export_collect(collect_name)
         if buf:
-            self.send_text('{{"export_status": "continue", "length": {}}}'.format(len(buf)))
+            self.send_text('{{"status": "continue", "length": {}}}'.format(len(buf)))
             self.send_binary(buf)
+            self.send_ok()
         elif buf == 'key error':
-            self.send_text('{"export_status": "error", "error": "key error"}')
+            self.send_error('{} key not exist'.format(key))
         else:
-            self.send_text('{"export_status": "computing"}')
-        self.send_ok()
+            self.send_text('{"status": "computing"}')
 
     def import_file(self, params):
         name, filetype, file_length = params.split()
