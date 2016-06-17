@@ -214,16 +214,21 @@
     $("#devices").append($dom);
   }
 
-  function createDeviceDom(uuid, serial, nickname) {
+  function createDeviceDom(uuid, serial, nickname, version) {
     console.log("Add device: " + uuid);
     var $d = $(
       '<div class="col-xs-4 col-lg-3"> \
         <div class="device" data-st-id="offline"> \
           <div class="profile"> \
             <div class="clearfix"> \
-              <div class="col-xs-11" style="white-space: nowrap; overflow: hidden"> \
+              <div class="col-xs-12" style="white-space: nowrap; overflow: hidden"> \
                 <span class="glyphicon glyphicon-lock" style="font-size: 0.8em"></span> \
                 <a target="_blank" class="nickname"></a> \
+                <span class="pull-right"> \
+                  <a target="_blank" class="camera"> \
+                    <i class="glyphicon glyphicon-camera"></i> \
+                  </a> \
+                </span> \
               </div> \
             </div> \
             <div class="clearfix"> \
@@ -249,13 +254,21 @@
       </div>').attr("data-device", uuid);
     $(".serial", $d).text(serial);
     $("a.nickname", $d).attr("href", "control.html#" + uuid + ";" + nickname);
+    $("a.camera", $d).attr("href", "camera.html#" + uuid + ";" + nickname);
+
+    sv = version.split(".");
+    if(!((sv[0] > "1") ||
+         (sv[0] == "1" && sv[1] > "1") ||
+         (sv[0] == "1" && sv[1] == "1" && sv[2] > "6"))) {
+      $("a.camera", $d).hide();
+    }
     return $d;
   }
 
   function processDeviceInfo(uuid, dataset) {
     var $dom = $("[data-device=" + uuid + "]", "#devices");
     if($dom.length === 0) {
-      $dom = createDeviceDom(uuid, dataset.serial, dataset.name);
+      $dom = createDeviceDom(uuid, dataset.serial, dataset.name, dataset.version);
       updateDevice($dom, dataset);
       insertDeviceIntoList($dom);
     } else {
@@ -287,6 +300,8 @@
         var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
         if (payload.uuid) {
           processDeviceInfo(payload.uuid, payload);
+        } else if(payload.status === "pong") {
+          // ignore
         } else {
           console.log("Payload does not contain uuid");
         }
