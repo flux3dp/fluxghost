@@ -145,6 +145,7 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
 
     def export_collect(self, params):
         collect_name = params
+
         buf = self.m_pc_process.export_collect(collect_name)
         if buf:
             self.send_text('{{"status": "continue", "length": {}}}'.format(len(buf)))

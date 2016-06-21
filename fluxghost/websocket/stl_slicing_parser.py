@@ -177,8 +177,11 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.send_ok()
 
     def get_result(self, *args):
-        self.send_ok(info=str(len(self.m_stl_slicer.output)))
-        self.send_binary(self.m_stl_slicer.output)
+        if self.m_stl_slicer.output:
+            self.send_ok(info=str(len(self.m_stl_slicer.output)))
+            self.send_binary(self.m_stl_slicer.output)
+        else:
+            self.send_error('No result to send')
 
     def get_path(self, *args):
         path = self.m_stl_slicer.get_path()
