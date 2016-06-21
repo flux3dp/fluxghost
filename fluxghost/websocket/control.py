@@ -339,8 +339,14 @@ class WebsocketControl(WebsocketControlBase):
                 self.send_error("UNKNOWN_COMMAND", "LEVEL: websocket")
 
         except RobotError as e:
-            logger.debug("RobotError%s" % repr(e.args))
-            self.send_error(*e.args)
+            logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
+                         e.error_symbol)
+            self.send_error(e.error_symbol[0])
+
+        except RobotSessionError as e:
+            logger.debug("RobotSessionError%s [error_symbol=%s]", repr(e.args),
+                         e.error_symbol)
+            self.send_error(e.error_symbol[0])
 
         except (TimeoutError, ConnectionResetError,  # noqa
                 socket.timeout, ) as e:
