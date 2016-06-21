@@ -552,11 +552,11 @@ class WebsocketControl(WebsocketControlBase):
         self.send_ok()
 
     def resume_play(self):
-        self.robot.abort_play()
+        self.robot.resume_play()
         self.send_ok()
 
     def abort_play(self):
-        self.robot.resume_play()
+        self.robot.abort_play()
         self.send_ok()
 
     def quit_play(self):
