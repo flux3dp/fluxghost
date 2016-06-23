@@ -574,6 +574,7 @@ class WebsocketControl(WebsocketControlBase):
 
         def update_cb(swap):
             def nav_cb(robot, *args):
+                # >>>>
                 if args[0] == "UPLOADING":
                     self.send_json(status="uploading", sent=int(args[1]))
                 elif args[0] == "WRITE":
@@ -588,6 +589,7 @@ class WebsocketControl(WebsocketControlBase):
                                    stage=["UPDATE_THFW", args[0]])
 
                     self.send_json(status="update_hbfw", stage=args[0])
+                # <<<<
             size = swap.truncate()
             swap.seek(0)
 
@@ -627,7 +629,14 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_calibrating(self, *args):
         def callback(robot, *args):
-            self.send_json(status="debug", text=" ".join(args))
+            try:
+                if args[0] == "POINT":
+                    self.send_json(status="operating", stage=["CALIBRATING"],
+                                   pos=int(args[1]))
+                else:
+                    self.send_json(status="debug", args=args)
+            except Exception:
+                logger.exception("Error during calibration cb")
 
         if "clean" in args:
             ret = self.task.calibration(process_callback=callback, clean=True)
@@ -637,9 +646,11 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_zprobe(self, *args):
         def callback(robot, *args):
+            # <<<<
             self.send_json(status="operating", stage=["ZPROBE"])
-            # TODO: PROTOCOL
-            self.send_json(status="debug", text=" ".join(args))
+            # ====
+            self.send_json(status="debug", args=args)
+            # >>>>
 
         if len(args) > 0:
             ret = self.task.manual_level(float(args[0]))
@@ -650,18 +661,43 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_load_filament(self, index, temp):
         def nav(robot, *args):
-            self.send_json(status="operating", stage=args)
-            # TODO: PROTOCOL
-            self.send_json(status="loading", nav=" ".join(args))
+            try:
+                # <<<<
+                stage = args.pop(0)
+                if stage == "HEATING":
+                    self.send_json(status="operating", stage=["HEATING"],
+                                   temperature=float(args[0]))
+                elif stage == ["LOADING"]:
+                    self.send_json(status="operating",
+                                   stage=["FILAMENT", "LOADING"])
+                elif stage == ["WAITING"]:
+                    self.send_json(status="operating",
+                                   stage=["FILAMENT", "WAITING"])
+                # ====
+                self.send_json(status="loading", nav=" ".join(args))
+                # >>>>
+            except Exception:
+                logger.exception("Error during load filament cb")
 
         self.task.load_filament(int(index), float(temp), nav)
         self.send_ok()
 
     def maintain_unload_filament(self, index, temp):
         def nav(robot, *args):
-            self.send_json(status="operating", stage=args)
-            # TODO: PROTOCOL
-            self.send_json(status="unloading", nav=args)
+            try:
+                # <<<<
+                stage = args.pop(0)
+                if stage == "HEATING":
+                    self.send_json(status="operating", stage=["HEATING"],
+                                   temperature=float(args[0]))
+                else:
+                    self.send_json(status="operating",
+                                   stage=["FILAMENT", stage])
+                # ====
+                self.send_json(status="unloading", nav=args)
+                # >>>>
+            except Exception:
+                logger.exception("Error during unload filament cb")
         self.task.unload_filament(int(index), float(temp), nav)
         self.send_ok()
 
@@ -712,9 +748,14 @@ class WebsocketControl(WebsocketControlBase):
 
     def play_info(self):
         metadata, images = self.robot.play_info()
-        # TODO: PROTOCOL
+
+        # >>>
+        self.send_json(status="operating", stage=["PLAYINFO"],
+                       metadata=metadata)
+        # ===
         metadata["status"] = "playinfo"
         self.send_json(metadata)
+        # <<<
 
         for mime, buf in images:
             self.send_binary_begin(mime, len(buf))
