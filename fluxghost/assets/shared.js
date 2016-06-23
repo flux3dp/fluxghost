@@ -44,7 +44,7 @@ function _scrollLog() {
   }, 5);
 }
 
-function appendLog(text, color) {
+function appendLog(text, color, bgcolor) {
   var dt = new Date();
   var hour = dt.getHours() < 10 ? "0" + String(dt.getHours()) : String(dt.getHours());
   var minute  = dt.getHours() < 10 ? "0" + String(dt.getMinutes()) : String(dt.getMinutes());
@@ -53,6 +53,7 @@ function appendLog(text, color) {
   var log_text = "[" + hour + ":" + minute + ":" + seconds + "] " + text;
   var $row = $("<div></div>").text(log_text);
   if(color) $row.css("color", color);
+  if(bgcolor) $row.css("background-color", bgcolor);
 
   $("#log").append($row);
   _scrollLog();

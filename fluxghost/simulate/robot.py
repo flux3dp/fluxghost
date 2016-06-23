@@ -28,6 +28,9 @@ class SimulateRobot(object):
     def close(self):
         pass
 
+    def select_file(self, file):
+        pass
+
     def start_play(self):
         pass
 

@@ -147,7 +147,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         output, metadata = self.m_stl_slicer.gcode_generate(names, self, output_type)
         # self.send_progress('finishing', 1.0)
         if output:
-            self.send_text('{"status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(output), metadata[0], metadata[1]))
+            self.send_text('{"slice_status": "complete", "length": %d, "time": %.3f, "filament_length": %.2f}' % (len(output), metadata[0], metadata[1]))
             self.send_binary(output)
             logger.debug('slicing finish')
         else:
@@ -177,8 +177,11 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         self.send_ok()
 
     def get_result(self, *args):
-        self.send_ok(str(len(self.m_stl_slicer.output)))
-        self.send_binary(self.m_stl_slicer.output)
+        if self.m_stl_slicer.output:
+            self.send_ok(info=str(len(self.m_stl_slicer.output)))
+            self.send_binary(self.m_stl_slicer.output)
+        else:
+            self.send_error('No result to send')
 
     def get_path(self, *args):
         path = self.m_stl_slicer.get_path()

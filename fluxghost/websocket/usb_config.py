@@ -6,7 +6,7 @@ import sys
 
 from serial.tools import list_ports as _list_ports
 from fluxclient.encryptor import KeyObject
-from fluxclient.usb.task import UsbTask
+from fluxclient.usb.task import UsbTask, UsbTaskError, UsbTaskException
 
 from .base import WebSocketBase
 
@@ -52,21 +52,17 @@ class WebsocketUsbConfig(WebSocketBase):
             self.task.close()
             self.task = None
 
-        try:
-            if not self.client_key:
-                self.send_json(status="error", error="KEY_ERROR")
-                return
+        if not self.client_key:
+            self.send_error("KEY_ERROR")
+            return
 
-            if port == "SIMULATE":
-                self.task = t = SimulateTask()
-            else:
-                self.task = t = UsbTask(port=port, client_key=self.client_key)
-            self.send_json(status="ok", cmd="connect", serial=t.serial,
-                           version=t.remote_version, name=t.name,
-                           model=t.model_id, password=t.has_password)
-        except Exception as e:
-            self.send_json(status="error", error="DEVICE_ERROR", info=repr(e))
-            logger.exception("Error while connect to usb")
+        if port == "SIMULATE":
+            self.task = t = SimulateTask()
+        else:
+            self.task = t = UsbTask(port=port, client_key=self.client_key)
+        self.send_json(status="ok", cmd="connect", serial=t.serial,
+                       version=t.remote_version, name=t.name,
+                       model=t.model_id, password=t.has_password)
 
     def auth(self, password=None):
         if password:
@@ -129,8 +125,15 @@ class WebsocketUsbConfig(WebSocketBase):
             else:
                 self.send_error("UNKNOWN_COMMAND")
 
-        except RuntimeError as e:
-            self.send_json(status="error", error=e.args[0])
+        except UsbTaskException as e:
+            self.send_error(" ".join(e.args), info=str(e))
+            if self.task:
+                self.task.close()
+                self.task = None
+
+        except UsbTaskError as e:
+            self.send_error(" ".join(e.args))
+
         except Exception:
             logger.exception("Unhandle Error")
             self.send_error("UNKNOWN_ERROR")

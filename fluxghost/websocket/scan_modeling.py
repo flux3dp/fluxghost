@@ -1,21 +1,4 @@
-
-"""
-Scan Modelling tool sets
-
-Javascript Example:
-
-ws = new WebSocket(
-    "ws://localhost:8000/ws/3d-scan-modeling");
-ws.onmessage = function(v) { console.log(v.data);}
-ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
-    "; reason=" + v.reason); }
-
-// After recive connected...
-ws.send("upload MySet1 15 15")
-buf = new ArrayBuffer(720) // (15 + 15) * 24
-ws.send(buf)
-"""
-
+#!/usr/bin/env python3
 from io import BytesIO
 import logging
 import struct
@@ -55,7 +38,9 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
             'merge': [self.merge],
             'auto_alignment': [self.auto_alignment],
             'set_params': [self.set_params],
-            'import_file': [self.import_file]
+            'import_file': [self.import_file],
+            'export_threading': [self.export_threading],
+            'export_collect': [self.export_collect],
         }
 
     def _begin_upload(self, params):  # name, left_len, right_len="0"
@@ -142,12 +127,34 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
         logger.debug('dump %s done' % (name))
 
     def export(self, params):
+        """
+        should be de deprecated
+        """
         name, file_foramt = params.split()
         buf = self.m_pc_process.export(name, file_foramt)
         self.send_text('{{"status": "continue", "length": {}}}'.format(len(buf)))
         self.send_binary(buf)
         self.send_ok()
         logger.debug('export {} as .{} file done'.format(name, file_foramt))
+
+    def export_threading(self, params):
+        name, file_foramt = params.split()
+        collect_name = self.m_pc_process.export_threading(name, file_foramt)
+        self.send_text('{{"status": "ok", "collect_name": "{}"}}'.format(collect_name))
+        logger.debug('export {} as .{} file in thread'.format(name, file_foramt))
+
+    def export_collect(self, params):
+        collect_name = params
+
+        buf = self.m_pc_process.export_collect(collect_name)
+        if buf:
+            self.send_text('{{"status": "continue", "length": {}}}'.format(len(buf)))
+            self.send_binary(buf)
+            self.send_ok()
+        elif buf == 'key error':
+            self.send_error('{} key not exist'.format(key))
+        else:
+            self.send_text('{"status": "computing"}')
 
     def import_file(self, params):
         name, filetype, file_length = params.split()

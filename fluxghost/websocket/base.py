@@ -11,6 +11,8 @@ from fluxghost.utils.websocket import WebSocketHandler, ST_NORMAL, \
 SIMULATE = "flux_simulate" in os.environ
 logger = logging.getLogger("WS.BASE")
 
+__all__ = ["WebSocketBase", "SIMULATE", "ST_GOING_AWAY", "ST_NORMAL"]
+
 
 class WebSocketBase(WebSocketHandler):
     POOL_TIME = 30.0
@@ -40,9 +42,10 @@ class WebSocketBase(WebSocketHandler):
             self.request.close()
             self.on_closed()
 
-    def send_ok(self, info=None):
-        if info:
-            self.send_text('{"status": "ok", "info": "%s"}' % info)
+    def send_ok(self, **kw):
+        if kw:
+            kw["status"] = "ok"
+            self.send_text(json.dumps(kw))
         else:
             self.send_text('{"status": "ok"}')
 
@@ -54,6 +57,15 @@ class WebSocketBase(WebSocketHandler):
 
     def send_continue(self):
         self.send_text('{"status": "continue"}')
+
+    def send_binary_buffer(self, mimetype, buffer):
+        size = len(buffer)
+        self.send_json(status="binary", mimetype=mimetype, size=size)
+        view = memoryview(buffer)
+        sent = 0
+        while sent < size:
+            self.send_binary(view[sent:sent + 4016])
+            sent += 4016
 
     def send_binary_begin(self, mime, length):
         self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
@@ -67,13 +79,20 @@ class WebSocketBase(WebSocketHandler):
         else:
             self.send_text('{"status": "error", "error": "%s"}' % errcode)
 
-    def send_fatal(self, error, suberror=None):
-        self.send_text('{"status": "fatal", "error": "%s", "info": "%s"}' %
-                       (error, suberror))
-        self.close(ST_INVALID_PAYLOAD, error)
+    def send_fatal(self, *args):
+        if args:
+            if len(args) > 1:
+                self.send_json(status="fatal", symbol=args, error=args[0],
+                               info=args[1])
+            else:
+                self.send_json(status="fatal", symbol=args, error=args[0])
+            self.close(ST_INVALID_PAYLOAD, args[0])
+        else:
+            self.send_json(status="fatal", error="NOT_GIVEN", symbol=[])
 
     def send_progress(self, message, percentage):
-        self.send_text('{"status": "computing", "message": "%s", "percentage": %.2f}' % (message, percentage))
+        self.send_text('{"status": "computing", "message": "%s", "percentage":'
+                       ' %.2f}' % (message, percentage))
 
     def send_warning(self, message):
         self.send_text('{"status": "warning", "message" : "%s"}' % (message))
@@ -152,7 +171,8 @@ class BinaryUploadHelper(object):
         else:
             raise RuntimeError("BAD_LENGTH" + " recive too many binary data ("
                                "should be %i but get %i" %
-                               (self.length, self.buffered), "recive too many binary data ("
+                               (self.length, self.buffered),
+                               "recive too many binary data ("
                                "should be %i but get %i" %
                                (self.length, self.buffered))
 
@@ -170,7 +190,8 @@ class OnTextMessageMixin(object):
                     params = message[1]
 
                 if cmd in self.cmd_mapping:
-                    self.cmd_mapping[cmd][0](params, *self.cmd_mapping[cmd][1:])
+                    self.cmd_mapping[cmd][0](params,
+                                             *self.cmd_mapping[cmd][1:])
                 else:
                     logger.exception("receive message: %s" % (message))
                     raise ValueError('Undefine command %s' % (cmd))

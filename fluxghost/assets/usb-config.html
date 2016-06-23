@@ -71,6 +71,10 @@
   function on_listport(m) {
       try {
         var data = JSON.parse(m.data);
+        if(!data.ports) {
+          return;
+        }
+
         var $container = $(".list-group", "#listport")
         $container.children().remove();
         if(data.ports.length > 0) {
@@ -105,6 +109,7 @@
     };
     window.ws.onmessage = on_listport;
     window.ws.onopen = function() {
+      window.ws.send("key " + getKeyPem());
       window.ws.send("list");
     }
   }

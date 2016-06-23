@@ -8,10 +8,17 @@
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <script src="shared.js"></script>
+  <script src="control.js"></script>
   <link href="res/shared.css" rel="stylesheet" />
   <style>
   .file-node {
     overflow: hidden;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  .file-file {
+    min-height: 2em;
   }
 
   .file-node:hover {
@@ -32,14 +39,18 @@
 
   .file-node:hover .file-node-container {
     background-color: #FEDFE1;
-    border: 1px gray solid;
+    border: 1px #aaa solid;
+    background: #eee;
+    border-radius: 3px;
   }
 
-  .file-node a[data-tag="info"] {
+  .file-node a[data-tag="info"],
+  .file-node a[data-tag="download"] {
     display: none;
   }
 
-  .file-node:hover a[data-tag="info"] {
+  .file-node:hover a[data-tag="info"],
+  .file-node:hover a[data-tag="download"] {
     display: initial;
   }
 
@@ -73,248 +84,438 @@
   }
   </style>
   <script>
+  var filesinfo = {};
+  var bcst_status = undefined;
+
+  function ProgressBar(title) {
+    var $html = $(' \
+    <div> \
+      <div style="padding: 0 2em; float: right"> \
+        <span class="text_prog"></span> \
+      </div> \
+      <div style="padding: 0 2em;"> \
+        <span class="text_title"></span> \
+      </div> \
+      <div class="progress" style="height: 0.5em; margin-bottom: 0.05em;"> \
+        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"> \
+        </div> \
+    </div>');
+
+    this.html = $html;
+
+    var size = 0;
+    $(".text_title", $html).text(title);
+
+    this.get_size = function() {
+      return size;
+    }
+
+    this.update = function(complete_size, total_size) {
+      size = total_size;
+      var p = complete_size / total_size;
+      p = Math.round(p * 1000) / 10;
+      $(".progress-bar", $html).css("width", p + "%");
+      $(".text_prog", $html).text(
+        (total_size - complete_size) + " byte(s) left");
+      if(complete_size === total_size) {
+        $(".progress-bar", $html).addClass("progress-bar-success");
+      }
+    }
+  }
+
+  function render_fileinfo(filename) {
+    function render_metadata(key, value) {
+      var $tag = $('<span class="label label-default"></span>').text(key);
+      var $val = $('<span class="label label-primary"></span>');
+      if(value.length > 30) {
+        $val.text(value.substr(0, 30) + " ...");
+        $val.bind("click", function() {
+          alert(value);
+        });
+      } else {
+        $val.text(value);
+      }
+      return $('<div class="col-sm-6"></div>').append($tag).append($('<span> <span>')).append($val);
+    }
+
+    if(filesinfo[filename]) {
+      var $m = $("#shared_modal");
+      var $body = $(".modal-body", $m);
+      $body.children().remove();
+      $(".modal-title", $m).text(filename + " Preview");
+      var p = filesinfo[filename].previews;
+      var a = filesinfo[filename].attributes;
+      if(p) {
+        for(var i=0;i<p.length;i++) {
+          $body
+            .append($('<div></div>')
+              .append($('<img class="img-thumbnail" />')
+                .attr("src", URL.createObjectURL(p[i]))));
+        }
+      }
+      var $attrs = $('<div class="row"></div>');
+      for(var i=0;i<a.length;i++) {
+        $attrs.append(render_metadata(
+          a[i][0], a[i][1]))
+      }
+      $body.append($attrs);
+      $m.modal('show');
+    } else {
+      return false;
+    }
+  }
+
+  function render_buttons(st_id) {
+    $("[data-sg]").hide();
+    if(st_id < 0) {
+      $("[data-sgn]").show();
+    } else if(st_id == 0) {
+      $("[data-sg0]").show();
+    } else {
+      $("[data-sgp]").show();
+      $("[data-sg" + st_id + "]").show();
+    }
+  }
+
+  function update_fileinfo(filename, metadata, previews) {
+    var DEFAULT_PROPERTIES = ["size", "TITLE", "AUTHOR", "CREATED_AT",
+      "HEAD_TYPE", "CORRECTION", "FILAMENT_DETECT", "FILAMENT_USED",
+      "HEAD_ERROR_LEVEL", "TIME_COST", "TRAVEL_DIST", "MAX_R", "MAX_X",
+      "MAX_Y", "MAX_Z", "SETTING"];
+    var attributes = [];
+    for(var i=0;i<DEFAULT_PROPERTIES.length;i++) {
+      var key = DEFAULT_PROPERTIES[i];
+      if(metadata[key]) {
+        attributes.push([key, metadata[key]]);
+        delete metadata[key];
+      }
+    }
+    for(var key in metadata) {
+      attributes.push([key, metadata[key]]);
+    }
+    filesinfo[filename] = {attributes: attributes, previews: previews};
+  }
+
+  function global_on_operating(controller, cmd, payload, data) {
+    var stage = payload.stage[0];
+    var params = payload.stage.slice(1).join(' ');
+
+    if(payload.stage[0] == "UPDATE_THFW" && payload.stage[1] == "WRITE") {
+      if(!data.fw_prog) {
+        data.fw_prog = new ProgressBar("Write firmware");
+        appendHtmlLog(data.fw_prog.html);
+      }
+      data.fw_prog.update(payload.written, data.get_size());
+
+      return;
+    }
+
+    appendHtmlLog($('<div></div>')
+      .append($('<span></span>').text("Operating "))
+      .append($('<span class="label label-primary"></span>').text(stage))
+      .append($('<span></span>').text(params)));
+  }
+
+  var callbacks = {
+    error: function(controller, cmd, errors, data) {
+      appendLog("Error: " + errors.join(", "), "#F05E1C");
+    },
+    handling: function(control, cmd, payload, data) {
+      if(payload.status === "update_hbfw") {
+        if(payload.stage === "WRITE") {
+          if(window.last_update_write_hbfw) {
+            var d = new Date();
+            if((d - window.last_update_write_hbfw) < 1500) { return; }
+          }
+
+          window.last_update_write_hbfw = new Date();
+          appendLog("Update head fw: Write " + payload.written);
+        } else {
+          appendLog("Update head fw: " + payload.stage);
+        }
+      }
+    },
+    "file ls": function(controller, cmd, payload) {
+      appendLog("List " + payload.path + ":");
+
+      var path = payload.path;
+      if(path != "" && path[path.length - 1] != "/") {
+        path = path + "/";
+      }
+
+      if(payload.directories != undefined) {
+        var $row = $('<div class="row"></div>');
+        for(var i=0;i<payload.directories.length;i++) {
+          var dirname = payload.directories[i];
+          var $item = $(' \
+            <div class="col-xs-4 col-md-3 col-lg-2 file-node file-dir"> \
+              <div class="file-node-container"> \
+                <span class="glyphicon glyphicon-folder-close"></span> \
+                  <a style="cursor: pointer;" > \
+                    <span data-tag="name"></span> \
+                  </a> \
+                </span> \
+              </div> \
+            </div>');
+          $("a", $item).attr("data-cmd", "file ls " + path + dirname);
+          $("[data-tag=name]", $item).text("[" + path + dirname + "]");
+          $row.append($item);
+          appendHtmlLog($row);
+        }
+      }
+
+      if(payload.files) {
+        var $row = $('<div class="row"></div>');
+        for(var i=0;i<payload.files.length;i++) {
+          var filename = payload.files[i];
+          var $item = $(' \
+            <div class="col-xs-4 col-md-3 col-lg-2 file-node file-file"> \
+              <div class="file-node-container"> \
+                <span class="glyphicon glyphicon-picture"></span> \
+                <a data-tag="select" style="cursor: pointer;"> \
+                  <span data-tag="name"></span> \
+                </a> \
+                <a data-tag="info" class="btn btn-xs btn-default"> \
+                  <span class="glyphicon glyphicon-info-sign"></span> \
+                </a> &nbsp; \
+                <a data-tag="download" class="btn btn-xs btn-default"> \
+                  <span class="glyphicon glyphicon-download"></span> \
+                </a> \
+              </div> \
+            </div>');
+          $("a[data-tag=select]", $item).attr("data-cmd", "play select " + path + filename);
+          $("a[data-tag=info]", $item)
+            .attr("data-filename", path + filename)
+            .bind("click", function() {
+              var filename = $(this).attr("data-filename");
+              if(filesinfo[filename]) {render_fileinfo(filename);}
+              else{ send_cmd("file info " + filename); }
+          });
+          $("a[data-tag=download]", $item)
+            .attr("data-filename", path + filename)
+            .bind("click", function() {
+              var filename = $(this).attr("data-filename");
+              send_cmd("file download2 " + filename, callbacks["file download"]);
+          });
+          $("[data-tag=name]", $item).text("[" + filename + "]");
+          $row.append($item);
+          appendHtmlLog($row);
+        }
+      }
+    },
+    "file md5": function(controller, cmd, payload) {
+      appendLog("MD5 " + payload.file + " " + payload.md5);
+    },
+    "file info": function(controller, cmd, payload) {
+      delete payload.status;
+
+      var filename = cmd.substr(10);
+      var previews = payload.binaries;
+      delete payload.binaries;
+
+      update_fileinfo(filename, payload, previews)
+      appendLog("File Info '" + cmd.substr(10) + "' recived.");
+      render_fileinfo(filename);
+    },
+    "file download": function(controller, cmd, payload) {
+      var splited_cmd = cmd.split("/");
+      var filename = splited_cmd[splited_cmd.length - 1];
+
+      var url = window.URL.createObjectURL(payload.binaries[0]);
+      var a = document.createElement("a");
+      document.body.appendChild(a);
+      a.style = "display: none";
+
+      a.href = url;
+      a.download = filename;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
+    "config get": function(controller, cmd, payload) {
+      appendHtmlLog($("<div></div>")
+        .append($('<span class="label label-primary"></span>').text(payload.key))
+        .append($('<span>&nbsp;</span>'))
+        .append($('<span></span>').text(payload.value)));
+    },
+    "config set": function(controller, cmd, payload) {
+      var ll = cmd.split(" ");
+      var value = ll.slice(3).join(" ");
+      appendHtmlLog($("<div></div>")
+        .append($('<span class="label label-warning"></span>').text(payload.key))
+        .append($('<span>&nbsp;</span>'))
+        .append($('<span></span>').text(value)));
+    },
+    "config del": function(controller, cmd, payload) {
+      appendHtmlLog($("<div></div>")
+        .append($('<span class="label label-danger"></span>').text(payload.key)));
+    },
+    task: function(controller, cmd, payload) {
+      $("[data-cmd-group]").hide()
+      if(payload.task === "") {
+        $("[data-tag=current_task]").text("");
+        $("[data-cmd-group=root]").show();
+      } else {
+        $("[data-tag=current_task]").text(payload.task);
+        $("[data-cmd-group=" + payload.task + "]").show();
+      }
+      appendLog("ok");
+    },
+    "play select": function(controller, cmd, payload) {
+      appendLog("File '" + payload.path + "' is selected");
+      appendHtmlLog($('<div class="btn btn-primary btn-lg" data-cmd="play start"><i class="glyphicon glyphicon-fire"></i> Start</div>'));
+    },
+    ping: function(controller) {
+      setTimeout(function() {
+        if(controller.status() === "CONNECTED") {
+          if(controller.is_busy()) {
+            callbacks.ping(controller);
+          } else {
+            controller.send_command("ping", callbacks.ping)
+          }
+        } else {
+          console.log("ping aborted because controller status = " +controller.status());
+        }
+      }, 60000);
+    },
+    "play info": function(controller, cmd, payload) {
+      appendLog("Playing information recived.");
+      update_fileinfo("PLAYING", payload.playinfo, payload.binaries);
+      render_fileinfo("PLAYING");
+    },
+    report: function(controller, cmd, payload) {
+      delete payload.status;
+      delete payload.cmd;
+      appendLog(JSON.stringify(payload));
+    },
+    "scan oneshot": function(controller, cmd, payload, data) {
+      var width = (Math.round(100 / payload.binaries.length) - 1) + "%";
+      var $r = $("<div></div>");
+
+      for(var i=0;i<payload.binaries.length;i++) {
+        var url = window.URL.createObjectURL(payload.binaries[i]);
+        $r.append(
+          $('<img class="img-thumbnail" />')
+            .attr("src", url)
+            .attr("width", width));
+      }
+      appendHtmlLog($r);
+      appendLog("ok");
+    },
+    "scan scanimages": function(controller, cmd, payload, data) {
+      callbacks["scan oneshot"](controller, cmd, payload, data);
+    },
+    default: function(controller, cmd, payload) {
+      if(payload.constructor === String) {
+        var lines = payload.split("\n");
+        for(var i=0;i<lines.length;i++) {
+          appendLog(lines[i]);
+        }
+      } else {
+        var log = JSON.stringify(payload);
+        if(log === '{"status":"ok"}') {
+          appendLog("ok");
+        } else {
+          appendLog(JSON.stringify(payload));
+        }
+      }
+    }
+  }
+
   function beginControl(uuid, name) {
     $("#device_label").
       text(name + " (" + uuid + ")").
       attr("data-uuid", uuid).
       attr("data-name", name);
+
     connectControl();
   }
 
   function connectControl() {
-    if(window.control_ws) {
+    if(window.controller) {
       appendLog("Clean old control session", "red");
-      window.control_ws.close();
-      window.control_ws = undefined;
+
+      window.controller.close();
+      window.controller = undefined;
     }
-    var serial = $("#device_label").attr("data-uuid");
-    appendLog("Connect to " + serial);
-    var ws = new WebSocket("ws://" + window.location.host + "/ws/control/" + serial);
-    window.control_ws = ws;
+    var uuid = $("#device_label").attr("data-uuid");
+    appendLog("Connect to " + uuid);
 
-    ws.onopen = function(v) {
-      ws.send(getKeyPem());
-    }
-
-    ws.onclose = function(v) {
-      if(self.control_ws === ws) {
-        self.control_ws = undefined;
-      }
-      ws_close_handler("Control")(v);
-    };
-
-    ws.onmessage = function(m) {
-      if(window.control_ws !== ws) { return; }
-
-      try {
-        var payload = JSON.parse(m.data);
-        if(payload.status === "connecting") {
-          appendLog("Connecting... (" + payload.stage + ")", "#444");
-        } else if(payload.status === "connected") {
-          appendLog("➜ Ready")
-          appendHtmlLog('<div>' +
-            '<img src="ready.png?" height="60px" />' +
-            '<img src="ready.png?" height="60px" />' +
-            '<img src="ready.png?" height="60px" />' + '</div>');
-
-          ws.onmessage = cb_standard;
-          send_ping();
-        } else {
-          if(payload.status === "fatal" && payload.error === "AUTH_ERROR") {
+    window.controller = new FLUXControl(uuid, {
+      clientkey: getKeyPem(),
+      on_connecting: function(sender, stage) {
+        appendLog("Connecting... (" + stage + ")", "#444");
+      },
+      on_connected: function(sender) {
+        appendLog("➜ Ready")
+        appendHtmlLog('<div>' +
+          '<img src="ready.png?" height="60px" />' +
+          '<img src="ready.png?" height="60px" />' +
+          '<img src="ready.png?" height="60px" />' + '</div>');
+        callbacks.ping(sender);
+      },
+      on_error: callbacks.error,
+      on_raw: function(sender, text) {
+        var lines = text.split("\n");
+        for(var i=0;i<lines.length;i++) {
+          var line = lines[i];
+          if(line.length > 0) appendLog(text);
+        }
+      },
+      on_fatal: function(sender, source, cmd, errors) {
+        if(errors[0] === "AUTH_ERROR") {
             var $label = $("#device_label");
             appendLog("✗ Error: Auth failed", "red");
             appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
                           ';' + $label.attr("data-name") + '">Go to auth page</a>');
           } else {
-            appendLog("✗ Error: "+ m.data + " 😭", "red");
+            appendLog("✗ Error: "+ errors + " 😭", "red");
           }
+      },
+      on_close: function(sender, wsparam) {
+        if(window.controller === sender) {
+          window.controller = undefined;
         }
+        ws_close_handler("Control")(wsparam)
+      }
+    });
+  }
 
+  function dispatch_handler(cmd) {
+    for(var key in callbacks) {
+        if(cmd.startsWith(key + " ") || cmd == key) {
+          return callbacks[key];
+        }
+    }
+    return callbacks.default;
+  }
+
+  function send_cmd(cmd, handler, data) {
+    var cb = handler ? handler : dispatch_handler(cmd);
+    if(window.controller) {
+      try {
+        window.controller.send_command(cmd, {
+          on_success: cb,
+          on_transfer_begin: function(controller, datasize, data) {
+            data.transfer_prog = new ProgressBar("Data transfer");
+            appendHtmlLog(data.transfer_prog.html);
+            data.transfer_prog.update(0, datasize);
+          },
+          on_transfer: function(controller, recivedsize, datasize, data) {
+            if(data.transfer_prog) {
+              data.transfer_prog.update(recivedsize, datasize);
+            }
+          },
+          on_operating: global_on_operating,
+          data: (data || {})
+        });
+
+        appendLog("➦ " + cmd, undefined, "#eeeeee");
       } catch(err) {
-        appendLog("✗ Exception: "+ err.message + " 😭", "red");
-      }
-    };
-  }
-
-  function send_ping() {
-    if(window.control_ws) window.control_ws.send("ping");
-  }
-
-  function cb_standard(m) {
-    var payload;
-    try {
-      payload = JSON.parse(m.data);
-    } catch (e) {
-      appendLog(m.data, "#F05E1C");
-      return;
-    }
-
-    if(payload.status === "ok") {
-      if(payload.task != undefined) {
-        $("[data-cmd-group]").hide()
-        if(payload.task === "") {
-          $("[data-tag=current_task]").text("");
-          $("[data-cmd-group=root]").show();
-        } else {
-          $("[data-tag=current_task]").text(payload.task);
-          $("[data-cmd-group=" + payload.task + "]").show();
-        }
-        appendLog("ok");
-        return;
-      }
-      if(payload.cmd === "ls" && payload.path != undefined) {
-        appendLog("List " + payload.path + ":");
-
-        var path = payload.path;
-        if(path != "" && path[path.length - 1] != "/") {
-          path = path + "/";
-        }
-
-        if(payload.directories != undefined) {
-          var $row = $('<div class="row"></div>');
-          for(var i=0;i<payload.directories.length;i++) {
-            var dirname = payload.directories[i];
-            var $item = $(' \
-              <div class="col-xs-3 col-md-2 col-lg-1 file-node"> \
-                <span class="file-node-container"> \
-                  <span class="glyphicon glyphicon-folder-close"></span> \
-                    <a style="cursor: pointer;" > \
-                      <span data-tag="name"></span> \
-                    </a> \
-                  </span> \
-                </span> \
-              </div>');
-            $("a", $item).attr("data-cmd", "file ls " + path + dirname);
-            $("[data-tag=name]", $item).text("[" + path + dirname + "]");
-            $row.append($item);
-            appendHtmlLog($row);
-          }
-        }
-
-        if(payload.files) {
-          var $row = $('<div class="row"></div>');
-          for(var i=0;i<payload.files.length;i++) {
-            var filename = payload.files[i];
-            var $item = $(' \
-              <div class="col-xs-3 col-md-2 col-lg-1 file-node"> \
-                <span class="file-node-container"> \
-                  <span class="glyphicon glyphicon-picture"></span> \
-                  <a data-tag="select" style="cursor: pointer;"> \
-                    <span data-tag="name"></span> \
-                  </a> \
-                  <a data-tag="info" class="btn btn-xs btn-default"> \
-                    <span class="glyphicon glyphicon-info-sign"></span> \
-                  </a> \
-                </span> \
-                </span> \
-              </div>');
-            $("a[data-tag=select]", $item).attr("data-cmd", "play select " + path + filename);
-            $("a[data-tag=info]", $item).attr("data-cmd", "file info " + path + filename);
-            $("[data-tag=name]", $item).text("[" + filename + "]");
-            $row.append($item);
-            appendHtmlLog($row);
-          }
-        }
-        return;
-      }
-      if(payload.cmd === "md5") {
-        appendLog("MD5 " + payload.file + " " + payload.md5);
-        return;
-      }
-    } else if(payload.status === "uploading") {
-      if(window.upload_updator) {
-        window.upload_updator(payload.sent, payload.amount);
-        return;
-      }
-    } else if(payload.status === "update_hbfw") {
-      if(payload.stage === "WRITE") {
-        if(window.last_update_write_hbfw) {
-          var d = new Date();
-          if((d - window.last_update_write_hbfw) < 1500) { return; }
-        }
-
-        window.last_update_write_hbfw = new Date();
-        appendLog("Update head fw: Write " + payload.written);
-      } else {
-        appendLog("Update head fw: " + payload.stage);
-      }
-      return;
-    }
-
-    if(payload != undefined && payload.status === "pong") {
-      setTimeout(send_ping, 30 * 1000);
-    } else {
-      var lines = m.data.split("\n");
-      for(var i=0;i<lines.length;i++) {
-        appendLog(lines[i]);
-      }
-    }
-  }
-
-  function cb_begin_upload(m) {
-    try {
-      var data = JSON.parse(m.data)
-
-      if(data.status === "continue") {
-        appendLog("Uploading file...");
-        var reader = new FileReader();
-        reader.onload = file_uploader;
-        reader.readAsArrayBuffer(window.upload_file)
-        window.upload_file = undefined;
-      } else {
-        appendLog(data.status + ": " + data.error, "red");
-        window.upload_file = undefined;
-      }
-    } catch(err) {
-      appendLog("✗ Exception: "+ err.message + " 😭", "red");
-    }
-    window.control_ws.onmessage = cb_standard;
-  }
-
-  function file_uploader(f) {
-    appendLog("File opened");
-    var offset = 0;
-    while(offset < f.target.result.byteLength) {
-      window.control_ws.send(f.target.result.slice(offset, offset + 3984));
-      offset += 3984;
-    }
-    var $prog = $(' \
-      <div style="padding: 0 2em;"> \
-        <span class="text_prog"></span> \
-      </div> \
-      <div class="progress" style="height: 0.5em; margin-bottom: 0.05em;"> \
-        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"> \
-        </div> \
-      </div>');
-    appendHtmlLog($prog);
-    var amount = f.target.result.byteLength;
-    var updator = function(sent, overwrite_amount) {
-      if(overwrite_amount) {
-        amount = overwrite_amount;
-      }
-      var p = sent / amount;
-      p = Math.round(p * 1000) / 10;
-      $(".progress-bar", $prog).css("width", p + "%");
-      $(".text_prog", $prog).text(
-        (amount - sent) + " byte(s) left");
-    }
-    window.upload_updator = updator;
-    updator(0);
-  }
-
-  function send_cmd(cmd) {
-    if(window.control_ws) {
-      if(window.control_ws.readyState == 0) {
-        appendLog("⚠️ " + cmd, "rgb(208, 142, 40)");
-      } else if(window.control_ws.readyState == 1) {
-        window.control_ws.send(cmd);
-        appendLog("➦ " + cmd);
-      } else {
-        appendLog("⚠️ " + cmd, "rgb(208, 142, 40)");
-        window.control_ws = undefined;
+        appendLog("⚠️ Error: " + err, "rgb(208, 142, 40)");
       }
     } else {
-      appendLog("⚠️ " + cmd, "rgb(208, 142, 40)");
+      appendLog("⚠️ Not Connected, can not send '" + cmd + "'",
+                "rgb(208, 142, 40)");
     }
   }
 
@@ -346,9 +547,18 @@
     });
 
     $("[data-cmd]").bind("click", function() {
-      cl = $(this).attr("data-cmd").split(",")
-      for(var i=0;i<cl.length;i++) {
-        send_cmd(cl[i]);
+      if($(this).attr("data-cmd-require-param")) {
+        var val = prompt($(this).attr("data-cmd-param-help").replace(/\\n/g, "\n"));
+        if(!val) {
+          appendLog("Command canceled: '" + $(this).attr("data-cmd") + "'");
+        }
+        var cmd = $(this).attr("data-cmd").replace(/{}/g, val);
+        send_cmd(cmd);
+      } else {
+        cmds = $(this).attr("data-cmd").split(",");
+        for(var i=0;i<cmds.length;i++) {
+          send_cmd(cmds[i]);
+        }
       }
     });
 
@@ -373,40 +583,85 @@
         return
       }
 
-      if(window.control_ws && window.control_ws.onmessage === cb_standard) {
-        if($(this).attr("data-file-cmd") == "upload2sd"){
-          var target = prompt("Give SD location (like 'myfcode.fc'");
-          var cmd = "upload " + " " + mimetype + " " + 
-                      f.size + " SD/" + target;
-          console.log(cmd);
-        }
-        else{
-          var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
-        }
-
-        appendLog("Start uploading... (" + cmd + ")")
-        window.control_ws.onmessage = cb_begin_upload;
-        window.control_ws.send(cmd);
-
-        window.upload_file = f;
-        this.value = "";
-      } else {
-        appendLog("Upload not start", "blue")
+      if($(this).attr("data-file-cmd") == "upload2sd"){
+        var target = prompt("Give SD location (like 'myfcode.fc'");
+        var cmd = "upload " + " " + mimetype + " " + 
+                    f.size + " SD/" + target;
       }
+      else{
+        var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
+      }
+
+      appendLog("Start uploading... (" + cmd + ")");
+
+      window.controller.send_command(cmd, {
+        data: new ProgressBar("Upload file..."),
+        on_upload_begin: function(sender, size, prog) {
+          appendHtmlLog(prog.html);
+          prog.update(0, size);
+        },
+        on_uploading: function(sender, sent, amount, prog) {
+          prog.update(sent, amount);
+        },
+        on_success: function(sender, cmd, result, prog) {
+          appendLog("ok");
+        },
+        on_operating: global_on_operating,
+        file: f,
+      });
     });
     // End Upload File Codes
+
+    // Begin status management
+    function onDiscoverMessage(m) {
+      try {
+        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
+        if (payload.uuid === window.device_information.uuid) {
+          if((bcst_status && bcst_status.st_id) !== payload.st_id) {
+            render_buttons(payload.st_id);
+          }
+          bcst_status = payload;
+        }
+      } catch (err) {
+        console.log("Can not handle discover message: '" + m.data + "', err=" + err);
+      }
+    }
+
+    function discoverManager() {
+      if(window.discover && window.discover.readyState != 1) {
+        window.discover.close();
+        window.discover = undefined;
+      }
+
+      if(!window.discover) {
+        window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
+        window.discover.onopen = function() {};
+        window.discover.onmessage = onDiscoverMessage;
+        window.discover.onclose = function() {
+          discoverManager();
+        }
+        setTimeout(discoverManager, 15000);
+      } else {
+        window.discover.send("ping");
+        setTimeout(discoverManager, 15000);
+      }
+    }
+    discoverManager();
 
     // Begin UI
     var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
     if(matchs != undefined && matchs.length == 1) {
       var tags = matchs[0].split(";");
-      var serial = tags[0].substr(1);
+      var uuid = tags[0].substr(1);
       var name = tags.slice(1).join(";");
 
-      beginControl(serial, name);
+      beginControl(uuid, name);
+      window.device_information = {uuid: uuid, name: name};
     } else {
       window.location = "discover.html";
     }
+
+    $("[data-sg]").hide();
   });
   </script>
 </head>
@@ -475,7 +730,27 @@
             <li data-cmd="-1 H:0 T:190 *5" style="cursor: pointer"><a>Temp 190</a></li>
           </ul>
         </div>
-        <span data-cmd="quit" class="btn btn-xs btn-warning">Quit</span>
+        <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
+      </div>
+
+      <div style="margin: 0.5em 0; display: none" data-cmd-group="scan">
+        <span data-cmd="scan oneshot" class="btn btn-xs btn-default">One shot</span>
+        <span data-cmd="scan scanimages" class="btn btn-xs btn-default">Imagesets</span>
+
+        <span class="btn-group">
+          <span data-cmd="scan backward" class="btn btn-xs btn-default">
+            <i class="glyphicon glyphicon-chevron-left"></i>
+          </span>
+          <span data-cmd="scan forward" class="btn btn-xs btn-default">
+            <i class="glyphicon glyphicon-chevron-right"></i>
+          </span>
+        </span>
+
+        <span data-cmd="scan step {}" data-cmd-require-param="1" data-cmd-param-help="Give step length" class="btn btn-xs btn-default">
+          Set step
+        </span>
+
+        <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
       </div>
 
       <div style="margin: 0.5em 0; display: none" data-cmd-group="maintain">
@@ -507,6 +782,10 @@
           Head Info
         </span>
 
+        <span data-cmd="maintain headstatus" class="btn btn-xs btn-default">
+          Head Status
+        </span>
+
         <span class="btn btn-xs btn-default fileinput-button">
           <span>** Update Head FW **</span>
           <input type="file" class="fileinput-button" data-file-cmd="maintain update_hbfw" name="file" />
@@ -529,25 +808,30 @@
 
         <!-- Play -->
         <span> | Play</span>
-        <div class="btn-group btn-xs">
-          <span data-cmd="play start" class="btn btn-xs btn-primary"><i class="glyphicon glyphicon-fire"></i> Start</span>
-          <span data-cmd="play info" class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Playing Info">
-            <i class="glyphicon glyphicon-info-sign"></i> Play info</span>
-          <span data-cmd="play pause" class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause">
-            <i class="glyphicon glyphicon-pause"></i> Pause</span>
-          <span data-cmd="play resume" class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
-            <i class="glyphicon glyphicon-play"></i> Resume</span>
-          <span data-cmd="play abort" class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
-            <i class="glyphicon glyphicon-eject"></i> Abort</span>
-        </div>
+        <span data-cmd="play start" data-sg data-sg0 class="btn btn-xs btn-primary"><i class="glyphicon glyphicon-fire"></i> Start</span>
+        <span data-cmd="play info" data-sg data-sgp class="btn btn-xs btn-primary" data-toggle="tooltip" data-placement="top" title="Playing Info">
+          <i class="glyphicon glyphicon-info-sign"></i> Playing info</span>
+        <span data-cmd="play pause" data-sg data-sg4 data-sg16 class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause">
+          <i class="glyphicon glyphicon-pause"></i> Pause</span>
+        <span data-cmd="play resume" data-sg data-sg data-sg data-sg36 data-sg48 class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
+          <i class="glyphicon glyphicon-play"></i> Resume</span>
+        <span data-cmd="play abort" data-sg data-sg4 data-sg36 data-sg48 data-sg16 class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
+          <i class="glyphicon glyphicon-remove"></i> Abort</span>
+        <span data-cmd="play quit" data-sg data-sg64 data-sg128 class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Quit">
+          <i class="glyphicon glyphicon-eject"></i> Quit</span>
+        <span data-cmd="kick" data-sg data-sgn style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
 
         <!-- Tasks -->
-        <span> | Tasks</span>
-        <div class="btn-group btn-xs dropup">
-          <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
-          <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
-          <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
-        </div>
+        <span data-sg data-sg0>
+          <span> | Tasks</span>
+          <div class="btn-group btn-xs dropup">
+            <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
+            <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
+            <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
+          </div>
+        </span>
+
+        <span> | </span>
 
         <div class="btn-group btn-xs dropup">
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -558,17 +842,28 @@
           <ul class="dropdown-menu dropdown-menu-right">
             <li class="dropdown-header">correction: A a H N</li>
             <li data-cmd="config get correction" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd-guide="config set correction " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config set correction {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction"
+                style="cursor: pointer">
+              <a>SET</a></li>
             <li data-cmd="config del correction" style="cursor: pointer"><a>DEL</a></li>
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">filament_detect: Y N</li>
             <li data-cmd="config get filament_detect" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd-guide="config set filament_detect " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config set filament_detect {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable"
+                style="cursor: pointer">
+              <a>SET</a></li>
             <li data-cmd="config del filament_detect" style="cursor: pointer"><a>DEL</a></li>
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">head_error_level: A number</li>
             <li data-cmd="config get head_error_level" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd-guide="config set head_error_level " style="cursor: pointer"><a>SET</a></li>
+            <li data-cmd="config set head_error_level {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Head error level:"
+                style="cursor: pointer"><a>SET</a></li>
             <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
           </ul>
         </div>
@@ -594,7 +889,6 @@
           </ul>
         </div>
 
-        <span data-cmd="kick" style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
       </div>
     </div>
   </div>
@@ -627,5 +921,38 @@
       </div>
     </div>
   </div>
+
+  <div id="monitor_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Modal title</h4>
+        </div>
+        <div class="modal-body">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
+  <div id="shared_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Modal title</h4>
+        </div>
+        <div class="modal-body">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
 </body>
 </html>
