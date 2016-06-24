@@ -694,7 +694,7 @@ class WebsocketControl(WebsocketControlBase):
                     self.send_json(status="operating",
                                    stage=["FILAMENT", stage])
                 # ====
-                self.send_json(status="unloading", nav=args)
+                self.send_json(status="unloading", nav=" ".join(args))
                 # >>>>
             except Exception:
                 logger.exception("Error during unload filament cb")
