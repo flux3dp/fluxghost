@@ -379,7 +379,8 @@
     },
     "play info": function(controller, cmd, payload) {
       appendLog("Playing information recived.");
-      update_fileinfo("PLAYING", payload.playinfo, payload.binaries);
+      window.aa = payload
+      update_fileinfo("PLAYING", payload.playinfo[0], payload.binaries);
       render_fileinfo("PLAYING");
     },
     report: function(controller, cmd, payload) {
