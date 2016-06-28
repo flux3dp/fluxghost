@@ -398,7 +398,7 @@ class WebsocketControl(WebsocketControlBase):
     def select_file(self, file):
         path = file if file.startswith("/") else "/" + file
         self.robot.select_file(path)
-        self.send_ok(cmd="select", path=file)
+        self.send_ok(cmd="select", path=path)
 
     def fileinfo(self, file):
         path = file if file.startswith("/") else "/" + file
@@ -414,29 +414,29 @@ class WebsocketControl(WebsocketControlBase):
     def filemd5(self, file):
         path = file if file.startswith("/") else "/" + file
         hash = self.robot.file_md5(path)
-        self.send_json(status="ok", cmd="md5", file=file, md5=hash)
+        self.send_json(status="ok", cmd="md5", file=path, md5=hash)
 
     def mkdir(self, file):
         path = file if file.startswith("/") else "/" + file
         if path.startswith("/SD/"):
             self.robot.mkdir(path)
-            self.send_json(status="ok", cmd="mkdir", path=file)
+            self.send_json(status="ok", cmd="mkdir", path=path)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def rmdir(self, file):
         path = file if file.startswith("/") else "/" + file
-        if file.startswith("/SD/"):
+        if path.startswith("/SD/"):
             self.robot.rmdir(path)
-            self.send_json(status="ok", cmd="rmdir", path=file)
+            self.send_json(status="ok", cmd="rmdir", path=path)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def rmfile(self, file):
         path = file if file.startswith("/") else "/" + file
-        if file.startswith("/SD/"):
+        if path.startswith("/SD/"):
             self.robot.rmfile(path)
-            self.send_json(status="ok", cmd="rmfile", path=file)
+            self.send_json(status="ok", cmd="rmfile", path=path)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
