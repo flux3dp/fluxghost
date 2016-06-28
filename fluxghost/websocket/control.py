@@ -498,25 +498,13 @@ class WebsocketControl(WebsocketControlBase):
                 g2f.process(gcode_content, fcode_output)
 
                 fcode_len = fcode_output.truncate()
-                remote_sent = 0
-
                 fcode_output.seek(0)
-                sock = self.robot.begin_upload('application/fcode',
-                                               fcode_len,
-                                               cmd="file upload",
-                                               upload_to=upload_to)
                 self.send_json(status="uploading", sent=0,
                                amount=fcode_len)
-                while remote_sent < fcode_len:
-                    remote_sent += sock.send(fcode_output.read(4096))
-                    self.send_json(status="uploading", sent=remote_sent)
-
-                resp = self.robot.get_resp().decode("ascii", "ignore")
-                if resp == "ok":
-                    self.send_ok()
-                else:
-                    errargs = resp.split(" ")
-                    self.send_error(*(errargs[1:]))
+                self.robot.upload_stream(fcode_output, 'application/fcode',
+                                         fcode_len, upload_to,
+                                         self.cb_upload_callback)
+                self.send_ok()
 
             self.simple_binary_receiver(size, upload_callback)
 
