@@ -5,6 +5,7 @@ import logging
 import sys
 import os
 import subprocess
+import traceback
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
     BinaryUploadHelper, ST_NORMAL, SIMULATE, OnTextMessageMixin
@@ -256,6 +257,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                 try:
                     out = subprocess.check_output(engine_path, stderr=subprocess.STDOUT, timeout=5)
                 except:
+                    traceback.print_exc(file=sys.stdout)
                     return 1, 'execution fail'
                 else:
                     out = out.split(b'\n')[0].rstrip()
