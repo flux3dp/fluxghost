@@ -36,7 +36,7 @@ def get_default_cura():
 
 class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     """
-    This websocket is use to slicing stl model
+    This websocket is use to slice a stl/obj model
     """
     POOL_TIME = 30.0
 
@@ -257,7 +257,6 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             if os.path.isfile(engine_path):
                 try:
                     out = subprocess.check_output(engine_path, stderr=subprocess.STDOUT, timeout=5)
-                    raise NotImplementedError
                 except:
                     traceback.print_exc(file=sys.stderr)
                     print(out, file=sys.stderr)
