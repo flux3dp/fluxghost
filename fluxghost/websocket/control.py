@@ -651,10 +651,10 @@ class WebsocketControl(WebsocketControlBase):
         def nav(robot, *args):
             try:
                 # <<<<
-                stage = args.pop(0)
+                stage = args[0]
                 if stage == "HEATING":
                     self.send_json(status="operating", stage=["HEATING"],
-                                   temperature=float(args[0]))
+                                   temperature=float(args[1]))
                 elif stage == ["LOADING"]:
                     self.send_json(status="operating",
                                    stage=["FILAMENT", "LOADING"])
@@ -674,10 +674,10 @@ class WebsocketControl(WebsocketControlBase):
         def nav(robot, *args):
             try:
                 # <<<<
-                stage = args.pop(0)
+                stage = args[0]
                 if stage == "HEATING":
                     self.send_json(status="operating", stage=["HEATING"],
-                                   temperature=float(args[0]))
+                                   temperature=float(args[1]))
                 else:
                     self.send_json(status="operating",
                                    stage=["FILAMENT", stage])
