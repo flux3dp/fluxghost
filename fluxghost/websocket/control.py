@@ -398,7 +398,7 @@ class WebsocketControl(WebsocketControlBase):
     def select_file(self, file):
         path = file if file.startswith("/") else "/" + file
         self.robot.select_file(path)
-        self.send_ok(cmd="select", path=file)
+        self.send_ok(cmd="select", path=path)
 
     def fileinfo(self, file):
         path = file if file.startswith("/") else "/" + file
@@ -414,29 +414,29 @@ class WebsocketControl(WebsocketControlBase):
     def filemd5(self, file):
         path = file if file.startswith("/") else "/" + file
         hash = self.robot.file_md5(path)
-        self.send_json(status="ok", cmd="md5", file=file, md5=hash)
+        self.send_json(status="ok", cmd="md5", file=path, md5=hash)
 
     def mkdir(self, file):
         path = file if file.startswith("/") else "/" + file
         if path.startswith("/SD/"):
             self.robot.mkdir(path)
-            self.send_json(status="ok", cmd="mkdir", path=file)
+            self.send_json(status="ok", cmd="mkdir", path=path)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def rmdir(self, file):
         path = file if file.startswith("/") else "/" + file
-        if file.startswith("/SD/"):
+        if path.startswith("/SD/"):
             self.robot.rmdir(path)
-            self.send_json(status="ok", cmd="rmdir", path=file)
+            self.send_json(status="ok", cmd="rmdir", path=path)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
     def rmfile(self, file):
         path = file if file.startswith("/") else "/" + file
-        if file.startswith("/SD/"):
+        if path.startswith("/SD/"):
             self.robot.rmfile(path)
-            self.send_json(status="ok", cmd="rmfile", path=file)
+            self.send_json(status="ok", cmd="rmfile", path=path)
         else:
             self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
 
@@ -498,25 +498,13 @@ class WebsocketControl(WebsocketControlBase):
                 g2f.process(gcode_content, fcode_output)
 
                 fcode_len = fcode_output.truncate()
-                remote_sent = 0
-
                 fcode_output.seek(0)
-                sock = self.robot.begin_upload('application/fcode',
-                                               fcode_len,
-                                               cmd="file upload",
-                                               upload_to=upload_to)
                 self.send_json(status="uploading", sent=0,
                                amount=fcode_len)
-                while remote_sent < fcode_len:
-                    remote_sent += sock.send(fcode_output.read(4096))
-                    self.send_json(status="uploading", sent=remote_sent)
-
-                resp = self.robot.get_resp().decode("ascii", "ignore")
-                if resp == "ok":
-                    self.send_ok()
-                else:
-                    errargs = resp.split(" ")
-                    self.send_error(*(errargs[1:]))
+                self.robot.upload_stream(fcode_output, 'application/fcode',
+                                         fcode_len, upload_to,
+                                         self.cb_upload_callback)
+                self.send_ok()
 
             self.simple_binary_receiver(size, upload_callback)
 
@@ -574,6 +562,7 @@ class WebsocketControl(WebsocketControlBase):
 
         def update_cb(swap):
             def nav_cb(robot, *args):
+                # >>>>
                 if args[0] == "UPLOADING":
                     self.send_json(status="uploading", sent=int(args[1]))
                 elif args[0] == "WRITE":
@@ -588,6 +577,7 @@ class WebsocketControl(WebsocketControlBase):
                                    stage=["UPDATE_THFW", args[0]])
 
                     self.send_json(status="update_hbfw", stage=args[0])
+                # <<<<
             size = swap.truncate()
             swap.seek(0)
 
@@ -627,7 +617,14 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_calibrating(self, *args):
         def callback(robot, *args):
-            self.send_json(status="debug", text=" ".join(args))
+            try:
+                if args[0] == "POINT":
+                    self.send_json(status="operating", stage=["CALIBRATING"],
+                                   pos=int(args[1]))
+                else:
+                    self.send_json(status="debug", args=args)
+            except Exception:
+                logger.exception("Error during calibration cb")
 
         if "clean" in args:
             ret = self.task.calibration(process_callback=callback, clean=True)
@@ -637,9 +634,11 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_zprobe(self, *args):
         def callback(robot, *args):
+            # <<<<
             self.send_json(status="operating", stage=["ZPROBE"])
-            # TODO: PROTOCOL
-            self.send_json(status="debug", text=" ".join(args))
+            # ====
+            self.send_json(status="debug", args=args)
+            # >>>>
 
         if len(args) > 0:
             ret = self.task.manual_level(float(args[0]))
@@ -650,18 +649,43 @@ class WebsocketControl(WebsocketControlBase):
 
     def maintain_load_filament(self, index, temp):
         def nav(robot, *args):
-            self.send_json(status="operating", stage=args)
-            # TODO: PROTOCOL
-            self.send_json(status="loading", nav=" ".join(args))
+            try:
+                # <<<<
+                stage = args[0]
+                if stage == "HEATING":
+                    self.send_json(status="operating", stage=["HEATING"],
+                                   temperature=float(args[1]))
+                elif stage == ["LOADING"]:
+                    self.send_json(status="operating",
+                                   stage=["FILAMENT", "LOADING"])
+                elif stage == ["WAITING"]:
+                    self.send_json(status="operating",
+                                   stage=["FILAMENT", "WAITING"])
+                # ====
+                self.send_json(status="loading", nav=" ".join(args))
+                # >>>>
+            except Exception:
+                logger.exception("Error during load filament cb")
 
         self.task.load_filament(int(index), float(temp), nav)
         self.send_ok()
 
     def maintain_unload_filament(self, index, temp):
         def nav(robot, *args):
-            self.send_json(status="operating", stage=args)
-            # TODO: PROTOCOL
-            self.send_json(status="unloading", nav=args)
+            try:
+                # <<<<
+                stage = args[0]
+                if stage == "HEATING":
+                    self.send_json(status="operating", stage=["HEATING"],
+                                   temperature=float(args[1]))
+                else:
+                    self.send_json(status="operating",
+                                   stage=["FILAMENT", stage])
+                # ====
+                self.send_json(status="unloading", nav=" ".join(args))
+                # >>>>
+            except Exception:
+                logger.exception("Error during unload filament cb")
         self.task.unload_filament(int(index), float(temp), nav)
         self.send_ok()
 
@@ -712,9 +736,14 @@ class WebsocketControl(WebsocketControlBase):
 
     def play_info(self):
         metadata, images = self.robot.play_info()
-        # TODO: PROTOCOL
+
+        # >>>
+        self.send_json(status="operating", stage=["PLAYINFO"],
+                       metadata=metadata)
+        # ===
         metadata["status"] = "playinfo"
         self.send_json(metadata)
+        # <<<
 
         for mime, buf in images:
             self.send_binary_begin(mime, len(buf))

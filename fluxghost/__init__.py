@@ -1,3 +1,3 @@
 
-__version__ = "0.5b12"
+__version__ = "0.5b13"
 DEBUG = False

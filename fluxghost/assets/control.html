@@ -373,13 +373,14 @@
             controller.send_command("ping", callbacks.ping)
           }
         } else {
-          console.log("ping aborted because controller status = " +controller.status());
+          console.log("ping aborted because controller status = " + controller.status());
         }
       }, 60000);
     },
     "play info": function(controller, cmd, payload) {
       appendLog("Playing information recived.");
-      update_fileinfo("PLAYING", payload.playinfo, payload.binaries);
+      window.aa = payload
+      update_fileinfo("PLAYING", payload.playinfo[0], payload.binaries);
       render_fileinfo("PLAYING");
     },
     report: function(controller, cmd, payload) {
@@ -628,16 +629,27 @@
     }
 
     function discoverManager() {
-      if(window.discover && window.discover.readyState != 1) {
+      if(window.discover && window.discover.readyState > 2) {
         window.discover.close();
         window.discover = undefined;
+        console.log("Discover disconnected.");
       }
 
       if(!window.discover) {
+        if(new Date() - window.discover_timestemp < window.discover_retry_delay) {
+          console.log("Delay re-connect to discover." + window.discover_retry_delay);
+          setTimeout(discoverManager, window.discover_retry_delay);
+          return;
+        }
+        window.discover_timestemp = new Date();
         window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
-        window.discover.onopen = function() {};
+        window.discover.onopen = function() {
+          window.discover_retry_delay = 2000;
+        };
         window.discover.onmessage = onDiscoverMessage;
         window.discover.onclose = function() {
+          var nd = window.discover_retry_delay + 1000;
+          window.discover_retry_delay = Math.max(nd, 60000);
           discoverManager();
         }
         setTimeout(discoverManager, 15000);
@@ -646,6 +658,8 @@
         setTimeout(discoverManager, 15000);
       }
     }
+    window.discover_retry_delay = 3000;
+    window.discover_timestemp = new Date(0);
     discoverManager();
 
     // Begin UI
