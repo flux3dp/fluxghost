@@ -113,10 +113,15 @@ class WebsocketControlBase(WebSocketBase):
             self.try_connect()
 
     def on_binary_message(self, buf):
-        if self.binary_handler:
-            self.binary_handler(buf)
-        else:
-            self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
+        try:
+            if self.binary_handler:
+                self.binary_handler(buf)
+            else:
+                self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
+        except RobotSessionError as e:
+            logger.debug("RobotSessionError%s [error_symbol=%s]", repr(e.args),
+                         e.error_symbol)
+            self.send_fatal(*e.error_symbol)
 
     def cb_upload_callback(self, robot, sent, size):
         self.send_json(status="uploading", sent=sent)
@@ -346,7 +351,7 @@ class WebsocketControl(WebsocketControlBase):
         except RobotSessionError as e:
             logger.debug("RobotSessionError%s [error_symbol=%s]", repr(e.args),
                          e.error_symbol)
-            self.send_error(e.error_symbol[0])
+            self.send_fatal(*e.error_symbol)
 
         except (TimeoutError, ConnectionResetError,  # noqa
                 socket.timeout, ) as e:
