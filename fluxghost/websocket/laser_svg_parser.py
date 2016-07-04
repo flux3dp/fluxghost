@@ -5,7 +5,7 @@ import sys
 from os import environ
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
+    BinaryUploadHelper, OnTextMessageMixin
 from fluxclient.laser.laser_svg import LaserSvg
 
 logger = logging.getLogger("WS.Laser Svg")

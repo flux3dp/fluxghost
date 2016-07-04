@@ -4,7 +4,7 @@ from hashlib import md5
 import logging
 import struct
 
-from .base import WebSocketBase, ST_GOING_AWAY
+from .base import WebSocketBase
 
 logger = logging.getLogger("WS.ECHO")
 
@@ -41,7 +41,7 @@ class WebsocketEcho(WebSocketBase):
         elif message.startswith("die "):
             logger.debug("Recive %s" % message)
             close_msg = message.split(" ", 1)[-1]
-            self.close(ST_GOING_AWAY, close_msg)
+            self.close(error=True, message=close_msg)
         else:
             logger.debug("ECHO %s" % message)
             self.send_text(message)

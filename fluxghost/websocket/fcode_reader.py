@@ -1,7 +1,6 @@
 # !/usr/bin/env python3
 
 import logging
-import sys
 import json
 from io import StringIO, BytesIO
 from os import environ
@@ -9,7 +8,7 @@ from os import environ
 from PIL import Image
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL, OnTextMessageMixin
+    BinaryUploadHelper, OnTextMessageMixin
 from fluxclient.utils.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.hw_profile import HW_PROFILE

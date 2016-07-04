@@ -8,7 +8,7 @@ import subprocess
 import traceback
 
 from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-    BinaryUploadHelper, ST_NORMAL, SIMULATE, OnTextMessageMixin
+    BinaryUploadHelper, OnTextMessageMixin
 from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerCura
 from fluxclient import check_platform
 

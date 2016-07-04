@@ -1,5 +1,5 @@
 
-from errno import EPIPE, EHOSTDOWN, errorcode
+from errno import EPIPE, EHOSTDOWN, ECONNREFUSED, errorcode
 from uuid import UUID
 import logging
 import socket
@@ -75,7 +75,7 @@ class WebsocketControlBase(WebSocketBase):
 
             except OSError as err:
                 error_no = err.args[0]
-                if error_no == EHOSTDOWN:
+                if error_no in (EHOSTDOWN, ECONNREFUSED):
                     self.send_fatal("DISCONNECTED")
                 else:
                     self.send_fatal("UNKNOWN_ERROR",

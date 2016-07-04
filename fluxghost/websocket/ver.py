@@ -29,3 +29,4 @@ class WebsocketVer(WebSocketBase):
             "fluxclient": fluxclient.__version__,
             "fluxghost": fluxghost.__version__
         }))
+        self.close()
