@@ -45,6 +45,9 @@ class WebSocketBase(WebSocketHandler, ApiBase):
         self.timer = time()
         self.do_recv()
 
+    def _on_loop(self):
+        self.check_ttl()
+
     def check_ttl(self):
         t = self.timer + self.TIMEOUT
 
@@ -56,12 +59,6 @@ class WebSocketBase(WebSocketHandler, ApiBase):
 
         elif t < time():
             self.close(error=True, message="error TIMEOUT")
-
-    def on_loop(self):
-        pass
-
-    def on_closed(self):
-        pass
 
     def close(self, error=False, message=None):
         if error:

@@ -3,7 +3,7 @@ from select import select
 import logging
 import json
 
-logger = logging.getLogger("PROTOCOL.BASE")
+logger = logging.getLogger("API.BASE")
 
 
 class ApiBase(object):
@@ -20,6 +20,7 @@ class ApiBase(object):
                 for r in rl:
                     r.on_read()
 
+                self._on_loop()
                 self.on_loop()
         finally:
             self.on_closed()
@@ -79,3 +80,9 @@ class ApiBase(object):
 
     def send_warning(self, message):
         self.send_text('{"status": "warning", "message" : "%s"}' % (message))
+
+    def on_loop(self):
+        pass
+
+    def on_closed(self):
+        pass
