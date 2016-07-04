@@ -344,7 +344,7 @@ class WebsocketControl(WebsocketControlBase):
         except RobotError as e:
             logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
                          e.error_symbol)
-            self.send_error(e.error_symbol[0])
+            self.send_error(e.error_symbol[0], symbol=e.error_symbol)
 
         except RobotSessionError as e:
             logger.debug("RobotSessionError%s [error_symbol=%s]", repr(e.args),
