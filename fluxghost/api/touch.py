@@ -13,7 +13,7 @@ logger = logging.getLogger("API.TOUCH")
 def touch_api_mixin(cls):
     class TouchApi(cls):
         def __init__(self, *args):
-            super().__init__(self, *args)
+            super().__init__(*args)
 
         def on_text_message(self, message):
             try:
