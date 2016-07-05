@@ -8,13 +8,13 @@ from PIL import Image
 from fluxclient.utils.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.hw_profile import HW_PROFILE
-from .misc import BinaryUploadHelper
+from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.FCODE_READER")
 
 
 def fcode_reader_api_mixin(cls):
-    class FcodeReaderApi(cls):
+    class FcodeReaderApi(BinaryHelperMixin, OnTextMessageMixin, cls):
         def __init__(self, *args):
             super().__init__(*args)
             self.cmd_mapping = {

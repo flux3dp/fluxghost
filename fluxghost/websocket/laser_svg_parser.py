@@ -1,7 +1,7 @@
 
 from fluxghost.api.laser_svg_parser import laser_svg_parser_api_mixin
-from .base import MixedWebsocketBase
+from .base import WebSocketBase
 
 
-class WebsocketLaserSvgParser(laser_svg_parser_api_mixin(MixedWebsocketBase)):
+class WebsocketLaserSvgParser(laser_svg_parser_api_mixin(WebSocketBase)):
     pass

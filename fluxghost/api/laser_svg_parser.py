@@ -3,10 +3,8 @@ from os import environ
 import logging
 import sys
 
-# from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-#     BinaryUploadHelper, OnTextMessageMixin
 from fluxclient.laser.laser_svg import LaserSvg
-from .misc import BinaryUploadHelper
+from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.LASER.SVG")
 
@@ -15,7 +13,7 @@ MODE_MANUALLY = "manually"
 
 
 def laser_svg_parser_api_mixin(cls):
-    class LaserSvgParserApi(cls):
+    class LaserSvgParserApi(BinaryHelperMixin, OnTextMessageMixin, cls):
         _m_laser_svg = None
 
         def __init__(self, *args):

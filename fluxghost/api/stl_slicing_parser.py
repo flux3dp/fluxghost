@@ -5,11 +5,9 @@ import logging
 import sys
 import os
 
-# from .base import WebSocketBase, WebsocketBinaryHelperMixin, \
-#     BinaryUploadHelper, OnTextMessageMixin
 from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerCura
 from fluxclient import check_platform
-from .misc import BinaryUploadHelper
+from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SLICING")
 
@@ -34,7 +32,7 @@ def get_default_cura():
 
 
 def stl_slicing_parser_api_mixin(cls):
-    class StlSlicingParserApi(cls):
+    class StlSlicingParserApi(BinaryHelperMixin, OnTextMessageMixin, cls):
         """
         This websocket is use to slicing stl model
         """

@@ -3,7 +3,7 @@ from os import environ
 import logging
 
 from fluxclient.laser.laser_bitmap import LaserBitmap
-from .misc import BinaryUploadHelper
+from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.LASER.BITMAP")
 
@@ -12,7 +12,7 @@ MODE_MANUALLY = "manually"
 
 
 def laser_bitmap_parser_api_mixin(cls):
-    class LaserBitmapParserApi(cls):
+    class LaserBitmapParserApi(BinaryHelperMixin, OnTextMessageMixin, cls):
         # images, it will like
         # [
         #    [(x1, y1, x2, z2), (w, h), bytes],

@@ -5,13 +5,13 @@ import logging
 from fluxclient import SUPPORT_PCL
 from fluxclient.scanner.scan_settings import ScanSetting
 from fluxclient.scanner.pc_process import PcProcess
-from .misc import BinaryUploadHelper
+from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.3DSCAN-MODELING")
 
 
 def scan_modeling_api_mixin(cls):
-    class ScannModelingApi(cls):
+    class ScannModelingApi(BinaryHelperMixin, OnTextMessageMixin, cls):
         def __init__(self, *args):
             super().__init__(*args)
             # ##################################

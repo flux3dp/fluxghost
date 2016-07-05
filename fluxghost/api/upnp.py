@@ -8,6 +8,8 @@ from fluxclient.encryptor import KeyObject
 from fluxclient.upnp.task import UpnpTask
 from fluxclient.upnp import UpnpError
 
+from .misc import BinaryHelperMixin, OnTextMessageMixin
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +28,7 @@ def check_task(func):
 
 
 def upnp_api_mixin(cls):
-    class UpnpApi(cls):
+    class UpnpApi(BinaryHelperMixin, OnTextMessageMixin, cls):
         def __init__(self, *args, **kw):
             super().__init__(*args, **kw)
 

@@ -1,8 +1,7 @@
-# !/usr/bin/env python3
 
 from fluxghost.api.fcode_reader import fcode_reader_api_mixin
-from .base import MixedWebsocketBase
+from .base import WebsocketBase
 
 
-class WebsocketFcodeReader(fcode_reader_api_mixin(MixedWebsocketBase)):
+class WebsocketFcodeReader(fcode_reader_api_mixin(WebsocketBase)):
     pass
