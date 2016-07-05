@@ -268,7 +268,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                 else:
                     out = out.split(b'\n')[0].rstrip()
                     if out.startswith(b'Cura_SteamEngine version'):
-                        if out.endswith(b'15.04.6'):
+                        if out.endswith(b'15.04.5'):
                             return 0, 'ok'
                         else:
                             return 2, 'version error:{}'.format(out.split()[-1].decode())
