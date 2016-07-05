@@ -36,7 +36,7 @@ def get_default_cura():
 
 class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSocketBase):
     """
-    This websocket is use to slicing stl model
+    This websocket is use to slice a stl/obj model
     """
     POOL_TIME = 30.0
 
@@ -84,7 +84,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             logger.debug('upload_image {}'.format(file_length))
 
         if int(file_length) == 0:
-            self.send_error('empty file!')
+            self.send_error('12', info='empty file!')
         else:
             helper = BinaryUploadHelper(int(file_length), self.end_recv_stl, name, flag, buf_type)
             self.set_binary_helper(helper)
@@ -107,7 +107,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         if flag:
             self.send_ok()
         else:
-            self.send_error('{} not exist'.format(name_in))
+            self.send_error('13', info='{} not exist'.format(name_in))
 
     def set(self, params):
         params = params.split()
@@ -122,20 +122,25 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         scale_x = float(params[7])
         scale_y = float(params[8])
         scale_z = float(params[9])
-        self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
+
         logger.debug('set {} {} {} {} {} {} {} {} {} {}'.format(name, position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z))
-        self.send_ok()
+        set_result = self.m_stl_slicer.set(name, [position_x, position_y, position_z, rotation_x, rotation_y, rotation_z, scale_x, scale_y, scale_z])
+        if set_result == 'ok':
+            self.send_ok()
+        else:
+            self.send_error('14', info=set_result)
 
     def advanced_setting(self, params):
         lines = params.split('\n')
         bad_lines = self.m_stl_slicer.advanced_setting(lines)
         if bad_lines != []:
             for line_num, err_msg in bad_lines:
-                self.send_error('line %d: %s' % (line_num, err_msg))
+                self.send_error('7', info='line %d: %s' % (line_num, err_msg))
                 logger.debug('line %d: %s' % (line_num, err_msg))
         self.send_ok()
 
     def gcode_generate(self, params):
+        raise RuntimeError('is this still working?')
         names = params.split()
         if names[-1] == '-g':
             output_type = '-g'
@@ -182,14 +187,14 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
             self.send_ok(info=str(len(self.m_stl_slicer.output)))
             self.send_binary(self.m_stl_slicer.output)
         else:
-            self.send_error('No result to send')
+            self.send_error('8', info='No result to send')
 
     def get_path(self, *args):
         path = self.m_stl_slicer.get_path()
         if path:
             self.send_text(path)
         else:
-            self.send_error('No path data to send')
+            self.send_error('9', info='No path data to send')
 
     def delete(self, params):
         name = params.rstrip()
@@ -197,7 +202,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         if flag:
             self.send_ok()
         else:
-            self.send_error(message)
+            self.send_error('10', info=message)
 
     def meta_option(self, params):
         key, value = params.split()
@@ -213,7 +218,7 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
         if self._change_engine(params):
             self.send_ok()
         else:
-            self.send_error('wrong engine {}, should be "cura" or "slic3r"'.format(engine))
+            self.send_error('11', info='wrong engine {}, should be "cura" or "slic3r"'.format(engine))
 
     def _change_engine(self, params):
         """
@@ -257,12 +262,13 @@ class Websocket3DSlicing(OnTextMessageMixin, WebsocketBinaryHelperMixin, WebSock
                 try:
                     out = subprocess.check_output(engine_path, stderr=subprocess.STDOUT, timeout=5)
                 except:
-                    traceback.print_exc(file=sys.stdout)
+                    traceback.print_exc(file=sys.stderr)
+                    print(out, file=sys.stderr)
                     return 1, 'execution fail'
                 else:
                     out = out.split(b'\n')[0].rstrip()
                     if out.startswith(b'Cura_SteamEngine version'):
-                        if out.endswith(b'15.04.5'):
+                        if out.endswith(b'15.04.6'):
                             return 0, 'ok'
                         else:
                             return 2, 'version error:{}'.format(out.split()[-1].decode())
