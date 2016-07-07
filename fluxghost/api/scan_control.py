@@ -20,7 +20,7 @@ def scan_control_api_mixin(cls):
         proc = None
 
         def __init__(self, *args, **kw):
-            super.__init__(*args, **kw)
+            super().__init__(*args, **kw)
             self.scan_settings = ScanSetting()
             self.cab = None
 
