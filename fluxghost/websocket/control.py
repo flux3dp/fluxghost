@@ -113,10 +113,15 @@ class WebsocketControlBase(WebSocketBase):
             self.try_connect()
 
     def on_binary_message(self, buf):
-        if self.binary_handler:
-            self.binary_handler(buf)
-        else:
-            self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
+        try:
+            if self.binary_handler:
+                self.binary_handler(buf)
+            else:
+                self.send_fatal("PROTOCOL_ERROR", "Can not accept binary data")
+        except RobotSessionError as e:
+            logger.debug("RobotSessionError%s [error_symbol=%s]", repr(e.args),
+                         e.error_symbol)
+            self.send_fatal(*e.error_symbol)
 
     def cb_upload_callback(self, robot, sent, size):
         self.send_json(status="uploading", sent=sent)
@@ -190,6 +195,7 @@ class WebsocketControlBase(WebSocketBase):
 
 
 class WebsocketControl(WebsocketControlBase):
+    _task = None
     raw_sock = None
 
     def __init__(self, *args, **kw):
@@ -197,19 +203,6 @@ class WebsocketControl(WebsocketControlBase):
             WebsocketControlBase.__init__(self, *args, **kw)
         except RobotError:
             pass
-
-    # def simple_robot_invoke(func_name):
-    #     def wrapper(self, *args):
-    #         try:
-    #             func = self.robot.__getattribute__(func_name)
-    #             func(*args)
-    #             self.send_ok()
-    #         except RobotError as e:
-    #             self.send_error(*e.args)
-    #         except Exception as e:
-    #             logger.exception("Unknow Error")
-    #             self.send_error("UNKNOW_ERROR", repr(e.__class__))
-    #     return wrapper
 
     def on_connected(self):
         self.set_hooks()
@@ -303,6 +296,16 @@ class WebsocketControl(WebsocketControlBase):
             }
         }
 
+    @property
+    def task(self):
+        if not self._task:
+            raise RuntimeError("OPERATION_ERROR")
+        return self._task
+
+    @task.setter
+    def task(self, val):
+        self._task = val
+
     def invoke_command(self, ref, args, wrapper=None):
         if not args:
             return False
@@ -341,12 +344,15 @@ class WebsocketControl(WebsocketControlBase):
         except RobotError as e:
             logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
                          e.error_symbol)
-            self.send_error(e.error_symbol[0])
+            self.send_error(e.error_symbol[0], symbol=e.error_symbol)
 
         except RobotSessionError as e:
             logger.debug("RobotSessionError%s [error_symbol=%s]", repr(e.args),
                          e.error_symbol)
-            self.send_error(e.error_symbol[0])
+            self.send_fatal(*e.error_symbol)
+
+        except RuntimeError as e:
+            self.send_error(*e.args)
 
         except (TimeoutError, ConnectionResetError,  # noqa
                 socket.timeout, ) as e:

@@ -109,10 +109,9 @@ class Websocket3DScannModeling(OnTextMessageMixin, WebsocketBinaryHelperMixin, W
 
     def delete_noise(self, params):
         if not SUPPORT_PCL:
-            self.send_ok()
+            self.send_error('No pcl')
             return
-        import sys
-        print(params, file=sys.stderr)
+        logger.debug(params)
         name_in, name_out, r = params.split()
         r = float(r)
         self.m_pc_process.delete_noise(name_in, name_out, r)

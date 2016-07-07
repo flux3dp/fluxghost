@@ -182,8 +182,7 @@ class Websocket3DScanControl(WebsocketControlBase):
             self.scan_settings.cab_r += tmp[1]
         else:
             pass
-        L.info('callibration: m:{} l:{} r:{}', self.scan_settings.cab_m,
-               self.scan_settings.cab_l, self.scan_settings.cab_r)
+        L.info('callibration: m:{} l:{} r:{}'.format(self.scan_settings.cab_m, self.scan_settings.cab_l, self.scan_settings.cab_r))
 
         l = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
         r = int(self.scan_settings.cab_m) - (self.scan_settings.img_width / 2)
