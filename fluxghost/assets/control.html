@@ -378,10 +378,15 @@
       }, 60000);
     },
     "play info": function(controller, cmd, payload) {
+      delete payload.status;
+
+      var filename = cmd.substr(10);
+      var previews = payload.binaries;
+      delete payload.binaries;
+
+      update_fileinfo(filename, payload, previews)
       appendLog("Playing information recived.");
-      window.aa = payload
-      update_fileinfo("PLAYING", payload.playinfo[0], payload.binaries);
-      render_fileinfo("PLAYING");
+      render_fileinfo(filename);
     },
     report: function(controller, cmd, payload) {
       delete payload.status;

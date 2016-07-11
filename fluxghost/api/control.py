@@ -572,18 +572,10 @@ def control_api_mixin(cls):
         def play_info(self):
             metadata, images = self.robot.play_info()
 
-            # >>>
-            self.send_json(status="operating", stage=["PLAYINFO"],
-                           metadata=metadata)
-            # ===
-            metadata["status"] = "playinfo"
-            self.send_json(metadata)
-            # <<<
-
             for mime, buf in images:
                 self.send_binary_begin(mime, len(buf))
                 self.send_binary(buf)
-            self.send_ok()
+            self.send_ok(**metadata)
 
         def config_set(self, key, value):
             self.robot.config[key] = value
