@@ -1,66 +1,49 @@
+## FLUXGhost
 
-### Simple Guide ###
+FLUXGhost provides a websocket based API for FLUX-Studio frontend, which connects to fluxclient.
 
-1. Install Python 3.3 (or newer).
+Official site: http://flux3dp.com/  
+Official forum: http://forum.flux3dp.com/  
+Official documentation: http://dev.flux3dp.com/  
 
-2. Install virtualenv
-```
-# sudo pip3 install virtualenv
-# virtualenv YOURENV
-```
+## Features
 
-Attention: Ensure your are using correct python version
+* Websocket based API for controlling your FLUX Delta.
 
-3. Enter virtualenv
-```
-# source YOURENV/bin/activate
-(YOURENV)#
-```
+## Installation
 
-Note: You will see `(YOURENV)# ` in your console prompt to let you know you are in it.
-
-4. Install depent packages
+1. Install Python 3.4 (or newer).
+2. Install required packages
 
 ```
-(YOURENV)# pip3 install pycrypto
-(YOURENV)# pip3 install cython
+$ pip3 install pycrypto
+$ pip3 install cython
 ```
 
-5. Install fluxclient
+3. Install fluxclient
 ```
 cd [where fluxclient repository is]
 if you didn't install pcl:
-  (YOURENV)# python3 ./setup.py develop --without-pcl
+  $ python3 ./setup.py develop --without-pcl
 else:
-  (YOURENV)# python3 ./setup.py develop
+  $ python3 ./setup.py develop
 ```
 
 6. Launch fluxghost
 ```
-(YOURENV)# ./ghost.py
+$ ./ghost.py
 ```
 
 Use `./ghost.py --help` to check what kind of options you can use.
 
 
-### Pack ###
+## Compilining to binary ( for FLUX Studio )
 
-1. Ensure fluxclient is installed
+1. Install pyinstaller
 
-2. Ensure pyinstaller for python 3 is installed (Note 1)
+```
+$ pip3 install pyinstaller
+```
+2. Run `pyinstaller ghost.spec` at fluxghost top work directory
 
-3. Just run `pyinstaller ghost.spec` at fluxghost top work directory
-
-4. Output at ./dist/ghost is what you want
-
-* Note 1: Install pyinstaller for python3
-
-> 1. Download pyinstall at `https://github.com/pyinstaller/pyinstaller/tree/python3`
-
-> 2. Remember you download pyinstall from github is branch: `python3`
-
-> 3. Check you download pyinstall from github is branch: `python3`
-
-> 4. Ensure you download pyinstall from github is branch: `python3`
-
-> 5. Run `./setup.py install` at pyinstall folder work directory and done
+3. The binary files will be in ./dist/ghost
