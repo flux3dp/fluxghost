@@ -31,7 +31,7 @@ else:
 
 6. Launch fluxghost
 ```
-$ ./ghost.py
+$ python3 ./ghost.py --ip 0.0.0.0 --port 10000
 ```
 
 Use `./ghost.py --help` to check what kind of options you can use.
