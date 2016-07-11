@@ -37,13 +37,15 @@ $ python3 ./ghost.py --ip 0.0.0.0 --port 10000
 Use `./ghost.py --help` to check what kind of options you can use.
 
 
-## Compilining to binary ( for FLUX Studio )
+## Compilation ( for FLUX Studio )
 
 1. Install pyinstaller
 
 ```
 $ pip3 install pyinstaller
 ```
-2. Run `pyinstaller ghost.spec` at fluxghost top work directory
 
-3. The binary files will be in ./dist/ghost
+2. Run `pyinstaller ghost.spec` at fluxghost's root directory
+
+3. Binary files will be in ./dist/ghost
+
