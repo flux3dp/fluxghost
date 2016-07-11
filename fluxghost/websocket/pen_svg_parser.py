@@ -1,29 +1,7 @@
-# !/usr/bin/env python3
 
-import logging
-import sys
-
-from fluxghost.websocket.laser_svg_parser import WebsocketLaserSvgParser
-from fluxclient.laser.pen_svg import PenSvg
-
-logger = logging.getLogger("WS.Pen Draw")
-
-MODE_PRESET = "preset"
-MODE_MANUALLY = "manually"
+from fluxghost.api.pen_svg_parser import pen_svg_parser_api_mixin
+from .base import WebSocketBase
 
 
-class WebsocketPenSvgParser(WebsocketLaserSvgParser):
-    _m_pen_draw = None
-
-    def __init__(self, *args):
-        super(WebsocketPenSvgParser, self).__init__(*args)
-
-    @property
-    def m_laser_svg(self):
-        return self.m_pen_draw
-
-    @property
-    def m_pen_draw(self):
-        if self._m_pen_draw is None:
-            self._m_pen_draw = PenSvg()
-        return self._m_pen_draw
+class WebsocketPenSvgParser(pen_svg_parser_api_mixin(WebSocketBase)):
+    pass
