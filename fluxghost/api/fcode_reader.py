@@ -70,10 +70,10 @@ def fcode_reader_api_mixin(cls):
                         if res == 'ok':
                             self.send_ok()
                         elif res == 'out_of_bound':
-                            self.send_error("gcode area too big")
+                            self.send_error("6", info="gcode area too big")
 
                     elif res == 'broken':
-                        self.send_error('File broken')
+                        self.send_error('15', info='File broken')
                 else:  # -g gcode
                     f = StringIO()
                     f.write(buf.decode('ascii', 'ignore'))
@@ -85,13 +85,13 @@ def fcode_reader_api_mixin(cls):
                     self.fcode = fcode_output.getvalue()
 
                     if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
-                        self.send_error("gcode area too big")
+                        self.send_error("6", info="gcode area too big")
                     elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
-                        self.send_error("gcode area too big")
+                        self.send_error("6", info="gcode area too big")
                     elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
-                        self.send_error("gcode area too big")
+                        self.send_error("6", info="gcode area too big")
                     elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
-                        self.send_error("gcode area too big")
+                        self.send_error("6", info="gcode area too big")
                     else:
                         self.send_ok()
                     logger.debug("gcode parsing done")
@@ -114,7 +114,7 @@ def fcode_reader_api_mixin(cls):
                 self.send_binary(buf)
             else:
                 logger.debug('get image: nothing to send')
-                self.send_error('Nothing to send')
+                self.send_error('8', info='No image to send')
 
         def get_meta(self, *args):
             meta = self.data_parser.get_metadata()
@@ -123,7 +123,7 @@ def fcode_reader_api_mixin(cls):
                 logger.debug('sending metadata %d' % (len(meta)))
             else:
                 logger.debug('get meta: nothing to send')
-                self.send_error('Nothing to send')
+                self.send_error('8', info='No metadata to send')
 
         def get_path(self, *args):
             if self.data_parser.path:
@@ -132,7 +132,7 @@ def fcode_reader_api_mixin(cls):
                 self.send_text(js_path)
             else:
                 logger.debug('get path: nothing to send')
-                self.send_error('No path data to send')
+                self.send_error('9', info='No path data to send')
 
         def get_fcode(self, *args):
             if self.fcode:
@@ -141,7 +141,7 @@ def fcode_reader_api_mixin(cls):
                 self.send_binary(self.fcode)
             else:
                 logger.debug('get fcode: nothing to send')
-                self.send_error('No fcode to send')
+                self.send_error('8', info='No fcode to send')
 
         def change_img(self, buf):
             b = BytesIO()
