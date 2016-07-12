@@ -60,6 +60,7 @@ def control_base_mixin(cls):
                 except (RobotError, RobotSessionError) as err:
                     if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
                         self.server.discover_devices.pop(uuid)
+                        self.server.discover.devices.pop(uuid)
                     self.send_fatal(*err.error_symbol)
                     return
 
