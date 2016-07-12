@@ -25,10 +25,7 @@ class WebSocketBase(WebSocketHandler, ApiBase):
         try:
             ApiBase.serve_forever(self)
         except WebsocketError as e:
-            if self._is_closing:
-                logger.debug("WebsocketError: %s", e)
-            else:
-                logger.exception("Unhandle websocket exception")
+            logger.debug("WebsocketError: %s", e)
         except Exception:
             logger.exception("Unhandle exception")
         finally:
