@@ -1,16 +1,14 @@
 
 from time import time
 import logging
-import os
 
 from fluxghost.api import ApiBase
 from fluxghost.utils.websocket import WebSocketHandler, WebsocketError, \
     ST_UNEXPECTED_CONDITION
 
-SIMULATE = "flux_simulate" in os.environ
 logger = logging.getLogger("WS.BASE")
 
-__all__ = ["WebSocketBase", "SIMULATE", ]
+__all__ = ["WebSocketBase", ]
 
 
 class WebSocketBase(WebSocketHandler, ApiBase):
@@ -41,8 +39,11 @@ class WebSocketBase(WebSocketHandler, ApiBase):
         self.close(error=True, message="error %s" % args[0])
 
     def on_read(self):
-        self.timer = time()
-        self.do_recv()
+        try:
+            self.timer = time()
+            self.do_recv()
+        except WebsocketError:
+            self.close_directly()
 
     def _on_loop(self):
         self.check_ttl()
@@ -69,60 +70,3 @@ class WebSocketBase(WebSocketHandler, ApiBase):
                                    message=message)
         else:
             WebSocketHandler.close(self)
-
-
-# class WebsocketBinaryHelperMixin(object):
-#     _binary_helper = None
-
-#     def has_binary_helper(self):
-#         return self._binary_helper is not None
-
-#     def set_binary_helper(self, helper):
-#         self._binary_helper = helper
-
-#     def on_binary_message(self, buf):
-#         try:
-#             if self._binary_helper:
-#                 if self._binary_helper.feed(buf) is True:
-#                     self._binary_helper = None
-#             else:
-#                 raise RuntimeError("BAD_PROTOCOL", "no binary accept")
-#         except RuntimeError as e:
-#             logger.error(e)
-#             self.send_fatal(e.args[0])
-
-
-# class OnTextMessageMixin(object):
-#     def on_text_message(self, message):
-#         try:
-#             if not self.has_binary_helper():
-#                 message = message.rstrip().split(maxsplit=1)
-#                 if len(message) == 1:
-#                     cmd = message[0]
-#                     params = ''
-#                 else:
-#                     cmd = message[0]
-#                     params = message[1]
-
-#                 if cmd in self.cmd_mapping:
-#                     self.cmd_mapping[cmd][0](params,
-#                                              *self.cmd_mapping[cmd][1:])
-#                 else:
-#                     logger.exception("receive message: %s" % (message))
-#                     raise ValueError('Undefine command %s' % (cmd))
-#             else:
-#                 logger.exception("receive message: %s" % (message))
-#                 raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
-
-#         except ValueError:
-#             logger.exception("receive message: %s" % (message))
-#             self.send_fatal("BAD_PARAM_TYPE")
-
-#         except RuntimeError as e:
-#             logger.exception("receive message: %s" % (message))
-#             self.send_fatal(e.args[0])
-
-
-# class MixedWebsocketBase(OnTextMessageMixin, WebsocketBinaryHelperMixin,
-#                          WebSocketBase):
-#     pass
