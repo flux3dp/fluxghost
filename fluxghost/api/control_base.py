@@ -1,8 +1,8 @@
 
-from errno import EHOSTDOWN, ECONNREFUSED, errorcode
 from io import BytesIO
 from uuid import UUID
 import logging
+import socket
 
 from fluxclient.encryptor import KeyObject
 from fluxclient.robot.errors import RobotError, RobotSessionError
@@ -47,30 +47,19 @@ def control_base_mixin(cls):
                 device = self.server.discover_devices[uuid]
                 self.remote_version = device.version
                 self.ipaddr = device.ipaddr
+                self.send_text(STAGE_ROBOT_CONNECTING)
 
                 try:
-                    self.send_text(STAGE_ROBOT_CONNECTING)
                     self.robot = self.get_robot_from_device(device)
 
-                except OSError as err:
-                    error_no = err.args[0]
-                    if error_no in (EHOSTDOWN, ECONNREFUSED):
-                        self.send_fatal("DISCONNECTED")
-                    else:
-                        self.send_fatal("UNKNOWN_ERROR",
-                                        errorcode.get(error_no, error_no))
-                    return
+                except (ConnectionResetError, BrokenPipeError, OSError, # noqa
+                        socket.timeout) as e:
+                    logger.error("Socket erorr: %s", e)
+                    self.send_fatal("DISCONNECTED")
 
                 except (RobotError, RobotSessionError) as err:
                     if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
-                        mk = device.master_key
-                        sk = device.slave_key
-                        ms = mk.public_key_pem if mk else "N/A"
-                        ss = sk.public_key_pem if sk else "N/A"
-                        logger.error("RIE\nMasterKey:\n%s\nSlaveKey:\n%s",
-                                     ms.decode(), ss.decode())
                         self.server.discover_devices.pop(uuid)
-                        self.server.discover.devices.pop(uuid)
                     self.send_fatal(*err.error_symbol)
                     return
 
@@ -84,6 +73,8 @@ def control_base_mixin(cls):
             else:
                 try:
                     self.client_key = KeyObject.load_keyobj(message)
+                except ValueError:
+                    self.send_fatal("BAD_PARAMS")
                 except Exception:
                     logger.error("RSA Key load error: %s", message)
                     self.send_fatal("BAD_PARAMS")
