@@ -1,8 +1,10 @@
 
 import logging
 
+from fluxclient.utils.version import StrictVersion
 from .control_base import control_base_mixin
 
+CRITICAL_VERSION = StrictVersion("1.3a1")
 logger = logging.getLogger("API.CAMERA")
 
 
@@ -23,11 +25,17 @@ ws.send("ls")
 
 def camera_api_mixin(cls):
     class CameraAPI(control_base_mixin(cls)):
+        _remote_version = None
+
         def get_robot_from_device(self, device):
+            self._remote_version = device.version
             return device.connect_camera(
                 self.client_key, conn_callback=self._conn_callback)
 
         def on_connected(self):
+            if self._remote_version > CRITICAL_VERSION:
+                logger.debug("Request streaming")
+                self.robot.enable_streaming()
             self.rlist.append(CameraWrapper(self, self.robot))
 
         def on_image(self, camera, image):
