@@ -1,11 +1,12 @@
 
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse
 import logging
-
-logger = logging.getLogger("HTTP")
 
 from fluxghost.http_websocket_route import get_match_ws_service
 from fluxghost import __version__
+
+logger = logging.getLogger("HTTP")
 
 
 class HttpHandler(BaseHTTPRequestHandler):
@@ -31,7 +32,7 @@ class HttpHandler(BaseHTTPRequestHandler):
         else:
             logger.info("%s %s" % (self.address_string(), format % args))
 
-    def do_GET(self):
+    def do_GET(self):  # noqa
         if self.path.startswith("/ws/"):
             klass, kwargs = get_match_ws_service(self.path[4:])
 
@@ -50,6 +51,14 @@ class HttpHandler(BaseHTTPRequestHandler):
         self.server.assets_handler.handle_request(self, path)
 
     def serve_websocket(self, ws_class, kwargs):
+        if not self.server.allow_foreign and "Origin" in self.headers:
+            url = urlparse(self.headers["Origin"])
+            if url.hostname not in ('localhost', '127.0.0.1'):
+                logger.error("Bad websocket request from %s",
+                             self.headers["Origin"])
+                self.response_404()
+                return
+
         if self.server.ws_handler.handle_request(self):
             client = self.address_string()
             module = ws_class.__name__

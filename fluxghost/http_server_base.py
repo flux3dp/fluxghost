@@ -14,14 +14,15 @@ class HttpServerBase(object):
     runmode = None
     discover_mutex = None
 
-    def __init__(self, assets_path, address, enable_discover=False,
-                 backlog=10, debug=False):
+    def __init__(self, assets_path, address, allow_foreign=False,
+                 enable_discover=False, backlog=10, debug=False):
         self.discover_mutex = Lock()
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
         self.enable_discover = enable_discover
         self.discover_devices = {}
         self.debug = debug
+        self.allow_foreign = allow_foreign
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

@@ -22,6 +22,9 @@ def main():
     parser.add_argument('-s', '--simulate', dest='simulate',
                         action='store_const', const=True, default=False,
                         help='Simulate data')
+    parser.add_argument('--allow-foreign', dest='allow_foreign',
+                        action='store_const', const=True, default=False,
+                        help='Allow websocket connection from foreign')
     parser.add_argument("--slic3r", dest='slic3r', type=str,
                         default='../Slic3r/slic3r.pl',
                         help="Set slic3r location")
@@ -71,6 +74,7 @@ def main():
     server = HttpServer(assets_path=options.assets,
                         enable_discover=True,
                         address=(options.ipaddr, options.port,),
+                        allow_foreign=options.allow_foreign,
                         debug=options.debug)
 
     server.serve_forever()
