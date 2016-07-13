@@ -90,11 +90,15 @@ def stl_slicing_parser_api_mixin(cls):
         def end_recv_stl(self, buf, *args):
             if args[1] == 'upload':
                 logger.debug('upload ' + args[0] + args[2])
-                self.m_stl_slicer.upload(args[0], buf, args[2])
-
+                ret = self.m_stl_slicer.upload(args[0], buf, args[2])
+                if ret:
+                    self.send_ok()
+                else:
+                    self.send_error('15', info="File parsing fail")
+                return
             elif args[1] == 'upload_image':
-                self.m_stl_slicer.upload_image(buf)
-            self.send_ok()
+                ret = self.m_stl_slicer.upload_image(buf)
+                self.send_ok()
 
         def duplicate(self, params):
             logger.debug('duplicate ' + params)
@@ -214,7 +218,7 @@ def stl_slicing_parser_api_mixin(cls):
             if self._change_engine(params):
                 self.send_ok()
             else:
-                self.send_error('11', info='wrong engine {}, should be "cura" or "slic3r"'.format(engine))
+                self.send_error('11', info="wrong engine {}, should be 'cura' or 'slic3r'".format(engine))
 
         def _change_engine(self, params):
             """
