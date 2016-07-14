@@ -1,14 +1,6 @@
 
-
-import logging
-import json
-
-import fluxclient
-import fluxghost
-
+from fluxghost.api.ver import ver_api_mixin
 from .base import WebSocketBase
-
-logger = logging.getLogger("WS.VER")
 
 """
 This websocket is use for get some basic information
@@ -22,10 +14,5 @@ ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
 """
 
 
-class WebsocketVer(WebSocketBase):
-    def __init__(self, *args, **kw):
-        super(WebsocketVer, self).__init__(*args, **kw)
-        self.send_text(json.dumps({
-            "fluxclient": fluxclient.__version__,
-            "fluxghost": fluxghost.__version__
-        }))
+class WebsocketVer(ver_api_mixin(WebSocketBase)):
+    pass

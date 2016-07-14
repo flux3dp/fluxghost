@@ -378,10 +378,15 @@
       }, 60000);
     },
     "play info": function(controller, cmd, payload) {
+      delete payload.status;
+
+      var filename = cmd.substr(10);
+      var previews = payload.binaries;
+      delete payload.binaries;
+
+      update_fileinfo(filename, payload, previews)
       appendLog("Playing information recived.");
-      window.aa = payload
-      update_fileinfo("PLAYING", payload.playinfo[0], payload.binaries);
-      render_fileinfo("PLAYING");
+      render_fileinfo(filename);
     },
     report: function(controller, cmd, payload) {
       delete payload.status;
@@ -459,7 +464,7 @@
         var lines = text.split("\n");
         for(var i=0;i<lines.length;i++) {
           var line = lines[i];
-          if(line.length > 0) appendLog(text);
+          if(line.length > 0) appendLog(lines[i]);
         }
       },
       on_fatal: function(sender, source, cmd, errors) {
@@ -854,7 +859,7 @@
               <span class="sr-only">Toggle Dropdown</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-right">
-            <li class="dropdown-header">correction: A a H N</li>
+            <li class="dropdown-header">correction: A a H N (default:Y)</li>
             <li data-cmd="config get correction" style="cursor: pointer"><a>GET</a></li>
             <li data-cmd="config set correction {}"
                 data-cmd-require-param="1"
@@ -863,7 +868,7 @@
               <a>SET</a></li>
             <li data-cmd="config del correction" style="cursor: pointer"><a>DEL</a></li>
             <li role="separator" class="divider"></li>
-            <li class="dropdown-header">filament_detect: Y N</li>
+            <li class="dropdown-header">filament_detect: Y N (default:Y)</li>
             <li data-cmd="config get filament_detect" style="cursor: pointer"><a>GET</a></li>
             <li data-cmd="config set filament_detect {}"
                 data-cmd-require-param="1"
@@ -879,6 +884,15 @@
                 data-cmd-param-help="Head error level:"
                 style="cursor: pointer"><a>SET</a></li>
             <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">autoresume: Y N (default:N)</li>
+            <li data-cmd="config get autoresume" style="cursor: pointer"><a>GET</a></li>
+            <li data-cmd="config set autoresume {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
+                style="cursor: pointer">
+              <a>SET</a></li>
+            <li data-cmd="config del autoresume" style="cursor: pointer"><a>DEL</a></li>
           </ul>
         </div>
 
