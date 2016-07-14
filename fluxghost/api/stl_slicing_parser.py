@@ -170,8 +170,11 @@ def stl_slicing_parser_api_mixin(cls):
                 names = names[:-1]
             else:
                 output_type = '-f'
-            self.m_stl_slicer.begin_slicing(names, self, output_type)
-            self.send_ok()
+            ret, msg = self.m_stl_slicer.begin_slicing(names, self, output_type)
+            if ret:
+                self.send_ok()
+            else:
+                self.send_error('16', info=msg)
 
         def end_slicing(self, *args):
             self.m_stl_slicer.end_slicing()
