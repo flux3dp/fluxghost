@@ -2,7 +2,9 @@
 import importlib
 
 ROUTES = {
-    "discover": "fluxghost.pipe.discover.PipeDiscover"
+    "discover": "fluxghost.pipe.discover.PipeDiscover",
+    "3d-scan-modeling": "fluxghost.pipe.scan_modeling.Pipe3DScannModeling",
+    "3dprint-slicing": "fluxghost.pipe.stl_slicing_parser.Pipe3DSlicing"
 }
 
 
