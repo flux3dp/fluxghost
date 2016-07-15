@@ -2,9 +2,35 @@
 import importlib
 
 ROUTES = {
-    "discover": "fluxghost.pipe.discover.PipeDiscover",
-    "3d-scan-modeling": "fluxghost.pipe.scan_modeling.Pipe3DScannModeling",
-    "3dprint-slicing": "fluxghost.pipe.stl_slicing_parser.Pipe3DSlicing"
+    # Device related
+    "discover":
+        "fluxghost.pipe.discover.PipeDiscover",
+    # "upnp-config":
+    #     "fluxghost.websocket.upnp_ws.WebsocketUpnp",
+    # "touch":
+    #     "fluxghost.websocket.touch.WebsocketTouch",
+    # "control":
+    #     "fluxghost.websocket.control.WebsocketControl",
+    # "camera":
+    #     "fluxghost.websocket.camera.WebsocketCamera",
+    # "3d-scan-control":
+    #     "fluxghost.websocket.scan_control.Websocket3DScanControl",
+    "usb-config":
+        "fluxghost.pipe.usb_config.PipeUsbConfig",
+
+    # Data related
+    "3d-scan-modeling":
+        "fluxghost.pipe.scan_modeling.Pipe3DScannModeling",
+    "3dprint-slicing":
+        "fluxghost.pipe.stl_slicing_parser.Pipe3DSlicing",
+    "bitmap-laser-parser":
+        "fluxghost.pipe.laser_bitmap_parser.PipeLaserBitmapParser",
+    "svg-laser-parser":
+        "fluxghost.pipe.laser_svg_parser.PipeLaserSvgParser",
+    "pen-svg-parser":
+        "fluxghost.pipe.pen_svg_parser.PipePenSvgParser",
+    "fcode-reader":
+        "fluxghost.pipe.fcode_reader.PipeFcodeReader",
 }
 
 

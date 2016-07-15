@@ -58,11 +58,11 @@ class PipeBase(ApiBase):
                         logger.error("Unknow message type: %s", tp)
                         self.close()
                     self._recv_buf = b""
-                    self.on_read_body()
+                    self._on_read_body()
             else:
                 self.close()
         else:
-            self.on_read_body()
+            self._on_read_body()
 
     def _on_read_body(self):
         buf = self.stdin.read(self._recv_len - len(self._recv_buf))
