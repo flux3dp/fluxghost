@@ -14,9 +14,11 @@ class HttpHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def __init__(self, request, client, server):
+        request.settimeout(60.)
         try:
-            request.settimeout(60.)
             BaseHTTPRequestHandler.__init__(self, request, client, server)
+        except ConnectionResetError:  # noqa
+            pass
         except Exception:
             logger.exception("Unhandle Error")
 
