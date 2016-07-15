@@ -6,6 +6,35 @@ import json
 logger = logging.getLogger("API.DISCOVER")
 
 
+def get_online_message(device):
+    st = device.status
+    return {
+        "uuid": device.uuid.hex,
+        "serial": device.serial,
+        "version": str(device.version),
+        "alive": True,
+        "name": device.name,
+        "ipaddr": device.ipaddr,
+
+        "model": device.model_id,
+        "password": device.has_password,
+        "source": "lan",
+
+        "st_ts": st.get("st_ts"),
+        "st_id": st.get("st_id"),
+        "st_prog": st.get("st_prog"),
+        "head_module": st.get("head_module"),
+        "error_label": st.get("error_label")
+    }
+
+
+def get_offline_message(device):
+    return {
+        "uuid": device.uuid.hex,
+        "alive": False
+    }
+
+
 def discover_api_mixin(cls):
     class DiscoverApi(cls):
         def __init__(self, *args):
@@ -23,7 +52,7 @@ def discover_api_mixin(cls):
                         # Dead devices
                         if uuid in self.alive_devices:
                             self.alive_devices.remove(uuid)
-                            self.send_text(self.build_dead_response(uuid))
+                            self.send_text(self.build_dead_response(device))
                     else:
                         # Alive devices
                         self.alive_devices.add(uuid)
@@ -52,31 +81,10 @@ def discover_api_mixin(cls):
         def on_closed(self):
             pass
 
-        def build_dead_response(self, uuid):
-            return json.dumps({
-                "uuid": uuid.hex,
-                "alive": False
-            })
+        def build_dead_response(self, device):
+            return json.dumps(get_offline_message(device))
 
         def build_response(self, device):
-            st = device.status
-            payload = {
-                "uuid": device.uuid.hex,
-                "serial": device.serial,
-                "version": str(device.version),
-                "alive": True,
-                "name": device.name,
-                "ipaddr": device.ipaddr,
+            return json.dumps(get_online_message(device))
 
-                "model": device.model_id,
-                "password": device.has_password,
-                "source": "lan",
-
-                "st_ts": st.get("st_ts"),
-                "st_id": st.get("st_id"),
-                "st_prog": st.get("st_prog"),
-                "head_module": st.get("head_module"),
-                "error_label": st.get("error_label")
-            }
-            return json.dumps(payload)
     return DiscoverApi
