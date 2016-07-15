@@ -8,8 +8,6 @@ ROUTES = [
      "fluxghost.websocket.echo.WebsocketEcho"),
     (re.compile("ver"),
      "fluxghost.websocket.ver.WebsocketVer"),
-    (re.compile("config"),
-     "fluxghost.websocket.config.WebsocketConfig"),
     (re.compile("3d-scan-modeling"),
      "fluxghost.websocket.scan_modeling.Websocket3DScannModeling"),
     (re.compile("bitmap-laser-parser"),
