@@ -80,29 +80,33 @@ def fcode_reader_api_mixin(cls):
                     f.seek(0)
 
                     fcode_output = BytesIO()
+                    # try:
+                    res = self.data_parser.process(f, fcode_output)
+                    if res != 'broken':
+                        self.fcode = fcode_output.getvalue()
 
-                    self.data_parser.process(f, fcode_output)
-                    self.fcode = fcode_output.getvalue()
-
-                    if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
-                        self.send_error("6", info="gcode area too big")
-                    elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
-                        self.send_error("6", info="gcode area too big")
-                    elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
-                        self.send_error("6", info="gcode area too big")
-                    elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
-                        self.send_error("6", info="gcode area too big")
+                        if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
+                            self.send_error("6", info="gcode area too big")
+                        elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
+                            self.send_error("6", info="gcode area too big")
+                        elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
+                            self.send_error("6", info="gcode area too big")
+                        elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
+                            self.send_error("6", info="gcode area too big")
+                        else:
+                            self.send_ok()
+                        logger.debug("gcode parsing done")
                     else:
-                        self.send_ok()
-                    logger.debug("gcode parsing done")
+                        self.send_error('15', info='Parsing file fail')
 
             elif flag == 'change_img':
                 self.change_img(buf)
 
             ########################
             if environ.get("flux_debug") == '1':
-                with open('output.fc', 'wb') as f:
-                    f.write(self.fcode)
+                if self.fcode:
+                    with open('output.fc', 'wb') as f:
+                        f.write(self.fcode)
             ########################
 
         def get_img(self, *args):
