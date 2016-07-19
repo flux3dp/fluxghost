@@ -52,8 +52,7 @@ def control_base_mixin(cls):
                 try:
                     self.robot = self.get_robot_from_device(device)
 
-                except (ConnectionResetError, BrokenPipeError, OSError, # noqa
-                        socket.timeout) as e:
+                except (OSError, ConnectionError, socket.timeout) as e:  # noqa
                     logger.error("Socket erorr: %s", e)
                     self.send_fatal("DISCONNECTED")
 
