@@ -17,8 +17,11 @@ class HttpHandler(BaseHTTPRequestHandler):
         request.settimeout(60.)
         try:
             BaseHTTPRequestHandler.__init__(self, request, client, server)
-        except ConnectionResetError:  # noqa
-            pass
+        except OSError as e:
+            if server.debug:
+                logger.exception("OSError in http request")
+            else:
+                logger.error("%s", e)
         except Exception:
             logger.exception("Unhandle Error")
 
