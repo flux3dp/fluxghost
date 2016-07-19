@@ -15,7 +15,7 @@ class HttpServerBase(object):
     discover_mutex = None
 
     def __init__(self, assets_path, address, allow_foreign=False,
-                 allow_origin='127.0.0.1', enable_discover=False, backlog=10, debug=False):
+                 enable_discover=False, backlog=10, debug=False):
         self.discover_mutex = Lock()
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
@@ -23,7 +23,6 @@ class HttpServerBase(object):
         self.discover_devices = {}
         self.debug = debug
         self.allow_foreign = allow_foreign
-        self.allow_origin = allow_origin
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

@@ -32,9 +32,6 @@ def main():
                         default='',
                         help="Set cura location")
 
-    parser.add_argument("--allow-origin", dest='allow_origin', type=str, default='127.0.0.1',
-                        help="Allowed origin")
-
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
                         help="Use sentry logger")
     parser.add_argument('--test', dest='test', action='store_const',
@@ -78,7 +75,6 @@ def main():
                         enable_discover=True,
                         address=(options.ipaddr, options.port,),
                         allow_foreign=options.allow_foreign,
-                        allow_origin=options.allow_origin,
                         debug=options.debug)
 
     server.serve_forever()
