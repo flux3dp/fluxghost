@@ -32,7 +32,7 @@ def main():
                         default='',
                         help="Set cura location")
 
-    parser.add_argument("--Allow-Origin", dest='allow_origin', type=str, default='127.0.0.1',
+    parser.add_argument("--allow-origin", dest='allow_origin', type=str, default='127.0.0.1',
                         help="Allowed origin")
 
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
