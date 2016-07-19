@@ -36,6 +36,7 @@ def scan_modeling_api_mixin(cls):
                 'import_file': [self.import_file],
                 'export_threading': [self.export_threading],
                 'export_collect': [self.export_collect],
+                'subset': [self.subset],
             }
 
         def _begin_upload(self, params):  # name, left_len, right_len="0"
@@ -82,6 +83,14 @@ def scan_modeling_api_mixin(cls):
             name_base, name_2, name_out = params.split()
             self.m_pc_process.merge(name_base, name_2, name_out)
             self.send_ok()
+
+        def subset(self, params):
+            name_base, name_out, mode = params.split()
+            ret = self.m_pc_process.subset(name_base, name_out, mode)
+            if ret == 'ok':
+                self.send_ok()
+            else:
+                self.send_error(ret)
 
         def apply_transform(self, params):
             name_in, x, y, z, rx, ry, rz, name_out = params.split()
