@@ -5,7 +5,7 @@ import json
 
 from PIL import Image
 
-from fluxclient.utils.f_to_g import FcodeToGcode
+from fluxclient.fcode.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.hw_profile import HW_PROFILE
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
