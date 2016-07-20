@@ -99,7 +99,7 @@ class WebSocketHandler(object):
                 raise WebsocketError("Connection closed")
         except socket.error as e:
             self._closed()
-            raise WebsocketError("Connection closed") from e
+            raise WebsocketError("Connection closed") from e  # noqa
         except WebsocketError:
             self._closed()
             raise
@@ -281,13 +281,13 @@ class WebSocketHandler(object):
         self.running = False
 
     def on_close(self, message):
-        if not self._is_closing:
+        if self._is_closing:
+            self._closed()
+        else:
             # Remote send close message, response and close it.
             self._is_closing = True
             self._send(FRAME_CLOSE, b'\x03\xe8')
             self.request.shutdown(socket.SHUT_WR)
-
-        self._closed()
 
     def on_text_message(self, message):
         pass

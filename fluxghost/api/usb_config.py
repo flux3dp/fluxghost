@@ -130,6 +130,8 @@ def usb_config_api_mixin(cls):
             if self.task:
                 self.task.close()
                 self.task = None
+            super().on_close(message)
+
     return UsbConfigApi
 
 

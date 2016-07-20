@@ -182,8 +182,8 @@ def upnp_api_mixin(cls):
             self.send_ok()
 
         def on_close(self, message):
-            logger.debug('on_close')
             self.close_task()
+            super().on_close(message)
 
         def close_task(self):
             logger.debug('close_task')
