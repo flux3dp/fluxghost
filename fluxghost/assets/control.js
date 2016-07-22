@@ -264,11 +264,10 @@
 
         function on_error_helper(obj, payload) {
             if(payload.status === "error") {
-                var er = (payload.error.constructor === String) ? payload.error.split(" ") : payload.error;
                 if(obj.options.on_error) {
-                    obj.options.on_error(self, obj.cmd, er, obj.data);
+                    obj.options.on_error(self, obj.cmd, payload.symbol, obj.data);
                 } else if(options.on_error) {
-                    options.on_error(self, obj.cmd, er, obj.data);
+                    options.on_error(self, obj.cmd, payload.symbol, obj.data);
                 } else {
                     console.log("Command '" + obj.cmd + "' got an error: " + er);
                 }

@@ -40,7 +40,7 @@ def stl_slicing_parser_api_mixin(cls):
             super().__init__(*args)
 
             self.m_stl_slicer = StlSlicer('')
-            self._change_engine('slic3r default')
+            self._change_engine('slic3r', 'default')
             # self.change_engine('cura default')
 
             self.cmd_mapping = {
@@ -131,8 +131,7 @@ def stl_slicing_parser_api_mixin(cls):
                 self.send_error('14', info=set_result)
 
         def advanced_setting(self, params):
-            lines = params.split('\n')
-            bad_lines = self.m_stl_slicer.advanced_setting(lines)
+            bad_lines = self.m_stl_slicer.advanced_setting(params)
             if bad_lines != []:
                 for line_num, err_msg in bad_lines:
                     self.send_error('7', info='line %d: %s' % (line_num, err_msg))
@@ -170,8 +169,11 @@ def stl_slicing_parser_api_mixin(cls):
                 names = names[:-1]
             else:
                 output_type = '-f'
-            self.m_stl_slicer.begin_slicing(names, self, output_type)
-            self.send_ok()
+            ret, msg = self.m_stl_slicer.begin_slicing(names, self, output_type)
+            if ret:
+                self.send_ok()
+            else:
+                self.send_error('16', info=msg)
 
         def end_slicing(self, *args):
             self.m_stl_slicer.end_slicing()
@@ -215,16 +217,15 @@ def stl_slicing_parser_api_mixin(cls):
             """
             logger.debug('change_engine ' + params)
             engine, engine_path = params.split()
-            if self._change_engine(params):
+            if self._change_engine(engine, engine_path):
                 self.send_ok()
             else:
                 self.send_error('11', info="wrong engine {}, should be 'cura' or 'slic3r'".format(engine))
 
-        def _change_engine(self, params):
+        def _change_engine(self, engine, engine_path):
             """
             normal chaning engine
             """
-            engine, engine_path = params.split()
             if engine == 'slic3r':
                 logger.debug("Using slic3r()")
                 if engine_path == 'default':

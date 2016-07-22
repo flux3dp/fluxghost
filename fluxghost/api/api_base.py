@@ -15,15 +15,18 @@ class ApiBase(object):
 
     def serve_forever(self):
         try:
-            while self.running:
-                rl = select(self.rlist, (), (), self.POOL_TIME)[0]
-                for r in rl:
-                    r.on_read()
-
-                self._on_loop()
-                self.on_loop()
+            self._serve_forever()
         finally:
             self.on_closed()
+
+    def _serve_forever(self):
+        while self.running:
+            rl = select(self.rlist, (), (), self.POOL_TIME)[0]
+            for r in rl:
+                r.on_read()
+
+            self._on_loop()
+            self.on_loop()
 
     def send_ok(self, **kw):
         if kw:

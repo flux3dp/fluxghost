@@ -63,6 +63,7 @@ class WebSocketBase(WebSocketHandler, ApiBase):
 
     def close(self, error=False, message=None):
         if error:
+            logger.warning("Websocket close because: %s", message)
             WebSocketHandler.close(self, code=ST_UNEXPECTED_CONDITION,
                                    message=message)
         else:
