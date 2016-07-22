@@ -1,5 +1,6 @@
 
 from fluxghost.api.scan_control import scan_control_api_mixin
+from fluxghost.api.scan_control_sim import scan_control_api_mixin_sim
 from .base import WebSocketBase
 
 
@@ -20,4 +21,8 @@ ws.send("image")
 
 
 class Websocket3DScanControl(scan_control_api_mixin(WebSocketBase)):
+    pass
+
+
+class Websocket3DScanControlSimulation(scan_control_api_mixin_sim(WebSocketBase)):
     pass

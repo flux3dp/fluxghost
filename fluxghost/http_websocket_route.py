@@ -14,6 +14,8 @@ ROUTES = [
      "fluxghost.websocket.control.WebsocketControl"),
     (re.compile("camera/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.camera.WebsocketCamera"),
+    (re.compile("3d-scan-control/" + '0' * 32),
+     "fluxghost.websocket.scan_control.Websocket3DScanControlSimulation"),
     (re.compile("3d-scan-control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
     (re.compile("usb-config"),
