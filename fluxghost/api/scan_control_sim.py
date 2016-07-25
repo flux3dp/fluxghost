@@ -197,8 +197,7 @@ def scan_control_api_mixin_sim(cls):
             self.cab = True
 
         def on_closed(self):
-            if self.robot:
-                self.robot.close()
+            return
 
         def on_binary_message(self, buf):
             self.text_send("Protocol error")
