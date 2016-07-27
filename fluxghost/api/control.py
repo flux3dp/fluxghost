@@ -356,9 +356,14 @@ def control_api_mixin(cls):
 
             def on_recived(stream):
                 stream.seek(0)
-                self.robot.update_firmware(stream, int(size),
-                                           self.cb_upload_callback)
-                self.send_ok()
+                try:
+                    self.robot.update_firmware(stream, int(size),
+                                               self.cb_upload_callback)
+                    self.send_ok()
+                except RobotError as e:
+                    logger.debug("RobotError%s [error_symbol=%s]",
+                                 repr(e.args), e.error_symbol)
+                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
             self.simple_binary_receiver(size, on_recived)
 
         def update_mbfw(self, mimetype, ssize):
