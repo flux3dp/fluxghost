@@ -63,6 +63,7 @@ def control_api_mixin(cls):
                 "update_fw": self.update_fw,
                 "update_mbfw": self.update_mbfw,
 
+                "deviceinfo": self.deviceinfo,
                 "report": self.report_play,
                 "kick": self.kick,
 
@@ -539,6 +540,9 @@ def control_api_mixin(cls):
         def maintain_headstatus(self):
             status = self.task.head_status()
             self.send_ok(**status)
+
+        def deviceinfo(self):
+            self.send_ok(**self.robot.deviceinfo)
 
         def report_play(self):
             data = self.robot.report_play()
