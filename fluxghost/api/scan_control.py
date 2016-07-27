@@ -36,6 +36,7 @@ def scan_control_api_mixin(cls):
             self.try_control()
 
         def on_command(self, message):
+            logger.info(message)
             if message == "take_control":
                 self.take_control()
 
@@ -169,7 +170,7 @@ def scan_control_api_mixin(cls):
                 self.scan_settings.cab_r += tmp[1]
             else:
                 pass
-            logger.info('callibration: m:{} l:{} r:{}'.format(
+            logger.info('  callibration: m:{} l:{} r:{}'.format(
                 self.scan_settings.cab_m, self.scan_settings.cab_l,
                 self.scan_settings.cab_r))
 
@@ -195,7 +196,7 @@ def scan_control_api_mixin(cls):
             if step:
                 self.current_step = step
 
-            logger.debug('Do scan %d' % (self.current_step))
+            logger.debug('  Do scan %d' % (self.current_step))
 
             # ###################
             # if self.current_step > 10:
