@@ -893,6 +893,15 @@
                 style="cursor: pointer">
               <a>SET</a></li>
             <li data-cmd="config del autoresume" style="cursor: pointer"><a>DEL</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">broadcast: L A N (default:L)</li>
+            <li data-cmd="config get broadcast" style="cursor: pointer"><a>GET</a></li>
+            <li data-cmd="config set broadcast {}"
+                data-cmd-require-param="1"
+                data-cmd-param-help="Broadcast option:\nL: Lazy\nA: Aggressive\nN: Disable"
+                style="cursor: pointer">
+              <a>SET</a></li>
+            <li data-cmd="config del broadcast" style="cursor: pointer"><a>DEL</a></li>
           </ul>
         </div>
 
