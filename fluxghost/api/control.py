@@ -63,6 +63,7 @@ def control_api_mixin(cls):
                 "update_fw": self.update_fw,
                 "update_mbfw": self.update_mbfw,
 
+                "deviceinfo": self.deviceinfo,
                 "report": self.report_play,
                 "kick": self.kick,
 
@@ -355,9 +356,14 @@ def control_api_mixin(cls):
 
             def on_recived(stream):
                 stream.seek(0)
-                self.robot.update_firmware(stream, int(size),
-                                           self.cb_upload_callback)
-                self.send_ok()
+                try:
+                    self.robot.update_firmware(stream, int(size),
+                                               self.cb_upload_callback)
+                    self.send_ok()
+                except RobotError as e:
+                    logger.debug("RobotError%s [error_symbol=%s]",
+                                 repr(e.args), e.error_symbol)
+                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
             self.simple_binary_receiver(size, on_recived)
 
         def update_mbfw(self, mimetype, ssize):
@@ -539,6 +545,9 @@ def control_api_mixin(cls):
         def maintain_headstatus(self):
             status = self.task.head_status()
             self.send_ok(**status)
+
+        def deviceinfo(self):
+            self.send_ok(**self.robot.deviceinfo)
 
         def report_play(self):
             data = self.robot.report_play()
