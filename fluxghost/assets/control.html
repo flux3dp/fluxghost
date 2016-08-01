@@ -208,12 +208,26 @@
       data.fw_prog.update(payload.written, data.get_size());
 
       return;
+    } else if(stage == "CALIBRATING") {
+      params = payload.pos + " / 3";
+    } else if(stage == "HEATING") {
+      params = payload.temperature + " °C";
     }
 
     appendHtmlLog($('<div></div>')
-      .append($('<span></span>').text("Operating "))
-      .append($('<span class="label label-primary"></span>').text(stage))
+      .append($('<span class="label label-primary"></span>')
+        .append($("<i class=\"glyphicon glyphicon-transfer\"></i>"))
+        .append($("<span></span>").html("&nbsp;"))
+        .append($("<span></span>").text(stage)))
+      .append($("<span></span>").html("&nbsp;"))
       .append($('<span></span>').text(params)));
+  }
+
+  function global_on_debug(controller, cmd, payload, data) {
+    appendHtmlLog($('<div></div>')
+      .append($('<span class="label label-default">DEVICE LOG</span>'))
+      .append($('<span></span>').html("&nbsp;"))
+      .append($('<span></span>').text(payload.log || payload.args)));
   }
 
   var callbacks = {
@@ -512,6 +526,7 @@
             }
           },
           on_operating: global_on_operating,
+          on_debug: global_on_debug,
           data: (data || {})
         });
 
@@ -613,6 +628,7 @@
           appendLog("ok");
         },
         on_operating: global_on_operating,
+        on_debug: global_on_debug,
         file: f,
       });
     });

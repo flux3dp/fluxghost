@@ -83,7 +83,8 @@ def control_api_mixin(cls):
                 "maintain": {
                     "load_filament": self.maintain_load_filament,
                     "unload_filament": self.maintain_unload_filament,
-                    "calibrating": self.maintain_calibrating,
+                    "calibrating": self.maintain_calibrate,
+                    "calibrate": self.maintain_calibrate,
                     "zprobe": self.maintain_zprobe,
                     "headinfo": self.maintain_headinfo,
                     "headstatus": self.maintain_headstatus,
@@ -454,12 +455,17 @@ def control_api_mixin(cls):
             self.task.home()
             self.send_ok()
 
-        def maintain_calibrating(self, *args):
+        def maintain_calibrate(self, *args):
             def callback(robot, *args):
                 try:
                     if args[0] == "POINT":
                         self.send_json(status="operating",
                                        stage=["CALIBRATING"], pos=int(args[1]))
+                    elif args[0] == "CTRL" and args[1] == "POINT":
+                        self.send_json(status="operating",
+                                       stage=["CALIBRATING"], pos=int(args[2]))
+                    elif args[0] == "DEBUG":
+                        self.send_json(status="debug", log=" ".join(args[1:]))
                     else:
                         self.send_json(status="debug", args=args)
                 except Exception:
@@ -475,11 +481,13 @@ def control_api_mixin(cls):
 
         def maintain_zprobe(self, *args):
             def callback(robot, *args):
-                # <<<<
-                self.send_json(status="operating", stage=["ZPROBE"])
-                # ====
-                self.send_json(status="debug", args=args)
-                # >>>>
+                if args[0] == "CTRL" and args[1] == "ZPROBE":
+                    self.send_json(status="operating",
+                                   stage=["ZPROBE"])
+                elif args[0] == "DEBUG":
+                    self.send_json(status="debug", log=" ".join(args[1:]))
+                else:
+                    self.send_json(status="debug", args=args)
 
             if len(args) > 0:
                 ret = self.task.manual_level(float(args[0]))
@@ -491,20 +499,16 @@ def control_api_mixin(cls):
         def maintain_load_filament(self, index, temp):
             def nav(robot, *args):
                 try:
-                    # <<<<
                     stage = args[0]
                     if stage == "HEATING":
                         self.send_json(status="operating", stage=["HEATING"],
                                        temperature=float(args[1]))
-                    elif stage == ["LOADING"]:
+                    elif stage == "LOADING":
                         self.send_json(status="operating",
                                        stage=["FILAMENT", "LOADING"])
-                    elif stage == ["WAITING"]:
+                    elif stage == "WAITING":
                         self.send_json(status="operating",
                                        stage=["FILAMENT", "WAITING"])
-                    # ====
-                    self.send_json(status="loading", nav=" ".join(args))
-                    # >>>>
                 except Exception:
                     logger.exception("Error during load filament cb")
 
@@ -514,7 +518,6 @@ def control_api_mixin(cls):
         def maintain_unload_filament(self, index, temp):
             def nav(robot, *args):
                 try:
-                    # <<<<
                     stage = args[0]
                     if stage == "HEATING":
                         self.send_json(status="operating", stage=["HEATING"],
@@ -522,9 +525,6 @@ def control_api_mixin(cls):
                     else:
                         self.send_json(status="operating",
                                        stage=["FILAMENT", stage])
-                    # ====
-                    self.send_json(status="unloading", nav=" ".join(args))
-                    # >>>>
                 except Exception:
                     logger.exception("Error during unload filament cb")
             self.task.unload_filament(int(index), float(temp), nav)
