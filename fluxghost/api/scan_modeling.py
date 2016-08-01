@@ -19,10 +19,10 @@ def scan_modeling_api_mixin(cls):
             # ##################################
             if not SIMULATE:
                 self.m_pc_process = PcProcess(ScanSetting())
-                logger.debug('using PcProcess')
+                logger.debug('  using PcProcess')
             if SIMULATE:
                 self.m_pc_process = PcProcessNoPCL()
-                logger.debug('using PcProcessNoPCL()')
+                logger.debug('  using PcProcessNoPCL()')
             self.cmd_mapping = {
                 'upload': [self._begin_upload],
                 'cut': [self.cut],
@@ -40,6 +40,7 @@ def scan_modeling_api_mixin(cls):
             }
 
         def _begin_upload(self, params):  # name, left_len, right_len="0"
+            logger.info('upload')
             splited_params = params.split()
             try:
                 name = splited_params[0]
@@ -51,13 +52,14 @@ def scan_modeling_api_mixin(cls):
                 totel_length = (llen + rlen) * 24
             except ValueError:
                 raise RuntimeError("BAD_PARAM_TYPE", "upload param error")
-            logger.debug('uploading {}, L:{}, R:{}, time:{}'.format(name, s_left_len, s_right_len, time()))
+            logger.debug('  uploading {}, L:{}, R:{}, time:{}'.format(name, s_left_len, s_right_len, time()))
             helepr = BinaryUploadHelper(totel_length, self._end_upload,
                                         1, name, llen, rlen)
             self.set_binary_helper(helepr)
             self.send_continue()
 
         def _end_upload(self, buf, flag, name, *args):
+            logger.info('_end_upload')
             o_flag = True
             if flag == 1:
                 left_len, right_len = args
@@ -73,6 +75,7 @@ def scan_modeling_api_mixin(cls):
                 self.send_error(message)
 
         def cut(self, params):
+            logger.info('cut: {}'.format(params))
             name_in, name_out, mode, direction, value = params.split()
             value = float(value)
             direction = direction[0] == 'T'
@@ -80,11 +83,13 @@ def scan_modeling_api_mixin(cls):
             self.send_ok()
 
         def merge(self, params):
+            logger.info('merge: {}'.format(params))
             name_base, name_2, name_out = params.split()
             self.m_pc_process.merge(name_base, name_2, name_out)
             self.send_ok()
 
         def subset(self, params):
+            logger.info('subset: {}'.format(params))
             name_base, name_out, mode = params.split()
             ret = self.m_pc_process.subset(name_base, name_out, mode)
             if ret == 'ok':
@@ -93,6 +98,7 @@ def scan_modeling_api_mixin(cls):
                 self.send_error(ret)
 
         def apply_transform(self, params):
+            logger.info('apply_transform: {}'.format(params))
             name_in, x, y, z, rx, ry, rz, name_out = params.split()
             x = float(x)
             y = float(y)
@@ -104,7 +110,7 @@ def scan_modeling_api_mixin(cls):
             self.send_ok()
 
         def auto_alignment(self, params):
-
+            logger.info('auto_alignment: {}'.format(params))
             name_base, name_2, name_out = params.split()
             if self.m_pc_process.auto_alignment(name_base, name_2, name_out):
                 self.send_ok()
@@ -112,6 +118,7 @@ def scan_modeling_api_mixin(cls):
                 self.send_text('{"status": "fail"')
 
         def delete_noise(self, params):
+            logger.info('delete_noise: {}'.format(params))
             if not SUPPORT_PCL:
                 self.send_error('No pcl')
                 return
@@ -122,6 +129,7 @@ def scan_modeling_api_mixin(cls):
             self.send_ok()
 
         def dump(self, params):
+            logger.info('dump: {}'.format(params))
             name = params
             len_L, len_R, buffer_data = self.m_pc_process.dump(name)
             self.send_text('{{"status": "continue", "left": {}, "right": {}}}'.format(len_L, len_R))
@@ -133,20 +141,23 @@ def scan_modeling_api_mixin(cls):
             """
             should be de deprecated
             """
+            logger.info('export: {}'.format(params))
             name, file_foramt = params.split()
             buf = self.m_pc_process.export(name, file_foramt)
             self.send_text('{{"status": "continue", "length": {}}}'.format(len(buf)))
             self.send_binary(buf)
             self.send_ok()
-            logger.debug('export {} as .{} file done'.format(name, file_foramt))
+            logger.debug('  export {} as .{} file done'.format(name, file_foramt))
 
         def export_threading(self, params):
+            logger.info('thread export: {}'.format(params))
             name, file_foramt = params.split()
             collect_name = self.m_pc_process.export_threading(name, file_foramt)
             self.send_text('{{"status": "ok", "collect_name": "{}"}}'.format(collect_name))
-            logger.debug('export {} as .{} file in thread'.format(name, file_foramt))
+            logger.debug('  export {} as .{} file in thread'.format(name, file_foramt))
 
         def export_collect(self, params):
+            logger.info('collect export: {}'.format(params))
             collect_name = params
 
             buf = self.m_pc_process.export_collect(collect_name)
@@ -160,12 +171,14 @@ def scan_modeling_api_mixin(cls):
                 self.send_text('{"status": "computing"}')
 
         def import_file(self, params):
+            logger.info('import file: {}'.format(params))
             name, filetype, file_length = params.split()
             helepr = BinaryUploadHelper(int(file_length), self._end_upload, 2, name, filetype)
             self.set_binary_helper(helepr)
             self.send_continue()
 
         def set_params(self, params):
+            logger.info('set_params: {}'.format(params))
             key, value = params.split()
             if key in ['NeighborhoodDistance', 'CloseBottom', 'CloseTop', 'SegmentationDistance', 'NoiseNeighbors']:
                 setattr(self.m_pc_process.settings, key, float(value))

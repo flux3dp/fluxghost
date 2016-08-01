@@ -143,6 +143,11 @@ def fcode_reader_api_mixin(cls):
                 logger.debug('sending fcode %d' % (len(self.fcode)))
                 self.send_text('{"status": "complete", "length": %d}' % len(self.fcode))
                 self.send_binary(self.fcode)
+                ######################### fake code ###################################
+                if environ.get("flux_debug") == '1':
+                    with open('output.fc', 'wb') as f:
+                        f.write(self.fcode)
+                ############################################################
             else:
                 logger.debug('get fcode: nothing to send')
                 self.send_error('8', info='No fcode to send')
