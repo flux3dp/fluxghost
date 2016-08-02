@@ -425,7 +425,7 @@ def control_api_mixin(cls):
                     self.task.update_hbfw(swap, size, nav_cb)
                     self.send_ok()
                 except RobotError as e:
-                    self.send_error(*e.args)
+                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
                     self.send_fatal("UNKNOWN_ERROR", e.args)

@@ -617,6 +617,9 @@
 
       window.controller.send_command(cmd, {
         data: new ProgressBar("Upload file..."),
+        on_error: function(sender, cmd, errors, data) {
+          appendLog("Error: " + errors.join(", "), "#F05E1C");
+        },
         on_upload_begin: function(sender, size, prog) {
           appendHtmlLog(prog.html);
           prog.update(0, size);
