@@ -6,7 +6,20 @@ from .camera import SimulateCamera
 from .robot import SimulateRobot
 
 
-class SimulateDevice(object):
+class SimulatePlayerMixIn(object):
+    __simulate_player = None
+
+    def simulate_player(self, timecost=60, ):
+        from threading import Thread
+
+        def player():
+            pass
+
+    def simulate_report_play(self):
+        return {"st_id": 0, "st_label": "IDLE"}
+
+
+class SimulateDevice(SimulatePlayerMixIn):
     uuid = UUID(int=0)
     serial = "XXXXXXXXXX"
     version = StrictVersion("1.1.4")
