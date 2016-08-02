@@ -1,28 +1,17 @@
 
+from math import pi, cos, sin, isnan
+from io import BytesIO
+import pkg_resources
 import logging
-from math import pi, cos, sin
+import random
 import struct
 
 from fluxclient.scanner.scan_settings import ScanSetting
-from fluxclient.robot.errors import RobotError
-from fluxclient.hw_profile import HW_PROFILE
+from fluxclient.robot.errors import RobotError, RobotSessionError
+from fluxclient.encryptor import KeyObject
 from fluxclient.scanner import image_to_pc
-from fluxclient.robot import errors
-
-# from .control_base import control_base_mixin
 
 logger = logging.getLogger("API.SCAN_CONTROL_SIM")
-
-
-from io import BytesIO
-from uuid import UUID
-import logging
-import socket
-import pkg_resources
-import random
-
-from fluxclient.encryptor import KeyObject
-from fluxclient.robot.errors import RobotError, RobotSessionError
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
@@ -300,9 +289,10 @@ def scan_control_api_mixin_sim(cls):
                 self.send_text('{"status": "ready"}')
 
         def fetch_image(self):
-            file_name = random.choice(["assets/grid.png", "assets/flux3dp-icon.png"])
-
-            images = [('image/jpeg', open(pkg_resources.resource_filename("fluxclient", file_name), 'rb').read())]
+            file_name = random.choice(["assets/grid.png",
+                                       "assets/flux3dp-icon.png"])
+            images = [('image/jpeg',
+                      open(pkg_resources.resource_filename("fluxclient", file_name), 'rb').read())]
 
             for mime, buf in images:
                 self.send_binary_begin(mime, len(buf))
@@ -374,13 +364,20 @@ def scan_control_api_mixin_sim(cls):
 
             # point_L
             # point_R
-            points_to_bytes = lambda points: [struct.pack('<ffffff', p[0], p[1], p[2], p[3] / 255., p[4] / 255., p[5] / 255.) for p in points]
-            left_r = points_to_bytes(point_L)
-            right_r = points_to_bytes(point_R)
+            buf = BytesIO()
+
+            def packer(s, points):
+                for p in points:
+                    s.write(
+                        struct.pack('<ffffff', p[0], p[1], p[2],
+                                    p[3] / 255., p[4] / 255., p[5] / 255.))
+
+            packer(buf, point_L)
+            packer(buf, point_R)
 
             self.send_text('{"status": "chunk", "left": %d, "right": %d}' %
-                           (len(left_r), len(right_r)))
-            self.send_binary(b''.join(left_r + right_r))
+                           (len(point_L), len(point_R)))
+            self.send_binary(buf.getbuffer())
             # self.task.forward()
             # from time import sleep
             # sleep(1)
