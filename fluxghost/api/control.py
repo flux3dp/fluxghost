@@ -1,5 +1,6 @@
 
 from errno import EPIPE
+from time import time, sleep
 from io import BytesIO
 import logging
 import socket
@@ -65,6 +66,7 @@ def control_api_mixin(cls):
 
                 "deviceinfo": self.deviceinfo,
                 "report": self.report_play,
+                "wait_status": self.wait_status,
                 "kick": self.kick,
 
                 "file": {
@@ -553,6 +555,32 @@ def control_api_mixin(cls):
             data = self.robot.report_play()
             data["cmd"] = "report"
             self.send_ok(**data)
+
+        def wait_status(self, status, timeout=6.0):
+            mapping = {
+                "idle": 0,
+                "running": 16,
+                "paused": 48,
+                "completed": 64,
+                "aborted": 128,
+            }
+
+            if status.isdigit() is False:
+                st_id = mapping.get(status)
+            else:
+                st_id = int(status, 10)
+
+            ttl = time() + float(timeout)
+
+            while ttl > time():
+                st = self.robot.report_play()
+                if st["st_id"] == st_id:
+                    self.send_ok()
+                    return
+                else:
+                    sleep(0.2)
+
+            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
 
         def scan_oneshot(self):
             images = self.task.oneshot()
