@@ -33,21 +33,26 @@ def usb_config_api_mixin(cls):
             self.send_json(payload)
 
         def connect_usb(self, port):
-            if self.task:
-                self.task.close()
-                self.task = None
+            try:
+                if self.task:
+                    self.task.close()
+                    self.task = None
 
-            if not self.client_key:
-                self.send_error("KEY_ERROR")
-                return
+                if not self.client_key:
+                    self.send_error("KEY_ERROR")
+                    return
 
-            if port == "SIMULATE":
-                self.task = t = SimulateTask()
-            else:
-                self.task = t = UsbTask(port=port, client_key=self.client_key)
-            self.send_json(status="ok", cmd="connect", serial=t.serial,
-                           version=t.remote_version, name=t.name,
-                           model=t.model_id, password=t.has_password)
+                if port == "SIMULATE":
+                    self.task = t = SimulateTask()
+                else:
+                    self.task = t = UsbTask(port=port,
+                                            client_key=self.client_key)
+                self.send_json(status="ok", cmd="connect", serial=t.serial,
+                               version=t.remote_version, name=t.name,
+                               model=t.model_id, password=t.has_password)
+            except Exception:
+                self.task = NoneTask()
+                raise
 
         def auth(self, password=None):
             if password:
@@ -114,7 +119,7 @@ def usb_config_api_mixin(cls):
                 self.send_error(" ".join(e.args), info=str(e))
                 if self.task:
                     self.task.close()
-                    self.task = None
+                    self.task = NoneTask()
 
             except UsbTaskError as e:
                 self.send_error(" ".join(e.args))
@@ -129,7 +134,7 @@ def usb_config_api_mixin(cls):
         def on_close(self, message):
             if self.task:
                 self.task.close()
-                self.task = None
+                self.task = NoneTask()
             super().on_close(message)
 
     return UsbConfigApi
