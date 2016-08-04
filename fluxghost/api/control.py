@@ -64,7 +64,7 @@ def control_api_mixin(cls):
                 "update_mbfw": self.update_mbfw,
 
                 "deviceinfo": self.deviceinfo,
-                "report": self.report_play,
+                "wait_status": self.wait_status,
                 "kick": self.kick,
 
                 "file": {
@@ -209,7 +209,7 @@ def control_api_mixin(cls):
 
         def kick(self):
             self.robot.kick()
-            self.send_ok(cmd="kick")
+            self.send_ok()
 
         def list_file(self, location=""):
             if location and location != "/":
@@ -224,16 +224,16 @@ def control_api_mixin(cls):
 
                 dirs.sort()
                 files.sort()
-                self.send_ok(cmd="ls", path=location, directories=dirs,
+                self.send_ok(path=location, directories=dirs,
                              files=files)
             else:
-                self.send_ok(cmd="ls", path=location,
+                self.send_ok(path=location,
                              directories=["SD", "USB"], files=[])
 
         def select_file(self, file):
             path = file if file.startswith("/") else "/" + file
             self.robot.select_file(path)
-            self.send_ok(cmd="select", path=path)
+            self.send_ok(path=path)
 
         def fileinfo(self, file):
             path = file if file.startswith("/") else "/" + file
@@ -244,36 +244,36 @@ def control_api_mixin(cls):
                                size=len(binary[0][1]))
                 self.send_binary(binary[0][1])
 
-            self.send_json(status="ok", **info)
+            self.send_ok(**info)
 
         def filemd5(self, file):
             path = file if file.startswith("/") else "/" + file
             hash = self.robot.file_md5(path)
-            self.send_json(status="ok", cmd="md5", file=path, md5=hash)
+            self.send_ok(file=path, md5=hash)
 
         def mkdir(self, file):
             path = file if file.startswith("/") else "/" + file
             if path.startswith("/SD/"):
                 self.robot.mkdir(path)
-                self.send_json(status="ok", cmd="mkdir", path=path)
+                self.send_json(status="ok", path=path)
             else:
-                self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
 
         def rmdir(self, file):
             path = file if file.startswith("/") else "/" + file
             if path.startswith("/SD/"):
                 self.robot.rmdir(path)
-                self.send_json(status="ok", cmd="rmdir", path=path)
+                self.send_ok(path=path)
             else:
-                self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
 
         def rmfile(self, file):
             path = file if file.startswith("/") else "/" + file
             if path.startswith("/SD/"):
                 self.robot.rmfile(path)
-                self.send_json(status="ok", cmd="rmfile", path=path)
+                self.send_json(status="ok", path=path)
             else:
-                self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
 
         def download(self, file):
             def report(left, size):
@@ -310,8 +310,7 @@ def control_api_mixin(cls):
             spath = source if source.startswith("/") else "/" + source
             tpath = target if target.startswith("/") else "/" + target
             self.robot.cpfile(spath, tpath)
-            self.send_json(status="ok", cmd="cpfile", source=source,
-                           target=target)
+            self.send_ok(source=source, target=target)
 
         def upload_file(self, mimetype, ssize, upload_to="#"):
             if upload_to == "#":
@@ -540,7 +539,7 @@ def control_api_mixin(cls):
 
             if "version" not in info:
                 info["version"] = info["VERSION"]
-            self.send_ok(cmd="headinfo", **info)
+            self.send_ok(**info)
 
         def maintain_headstatus(self):
             status = self.task.head_status()
@@ -550,9 +549,7 @@ def control_api_mixin(cls):
             self.send_ok(**self.robot.deviceinfo)
 
         def report_play(self):
-            data = self.robot.report_play()
-            data["cmd"] = "report"
-            self.send_ok(**data)
+            self.send_ok(**self.robot.report_play())
 
         def scan_oneshot(self):
             images = self.task.oneshot()
@@ -588,15 +585,14 @@ def control_api_mixin(cls):
 
         def config_set(self, key, value):
             self.robot.config[key] = value
-            self.send_json(status="ok", cmd="set", key=key)
+            self.send_ok(key=key)
 
         def config_get(self, key):
-            self.send_json(status="ok", cmd="get", key=key,
-                           value=self.robot.config[key])
+            self.send_ok(key=key, value=self.robot.config[key])
 
         def config_del(self, key):
             del self.robot.config[key]
-            self.send_json(status="ok", cmd="del", key=key)
+            self.send_ok(key=key)
 
         def on_raw_message(self, message):
             if message == "quit" or message == "task quit":
@@ -606,7 +602,45 @@ def control_api_mixin(cls):
                 self.send_text('{"status": "ok", "task": ""}')
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
-    return ControlApi
+
+    class DirtyLayer(ControlApi):
+        __last_command = None
+
+        # Front require command string append at response, override on_command
+        # to record command.
+        def on_command(self, message):
+            if message != "ping":
+                self.__last_command = message
+
+            super().on_command(message)
+
+        def send_ok(self, **kw):
+            # Override send_ok and send front request string at response.
+            # Request from norman.
+            if self.__last_command:
+                if self.__last_command.startswith("file ls"):
+                    kw["cmd"] = "ls"
+                elif self.__last_command.startswith("play select"):
+                    kw["cmd"] = "select"
+                elif self.__last_command.startswith("file mkdir"):
+                    kw["cmd"] = "mkdir"
+                elif self.__last_command.startswith("file rmdir"):
+                    kw["cmd"] = "rmdir"
+                elif self.__last_command.startswith("file cpfile"):
+                    kw["cmd"] = "cpfile"
+                elif self.__last_command.startswith("maintain headinfo"):
+                    kw["cmd"] = "headinfo"
+                else:
+                    kw["cmd"] = self.__last_command
+
+            # Pop prog when play status id is completed. Request from proclaim.
+            if self.__last_command in ("report", "play report"):
+                if kw.get("st_id") == 64:
+                    kw.pop("prog", None)
+
+            super().send_ok(**kw)
+
+    return DirtyLayer
 
 
 class RawSock(object):

@@ -402,7 +402,7 @@
       appendLog("Playing information recived.");
       render_fileinfo(filename);
     },
-    report: function(controller, cmd, payload) {
+    "play report": function(controller, cmd, payload) {
       delete payload.status;
       delete payload.cmd;
       appendLog(JSON.stringify(payload));
@@ -830,7 +830,7 @@
       <div style="margin: 0.5em 0" data-cmd-group="root">
         <!-- Report -->
         <div class="btn-group btn-xs dropup">
-          <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
+          <span data-cmd="play report" class="btn btn-xs btn-default">Report</span>
           <span class="btn btn-xs btn-default">
             <span class="glyphicon glyphicon-new-window"></span>
           </span>
