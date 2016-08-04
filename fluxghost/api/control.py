@@ -1,5 +1,6 @@
 
 from errno import EPIPE
+from time import time, sleep
 from io import BytesIO
 import logging
 import socket
@@ -424,7 +425,7 @@ def control_api_mixin(cls):
                     self.task.update_hbfw(swap, size, nav_cb)
                     self.send_ok()
                 except RobotError as e:
-                    self.send_error(*e.args)
+                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
                     self.send_fatal("UNKNOWN_ERROR", e.args)
@@ -550,6 +551,32 @@ def control_api_mixin(cls):
 
         def report_play(self):
             self.send_ok(**self.robot.report_play())
+
+        def wait_status(self, status, timeout=6.0):
+            mapping = {
+                "idle": 0,
+                "running": 16,
+                "paused": 48,
+                "completed": 64,
+                "aborted": 128,
+            }
+
+            if status.isdigit() is False:
+                st_id = mapping.get(status)
+            else:
+                st_id = int(status, 10)
+
+            ttl = time() + float(timeout)
+
+            while ttl > time():
+                st = self.robot.report_play()
+                if st["st_id"] == st_id:
+                    self.send_ok()
+                    return
+                else:
+                    sleep(0.2)
+
+            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
 
         def scan_oneshot(self):
             images = self.task.oneshot()

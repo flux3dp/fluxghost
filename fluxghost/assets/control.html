@@ -249,6 +249,34 @@
         }
       }
     },
+    deviceinfo: function(controller, cmd, payload) {
+      delete payload.status;
+      var key;
+
+      var default_keys = ["serial", "uuid", "model", "version", "nickname"];
+      for(i in default_keys) {
+        key = default_keys[i];
+
+        appendHtmlLog($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(key)))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(payload[key])));
+        delete payload[key];
+      }
+
+      for(key in payload) {
+        appendHtmlLog($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(key)))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(payload[key])));
+      }
+    },
     "file ls": function(controller, cmd, payload) {
       appendLog("List " + payload.path + ":");
 
@@ -617,6 +645,9 @@
 
       window.controller.send_command(cmd, {
         data: new ProgressBar("Upload file..."),
+        on_error: function(sender, cmd, errors, data) {
+          appendLog("Error: " + errors.join(", "), "#F05E1C");
+        },
         on_upload_begin: function(sender, size, prog) {
           appendHtmlLog(prog.html);
           prog.update(0, size);
@@ -922,7 +953,10 @@
           </ul>
         </div>
 
-        <span data-cmd="deviceinfo" style="margin-left: 10px;" class="btn btn-xs btn-default">Device Info</span>
+        <span data-cmd="deviceinfo" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          <i class="glyphicon glyphicon-info-sign"></i>
+          Device Info
+        </span>
 
         <!-- Update Device -->
         <div class="btn-group btn-xs dropup">
