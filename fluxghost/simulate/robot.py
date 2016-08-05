@@ -5,6 +5,8 @@ from .failedimg import IMAGE_MIMETYPE, IMAGE_BUF
 
 
 class SimulateRobot(object):
+    selected_node = None
+
     def __init__(self, device):
         self.device = device
 
@@ -24,14 +26,17 @@ class SimulateRobot(object):
     def close(self):
         pass
 
-    def select_file(self, file):
-        pass
+    def select_file(self, path):
+        self.selected_node = get_simulate_file_info(path)
 
-    # def report_play(self):
-    #     return self.device.simulate_report_play()
+    def report_play(self):
+        return self.device.simulate_report_play()
 
     def start_play(self):
-        pass
+        if self.selected_node:
+            self.device.simulate_start_player(self.selected_node)
+        else:
+            raise RobotError(error_symbol=["NO_TASK"])
 
     def pause_play(self):
         pass
