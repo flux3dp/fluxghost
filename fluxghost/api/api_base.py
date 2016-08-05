@@ -59,7 +59,7 @@ class ApiBase(object):
 
     def send_error(self, errcode, info=None, symbol=None, *args):
         if symbol:
-            self.send_json(status="error", error=symbol[0], symbol=symbol)
+            self.send_json(status="error", error=symbol)
         elif info:
             self.send_text(
                 '{"status": "error", "error": "%s", "info":"%s"}' % (errcode,

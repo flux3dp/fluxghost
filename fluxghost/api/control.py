@@ -563,7 +563,7 @@ def control_api_mixin(cls):
             self.send_ok(**self.robot.deviceinfo)
 
         def report_play(self):
-            self.send_ok(**self.robot.report_play())
+            self.send_ok(device_status=self.robot.report_play())
 
         def wait_status(self, status, timeout=6.0):
             mapping = {
@@ -674,9 +674,9 @@ def control_api_mixin(cls):
                     kw["cmd"] = self.__last_command
 
             # Pop prog when play status id is completed. Request from proclaim.
-            if self.__last_command in ("report", "play report"):
-                if kw.get("st_id") == 64:
-                    kw.pop("prog", None)
+            if "device_status" in kw:
+                if kw["device_status"]["st_id"] == 64:
+                    kw["device_status"].pop("prog", None)
 
             super().send_ok(**kw)
 
