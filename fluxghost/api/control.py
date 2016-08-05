@@ -82,6 +82,7 @@ def control_api_mixin(cls):
                 },
 
                 "maintain": {
+                    "wait_head": self.maintain_wait_head,
                     "load_filament": self.maintain_load_filament,
                     "unload_filament": self.maintain_unload_filament,
                     "calibrating": self.maintain_calibrate,
@@ -545,6 +546,18 @@ def control_api_mixin(cls):
         def maintain_headstatus(self):
             status = self.task.head_status()
             self.send_ok(**status)
+
+        def maintain_wait_head(self, head_type, timeout=6.0):
+            ttl = time() + float(timeout)
+
+            while ttl > time():
+                st = self.task.head_status()
+                if st["module"] == head_type:
+                    self.send_ok()
+                else:
+                    sleep(0.2)
+
+            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
