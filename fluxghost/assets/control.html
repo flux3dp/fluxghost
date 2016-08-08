@@ -74,6 +74,17 @@
     cursor: pointer;
   }
 
+  .config-btn {
+    display: inline-block;
+    cursor: pointer;
+    width: 32%;
+    text-align: center;
+  }
+
+  .config-btn:hover {
+    background-color: #ccc;
+  }
+
   /* Fixes for IE < 8 */
   @media screen\9 {
     .fileinput-button input {
@@ -908,51 +919,57 @@
           </button>
           <ul class="dropdown-menu dropdown-menu-right">
             <li class="dropdown-header">correction: A a H N (default:Y)</li>
-            <li data-cmd="config get correction" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set correction {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del correction" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get correction" class="config-btn">GET</div>
+              <div data-cmd="config set correction {}" class="config-btn"
+                   data-cmd-require-param="1"
+                   data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction">SET</div>
+              <div data-cmd="config del correction" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">filament_detect: Y N (default:Y)</li>
-            <li data-cmd="config get filament_detect" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set filament_detect {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del filament_detect" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get filament_detect" class="config-btn">GET</div>
+              <div data-cmd="config set filament_detect {}" class="config-btn"
+                   data-cmd-require-param="1"
+                   data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable">SET</div>
+              <div data-cmd="config del filament_detect" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">head_error_level: A number</li>
-            <li data-cmd="config get head_error_level" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set head_error_level {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Head error level:"
-                style="cursor: pointer"><a>SET</a></li>
-            <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get head_error_level" class="config-btn">GET</div>
+              <div data-cmd="config set head_error_level {}" class="config-btn"
+                   data-cmd-param-help="Head error level:"
+                   data-cmd-require-param="1">SET</div>
+              <div data-cmd="config del head_error_level" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">autoresume: Y N (default:N)</li>
-            <li data-cmd="config get autoresume" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set autoresume {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del autoresume" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get autoresume" class="config-btn">GET</div>
+              <div data-cmd="config set autoresume {}" class="config-btn"
+                   data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
+                   data-cmd-require-param="1">SET</div>
+              <div data-cmd="config del autoresume" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">broadcast: L A N (default:L)</li>
-            <li data-cmd="config get broadcast" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set broadcast {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Broadcast option:\nL: Lazy\nA: Aggressive\nN: Disable"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del broadcast" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get broadcast" class="config-btn">GET</div>
+              <div data-cmd="config set broadcast {}" class="config-btn"
+                   data-cmd-param-help="Broadcast option:\nL: Lazy\nA: Aggressive\nN: Disable"
+                   data-cmd-require-param="1">SET</div>
+              <div data-cmd="config del broadcast" class="config-btn">DEL</div>
+            </li>
           </ul>
         </div>
 
+        <!-- Device info -->
         <span data-cmd="deviceinfo" style="margin-left: 10px;" class="btn btn-xs btn-default">
           <i class="glyphicon glyphicon-info-sign"></i>
           Device Info
