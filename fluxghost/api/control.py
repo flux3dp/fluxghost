@@ -77,6 +77,7 @@ def control_api_mixin(cls):
                     "cp": self.cpfile,
                     "cpfile": self.cpfile,
                     "info": self.fileinfo,
+                    "fileinfo": self.fileinfo,
                     "md5": self.filemd5,
                     "upload": self.upload_file,
                     "download": self.download,
