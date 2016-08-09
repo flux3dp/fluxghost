@@ -74,6 +74,17 @@
     cursor: pointer;
   }
 
+  .config-btn {
+    display: inline-block;
+    cursor: pointer;
+    width: 32%;
+    text-align: center;
+  }
+
+  .config-btn:hover {
+    background-color: #ccc;
+  }
+
   /* Fixes for IE < 8 */
   @media screen\9 {
     .fileinput-button input {
@@ -208,12 +219,26 @@
       data.fw_prog.update(payload.written, data.get_size());
 
       return;
+    } else if(stage == "CALIBRATING") {
+      params = payload.pos + " / 3";
+    } else if(stage == "HEATING") {
+      params = payload.temperature + " °C";
     }
 
     appendHtmlLog($('<div></div>')
-      .append($('<span></span>').text("Operating "))
-      .append($('<span class="label label-primary"></span>').text(stage))
+      .append($('<span class="label label-primary"></span>')
+        .append($("<i class=\"glyphicon glyphicon-transfer\"></i>"))
+        .append($("<span></span>").html("&nbsp;"))
+        .append($("<span></span>").text(stage)))
+      .append($("<span></span>").html("&nbsp;"))
       .append($('<span></span>').text(params)));
+  }
+
+  function global_on_debug(controller, cmd, payload, data) {
+    appendHtmlLog($('<div></div>')
+      .append($('<span class="label label-default">DEVICE LOG</span>'))
+      .append($('<span></span>').html("&nbsp;"))
+      .append($('<span></span>').text(payload.log || payload.args)));
   }
 
   var callbacks = {
@@ -233,6 +258,34 @@
         } else {
           appendLog("Update head fw: " + payload.stage);
         }
+      }
+    },
+    deviceinfo: function(controller, cmd, payload) {
+      delete payload.status;
+      var key;
+
+      var default_keys = ["serial", "uuid", "model", "version", "nickname"];
+      for(i in default_keys) {
+        key = default_keys[i];
+
+        appendHtmlLog($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(key)))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(payload[key])));
+        delete payload[key];
+      }
+
+      for(key in payload) {
+        appendHtmlLog($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(key)))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(payload[key])));
       }
     },
     "file ls": function(controller, cmd, payload) {
@@ -388,7 +441,7 @@
       appendLog("Playing information recived.");
       render_fileinfo(filename);
     },
-    report: function(controller, cmd, payload) {
+    "play report": function(controller, cmd, payload) {
       delete payload.status;
       delete payload.cmd;
       appendLog(JSON.stringify(payload));
@@ -512,6 +565,7 @@
             }
           },
           on_operating: global_on_operating,
+          on_debug: global_on_debug,
           data: (data || {})
         });
 
@@ -602,6 +656,9 @@
 
       window.controller.send_command(cmd, {
         data: new ProgressBar("Upload file..."),
+        on_error: function(sender, cmd, errors, data) {
+          appendLog("Error: " + errors.join(", "), "#F05E1C");
+        },
         on_upload_begin: function(sender, size, prog) {
           appendHtmlLog(prog.html);
           prog.update(0, size);
@@ -613,6 +670,7 @@
           appendLog("ok");
         },
         on_operating: global_on_operating,
+        on_debug: global_on_debug,
         file: f,
       });
     });
@@ -814,7 +872,7 @@
       <div style="margin: 0.5em 0" data-cmd-group="root">
         <!-- Report -->
         <div class="btn-group btn-xs dropup">
-          <span data-cmd="report" class="btn btn-xs btn-default">Report</span>
+          <span data-cmd="play report" class="btn btn-xs btn-default">Report</span>
           <span class="btn btn-xs btn-default">
             <span class="glyphicon glyphicon-new-window"></span>
           </span>
@@ -861,43 +919,61 @@
           </button>
           <ul class="dropdown-menu dropdown-menu-right">
             <li class="dropdown-header">correction: A a H N (default:Y)</li>
-            <li data-cmd="config get correction" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set correction {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del correction" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get correction" class="config-btn">GET</div>
+              <div data-cmd="config set correction {}" class="config-btn"
+                   data-cmd-require-param="1"
+                   data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction">SET</div>
+              <div data-cmd="config del correction" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">filament_detect: Y N (default:Y)</li>
-            <li data-cmd="config get filament_detect" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set filament_detect {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del filament_detect" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get filament_detect" class="config-btn">GET</div>
+              <div data-cmd="config set filament_detect {}" class="config-btn"
+                   data-cmd-require-param="1"
+                   data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable">SET</div>
+              <div data-cmd="config del filament_detect" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">head_error_level: A number</li>
-            <li data-cmd="config get head_error_level" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set head_error_level {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Head error level:"
-                style="cursor: pointer"><a>SET</a></li>
-            <li data-cmd="config del head_error_level" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get head_error_level" class="config-btn">GET</div>
+              <div data-cmd="config set head_error_level {}" class="config-btn"
+                   data-cmd-param-help="Head error level:"
+                   data-cmd-require-param="1">SET</div>
+              <div data-cmd="config del head_error_level" class="config-btn">DEL</div>
+            </li>
+
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">autoresume: Y N (default:N)</li>
-            <li data-cmd="config get autoresume" style="cursor: pointer"><a>GET</a></li>
-            <li data-cmd="config set autoresume {}"
-                data-cmd-require-param="1"
-                data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
-                style="cursor: pointer">
-              <a>SET</a></li>
-            <li data-cmd="config del autoresume" style="cursor: pointer"><a>DEL</a></li>
+            <li>
+              <div data-cmd="config get autoresume" class="config-btn">GET</div>
+              <div data-cmd="config set autoresume {}" class="config-btn"
+                   data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
+                   data-cmd-require-param="1">SET</div>
+              <div data-cmd="config del autoresume" class="config-btn">DEL</div>
+            </li>
+
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">broadcast: L A N (default:L)</li>
+            <li>
+              <div data-cmd="config get broadcast" class="config-btn">GET</div>
+              <div data-cmd="config set broadcast {}" class="config-btn"
+                   data-cmd-param-help="Broadcast option:\nL: Lazy\nA: Aggressive\nN: Disable"
+                   data-cmd-require-param="1">SET</div>
+              <div data-cmd="config del broadcast" class="config-btn">DEL</div>
+            </li>
           </ul>
         </div>
 
-        <span data-cmd="deviceinfo" style="margin-left: 10px;" class="btn btn-xs btn-default">Device Info</span>
+        <!-- Device info -->
+        <span data-cmd="deviceinfo" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          <i class="glyphicon glyphicon-info-sign"></i>
+          Device Info
+        </span>
 
         <!-- Update Device -->
         <div class="btn-group btn-xs dropup">

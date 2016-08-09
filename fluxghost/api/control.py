@@ -1,5 +1,6 @@
 
 from errno import EPIPE
+from time import time, sleep
 from io import BytesIO
 import logging
 import socket
@@ -64,16 +65,19 @@ def control_api_mixin(cls):
                 "update_mbfw": self.update_mbfw,
 
                 "deviceinfo": self.deviceinfo,
-                "report": self.report_play,
+                "wait_status": self.wait_status,
                 "kick": self.kick,
 
                 "file": {
                     "ls": self.list_file,
                     "mkdir": self.mkdir,
                     "rmdir": self.rmdir,
+                    "rm": self.rmfile,
                     "rmfile": self.rmfile,
+                    "cp": self.cpfile,
                     "cpfile": self.cpfile,
                     "info": self.fileinfo,
+                    "fileinfo": self.fileinfo,
                     "md5": self.filemd5,
                     "upload": self.upload_file,
                     "download": self.download,
@@ -81,9 +85,11 @@ def control_api_mixin(cls):
                 },
 
                 "maintain": {
+                    "wait_head": self.maintain_wait_head,
                     "load_filament": self.maintain_load_filament,
                     "unload_filament": self.maintain_unload_filament,
-                    "calibrating": self.maintain_calibrating,
+                    "calibrating": self.maintain_calibrate,
+                    "calibrate": self.maintain_calibrate,
                     "zprobe": self.maintain_zprobe,
                     "headinfo": self.maintain_headinfo,
                     "headstatus": self.maintain_headstatus,
@@ -208,7 +214,7 @@ def control_api_mixin(cls):
 
         def kick(self):
             self.robot.kick()
-            self.send_ok(cmd="kick")
+            self.send_ok()
 
         def list_file(self, location=""):
             if location and location != "/":
@@ -223,16 +229,16 @@ def control_api_mixin(cls):
 
                 dirs.sort()
                 files.sort()
-                self.send_ok(cmd="ls", path=location, directories=dirs,
+                self.send_ok(path=location, directories=dirs,
                              files=files)
             else:
-                self.send_ok(cmd="ls", path=location,
+                self.send_ok(path=location,
                              directories=["SD", "USB"], files=[])
 
         def select_file(self, file):
             path = file if file.startswith("/") else "/" + file
             self.robot.select_file(path)
-            self.send_ok(cmd="select", path=path)
+            self.send_ok(path=path)
 
         def fileinfo(self, file):
             path = file if file.startswith("/") else "/" + file
@@ -243,36 +249,36 @@ def control_api_mixin(cls):
                                size=len(binary[0][1]))
                 self.send_binary(binary[0][1])
 
-            self.send_json(status="ok", **info)
+            self.send_ok(**info)
 
         def filemd5(self, file):
             path = file if file.startswith("/") else "/" + file
             hash = self.robot.file_md5(path)
-            self.send_json(status="ok", cmd="md5", file=path, md5=hash)
+            self.send_ok(file=path, md5=hash)
 
         def mkdir(self, file):
             path = file if file.startswith("/") else "/" + file
             if path.startswith("/SD/"):
                 self.robot.mkdir(path)
-                self.send_json(status="ok", cmd="mkdir", path=path)
+                self.send_json(status="ok", path=path)
             else:
-                self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
 
         def rmdir(self, file):
             path = file if file.startswith("/") else "/" + file
             if path.startswith("/SD/"):
                 self.robot.rmdir(path)
-                self.send_json(status="ok", cmd="rmdir", path=path)
+                self.send_ok(path=path)
             else:
-                self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
 
         def rmfile(self, file):
             path = file if file.startswith("/") else "/" + file
             if path.startswith("/SD/"):
                 self.robot.rmfile(path)
-                self.send_json(status="ok", cmd="rmfile", path=path)
+                self.send_json(status="ok", path=path)
             else:
-                self.send_text('{"status": "error", "error": "NOT_SUPPORT"}')
+                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
 
         def download(self, file):
             def report(left, size):
@@ -309,8 +315,7 @@ def control_api_mixin(cls):
             spath = source if source.startswith("/") else "/" + source
             tpath = target if target.startswith("/") else "/" + target
             self.robot.cpfile(spath, tpath)
-            self.send_json(status="ok", cmd="cpfile", source=source,
-                           target=target)
+            self.send_ok(source=source, target=target)
 
         def upload_file(self, mimetype, ssize, upload_to="#"):
             if upload_to == "#":
@@ -424,7 +429,7 @@ def control_api_mixin(cls):
                     self.task.update_hbfw(swap, size, nav_cb)
                     self.send_ok()
                 except RobotError as e:
-                    self.send_error(*e.args)
+                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
                     self.send_fatal("UNKNOWN_ERROR", e.args)
@@ -454,12 +459,17 @@ def control_api_mixin(cls):
             self.task.home()
             self.send_ok()
 
-        def maintain_calibrating(self, *args):
+        def maintain_calibrate(self, *args):
             def callback(robot, *args):
                 try:
                     if args[0] == "POINT":
                         self.send_json(status="operating",
                                        stage=["CALIBRATING"], pos=int(args[1]))
+                    elif args[0] == "CTRL" and args[1] == "POINT":
+                        self.send_json(status="operating",
+                                       stage=["CALIBRATING"], pos=int(args[2]))
+                    elif args[0] == "DEBUG":
+                        self.send_json(status="debug", log=" ".join(args[1:]))
                     else:
                         self.send_json(status="debug", args=args)
                 except Exception:
@@ -475,11 +485,13 @@ def control_api_mixin(cls):
 
         def maintain_zprobe(self, *args):
             def callback(robot, *args):
-                # <<<<
-                self.send_json(status="operating", stage=["ZPROBE"])
-                # ====
-                self.send_json(status="debug", args=args)
-                # >>>>
+                if args[0] == "CTRL" and args[1] == "ZPROBE":
+                    self.send_json(status="operating",
+                                   stage=["ZPROBE"])
+                elif args[0] == "DEBUG":
+                    self.send_json(status="debug", log=" ".join(args[1:]))
+                else:
+                    self.send_json(status="debug", args=args)
 
             if len(args) > 0:
                 ret = self.task.manual_level(float(args[0]))
@@ -491,20 +503,16 @@ def control_api_mixin(cls):
         def maintain_load_filament(self, index, temp):
             def nav(robot, *args):
                 try:
-                    # <<<<
                     stage = args[0]
                     if stage == "HEATING":
                         self.send_json(status="operating", stage=["HEATING"],
                                        temperature=float(args[1]))
-                    elif stage == ["LOADING"]:
+                    elif stage == "LOADING":
                         self.send_json(status="operating",
                                        stage=["FILAMENT", "LOADING"])
-                    elif stage == ["WAITING"]:
+                    elif stage == "WAITING":
                         self.send_json(status="operating",
                                        stage=["FILAMENT", "WAITING"])
-                    # ====
-                    self.send_json(status="loading", nav=" ".join(args))
-                    # >>>>
                 except Exception:
                     logger.exception("Error during load filament cb")
 
@@ -514,7 +522,6 @@ def control_api_mixin(cls):
         def maintain_unload_filament(self, index, temp):
             def nav(robot, *args):
                 try:
-                    # <<<<
                     stage = args[0]
                     if stage == "HEATING":
                         self.send_json(status="operating", stage=["HEATING"],
@@ -522,9 +529,6 @@ def control_api_mixin(cls):
                     else:
                         self.send_json(status="operating",
                                        stage=["FILAMENT", stage])
-                    # ====
-                    self.send_json(status="unloading", nav=" ".join(args))
-                    # >>>>
                 except Exception:
                     logger.exception("Error during unload filament cb")
             self.task.unload_filament(int(index), float(temp), nav)
@@ -540,19 +544,55 @@ def control_api_mixin(cls):
 
             if "version" not in info:
                 info["version"] = info["VERSION"]
-            self.send_ok(cmd="headinfo", **info)
+            self.send_ok(**info)
 
         def maintain_headstatus(self):
             status = self.task.head_status()
             self.send_ok(**status)
 
+        def maintain_wait_head(self, head_type, timeout=6.0):
+            ttl = time() + float(timeout)
+
+            while ttl > time():
+                st = self.task.head_status()
+                if st["module"] == head_type:
+                    self.send_ok()
+                else:
+                    sleep(0.2)
+
+            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
+
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
 
         def report_play(self):
-            data = self.robot.report_play()
-            data["cmd"] = "report"
-            self.send_ok(**data)
+            self.send_ok(device_status=self.robot.report_play())
+
+        def wait_status(self, status, timeout=6.0):
+            mapping = {
+                "idle": 0,
+                "running": 16,
+                "paused": 48,
+                "completed": 64,
+                "aborted": 128,
+            }
+
+            if status.isdigit() is False:
+                st_id = mapping.get(status)
+            else:
+                st_id = int(status, 10)
+
+            ttl = time() + float(timeout)
+
+            while ttl > time():
+                st = self.robot.report_play()
+                if st["st_id"] == st_id:
+                    self.send_ok()
+                    return
+                else:
+                    sleep(0.2)
+
+            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
 
         def scan_oneshot(self):
             images = self.task.oneshot()
@@ -588,15 +628,14 @@ def control_api_mixin(cls):
 
         def config_set(self, key, value):
             self.robot.config[key] = value
-            self.send_json(status="ok", cmd="set", key=key)
+            self.send_ok(key=key)
 
         def config_get(self, key):
-            self.send_json(status="ok", cmd="get", key=key,
-                           value=self.robot.config[key])
+            self.send_ok(key=key, value=self.robot.config[key])
 
         def config_del(self, key):
             del self.robot.config[key]
-            self.send_json(status="ok", cmd="del", key=key)
+            self.send_ok(key=key)
 
         def on_raw_message(self, message):
             if message == "quit" or message == "task quit":
@@ -606,7 +645,45 @@ def control_api_mixin(cls):
                 self.send_text('{"status": "ok", "task": ""}')
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
-    return ControlApi
+
+    class DirtyLayer(ControlApi):
+        __last_command = None
+
+        # Front require command string append at response, override on_command
+        # to record command.
+        def on_command(self, message):
+            if message != "ping":
+                self.__last_command = message
+
+            super().on_command(message)
+
+        def send_ok(self, **kw):
+            # Override send_ok and send front request string at response.
+            # Request from norman.
+            if self.__last_command:
+                if self.__last_command.startswith("file ls"):
+                    kw["cmd"] = "ls"
+                elif self.__last_command.startswith("play select"):
+                    kw["cmd"] = "select"
+                elif self.__last_command.startswith("file mkdir"):
+                    kw["cmd"] = "mkdir"
+                elif self.__last_command.startswith("file rmdir"):
+                    kw["cmd"] = "rmdir"
+                elif self.__last_command.startswith("file cpfile"):
+                    kw["cmd"] = "cpfile"
+                elif self.__last_command.startswith("maintain headinfo"):
+                    kw["cmd"] = "headinfo"
+                else:
+                    kw["cmd"] = self.__last_command
+
+            # Pop prog when play status id is completed. Request from proclaim.
+            if "device_status" in kw:
+                if kw["device_status"]["st_id"] == 64:
+                    kw["device_status"].pop("prog", None)
+
+            super().send_ok(**kw)
+
+    return DirtyLayer
 
 
 class RawSock(object):

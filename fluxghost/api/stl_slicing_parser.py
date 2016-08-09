@@ -3,11 +3,12 @@ import subprocess
 import logging
 import os
 
-from fluxclient.printer.stl_slicer import StlSlicer, StlSlicerCura
 from fluxclient import check_platform
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SLICING")
+StlSlicer = None
+StlSlicerCura = None
 
 
 def get_default_cura():
@@ -38,6 +39,19 @@ def stl_slicing_parser_api_mixin(cls):
 
         def __init__(self, *args):
             super().__init__(*args)
+
+            try:
+                if StlSlicer is None:
+                    global StlSlicer
+                    global StlSlicerCura
+                    from fluxclient.printer.stl_slicer import (
+                        StlSlicer as _StlSlicer,
+                        StlSlicerCura as _StlSlicerCura)
+                    StlSlicer = _StlSlicer
+                    StlSlicerCura = _StlSlicerCura
+            except ImportError:
+                self.send_fatal("LIBRARY_NOT_FOUND")
+                return
 
             self.m_stl_slicer = StlSlicer('')
             self._change_engine('slic3r', 'default')
