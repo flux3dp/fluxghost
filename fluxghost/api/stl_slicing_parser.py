@@ -60,6 +60,7 @@ def stl_slicing_parser_api_mixin(cls):
             self.cmd_mapping = {
                 'upload': [self.begin_recv_stl, 'upload'],
                 'upload_image': [self.begin_recv_stl, 'upload_image'],
+                'load_stl_from_path': [self.load_stl_from_path],
                 'set': [self.set],
                 'go': [self.gcode_generate],
                 'delete': [self.delete],
@@ -113,6 +114,22 @@ def stl_slicing_parser_api_mixin(cls):
             elif args[1] == 'upload_image':
                 ret = self.m_stl_slicer.upload_image(buf)
                 self.send_ok()
+
+        def load_stl_from_path(self, params):
+            logger.debug('load_stl_from_path ' + params)
+            params = params.split()
+            if len(params) == 2:
+                name, path = params
+                buf_type = 'stl'
+            elif len(params) == 3:
+                name, path, buf_type = params
+            #buf_type could be stl or obj
+            ret = self.m_stl_slicer.upload(name, path, buf_type)
+            if ret:
+                self.send_ok()
+            else:
+                self.send_error('15', info="File parsing fail")
+            return
 
         def duplicate(self, params):
             logger.debug('duplicate ' + params)
