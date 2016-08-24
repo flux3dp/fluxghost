@@ -2,6 +2,7 @@
 import subprocess
 import logging
 import os
+import urllib
 
 from fluxclient import check_platform
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
@@ -124,7 +125,7 @@ def stl_slicing_parser_api_mixin(cls):
             elif len(params) == 3:
                 name, path, buf_type = params
             #buf_type could be stl or obj
-            ret = self.m_stl_slicer.upload(name, path, buf_type)
+            ret = self.m_stl_slicer.upload(name, urllib.parse.unquote(path), buf_type)
             if ret:
                 self.send_ok()
             else:
