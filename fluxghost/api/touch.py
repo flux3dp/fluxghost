@@ -64,12 +64,16 @@ def touch_api_mixin(cls):
                                     lookup_timeout=30.0)
 
                 if not task.authorized:
-                    if password:
-                        task.authorize_with_password(password)
+                    if task.device_meta.get("has_password", False) is True:
+                        if password:
+                            task.authorize_with_password(password)
+                        else:
+                            self.send_text(json.dumps({
+                                "uuid": uuid.hex, "has_response": True,
+                                "reachable": True, "auth": False}))
+                            return
                     else:
-                        self.send_text(json.dumps({
-                            "uuid": uuid.hex, "has_response": True,
-                            "reachable": True, "auth": False}))
+                        task.authorize_with_password(":-)")
 
                 try:
                     task.add_trust(getuser(),
