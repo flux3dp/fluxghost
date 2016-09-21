@@ -56,6 +56,12 @@ def scan_control_api_mixin(cls):
                 self.calibrate()
                 self.get_cab()
 
+            elif message == "turn_on_laser":
+                self.turn_laser(True)
+
+            elif message == "turn_off_laser":
+                scan.turn_laser(False)
+
             elif message.startswith('set_params'):
                 self.set_params(message)
 
@@ -183,6 +189,13 @@ def scan_control_api_mixin(cls):
 
             self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
             return
+
+        def turn_laser(self, laser_onoff):
+            if not self.task:
+                self.send_error("NOT_READY")
+                return
+                
+            self.task.laser(laser_onoff, laser_onoff)
 
         def scan(self, step=None):
             if not self.task:
