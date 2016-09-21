@@ -7,6 +7,7 @@ from PIL import Image
 
 from fluxclient.fcode.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.utils._utils import GcodeToFcodeCpp
 from fluxclient.hw_profile import HW_PROFILE
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -47,7 +48,7 @@ def fcode_reader_api_mixin(cls):
                 if buf_type == '-f':
                     self.data_parser = FcodeToGcode()
                 else:
-                    self.data_parser = GcodeToFcode()
+                    self.data_parser = GcodeToFcodeCpp()
             elif flag == 'change_img':
                 file_size = int(length)
             else:
