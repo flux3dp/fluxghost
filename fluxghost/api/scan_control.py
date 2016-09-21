@@ -56,10 +56,10 @@ def scan_control_api_mixin(cls):
                 self.calibrate()
                 self.get_cab()
 
-            elif message == "turn_on_laser":
+            elif message.startswith("turn_on_laser"):
                 self.turn_laser(True)
 
-            elif message == "turn_off_laser":
+            elif message.startswith("turn_off_laser"):
                 scan.turn_laser(False)
 
             elif message.startswith('set_params'):
@@ -196,6 +196,7 @@ def scan_control_api_mixin(cls):
                 return
                 
             self.task.laser(laser_onoff, laser_onoff)
+            self.send_ok()
 
         def scan(self, step=None):
             if not self.task:
