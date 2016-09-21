@@ -72,6 +72,7 @@ def upnp_api_mixin(cls):
                 return
 
             except ValueError:
+                raise
                 logger.exception("receive message: %s" % (message))
                 self.send_fatal("BAD_PARAM_TYPE")
 
@@ -175,10 +176,8 @@ def upnp_api_mixin(cls):
         @check_task
         def set_name(self, params):
             new_name = params.strip()
-            logger.debug('set_name ' + new_name)
-            print(new_name)
+            logger.debug('set_name %s', new_name)
             self.upnp_task.rename(new_name)
-            print('rename done')
             self.send_ok()
 
         def on_close(self, message):
