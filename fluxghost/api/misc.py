@@ -43,18 +43,18 @@ class OnTextMessageMixin(object):
                     self.cmd_mapping[cmd][0](params,
                                              *self.cmd_mapping[cmd][1:])
                 else:
-                    logger.exception("receive message: %s" % (message))
-                    raise ValueError('Undefine command %s' % (cmd))
+                    logger.exception("Received message: %s" % (message))
+                    raise ValueError('Undefined Command %s' % (cmd))
             else:
-                logger.exception("receive message: %s" % (message))
+                logger.exception("Received Message: %s" % (message))
                 raise RuntimeError("PROTOCOL_ERROR", "under uploading mode")
 
         except ValueError:
-            logger.exception("receive message: %s" % (message))
+            logger.exception("Received Message: %s" % (message))
             self.send_fatal("BAD_PARAM_TYPE")
 
         except RuntimeError as e:
-            logger.exception("receive message: %s" % (message))
+            logger.exception("Received Message: %s" % (message))
             self.send_fatal(e.args[0])
 
 
