@@ -20,16 +20,37 @@ def fcode_reader_api_mixin(cls):
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload': [self.begin_recv_buf, 'upload'],
+                'advanced_setting': [self.advanced_setting], 
                 'get_img': [self.get_img],
                 'get_meta': [self.get_meta],
                 'get_path': [self.get_path],
                 'get_fcode': [self.get_fcode],
                 'change_img': [self.begin_recv_buf, 'change_img']
             }
+            self.config = {}
             self.fcode = None
             self.buf_type = '-f'
 
         def begin_recv_buf(self, length, flag):
+            # Process ext_metadata
+            ext_metadata = {}
+
+            if self.config.get('flux_calibration', '1') == '0':
+                ext_metadata['CORRECTION'] = 'N'
+
+            if self.config.get('detect_filament_runout', '1') == '1':
+                ext_metadata['FILAMENT_DETECT'] = 'Y'
+            else:
+                ext_metadata['FILAMENT_DETECT'] = 'N'
+
+            head_error_level = 8191
+            if self.config.get('detect_head_tilt', '1')== '0':
+                head_error_level -= 32
+            if self.config.get('detect_head_shake', '1') == '0':
+                head_error_level -= 16
+            ext_metadata['HEAD_ERROR_LEVEL'] = str(head_error_level)
+
+
             if flag == 'upload':
                 logger.debug("begin upload g/f code")
                 buf_type = '-f'
@@ -46,9 +67,9 @@ def fcode_reader_api_mixin(cls):
 
                 self.buf_type = buf_type
                 if buf_type == '-f':
-                    self.data_parser = FcodeToGcode()
+                    self.data_parser = FcodeToGcode(ext_metadata=ext_metadata)
                 else:
-                    self.data_parser = GcodeToFcodeCpp()
+                    self.data_parser = GcodeToFcodeCpp(ext_metadata=ext_metadata)
             elif flag == 'change_img':
                 file_size = int(length)
             else:
@@ -175,4 +196,16 @@ def fcode_reader_api_mixin(cls):
                 self.fcode = tmp_data_parser.data
 
             self.send_ok()
+
+
+        def advanced_setting(self, lines):
+            lines = lines.split('\n')
+            for line in lines:
+                if '#' in line:  # clean up comement
+                    line = line[:line.index('#')].strip()
+                if '=' in line:
+                    key, value = map(lambda x: x.strip(), line.split('=', 1))
+                    self.config[key] = value
+            self.send_ok()
+
     return FcodeReaderApi
