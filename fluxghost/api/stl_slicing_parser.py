@@ -1,7 +1,7 @@
 
 import subprocess
 import logging
-import os
+import os, sys, traceback
 import urllib
 
 from fluxclient import check_platform
@@ -53,6 +53,9 @@ def stl_slicing_parser_api_mixin(cls):
             except ImportError as e:
                 print(str(e))
                 self.send_fatal("LIBRARY_NOT_FOUND")
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                traceback.print_exception(exc_type, exc_value, exc_traceback,
+                              limit=2, file=sys.stderr)
                 return
 
             self.m_stl_slicer = StlSlicer('')
