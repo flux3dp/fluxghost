@@ -70,6 +70,7 @@ def stl_slicing_parser_api_mixin(cls):
                 'delete': [self.delete],
                 'advanced_setting': [self.advanced_setting],
                 'get_path': [self.get_path],
+                'get_path_async': [self.get_path_async],
                 'duplicate': [self.duplicate],
                 'meta_option': [self.meta_option],
                 'begin_slicing': [self.begin_slicing],
@@ -230,6 +231,33 @@ def stl_slicing_parser_api_mixin(cls):
             path = self.m_stl_slicer.get_path()
             if path:
                 self.send_text(path)
+            else:
+                self.send_error('9', info='No path data to send')
+
+        def get_path_async(self, params):
+            params = params.split()
+            start = max(1, int(params[0])) #at least start at 1
+            end = int(params[1])
+            path = self.m_stl_slicer.get_path()
+            i = start
+            left_bracket = 0;
+            right_bracket = 0;
+            layer_index = start;
+            while i < len(path):
+                if path[i] == '[':
+                    left_bracket +=1
+                if path[i] == ']':
+                    right_bracket +=1
+                if left_bracket == right_bracket:
+                    layer_index = i + 1;
+                    if layer_index > end: 
+                        break
+                i += 1
+            
+            cropped_path = '{"end":' + str(layer_index) +',"path":[' + path[start:layer_index] + ']}';
+
+            if path:
+                self.send_text(cropped_path)
             else:
                 self.send_error('9', info='No path data to send')
 
