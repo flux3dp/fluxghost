@@ -70,6 +70,7 @@ def stl_slicing_parser_api_mixin(cls):
                 'delete': [self.delete],
                 'advanced_setting': [self.advanced_setting],
                 'get_path': [self.get_path],
+                'get_path_async': [self.get_path_async],
                 'duplicate': [self.duplicate],
                 'meta_option': [self.meta_option],
                 'begin_slicing': [self.begin_slicing],
@@ -196,6 +197,7 @@ def stl_slicing_parser_api_mixin(cls):
 
         def begin_slicing(self, params):
             names = params.split()
+            self.path_bytes = None
             if names[-1] == '-g':
                 output_type = '-g'
                 names = names[:-1]
@@ -230,6 +232,42 @@ def stl_slicing_parser_api_mixin(cls):
             path = self.m_stl_slicer.get_path()
             if path:
                 self.send_text(path)
+            else:
+                self.send_error('9', info='No path data to send')
+
+        def get_path_async(self, params):
+            params = params.split()
+            per_layers = int(params[0])
+            if self.path_bytes is None:
+                self.path_bytes = self.m_stl_slicer.get_path().encode('ascii')
+
+            len_of_path = len(self.path_bytes)
+            i = 1
+            left_bracket = 0;
+            right_bracket = 0;
+            cutting_index = i;
+            layers = 0
+
+            while i < len_of_path:
+                if self.path_bytes[i] == 91: #[
+                    left_bracket += 1
+                if self.path_bytes[i] == 93: #]
+                    right_bracket += 1
+                if left_bracket == right_bracket:
+                    layers += 1
+                    if layers >= per_layers:
+                        layers = 0
+                        cropped_path = '[%s]' % ( self.path_bytes[cutting_index:i].decode('ascii') );
+                        self.send_text(cropped_path)
+                        cutting_index = i + 1
+                i += 1
+            
+            if layers > 0:
+                cropped_path = '[%s]' % ( self.path_bytes[cutting_index:len_of_path-1].decode('ascii') );
+                self.send_text(cropped_path)
+
+            if self.path_bytes:
+                self.send_text('{"end":0}');
             else:
                 self.send_error('9', info='No path data to send')
 
