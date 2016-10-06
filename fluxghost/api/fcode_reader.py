@@ -67,7 +67,7 @@ def fcode_reader_api_mixin(cls):
 
                 self.buf_type = buf_type
                 if buf_type == '-f':
-                    self.data_parser = FcodeToGcode(ext_metadata=ext_metadata)
+                    self.data_parser = FcodeToGcode()
                 else:
                     self.data_parser = GcodeToFcode(ext_metadata=ext_metadata)
             elif flag == 'change_img':
