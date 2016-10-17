@@ -65,6 +65,7 @@ def control_api_mixin(cls):
                 "update_mbfw": self.update_mbfw,
 
                 "deviceinfo": self.deviceinfo,
+                "cloud_validate_code": self.cloud_validate_code,
                 "wait_status": self.wait_status,
                 "kick": self.kick,
 
@@ -564,6 +565,9 @@ def control_api_mixin(cls):
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
+
+        def cloud_validate_code(self):
+            self.send_ok(code=self.robot.get_cloud_validation_code())
 
         def report_play(self):
             self.send_ok(device_status=self.robot.report_play())
