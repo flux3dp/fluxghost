@@ -699,12 +699,12 @@
       }
 
       if(!window.discover) {
-        if(new Date() - window.discover_timestemp < window.discover_retry_delay) {
+        if(new Date() - window.discover_timestamp < window.discover_retry_delay) {
           console.log("Delay re-connect to discover." + window.discover_retry_delay);
           setTimeout(discoverManager, window.discover_retry_delay);
           return;
         }
-        window.discover_timestemp = new Date();
+        window.discover_timestamp = new Date();
         window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
         window.discover.onopen = function() {
           window.discover_retry_delay = 2000;
@@ -722,7 +722,7 @@
       }
     }
     window.discover_retry_delay = 3000;
-    window.discover_timestemp = new Date(0);
+    window.discover_timestamp = new Date(0);
     discoverManager();
 
     // Begin UI

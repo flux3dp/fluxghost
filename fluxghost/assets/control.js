@@ -265,9 +265,11 @@
         function on_error_helper(obj, payload) {
             if(payload.status === "error") {
                 if(obj.options.on_error) {
-                    obj.options.on_error(self, obj.cmd, payload.symbol, obj.data);
+                    errors = (payload.error.constructor === Array) ? payload.error : [payload.error];
+                    obj.options.on_error(self, obj.cmd, errors, obj.data);
                 } else if(options.on_error) {
-                    options.on_error(self, obj.cmd, payload.symbol, obj.data);
+                    errors = (payload.error.constructor === Array) ? payload.error : [payload.error];
+                    options.on_error(self, obj.cmd, errors, obj.data);
                 } else {
                     console.log("Command '" + obj.cmd + "' got an error: " + er);
                 }
