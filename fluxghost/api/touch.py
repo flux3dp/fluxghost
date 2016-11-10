@@ -56,12 +56,20 @@ def touch_api_mixin(cls):
 
                 device = self.server.discover_devices.get(uuid)
 
-                if device:
-                    task = device.manage_device(client_key)
-                else:
-                    task = UpnpTask(uuid,
-                                    client_key=client_key,
-                                    lookup_timeout=30.0)
+                try:
+                    if device:
+                        task = device.manage_device(client_key)
+                    else:
+                        task = UpnpTask(uuid,
+                                        client_key=client_key,
+                                        lookup_timeout=30.0)
+                except IOError as e:
+                    logger.warning("%s", e)
+                    self.send_text(json.dumps({
+                        "uuid": uuid.hex, "has_response": False,
+                        "reachable": False, "auth": False
+                    }))
+                    return
 
                 if not task.authorized:
                     if task.device_meta.get("has_password", False) is True:
@@ -104,7 +112,7 @@ def touch_api_mixin(cls):
                         "reachable": True, "auth": False
                     }))
 
-            except (RuntimeError, UpnpError) as err:
+            except RuntimeError as err:
                 logger.debug("Error: %s" % err)
                 self.send_text(json.dumps({
                     "uuid": uuid.hex,
