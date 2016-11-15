@@ -113,7 +113,7 @@ def usb_config_api_mixin(cls):
                 elif message.startswith("set password "):
                     self.set_password(message[13:])
                 else:
-                    self.send_error("UNKNOWN_COMMAND")
+                    self.send_error("L_UNKNOWN_COMMAND")
 
             except UsbTaskException as e:
                 self.send_error(" ".join(e.args), info=str(e))
@@ -126,7 +126,7 @@ def usb_config_api_mixin(cls):
 
             except Exception:
                 logger.exception("Unhandle Error")
-                self.send_error("UNKNOWN_ERROR")
+                self.send_error("L_UNKNOWN_ERROR")
 
         def on_binary_message(self, buf):
             pass
