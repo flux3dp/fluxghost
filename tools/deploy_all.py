@@ -42,7 +42,6 @@ def my_func_auth_device(my_device):
             my_func_connect_robot(my_device)
         except UpnpError as e:
             print("Authorization failed: %s" % e)
-            raise
 
 def cb_upload_callback(robot, sent, size):
     print("Uploading %d / %d" % (sent, size))
