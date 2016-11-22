@@ -379,7 +379,7 @@ def control_api_mixin(cls):
 
             def on_recived(stream):
                 stream.seek(0)
-                self.robot._backend.update_atmel(stream, int(size),
+                self.robot._backend.update_atmel(self.robot, stream, int(size),
                                                  self.cb_upload_callback)
                 self.send_ok()
             self.simple_binary_receiver(size, on_recived)
