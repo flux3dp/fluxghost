@@ -35,6 +35,11 @@ class HttpServerBase(object):
             stdout.write("LISTEN ON %i\n" % address[1])
             stdout.flush()
 
+        from fluxghost import __version__ as ghost_version
+        from fluxclient import __version__ as client_version
+        logger.info("fluxghost: %s, fluxclient: %s", ghost_version,
+                    client_version)
+
         logger.info("Listen HTTP on %s:%s" % address)
 
         self.discover_devices = {}

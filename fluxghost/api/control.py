@@ -174,7 +174,7 @@ def control_api_mixin(cls):
                     pass
                 else:
                     logger.warn("Unknow Command: %s" % message)
-                    self.send_error("UNKNOWN_COMMAND", "LEVEL: websocket")
+                    self.send_error("L_UNKNOWN_COMMAND")
 
             except RobotError as e:
                 logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
@@ -200,18 +200,18 @@ def control_api_mixin(cls):
                         if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
                             self.send_fatal("TIMEOUT", repr(e.args))
                             return
-                self.send_error("UNKNOWN_ERROR2", repr(e.__class__))
+                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except socket.error as e:
                 if e.args[0] == EPIPE:
                     self.send_fatal("DISCONNECTED", repr(e.__class__))
                 else:
                     logger.exception("Unknow socket error")
-                    self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
+                    self.send_fatal("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except Exception as e:
                 logger.exception("Unknow error while process text")
-                self.send_error("UNKNOWN_ERROR", repr(e.__class__))
+                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
 
         def kick(self):
             self.robot.kick()
@@ -433,7 +433,7 @@ def control_api_mixin(cls):
                     self.send_error(e.error_symbol[0], symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
-                    self.send_fatal("UNKNOWN_ERROR", e.args)
+                    self.send_fatal("L_UNKNOWN_ERROR", e.args)
 
             self.simple_binary_receiver(size, update_cb)
 

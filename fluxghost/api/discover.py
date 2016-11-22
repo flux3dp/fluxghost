@@ -72,7 +72,7 @@ def discover_api_mixin(cls):
                 except Exception as e:
                     logger.error("Poke error: %s", repr(e))
             else:
-                self.send_error("UNKNOWN_COMMAND")
+                self.send_error("L_UNKNOWN_COMMAND")
 
         def on_loop(self):
             self.on_review_devices()
