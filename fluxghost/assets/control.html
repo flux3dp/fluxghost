@@ -402,6 +402,20 @@
       appendHtmlLog($("<div></div>")
         .append($('<span class="label label-danger"></span>').text(payload.key)));
     },
+    "fetch_log": function(controller, cmd, payload) {
+      var splited_cmd = cmd.split(" ");
+      var filename = splited_cmd[splited_cmd.length - 1].replace(".log", ".txt");
+
+      var url = window.URL.createObjectURL(payload.binaries[0]);
+      var a = document.createElement("a");
+      document.body.appendChild(a);
+      a.style = "display: none";
+
+      a.href = url;
+      a.download = filename;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
     task: function(controller, cmd, payload) {
       $("[data-cmd-group]").hide()
       if(payload.task === "") {
@@ -993,6 +1007,33 @@
               <span>Update Device Firmware</span>
               <input type="file" class="fileinput-button" data-file-cmd="update_fw" name="file" />
             </a></li>
+          </ul>
+        </div>
+
+        <!-- Fetch log -->
+        <div class="btn-group btn-xs dropup">
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span>Log</span>
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li style="cursor: pointer" data-cmd="fetch_log fluxnetworkd.log">
+              <a>Network</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxhald.log">
+              <a>Hardware</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxupnpd.log">
+              <a>Discover</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxusbd.log">
+              <a>USB</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxcamerad.log">
+              <a>Camera</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxcloudd.log">
+              <a>Cloud</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxplayerd.log">
+              <a>Player</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_log fluxrobotd.log">
+              <a>Robot</a></li>
           </ul>
         </div>
 
