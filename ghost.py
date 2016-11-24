@@ -79,8 +79,6 @@ def main():
 
     server.serve_forever()
 
+
 if __name__ == '__main__':
-    from fluxghost import __version__ as ghost_version
-    from fluxclient import __version__ as client_version
-    print("fluxghost: {}, fluxclient: {}".format(ghost_version, client_version), file=sys.stderr)
     main()

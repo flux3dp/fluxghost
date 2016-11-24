@@ -65,6 +65,7 @@ def control_api_mixin(cls):
                 "update_mbfw": self.update_mbfw,
 
                 "deviceinfo": self.deviceinfo,
+                "cloud_validate_code": self.cloud_validate_code,
                 "wait_status": self.wait_status,
                 "kick": self.kick,
 
@@ -127,7 +128,9 @@ def control_api_mixin(cls):
                     "scan": self.task_begin_scan,
                     "raw": self.task_begin_raw,
                     "quit": self.task_quit,
-                }
+                },
+
+                "fetch_log": self.fetch_log
             }
 
         @property
@@ -173,7 +176,7 @@ def control_api_mixin(cls):
                     pass
                 else:
                     logger.warn("Unknow Command: %s" % message)
-                    self.send_error("UNKNOWN_COMMAND", "LEVEL: websocket")
+                    self.send_error("L_UNKNOWN_COMMAND")
 
             except RobotError as e:
                 logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
@@ -199,18 +202,18 @@ def control_api_mixin(cls):
                         if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
                             self.send_fatal("TIMEOUT", repr(e.args))
                             return
-                self.send_error("UNKNOWN_ERROR2", repr(e.__class__))
+                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except socket.error as e:
                 if e.args[0] == EPIPE:
                     self.send_fatal("DISCONNECTED", repr(e.__class__))
                 else:
                     logger.exception("Unknow socket error")
-                    self.send_fatal("UNKNOWN_ERROR", repr(e.__class__))
+                    self.send_fatal("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except Exception as e:
                 logger.exception("Unknow error while process text")
-                self.send_error("UNKNOWN_ERROR", repr(e.__class__))
+                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
 
         def kick(self):
             self.robot.kick()
@@ -376,7 +379,7 @@ def control_api_mixin(cls):
 
             def on_recived(stream):
                 stream.seek(0)
-                self.robot._backend.update_atmel(stream, int(size),
+                self.robot._backend.update_atmel(self.robot, stream, int(size),
                                                  self.cb_upload_callback)
                 self.send_ok()
             self.simple_binary_receiver(size, on_recived)
@@ -432,7 +435,7 @@ def control_api_mixin(cls):
                     self.send_error(e.error_symbol[0], symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
-                    self.send_fatal("UNKNOWN_ERROR", e.args)
+                    self.send_fatal("L_UNKNOWN_ERROR", e.args)
 
             self.simple_binary_receiver(size, update_cb)
 
@@ -565,6 +568,9 @@ def control_api_mixin(cls):
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
 
+        def cloud_validate_code(self):
+            self.send_ok(code=self.robot.get_cloud_validation_code())
+
         def report_play(self):
             self.send_ok(device_status=self.robot.report_play())
 
@@ -636,6 +642,24 @@ def control_api_mixin(cls):
         def config_del(self, key):
             del self.robot.config[key]
             self.send_ok(key=key)
+
+        def fetch_log(self, logname):
+            flag = []
+
+            def report(left, size):
+                if not flag:
+                    flag.append(1)
+                    self.send_json(status="transfer", completed=0, size=size)
+                self.send_json(status="transfer",
+                               completed=(size - left), size=size)
+
+            buf = BytesIO()
+            mimetype = self.robot.fetch_log(logname, buf, report)
+            if mimetype:
+                self.send_json(status="binary", mimetype=mimetype,
+                               size=buf.truncate())
+                self.send_binary(buf.getvalue())
+                self.send_ok()
 
         def on_raw_message(self, message):
             if message == "quit" or message == "task quit":
