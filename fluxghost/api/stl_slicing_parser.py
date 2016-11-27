@@ -50,7 +50,8 @@ def stl_slicing_parser_api_mixin(cls):
                         StlSlicerCura as _StlSlicerCura)
                     StlSlicer = _StlSlicer
                     StlSlicerCura = _StlSlicerCura
-            except ImportError:
+            except ImportError as e:
+                print(str(e))
                 self.send_fatal("LIBRARY_NOT_FOUND")
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 traceback.print_exception(exc_type, exc_value, exc_traceback,

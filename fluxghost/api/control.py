@@ -128,7 +128,9 @@ def control_api_mixin(cls):
                     "scan": self.task_begin_scan,
                     "raw": self.task_begin_raw,
                     "quit": self.task_quit,
-                }
+                },
+
+                "fetch_log": self.fetch_log
             }
 
         @property
@@ -377,7 +379,7 @@ def control_api_mixin(cls):
 
             def on_recived(stream):
                 stream.seek(0)
-                self.robot._backend.update_atmel(stream, int(size),
+                self.robot._backend.update_atmel(self.robot, stream, int(size),
                                                  self.cb_upload_callback)
                 self.send_ok()
             self.simple_binary_receiver(size, on_recived)
@@ -640,6 +642,24 @@ def control_api_mixin(cls):
         def config_del(self, key):
             del self.robot.config[key]
             self.send_ok(key=key)
+
+        def fetch_log(self, logname):
+            flag = []
+
+            def report(left, size):
+                if not flag:
+                    flag.append(1)
+                    self.send_json(status="transfer", completed=0, size=size)
+                self.send_json(status="transfer",
+                               completed=(size - left), size=size)
+
+            buf = BytesIO()
+            mimetype = self.robot.fetch_log(logname, buf, report)
+            if mimetype:
+                self.send_json(status="binary", mimetype=mimetype,
+                               size=buf.truncate())
+                self.send_binary(buf.getvalue())
+                self.send_ok()
 
         def on_raw_message(self, message):
             if message == "quit" or message == "task quit":
