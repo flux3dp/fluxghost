@@ -75,7 +75,8 @@
         var ST_CLOSED = "CLOSED";
 
         var self = this;
-        var ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/control/" + uuid;
+        var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:10000';
+        var ws_url = "ws://" + (options.baseurl || host ) + "/ws/control/" + uuid;
         var ws = new WebSocket(ws_url);
         var command_queue = [];
         var waitting_response = false;

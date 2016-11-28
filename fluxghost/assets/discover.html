@@ -284,7 +284,8 @@
   }
 
   function connectDiscover() {
-    window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
+    var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:10000';
+    window.discover_ws = new WebSocket("ws://" + host + "/ws/discover");
     window.discover_ws.onopen = function() {
       setTimeout(ping, 5000);
     };

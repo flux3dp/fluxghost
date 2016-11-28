@@ -719,7 +719,8 @@
           return;
         }
         window.discover_timestamp = new Date();
-        window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
+        var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:10000';
+        window.discover = new WebSocket("ws://" + host + "/ws/discover");
         window.discover.onopen = function() {
           window.discover_retry_delay = 2000;
         };

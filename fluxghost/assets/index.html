@@ -8,8 +8,9 @@
   <meta charset="UTF-8">
   <link href="res/shared.css" rel="stylesheet" />
   <script>
+    var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:10000';
     $(window).ready(function() {
-      var ws = new WebSocket("ws://" + window.location.host + "/ws/ver");
+      var ws = new WebSocket("ws://" + host + "/ws/ver");
       ws.onopen = function() {
         console.log("/ws/ver Connected");
       };
