@@ -17,7 +17,8 @@
   }
 
   function touch_without_password(uuid, name, has_password) {
-    var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
+    var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:' + process.env.ghostPort ;
+    var ws = new WebSocket("ws://" + host + "/ws/touch");
     var close_normally = false;
 
     ws.onopen = function() {
@@ -44,7 +45,8 @@
   function touch_with_password(uuid, name, has_password) {
     var pwd = prompt("Enter password for " + name + " (" + uuid + ")");
     if(pwd) {
-      var ws = new WebSocket("ws://" + window.location.host + "/ws/touch");
+      var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:' + process.env.ghostPort ;
+      var ws = new WebSocket("ws://" + host + "/ws/touch");
       var close_normally = false;
 
       ws.onopen = function() {

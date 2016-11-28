@@ -31,7 +31,7 @@
 
     }
 
-    base.FLUXControl = function(uuid, options) {
+    base.FLUXControl = function(uuid, options, delayed) {
         /* options = {
             clientkey: "RSA key (pem)",
             baseurl: "http://localhost:8000",
@@ -75,7 +75,7 @@
         var ST_CLOSED = "CLOSED";
 
         var self = this;
-        var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:10000';
+        var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:' + process.env.ghostPort ;
         var ws_url = "ws://" + (options.baseurl || host ) + "/ws/control/" + uuid;
         var ws = new WebSocket(ws_url);
         var command_queue = [];

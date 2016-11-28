@@ -223,7 +223,7 @@
             <div class="clearfix"> \
               <div class="col-xs-12" style="white-space: nowrap; overflow: hidden"> \
                 <span class="glyphicon glyphicon-lock" style="font-size: 0.8em"></span> \
-                <a target="_blank" class="nickname"></a> \
+                <a '+ (window.process ? '' : 'target="_blank"') +' class="nickname"></a> \
                 <span class="pull-right"> \
                   <a target="_blank" class="camera"> \
                     <i class="glyphicon glyphicon-camera"></i> \

@@ -503,7 +503,7 @@
     connectControl();
   }
 
-  function connectControl() {
+  function connectControl(opts) {
     if(window.controller) {
       appendLog("Clean old control session", "red");
 
@@ -512,8 +512,7 @@
     }
     var uuid = $("#device_label").attr("data-uuid");
     appendLog("Connect to " + uuid);
-
-    window.controller = new FLUXControl(uuid, {
+    var control_opts = {
       clientkey: getKeyPem(),
       on_connecting: function(sender, stage) {
         appendLog("Connecting... (" + stage + ")", "#444");
@@ -550,7 +549,9 @@
         }
         ws_close_handler("Control")(wsparam)
       }
-    });
+    };
+    Object.assign(control_opts, opts);
+    window.controller = new FLUXControl(uuid, control_opts);
   }
 
   function dispatch_handler(cmd) {
@@ -720,13 +721,14 @@
         }
         window.discover_timestamp = new Date();
         var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:10000';
+        console.log('target host:' ,host);
         window.discover = new WebSocket("ws://" + host + "/ws/discover");
         window.discover.onopen = function() {
           window.discover_retry_delay = 2000;
         };
         window.discover.onmessage = onDiscoverMessage;
         window.discover.onclose = function() {
-          var nd = window.discover_retry_delay + 1000;
+          var nd = window.discover_retry_delay + 1000; 
           window.discover_retry_delay = Math.max(nd, 60000);
           discoverManager();
         }
