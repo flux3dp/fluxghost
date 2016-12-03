@@ -32,6 +32,8 @@ def control_base_mixin(cls):
             super().__init__(*args)
             if "uuid" in kw:
                 self.uuid = UUID(hex=kw["uuid"])
+            elif "serial" in kw:
+                self.uuid = UUID(hex=kw["serial"])
             elif "usb_addr" in kw:
                 self.usb_addr = int(kw["usb_addr"])
             else:
