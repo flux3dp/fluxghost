@@ -286,8 +286,11 @@ class WebSocketHandler(object):
         else:
             # Remote send close message, response and close it.
             self._is_closing = True
-            self._send(FRAME_CLOSE, b'\x03\xe8')
-            self.request.shutdown(socket.SHUT_WR)
+            try:
+                self._send(FRAME_CLOSE, b'\x03\xe8')
+                self.request.shutdown(socket.SHUT_WR)
+            except IOError:
+                pass
 
     def on_text_message(self, message):
         pass

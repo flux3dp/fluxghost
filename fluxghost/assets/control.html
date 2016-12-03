@@ -511,10 +511,17 @@
       window.controller = undefined;
     }
     var uuid = $("#device_label").attr("data-uuid");
-    appendLog("Connect to " + uuid);
+
+    if(window.device_information.usb) {
+      appendLog("Connect to USB: " + window.device_information.usb_addr);
+    } else {
+      appendLog("Connect to " + uuid);
+    }
 
     window.controller = new FLUXControl(uuid, {
       clientkey: getKeyPem(),
+      usb: window.device_information.usb,
+      usb_addr: window.device_information.usb_addr,
       on_connecting: function(sender, stage) {
         appendLog("Connecting... (" + stage + ")", "#444");
       },
@@ -740,14 +747,24 @@
     discoverManager();
 
     // Begin UI
-    var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
-    if(matchs != undefined && matchs.length == 1) {
-      var tags = matchs[0].split(";");
+    var match_uuid = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    var match_usb = /^#USB:[0-9]+;[\w\W]+$/.exec(document.location.hash);
+    if(match_uuid != undefined && match_uuid.length == 1) {
+      var tags = match_uuid[0].split(";");
       var uuid = tags[0].substr(1);
       var name = tags.slice(1).join(";");
 
-      beginControl(uuid, name);
       window.device_information = {uuid: uuid, name: name};
+      beginControl(uuid, name);
+    } else if(match_usb != undefined && match_usb.length == 1) {
+      var tags = match_usb[0].split(";");
+      var usbaddr = tags[0].substr(5);
+      var uuid = tags[1];
+      var name = tags.slice(2).join(";");
+
+      window.device_information = {uuid: uuid, name: name, usb: true,
+                                   usb_addr: usbaddr};
+      beginControl(uuid, name);
     } else {
       window.location = "discover.html";
     }

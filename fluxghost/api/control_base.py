@@ -4,8 +4,11 @@ from uuid import UUID
 import logging
 import socket
 
-from fluxclient.encryptor import KeyObject
 from fluxclient.robot.errors import RobotError, RobotSessionError
+from fluxclient.robot.robot import FluxRobot
+from fluxclient.utils.version import StrictVersion
+from fluxclient.encryptor import KeyObject
+from fluxghost import g
 
 logger = logging.getLogger("API.CONTROL_BASE")
 
@@ -17,6 +20,9 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 def control_base_mixin(cls):
     class ControlBaseAPI(cls):
+        uuid = None
+        usb_addr = None
+
         binary_handler = None
         cmd_mapping = None
         client_key = None
@@ -24,7 +30,12 @@ def control_base_mixin(cls):
 
         def __init__(self, *args, **kw):
             super().__init__(*args)
-            self.uuid = UUID(hex=kw["serial"])
+            if "uuid" in kw:
+                self.uuid = UUID(hex=kw["uuid"])
+            elif "usb_addr" in kw:
+                self.usb_addr = int(kw["usb_addr"])
+            else:
+                raise SystemError("Poor connection configuration")
             self.POOL_TIME = 1.5
 
         def on_connected(self):
@@ -40,32 +51,48 @@ def control_base_mixin(cls):
 
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
-            logger.debug("DISCOVER")
-            uuid = self.uuid
+            if self.uuid:
+                uuid = self.uuid
 
-            if uuid in self.server.discover_devices:
-                device = self.server.discover_devices[uuid]
-                self.remote_version = device.version
-                self.ipaddr = device.ipaddr
+                if uuid in self.server.discover_devices:
+                    device = self.server.discover_devices[uuid]
+                    self.remote_version = device.version
+                    self.send_text(STAGE_ROBOT_CONNECTING)
+
+                    try:
+                        self.robot = self.get_robot_from_device(device)
+
+                    except (OSError, ConnectionError, socket.timeout) as e:  # noqa
+                        logger.error("Socket erorr: %s", e)
+                        self.send_fatal("DISCONNECTED")
+
+                    except (RobotError, RobotSessionError) as err:
+                        if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
+                            self.server.discover_devices.pop(uuid)
+                            self.server.discover.devices.pop(uuid)
+                        self.send_fatal(*err.error_symbol)
+                        return
+
+                    self.send_text(STAGE_CONNECTED)
+                    self.POOL_TIME = 30.0
+                    self.on_connected()
+            elif self.usb_addr:
+                usbprotocol = g.USBDEVS.get(self.usb_addr)
                 self.send_text(STAGE_ROBOT_CONNECTING)
 
-                try:
-                    self.robot = self.get_robot_from_device(device)
+                if usbprotocol:
+                    self.remote_version = StrictVersion(
+                        usbprotocol.endpoint_profile["version"])
 
-                except (OSError, ConnectionError, socket.timeout) as e:  # noqa
-                    logger.error("Socket erorr: %s", e)
-                    self.send_fatal("DISCONNECTED")
-
-                except (RobotError, RobotSessionError) as err:
-                    if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
-                        self.server.discover_devices.pop(uuid)
-                        self.server.discover.devices.pop(uuid)
-                    self.send_fatal(*err.error_symbol)
-                    return
-
-                self.send_text(STAGE_CONNECTED)
-                self.POOL_TIME = 30.0
-                self.on_connected()
+                    self.robot = FluxRobot.from_usb(self.client_key,
+                                                    usbprotocol)
+                    self.send_text(STAGE_CONNECTED)
+                    self.POOL_TIME = 30.0
+                    self.on_connected()
+                else:
+                    self.send_fatal("UNKNOWN_DEVICE")
+            else:
+                self.send_fatal("?")
 
         def on_text_message(self, message):
             if self.client_key:

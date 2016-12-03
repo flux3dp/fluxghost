@@ -26,12 +26,6 @@ def control_api_mixin(cls):
         _task = None
         raw_sock = None
 
-        def __init__(self, *args, **kw):
-            try:
-                super().__init__(*args, **kw)
-            except RobotError:
-                pass
-
         def on_connected(self):
             self.set_hooks()
 

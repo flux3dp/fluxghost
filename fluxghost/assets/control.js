@@ -35,6 +35,7 @@
         /* options = {
             clientkey: "RSA key (pem)",
             baseurl: "http://localhost:8000",
+            usb: trur|false,
 
             on_connecting: function(obj|controller, str|stage) {},
             on_connected: function(obj|controller) {},
@@ -75,7 +76,10 @@
         var ST_CLOSED = "CLOSED";
 
         var self = this;
-        var ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/control/" + uuid;
+        var ws_url = options.usb ?
+            "ws://" + (options.baseurl || base.location.host ) + "/ws/usb/" + options.usb_addr :
+            "ws://" + (options.baseurl || base.location.host ) + "/ws/control/" + uuid;
+        console.log("Connect control endpoint: " + ws_url)
         var ws = new WebSocket(ws_url);
         var command_queue = [];
         var waitting_response = false;
