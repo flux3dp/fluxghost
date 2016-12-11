@@ -77,7 +77,7 @@
 
         var self = this;
         var ws_url = options.usb ?
-            "ws://" + (options.baseurl || base.location.host ) + "/ws/usb/" + options.usb_addr :
+            "ws://" + (options.baseurl || base.location.host ) + "/ws/control/usb/" + options.usb_addr :
             "ws://" + (options.baseurl || base.location.host ) + "/ws/control/" + uuid;
         console.log("Connect control endpoint: " + ws_url)
         var ws = new WebSocket(ws_url);

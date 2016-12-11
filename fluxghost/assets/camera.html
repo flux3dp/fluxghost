@@ -29,14 +29,22 @@
   }
 
   function connectControl() {
+    var ws;
+
     if(window.control_ws) {
       appendLog("Clean old control session", "red");
       window.control_ws.close();
       window.control_ws = undefined;
     }
-    var serial = $("#device_label").attr("data-uuid");
-    appendLog("Connect to " + serial);
-    var ws = new WebSocket("ws://" + window.location.host + "/ws/camera/" + serial);
+
+    if(window.device_information.usb) {
+      appendLog("Connect to USB: " + window.device_information.usb_addr);
+      var ws = new WebSocket("ws://" + window.location.host + "/ws/camera/usb/" + window.device_information.usb_addr);
+    } else {
+      appendLog("Connect to " + window.device_information.uuid);
+      var ws = new WebSocket("ws://" + window.location.host + "/ws/camera/" + window.device_information.uuid);
+    }
+
     window.control_ws = ws;
 
     ws.onopen = function(v) {
@@ -135,13 +143,26 @@
     });
 
     // Begin UI
-    var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
-    if(matchs != undefined && matchs.length == 1) {
-      var tags = matchs[0].split(";");
-      var serial = tags[0].substr(1);
+    var match_uuid = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    var match_usb = /^#USB:[0-9]+;[\w\W]+$/.exec(document.location.hash);
+
+    // var matchs = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    if(match_uuid != undefined && match_uuid.length == 1) {
+      var tags = match_uuid[0].split(";");
+      var uuid = tags[0].substr(1);
       var name = tags.slice(1).join(";");
 
-      beginControl(serial, name);
+      window.device_information = {uuid: uuid, name: name};
+      beginControl(uuid, name);
+    } else if(match_usb != undefined && match_usb.length == 1) {
+      var tags = match_usb[0].split(";");
+      var usbaddr = tags[0].substr(5);
+      var uuid = tags[1];
+      var name = tags.slice(2).join(";");
+
+      window.device_information = {uuid: uuid, name: name, usb: true,
+                                   usb_addr: usbaddr};
+      beginControl(uuid, name);
     } else {
       window.location = "discover.html";
     }

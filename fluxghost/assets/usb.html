@@ -47,7 +47,8 @@
       <div class="control disabled"><a data-action="open">Open</a></div> \
       <div class="control enabled">Opened</div> \
       <div class="control enabled"><a data-action="close">Close</a></div> \
-      <div class="control enabled">| <a target="_blank" data-action="connect">Connect</a></div> \
+      <div class="control enabled">| <a target="_blank" data-action="control">Control</a></div> \
+      <div class="control enabled">| <a target="_blank" data-action="camera">Camera</a></div> \
       <div class="control enabled">| <span data-label="nickname"></span></div> \
       <div class="control enabled">| <span data-label="serial"></span></div> \
       <div class="control enabled">| <span data-label="firmware"></span></div> \
@@ -143,7 +144,8 @@
         alert("No connection");
       }
     });
-    $("[data-action=connect]", $dev).attr("href", "control.html#USB:" + addr);
+    $("[data-action=control]", $dev).attr("href", "control.html#USB:" + addr);
+    $("[data-action=camera]", $dev).attr("href", "camera.html#USB:" + addr);
     $(".interfaces").append($dev);
     return $dev;
   }
@@ -152,8 +154,13 @@
     $("[data-label=nickname]", $dev).text(profile.nickname);
     $("[data-label=serial]", $dev).text(profile.serial);
     $("[data-label=firmware]", $dev).text(profile.version);
-    var $conn = $("[data-action=connect]", $dev);
 
+    var $conn = $("[data-action=control]", $dev);
+    var conn_url = $conn.attr("href").split(";")[0];
+    conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
+    $conn.attr("href", conn_url);
+
+    var $conn = $("[data-action=camera]", $dev);
     var conn_url = $conn.attr("href").split(";")[0];
     conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
     $conn.attr("href", conn_url);
@@ -161,7 +168,7 @@
 
   function connect_usb() {
     window.ws_commands = [];
-    window.ws = new WebSocket("ws://" + window.location.host + "/ws/usb");
+    window.ws = new WebSocket("ws://" + window.location.host + "/ws/usb/interfaces");
     window.ws.onclose = function() {
       window.ws = undefined;
       $("#disconnect_dialog").modal('show');

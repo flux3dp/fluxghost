@@ -51,6 +51,9 @@ def control_base_mixin(cls):
             return device.connect_robot(
                 self.client_key, conn_callback=self._conn_callback)
 
+        def get_robot_from_h2h(self, usbprotocol):
+            return FluxRobot.from_usb(self.client_key, usbprotocol)
+
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
             if self.uuid:
@@ -86,8 +89,7 @@ def control_base_mixin(cls):
                     self.remote_version = StrictVersion(
                         usbprotocol.endpoint_profile["version"])
 
-                    self.robot = FluxRobot.from_usb(self.client_key,
-                                                    usbprotocol)
+                    self.robot = self.get_robot_from_h2h(usbprotocol)
                     self.send_text(STAGE_CONNECTED)
                     self.POOL_TIME = 30.0
                     self.on_connected()

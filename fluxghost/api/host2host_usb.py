@@ -2,8 +2,7 @@
 from threading import Thread
 import logging
 
-from fluxclient.usb import usb2
-from fluxghost.api.control import control_api_mixin
+from fluxclient.device.host2host_usb import USBProtocol, FluxUSBError
 from fluxghost import g
 
 logger = logging.getLogger("API.USB")
@@ -14,19 +13,21 @@ def usb_daemon_thread(protocol, address):
     g.USBDEVS[address] = protocol
     try:
         protocol.run()
-        g.USBDEVS.pop(address)
         logger.debug("USB daemon at %s terminated", address)
     except Exception:
         logger.exception("USB daemon at %s crashed", address)
+
     g.USBDEVS.pop(address)
     protocol.close()
 
 
-def usb_interfaces_api_mixin(cls):
-    class USBInterfacesApi(cls):
+def h2h_interfaces_api_mixin(cls):
+    class ClosedUsbDev(object):
+        endpoint_profile = False
+
+    class H2HInterfacesApi(cls):
         def __init__(self, *args, **kw):
             super().__init__(*args, **kw)
-            self.cached = set()
 
         def on_text_message(self, message):
             if message == "list":
@@ -44,9 +45,9 @@ def usb_interfaces_api_mixin(cls):
         def on_close(self, message):
             pass
 
-        def update_devices(self):
+        def get_devices(self):
             usbdevs = {}
-            ifces = usb2.USBProtocol.get_interfaces()
+            ifces = USBProtocol.get_interfaces()
             for i in ifces:
                 if i.address in g.USBDEVS:
                     usbdevs[i.address] = g.USBDEVS[i.address]
@@ -55,19 +56,10 @@ def usb_interfaces_api_mixin(cls):
             g.USBDEVS = usbdevs
 
         def list_devices(self):
-            self.update_devices()
-            output = {}
-            for k, v in g.USBDEVS.items():
-                if v:
-                    if k in self.cached:
-                        output[k] = True
-                    else:
-                        self.cached.add(k)
-                        output[k] = v.endpoint_profile
-                else:
-                    self.cached.discard(k)
-                    output[k] = False
-
+            output = {ifce.address:
+                      g.USBDEVS.get(ifce.address,
+                                    ClosedUsbDev).endpoint_profile
+                      for ifce in USBProtocol.get_interfaces()}
             self.send_ok(devices=output)
 
         def open_device(self, addr):
@@ -75,10 +67,10 @@ def usb_interfaces_api_mixin(cls):
                 self.send_error("RESOURCE_BUSY")
                 return
 
-            for usbdev in usb2.USBProtocol.get_interfaces():
+            for usbdev in USBProtocol.get_interfaces():
                 if usbdev.address == addr:
                     try:
-                        usbprotocol = usb2.USBProtocol(usbdev)
+                        usbprotocol = USBProtocol(usbdev)
                         t = Thread(target=usb_daemon_thread,
                                    args=(usbprotocol, addr))
                         t.daemon = True
@@ -88,7 +80,7 @@ def usb_interfaces_api_mixin(cls):
                         logger.debug("USB address %s opened: %s", addr,
                                      usbprotocol.endpoint_profile)
                         return
-                    except usb2.FluxUSBError as e:
+                    except FluxUSBError as e:
                         self.send_error(e.symbol)
                         return
             self.send_error("NOT_FOUND")
@@ -101,11 +93,5 @@ def usb_interfaces_api_mixin(cls):
                 logger.debug("USB address %x closed", addr)
             else:
                 self.send_error("NOT_FOUND")
-    return USBInterfacesApi
 
-
-def usb_control_api_mixin(cls):
-    class USBControlApi(control_api_mixin(cls)):
-        def __init__(self, *args, **kw):
-            super().__init__(*args, **kw)
-    return USBControlApi
+    return H2HInterfacesApi
