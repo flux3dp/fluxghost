@@ -626,8 +626,8 @@ def control_api_mixin(cls):
                 self.send_binary(buf)
             self.send_ok(**metadata)
 
-        def config_set(self, key, value):
-            self.robot.config[key] = value
+        def config_set(self, key, *value):
+            self.robot.config[key] = " ".join(value)
             self.send_ok(key=key)
 
         def config_get(self, key):

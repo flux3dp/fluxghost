@@ -13,7 +13,7 @@ from fluxghost import g
 logger = logging.getLogger("API.CONTROL_BASE")
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
-STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
+STAGE_CONNECTIONG = '{"status": "connecting", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
@@ -44,8 +44,7 @@ def control_base_mixin(cls):
             pass
 
         def on_loop(self):
-            if self.client_key and not self.robot:
-                self.try_connect()
+            pass
 
         def get_robot_from_device(self, device):
             return device.connect_robot(
@@ -62,7 +61,7 @@ def control_base_mixin(cls):
                 if uuid in self.server.discover_devices:
                     device = self.server.discover_devices[uuid]
                     self.remote_version = device.version
-                    self.send_text(STAGE_ROBOT_CONNECTING)
+                    self.send_text(STAGE_CONNECTIONG)
 
                     try:
                         self.robot = self.get_robot_from_device(device)
@@ -78,25 +77,26 @@ def control_base_mixin(cls):
                         self.send_fatal(*err.error_symbol)
                         return
 
-                    self.send_text(STAGE_CONNECTED)
-                    self.POOL_TIME = 30.0
-                    self.on_connected()
+                else:
+                    self.send_fatal("NOT_FOUND")
+
             elif self.usb_addr:
                 usbprotocol = g.USBDEVS.get(self.usb_addr)
-                self.send_text(STAGE_ROBOT_CONNECTING)
+                self.send_text(STAGE_CONNECTIONG)
 
                 if usbprotocol:
                     self.remote_version = StrictVersion(
                         usbprotocol.endpoint_profile["version"])
 
                     self.robot = self.get_robot_from_h2h(usbprotocol)
-                    self.send_text(STAGE_CONNECTED)
-                    self.POOL_TIME = 30.0
-                    self.on_connected()
                 else:
                     self.send_fatal("UNKNOWN_DEVICE")
             else:
                 self.send_fatal("?")
+
+            self.send_text(STAGE_CONNECTED)
+            self.POOL_TIME = 30.0
+            self.on_connected()
 
         def on_text_message(self, message):
             if self.client_key:
@@ -104,14 +104,13 @@ def control_base_mixin(cls):
             else:
                 try:
                     self.client_key = KeyObject.load_keyobj(message)
+                    self.try_connect()
                 except ValueError:
                     self.send_fatal("BAD_PARAMS")
                 except Exception:
                     logger.error("RSA Key load error: %s", message)
                     self.send_fatal("BAD_PARAMS")
                     raise
-
-                self.try_connect()
 
         def on_binary_message(self, buf):
             try:
@@ -192,6 +191,6 @@ def control_base_mixin(cls):
             return True
 
         def _conn_callback(self, *args):
-            self.send_text(STAGE_ROBOT_CONNECTING)
+            self.send_text(STAGE_CONNECTIONG)
             return True
     return ControlBaseAPI
