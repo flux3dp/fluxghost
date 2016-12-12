@@ -14,9 +14,9 @@ ROUTES = [
 
     (re.compile("device-manager/(?P<uuid>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
-    (re.compile("device-manager/(?P<usb_addr>[0-9]{1,3})"),
+    (re.compile("device-manager/usb/(?P<usb_addr>[0-9]{1,3})"),
      "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
-    (re.compile("device-manager/(?P<uart>[\w\W]+)"),
+    (re.compile("device-manager/uart/(?P<uart>[\w\W]+)"),
      "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
 
     (re.compile("control/(?P<serial>[0-9a-fA-F]{32})"),

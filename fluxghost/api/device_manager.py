@@ -57,7 +57,6 @@ def manager_mixin(cls):
                         return
                 else:
                     self.send_fatal("NOT_FOUND")
-
             elif endpoint_type == "h2h":
                 usbprotocol = g.USBDEVS.get(endpoint_target)
                 self.send_text(STAGE_CONNECTIONG)
@@ -67,11 +66,12 @@ def manager_mixin(cls):
                                                           usbprotocol)
                 else:
                     self.send_fatal("UNKNOWN_DEVICE")
-            elif endpoint_target == "uart":
-                self.manager = DeviceManager.from_usb(self.client_key,
-                                                      endpoint_target)
+            elif endpoint_type == "uart":
+                self.manager = DeviceManager.from_uart(self.client_key,
+                                                       endpoint_target)
             else:
                 self.send_fatal("UNKNOWN_ENDPOINT_TYPE", endpoint_type)
+                return
 
             self.send_text(STAGE_CONNECTED)
             self.POOL_TIME = 30.0
@@ -115,6 +115,8 @@ def manager_mixin(cls):
             self.send_ok(acl=self.manager.list_trust())
 
         def cmd_add_trust(self, pem, label=getuser(), *args):
+            if pem == "self":
+                pem = self.client_key.public_key_pem
             self.manager.add_trust(label, pem)
             self.send_ok()
 
@@ -146,7 +148,7 @@ def manager_mixin(cls):
             self.send_ok(ssid=self.manager.get_wifi_ssid())
 
         def cmd_get_ipaddr(self, *args):
-            self.send_ok(ssid=self.manager.get_ipaddr())
+            self.send_ok(ipaddrs=self.manager.get_ipaddr())
 
         def cmd_not_found(self, *args):
             self.send_error("", symbol=("L_UNKNOWN_COMMAND", ))

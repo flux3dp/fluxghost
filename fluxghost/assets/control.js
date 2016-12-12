@@ -1,6 +1,6 @@
 
 (function(base) {
-    BinaryReciver = function(mimetype, size) {
+    var BinaryReciver = function(mimetype, size) {
         var blobs = []
         var buffered = 0;
 
@@ -76,9 +76,15 @@
         var ST_CLOSED = "CLOSED";
 
         var self = this;
-        var ws_url = options.usb ?
-            "ws://" + (options.baseurl || base.location.host ) + "/ws/control/usb/" + options.usb_addr :
-            "ws://" + (options.baseurl || base.location.host ) + "/ws/control/" + uuid;
+        var scope = options.scope ? options.scope : "control";
+        var ws_url;
+        if(options.usb) {
+            ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/" + scope + "/usb/" + options.usb_addr;
+        } else if(options.uart) {
+            ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/" + scope + "/uart/" + options.uart_port;
+        } else {
+            ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/" + scope + "/" + uuid;
+        }
         console.log("Connect control endpoint: " + ws_url)
         var ws = new WebSocket(ws_url);
         var command_queue = [];
