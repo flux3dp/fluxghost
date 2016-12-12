@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio - Device Manager</title>
+  <script src="res/jquery-2.1.4.min.js"></script>
+  <script src="res/bootstrap/js/bootstrap.min.js"></script>
+  <script src="res/jsencrypt.js"></script>
+  <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <script src="shared.js"></script>
+  <script src="control.js"></script>
+  <link href="res/shared.css" rel="stylesheet" />
+  <style>
+  .file-node {
+    overflow: hidden;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+
+  .file-file {
+    min-height: 2em;
+  }
+
+  .file-node:hover {
+    z-index: 100;
+    overflow: initial;
+  }
+
+
+  .file-node a {
+    cursor: pointer;
+  }
+
+  .file-node .file-node-container {
+    white-space: nowrap;
+    padding: 0.2em 0.4em;
+    border: 1px white solid;
+  }
+
+  .file-node:hover .file-node-container {
+    background-color: #FEDFE1;
+    border: 1px #aaa solid;
+    background: #eee;
+    border-radius: 3px;
+  }
+
+  .file-node a[data-tag="info"],
+  .file-node a[data-tag="download"] {
+    display: none;
+  }
+
+  .file-node:hover a[data-tag="info"],
+  .file-node:hover a[data-tag="download"] {
+    display: initial;
+  }
+
+  .file-node:hover a[data-tag="select"] {
+    display: inline-block;
+  }
+
+  .fileinput-button {
+    position: relative;
+    overflow: hidden;
+  }
+  .fileinput-button input {
+    position: absolute;
+    top: 0;
+    right: 0;
+    margin: 0;
+    opacity: 0;
+    -ms-filter: 'alpha(opacity=0)';
+    font-size: 200px;
+    direction: ltr;
+    cursor: pointer;
+  }
+
+  .config-btn {
+    display: inline-block;
+    cursor: pointer;
+    width: 32%;
+    text-align: center;
+  }
+
+  .config-btn:hover {
+    background-color: #ccc;
+  }
+
+  /* Fixes for IE < 8 */
+  @media screen\9 {
+    .fileinput-button input {
+      filter: alpha(opacity=0);
+      font-size: 100%;
+      height: 100%;
+    }
+  }
+  </style>
+  <script>
+  var filesinfo = {};
+  var bcst_status = undefined;
+
+  function ProgressBar(title) {
+    var $html = $(' \
+    <div> \
+      <div style="padding: 0 2em; float: right"> \
+        <span class="text_prog"></span> \
+      </div> \
+      <div style="padding: 0 2em;"> \
+        <span class="text_title"></span> \
+      </div> \
+      <div class="progress" style="height: 0.5em; margin-bottom: 0.05em;"> \
+        <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"> \
+        </div> \
+    </div>');
+
+    this.html = $html;
+
+    var size = 0;
+    $(".text_title", $html).text(title);
+
+    this.get_size = function() {
+      return size;
+    }
+
+    this.update = function(complete_size, total_size) {
+      size = total_size;
+      var p = complete_size / total_size;
+      p = Math.round(p * 1000) / 10;
+      $(".progress-bar", $html).css("width", p + "%");
+      $(".text_prog", $html).text(
+        (total_size - complete_size) + " byte(s) left");
+      if(complete_size === total_size) {
+        $(".progress-bar", $html).addClass("progress-bar-success");
+      }
+    }
+  }
+
+  function render_fileinfo(filename) {
+    function render_metadata(key, value) {
+      var $tag = $('<span class="label label-default"></span>').text(key);
+      var $val = $('<span class="label label-primary"></span>');
+      if(value.length > 30) {
+        $val.text(value.substr(0, 30) + " ...");
+        $val.bind("click", function() {
+          alert(value);
+        });
+      } else {
+        $val.text(value);
+      }
+      return $('<div class="col-sm-6"></div>').append($tag).append($('<span> <span>')).append($val);
+    }
+
+    if(filesinfo[filename]) {
+      var $m = $("#shared_modal");
+      var $body = $(".modal-body", $m);
+      $body.children().remove();
+      $(".modal-title", $m).text(filename + " Preview");
+      var p = filesinfo[filename].previews;
+      var a = filesinfo[filename].attributes;
+      if(p) {
+        for(var i=0;i<p.length;i++) {
+          $body
+            .append($('<div></div>')
+              .append($('<img class="img-thumbnail" />')
+                .attr("src", URL.createObjectURL(p[i]))));
+        }
+      }
+      var $attrs = $('<div class="row"></div>');
+      for(var i=0;i<a.length;i++) {
+        $attrs.append(render_metadata(
+          a[i][0], a[i][1]))
+      }
+      $body.append($attrs);
+      $m.modal('show');
+    } else {
+      return false;
+    }
+  }
+
+  function render_buttons(st_id) {
+    $("[data-sg]").hide();
+    if(st_id < 0) {
+      $("[data-sgn]").show();
+    } else if(st_id == 0) {
+      $("[data-sg0]").show();
+    } else {
+      $("[data-sgp]").show();
+      $("[data-sg" + st_id + "]").show();
+    }
+  }
+
+  function update_fileinfo(filename, metadata, previews) {
+    var DEFAULT_PROPERTIES = ["size", "TITLE", "AUTHOR", "CREATED_AT",
+      "HEAD_TYPE", "CORRECTION", "FILAMENT_DETECT", "FILAMENT_USED",
+      "HEAD_ERROR_LEVEL", "TIME_COST", "TRAVEL_DIST", "MAX_R", "MAX_X",
+      "MAX_Y", "MAX_Z", "SETTING"];
+    var attributes = [];
+    for(var i=0;i<DEFAULT_PROPERTIES.length;i++) {
+      var key = DEFAULT_PROPERTIES[i];
+      if(metadata[key]) {
+        attributes.push([key, metadata[key]]);
+        delete metadata[key];
+      }
+    }
+    for(var key in metadata) {
+      attributes.push([key, metadata[key]]);
+    }
+    filesinfo[filename] = {attributes: attributes, previews: previews};
+  }
+
+  function global_on_operating(controller, cmd, payload, data) {
+    var stage = payload.stage[0];
+    var params = payload.stage.slice(1).join(' ');
+
+    if(payload.stage[0] == "UPDATE_THFW" && payload.stage[1] == "WRITE") {
+      if(!data.fw_prog) {
+        data.fw_prog = new ProgressBar("Write firmware");
+        appendHtmlLog(data.fw_prog.html);
+      }
+      data.fw_prog.update(payload.written, data.get_size());
+
+      return;
+    } else if(stage == "CALIBRATING") {
+      params = payload.pos + " / 3";
+    } else if(stage == "HEATING") {
+      params = payload.temperature + " °C";
+    }
+
+    appendHtmlLog($('<div></div>')
+      .append($('<span class="label label-primary"></span>')
+        .append($("<i class=\"glyphicon glyphicon-transfer\"></i>"))
+        .append($("<span></span>").html("&nbsp;"))
+        .append($("<span></span>").text(stage)))
+      .append($("<span></span>").html("&nbsp;"))
+      .append($('<span></span>').text(params)));
+  }
+
+  function global_on_debug(controller, cmd, payload, data) {
+    appendHtmlLog($('<div></div>')
+      .append($('<span class="label label-default">DEVICE LOG</span>'))
+      .append($('<span></span>').html("&nbsp;"))
+      .append($('<span></span>').text(payload.log || payload.args)));
+  }
+
+  var callbacks = {
+    error: function(controller, cmd, errors, data) {
+      appendLog("Error: " + errors.join(", "), "#F05E1C");
+    },
+    handling: function(control, cmd, payload, data) {
+      if(payload.status === "update_hbfw") {
+        if(payload.stage === "WRITE") {
+          if(window.last_update_write_hbfw) {
+            var d = new Date();
+            if((d - window.last_update_write_hbfw) < 1500) { return; }
+          }
+
+          window.last_update_write_hbfw = new Date();
+          appendLog("Update head fw: Write " + payload.written);
+        } else {
+          appendLog("Update head fw: " + payload.stage);
+        }
+      }
+    },
+    list_trust: function(controller, cmd, payload) {
+      if(payload.acl) {
+        for(var i=0;i<payload.acl.length;i++) {
+          var el = payload.acl[i];
+          appendHtmlLog($('<div style="margin: 2px 0" data-access-id="' + el.access_id + '"></div>')
+            .append($('<span class="btn btn-danger btn-xs" data-access-id="' + el.access_id + '"><span class="glyphicon glyphicon-trash"></span></span>').bind("click", function() {
+                var aid = $(this).attr("data-access-id");
+               send_cmd("remove_trust " + aid);
+               $("[data-access-id=" + aid + "]").remove();
+            }))
+            .append($('<span class=>&nbsp;</span>'))
+            .append($('<span class="label label-primary"></span>')
+              .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+              .append($("<span></span>").html("&nbsp;"))
+              .append($("<span></span>").text(el.access_id)))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($('<span></span>').text(el.label)));
+        }
+      } else {
+        appendLog("Can not parse response");
+      }
+    },
+    scan_wifi_access_points: function(controller, cmd, payload) {
+      if(payload.access_points) {
+        for(var i=0;i<payload.access_points.length;i++) {
+          var el = payload.access_points[i];
+          appendHtmlLog($('<div></div>')
+            .append($('<span class="label label-primary"></span>').text(el.bssid))
+            .append($('<span class>&nbsp;</span>'))
+            .append($('<span></span>').text(el.rssi))
+            .append($('<span class>&nbsp;</span>'))
+            .append($('<span class="label label-default"></span>').text(el.security))
+            .append($('<span class>&nbsp;</span>'))
+            .append($('<span></span>').text(el.ssid)));
+        }
+      } else {
+        appendLog("Can not parse response");
+      }
+    },
+    ping: function(controller) {
+      setTimeout(function() {
+        if(controller.status() === "CONNECTED") {
+          if(controller.is_busy()) {
+            callbacks.ping(controller);
+          } else {
+            controller.send_command("ping", callbacks.ping)
+          }
+        } else {
+          console.log("ping aborted because controller status = " + controller.status());
+        }
+      }, 60000);
+    },
+    default: function(controller, cmd, payload) {
+      if(payload.constructor === String) {
+        var lines = payload.split("\n");
+        for(var i=0;i<lines.length;i++) {
+          appendLog(lines[i]);
+        }
+      } else {
+        var log = JSON.stringify(payload);
+        if(log === '{"status":"ok"}') {
+          appendLog("ok");
+        } else {
+          appendLog(JSON.stringify(payload));
+        }
+      }
+    }
+  }
+
+  function beginControl(uuid, name) {
+    $("#device_label").
+      text(name + " (" + uuid + ")").
+      attr("data-uuid", uuid).
+      attr("data-name", name);
+
+    connectControl();
+  }
+
+  function connectControl() {
+    if(window.controller) {
+      appendLog("Clean old control session", "red");
+
+      window.controller.close();
+      window.controller = undefined;
+    }
+    var uuid = $("#device_label").attr("data-uuid");
+
+    if(window.device_information.usb) {
+      appendLog("Connect to USB: " + window.device_information.usb_addr);
+    } else if(window.device_information.uart) {
+      appendLog("Connect to UART: " + window.device_information.uart_port);
+    }
+    else {
+      appendLog("Connect to " + uuid);
+    }
+
+    window.controller = new FLUXControl(uuid, {
+      scope: "device-manager",
+      clientkey: getKeyPem(),
+      usb: window.device_information.usb,
+      uart: window.device_information.uart,
+      uart_port: window.device_information.uart_port,
+      usb_addr: window.device_information.usb_addr,
+      on_connecting: function(sender, stage) {
+        appendLog("Connecting... (" + stage + ")", "#444");
+      },
+      on_connected: function(sender) {
+        appendLog("➜ Ready")
+        appendHtmlLog('<div>' +
+          '<img src="ready.png?" height="60px" />' +
+          '<img src="ready.png?" height="60px" />' +
+          '<img src="ready.png?" height="60px" />' + '</div>');
+        callbacks.ping(sender);
+      },
+      on_error: callbacks.error,
+      on_raw: function(sender, text) {
+        var lines = text.split("\n");
+        for(var i=0;i<lines.length;i++) {
+          var line = lines[i];
+          if(line.length > 0) appendLog(lines[i]);
+        }
+      },
+      on_fatal: function(sender, source, cmd, errors) {
+        if(errors[0] === "AUTH_ERROR") {
+            var $label = $("#device_label");
+            appendLog("✗ Error: Auth failed", "red");
+            appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
+                          ';' + $label.attr("data-name") + '">Go to auth page</a>');
+          } else {
+            appendLog("✗ Error: "+ errors + " 😭", "red");
+          }
+      },
+      on_close: function(sender, wsparam) {
+        if(window.controller === sender) {
+          window.controller = undefined;
+        }
+        ws_close_handler("Control")(wsparam)
+      }
+    });
+  }
+
+  function dispatch_handler(cmd) {
+    for(var key in callbacks) {
+        if(cmd.startsWith(key + " ") || cmd == key) {
+          return callbacks[key];
+        }
+    }
+    return callbacks.default;
+  }
+
+  function send_cmd(cmd, handler, data) {
+    var cb = handler ? handler : dispatch_handler(cmd);
+    if(window.controller) {
+      try {
+        window.controller.send_command(cmd, {
+          on_success: cb,
+          on_transfer_begin: function(controller, datasize, data) {
+            data.transfer_prog = new ProgressBar("Data transfer");
+            appendHtmlLog(data.transfer_prog.html);
+            data.transfer_prog.update(0, datasize);
+          },
+          on_transfer: function(controller, recivedsize, datasize, data) {
+            if(data.transfer_prog) {
+              data.transfer_prog.update(recivedsize, datasize);
+            }
+          },
+          on_operating: global_on_operating,
+          on_debug: global_on_debug,
+          data: (data || {})
+        });
+
+        appendLog("➦ " + cmd, undefined, "#eeeeee");
+      } catch(err) {
+        appendLog("⚠️ Error: " + err, "rgb(208, 142, 40)");
+      }
+    } else {
+      appendLog("⚠️ Not Connected, can not send '" + cmd + "'",
+                "rgb(208, 142, 40)");
+    }
+  }
+
+  $(window).ready(function() {
+    $("[data-role=reset-control]").on("click", function() {
+      connectControl();
+    });
+
+    $("#controlcmd").on("keypress", function(e) {
+      if(e.keyCode == 13) {
+        var val = $(this).val();
+        send_cmd(val);
+        $(this).val("");
+        return false;
+      }
+    });
+
+    $("#log").on("click", "[data-cmd]", function() {
+      cl = $(this).attr("data-cmd").split(",")
+      for(var i=0;i<cl.length;i++) {
+        send_cmd(cl[i]);
+      }
+    });
+
+    $("[data-cmd-guide]").bind("click", function() {
+      $("#controlcmd")
+        .val($(this).attr("data-cmd-guide"))
+        .focus();
+    });
+
+    $("[data-cmd]").bind("click", function() {
+      if($(this).attr("data-cmd-require-param")) {
+        var val = prompt($(this).attr("data-cmd-param-help").replace(/\\n/g, "\n"));
+        if(!val) {
+          appendLog("Command canceled: '" + $(this).attr("data-cmd") + "'");
+        }
+        var cmd = $(this).attr("data-cmd").replace(/{}/g, val);
+        send_cmd(cmd);
+      } else {
+        cmds = $(this).attr("data-cmd").split(",");
+        for(var i=0;i<cmds.length;i++) {
+          send_cmd(cmds[i]);
+        }
+      }
+    });
+
+    // Upload File Codes
+    $("input[name=file]").on("change", function(evt) {
+      var f = evt.target.files[0];
+
+      // Get mimetype
+      var mimetype = undefined;
+      var filename = f.name.split(".");
+      var fileext = filename[filename.length - 1].toLowerCase();
+      if(fileext == "gcode") {
+        mimetype = "text/gcode";
+      } else if (fileext == "fc") {
+        mimetype = "application/fcode";
+      } else if (fileext == "bin"){
+        mimetype = "binary/firmware";
+      } else if (fileext == "fxfw") {
+        mimetype = "binary/flux-firmware";
+      } else {
+        alert("Unknow file type");
+        return
+      }
+
+      if($(this).attr("data-file-cmd") == "upload2sd"){
+        var target = prompt("Give SD location (like 'myfcode.fc'");
+        var cmd = "upload " + " " + mimetype + " " + 
+                    f.size + " SD/" + target;
+      }
+      else{
+        var cmd = $(this).attr("data-file-cmd") + " " + mimetype + " " + f.size;
+      }
+
+      appendLog("Start uploading... (" + cmd + ")");
+
+      window.controller.send_command(cmd, {
+        data: new ProgressBar("Upload file..."),
+        on_error: function(sender, cmd, errors, data) {
+          appendLog("Error: " + errors.join(", "), "#F05E1C");
+        },
+        on_upload_begin: function(sender, size, prog) {
+          appendHtmlLog(prog.html);
+          prog.update(0, size);
+        },
+        on_uploading: function(sender, sent, amount, prog) {
+          prog.update(sent, amount);
+        },
+        on_success: function(sender, cmd, result, prog) {
+          appendLog("ok");
+        },
+        on_operating: global_on_operating,
+        on_debug: global_on_debug,
+        file: f,
+      });
+    });
+    // End Upload File Codes
+
+    // Begin UI
+    var match_uuid = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
+    var match_usb = /^#USB:[0-9]+;[\w\W]+$/.exec(document.location.hash);
+    var match_uart = /^#UART:[0-9a-zA-Z\\\/\.]+;[\w\W]+$/.exec(document.location.hash);
+    if(match_uuid != undefined && match_uuid.length == 1) {
+      var tags = match_uuid[0].split(";");
+      var uuid = tags[0].substr(1);
+      var name = tags.slice(1).join(";");
+
+      window.device_information = {uuid: uuid, name: name};
+      beginControl(uuid, name);
+    } else if(match_usb != undefined && match_usb.length == 1) {
+      var tags = match_usb[0].split(";");
+      var usb_addr = tags[0].substr(5);
+      var uuid = tags[1];
+      var name = tags.slice(2).join(";");
+
+      window.device_information = {uuid: uuid, name: name, usb: true,
+                                   usb_addr: usb_addr};
+      beginControl(uuid, name);
+    } else if(match_uart != undefined && match_uart.length == 1) {
+      var tags = match_uart[0].split(";");
+      var uart_port = tags[0].substr(6);
+      var uuid = tags[1];
+      var name = tags.slice(2).join(";");
+
+      window.device_information = {uuid: uuid, name: name, uart: true,
+                                   uart_port: uart_port};
+      beginControl(uuid, name);
+    } else {
+      window.location = "discover.html";
+    }
+
+    $("[data-sg]").hide();
+  });
+  </script>
+</head>
+<body>
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li><a href="discover.html">Devices</a></li>
+      <li>Device Manager</li>
+      <li>
+        <span id="device_label"></span>
+        <a class="btn btn-xs btn-warning" data-role="reset-control">
+          <i class="glyphicon glyphicon-repeat"></i>
+        </a>
+      </li>
+    </ol>
+  </div>
+  <div class="container-fluid">
+    <div class="col-xs-12">
+      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+    </div>
+  </div>
+  <div class="container-fluid">
+    <div class="col-xs-12">
+      <div style="margin: 0.5em 0" data-cmd-group="root">
+        <span>Access Control</span>
+        <span data-cmd="list_trust" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          List
+        </span>
+        <span data-cmd="add_trust {}" data-cmd-require-param="1" data-cmd-param-help="Past pem" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          Add
+        </span>
+
+        <span> | </span>
+        <span>Network</span>
+        <span data-cmd="scan_wifi_access_points" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          List wifi
+        </span>
+        <span data-cmd="get_wifi_ssid" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          Get SSID connected
+        </span>
+        <span data-cmd="get_ipaddr" style="margin-left: 10px;" class="btn btn-xs btn-default">
+          Get IP Addrs
+        </span>
+
+      </div>
+    </div>
+  </div>
+  <div class="container-fluid">
+    <div class="col-xs-12">
+      <div class="input-group input-group">
+        <span class="input-group-addon">
+          <i class="glyphicon glyphicon-console"></i>
+          <span data-tag="current_task"></span>
+        </span>
+        <input id="controlcmd" type="text" class="form-control" autocomplete="off" />
+        <div data-cmd-group="root" class="input-group-btn dropup">
+          <span class="btn btn-primary fileinput-button">
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>Upload</span>
+              <input type="file" class="fileinput-button" data-file-cmd="upload" name="file" />
+          </span>
+          <span type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <span class="caret"></span>
+            <span class="sr-only">Toggle Dropdown</span>
+          </span>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li class="fileinput-button"><a>
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>Upload To SD</span>
+              <input type="file" class="fileinput-button" data-file-cmd="upload2sd" name="file" />
+            </a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="monitor_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Modal title</h4>
+        </div>
+        <div class="modal-body">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
+  <div id="shared_modal" class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <h4 class="modal-title">Modal title</h4>
+        </div>
+        <div class="modal-body">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
+</body>
+</html>

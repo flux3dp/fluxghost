@@ -226,8 +226,10 @@
                 <a target="_blank" class="nickname"></a> \
                 <span class="pull-right"> \
                   <a target="_blank" class="camera"> \
-                    <i class="glyphicon glyphicon-camera"></i> \
-                  </a> \
+                    <i class="glyphicon glyphicon-camera"></i></a> \
+                  <span> </span> \
+                  <a target="_blank" class="manager"> \
+                    <i class="glyphicon glyphicon-wrench"></i></a> \
                 </span> \
               </div> \
             </div> \
@@ -255,6 +257,7 @@
     $(".serial", $d).text(serial);
     $("a.nickname", $d).attr("href", "control.html#" + uuid + ";" + nickname);
     $("a.camera", $d).attr("href", "camera.html#" + uuid + ";" + nickname);
+    $("a.manager", $d).attr("href", "device-manager.html#" + uuid + ";" + nickname);
 
     sv = version.split(".");
     if(!((sv[0] > "1") ||

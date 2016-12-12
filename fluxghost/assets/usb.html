@@ -49,6 +49,7 @@
       <div class="control enabled"><a data-action="close">Close</a></div> \
       <div class="control enabled">| <a target="_blank" data-action="control">Control</a></div> \
       <div class="control enabled">| <a target="_blank" data-action="camera">Camera</a></div> \
+      <div class="control enabled">| <a target="_blank" data-action="manager">Manager</a></div> \
       <div class="control enabled">| <span data-label="nickname"></span></div> \
       <div class="control enabled">| <span data-label="serial"></span></div> \
       <div class="control enabled">| <span data-label="firmware"></span></div> \
@@ -146,6 +147,7 @@
     });
     $("[data-action=control]", $dev).attr("href", "control.html#USB:" + addr);
     $("[data-action=camera]", $dev).attr("href", "camera.html#USB:" + addr);
+    $("[data-action=manager]", $dev).attr("href", "device-manager.html#USB:" + addr);
     $(".interfaces").append($dev);
     return $dev;
   }
@@ -161,6 +163,11 @@
     $conn.attr("href", conn_url);
 
     var $conn = $("[data-action=camera]", $dev);
+    var conn_url = $conn.attr("href").split(";")[0];
+    conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
+    $conn.attr("href", conn_url);
+
+    var $conn = $("[data-action=manager]", $dev);
     var conn_url = $conn.attr("href").split(";")[0];
     conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
     $conn.attr("href", conn_url);
