@@ -6,10 +6,18 @@ import re
 ROUTES = [
     (re.compile("discover"),
      "fluxghost.websocket.discover.WebsocketDiscover"),
+
     (re.compile("upnp-config"),
      "fluxghost.websocket.upnp_ws.WebsocketUpnp"),
     (re.compile("touch"),
      "fluxghost.websocket.touch.WebsocketTouch"),
+
+    (re.compile("device-manager/(?P<uuid>[0-9a-fA-F]{32})"),
+     "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
+    (re.compile("device-manager/(?P<usb_addr>[0-9]{1,3})"),
+     "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
+    (re.compile("device-manager/(?P<uart>[\w\W]+)"),
+     "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
 
     (re.compile("control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.control.WebsocketControl"),
