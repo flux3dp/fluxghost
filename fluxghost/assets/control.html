@@ -262,31 +262,9 @@
     },
     deviceinfo: function(controller, cmd, payload) {
       delete payload.status;
-      var key;
 
-      var default_keys = ["serial", "uuid", "model", "version", "nickname"];
-      for(i in default_keys) {
-        key = default_keys[i];
-
-        appendHtmlLog($('<div></div>')
-          .append($('<span class="label label-primary"></span>')
-            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
-            .append($("<span></span>").html("&nbsp;"))
-            .append($("<span></span>").text(key)))
-          .append($("<span></span>").html("&nbsp;"))
-          .append($('<span></span>').text(payload[key])));
-        delete payload[key];
-      }
-
-      for(key in payload) {
-        appendHtmlLog($('<div></div>')
-          .append($('<span class="label label-primary"></span>')
-            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
-            .append($("<span></span>").html("&nbsp;"))
-            .append($("<span></span>").text(key)))
-          .append($("<span></span>").html("&nbsp;"))
-          .append($('<span></span>').text(payload[key])));
-      }
+      appendKeyValueLog(payload, ["serial", "uuid", "model", "version", "nickname"]);
+      appendLog("ok");
     },
     "file ls": function(controller, cmd, payload) {
       appendLog("List " + payload.path + ":");
@@ -476,6 +454,19 @@
     },
     "scan scanimages": function(controller, cmd, payload, data) {
       callbacks["scan oneshot"](controller, cmd, payload, data);
+    },
+    "maintain headstatus": function(controller, cmd, payload, data) {
+      delete payload.status;
+      delete payload.cmd;
+      appendKeyValueLog(payload, ["module"]);
+    },
+    "maintain headinfo": function(controller, cmd, payload, data) {
+      delete payload.status;
+      delete payload.cmd;
+      appendKeyValueLog(payload, ["module"]);
+    },
+    "maintain diagnosis_sensor": function(controller, cmd, payload, data) {
+      appendKeyValueLog(payload.sensor, ["FSR0", "FSR1", "FSR2", "RIO1", "RIO2", "MIO1", "F0_STOP", "F1_STOP"]);
     },
     default: function(controller, cmd, payload) {
       if(payload.constructor === String) {

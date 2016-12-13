@@ -68,6 +68,38 @@ function appendHtmlLog(html) {
     }, 5);
 }
 
+function appendKeyValueLog(data, pre_sort) {
+  var output = [];
+  if(pre_sort) {
+    for(var i in pre_sort) {
+      var val = data[pre_sort[i]];
+      output.push($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(pre_sort[i])))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(val)))
+      delete data[pre_sort[i]];
+    }
+  }
+
+  for(var key in data) {
+      var val = data[key];
+      output.push($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(key)))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(val)))
+  }
+
+  for(var i=0;i<output.length;i++) {
+    appendHtmlLog(output[i]);
+  }
+}
+
 function ws_close_handler(name) {
     return function(v) {
         if(v.code == 1000) {
