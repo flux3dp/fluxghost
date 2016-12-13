@@ -73,7 +73,7 @@ hiddenimports += ['fluxghost',
                   'fluxghost.websocket.usb_config',
                   'fluxghost.websocket.upnp_ws',
                   'fluxghost.websocket.device_manager',
-                  'fluxghost.websocket.host2host_usb',
+                  'fluxghost.websocket.usb_interfaces',
 ]
 
 binaries = []
