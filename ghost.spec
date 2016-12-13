@@ -3,6 +3,8 @@
 from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
 
 from PyInstaller import __version__ as PyInstallerVersion
+from PyInstaller import is_win
+
 if parse_version(PyInstallerVersion) >= parse_version('3.1'):
     from PyInstaller.utils.hooks import collect_submodules
 else:
@@ -74,12 +76,17 @@ hiddenimports += ['fluxghost',
                   'fluxghost.websocket.host2host_usb',
 ]
 
+binaries = []
+if is_win:
+  binaries.append( ('C:\\Windows\\System32\\libusb0.dll', '.') )
+
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
              hookspath=None,
              runtime_hooks=None,
              excludes=None,
-             cipher=block_cipher)
+             cipher=block_cipher,
+             binaries=binaries)
 a.datas += fetch_datas()
 pyz = PYZ(a.pure,
           cipher=block_cipher)

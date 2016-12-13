@@ -1,6 +1,10 @@
 
 from threading import Thread
+from glob import glob
 import logging
+import sys
+
+from serial.tools import list_ports as _list_ports
 
 from fluxclient.device.host2host_usb import USBProtocol, FluxUSBError
 from fluxghost import g
@@ -8,7 +12,7 @@ from fluxghost import g
 logger = logging.getLogger("API.USB")
 
 
-def usb_daemon_thread(protocol, address):
+def h2h_usb_daemon_thread(protocol, address):
     logger.debug("USB daemon at %s start", address)
     g.USBDEVS[address] = protocol
     try:
@@ -21,7 +25,7 @@ def usb_daemon_thread(protocol, address):
     protocol.close()
 
 
-def h2h_interfaces_api_mixin(cls):
+def usb_interfaces_api_mixin(cls):
     class ClosedUsbDev(object):
         endpoint_profile = False
 
@@ -56,11 +60,17 @@ def h2h_interfaces_api_mixin(cls):
             g.USBDEVS = usbdevs
 
         def list_devices(self):
-            output = {ifce.address:
-                      g.USBDEVS.get(ifce.address,
-                                    ClosedUsbDev).endpoint_profile
-                      for ifce in USBProtocol.get_interfaces()}
-            self.send_ok(devices=output)
+            h2h = {ifce.address:
+                   g.USBDEVS.get(ifce.address,
+                                 ClosedUsbDev).endpoint_profile
+                   for ifce in USBProtocol.get_interfaces()}
+
+            if sys.platform.startswith('darwin'):
+                uart = [s for s in glob('/dev/tty.*') if "Bl" not in s]
+            else:
+                uart = [s[0] for s in _list_ports.comports() if s[2] != "n/a"]
+
+            self.send_ok(h2h=h2h, uart=uart)
 
         def open_device(self, addr):
             if g.USBDEVS.get(addr):
@@ -71,7 +81,7 @@ def h2h_interfaces_api_mixin(cls):
                 if usbdev.address == addr:
                     try:
                         usbprotocol = USBProtocol(usbdev)
-                        t = Thread(target=usb_daemon_thread,
+                        t = Thread(target=h2h_usb_daemon_thread,
                                    args=(usbprotocol, addr))
                         t.daemon = True
                         t.start()

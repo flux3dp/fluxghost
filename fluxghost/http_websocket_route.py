@@ -37,7 +37,7 @@ ROUTES = [
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
 
     (re.compile("usb/interfaces"),
-     "fluxghost.websocket.host2host_usb.H2HInterfaces"),
+     "fluxghost.websocket.usb_interfaces.WebsocketUsbInterfaces"),
     (re.compile("usb-config"),
      "fluxghost.websocket.usb_config.WebsocketUsbConfig"),
 

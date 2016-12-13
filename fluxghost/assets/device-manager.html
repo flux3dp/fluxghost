@@ -286,14 +286,56 @@
       if(payload.access_points) {
         for(var i=0;i<payload.access_points.length;i++) {
           var el = payload.access_points[i];
+          var rssi_c = "success";
+          if(el.rssi > -90) rssi_c = "warning";
+          if(el.rssi > -70) rssi_c = "danger";
           appendHtmlLog($('<div></div>')
-            .append($('<span class="label label-primary"></span>').text(el.bssid))
-            .append($('<span class>&nbsp;</span>'))
-            .append($('<span></span>').text(el.rssi))
-            .append($('<span class>&nbsp;</span>'))
+            .append($('<span class="label label-primary" style="display: inline-block; width: 10em;"></span>').text(el.bssid))
+            .append($('<span>&nbsp;</span>'))
+            .append($('<span class="label label-' + rssi_c + '" style="display: inline-block; width: 3em"></span>').text(el.rssi))
+            .append($('<span>&nbsp;</span>'))
             .append($('<span class="label label-default"></span>').text(el.security))
-            .append($('<span class>&nbsp;</span>'))
-            .append($('<span></span>').text(el.ssid)));
+            .append($('<span>&nbsp;</span>'))
+            .append($('<a style="cursor: pointer"></a>')
+              .text(el.ssid)
+              .attr("data-ssid", el.ssid)
+              .attr("data-security", el.security)
+              .bind("click", function() {
+                var t_ssid = $(this).attr("data-ssid");
+                var t_security = $(this).attr("data-security");
+
+                var req = {ssid: t_ssid, security: t_security}
+                if(t_security === "WPA2-PSK" || t_security === "WPA-PSK") {
+                  var pwd = prompt("Password for Access point '" + t_ssid + "'");
+                  if(pwd) {
+                    req["psk"] = pwd;
+                    req["method"] = "dhcp";
+                  }
+                }
+                else if(t_security === "WEP") {
+                  alert("Attention: This access point is not secure.");
+                  var pwd = prompt("Password for Access point '" + t_ssid + "'");
+                  if(pwd) {
+                    req["wepkey"] = pwd;
+                    req["method"] = "dhcp";
+                  }
+                }
+                else {
+                  if(confirm("Attention: This access point is not secure.")) {
+                    req["wepkey"] = pwd;
+                    req["method"] = "dhcp";
+                  }
+                }
+
+                if(req["method"]) {
+                  var cmd = "set_network";
+                  for(var key in req) {
+                    var p = " " + key + "=" + JSON.stringify(req[key]);
+                    cmd = cmd + p;
+                  }
+                  send_cmd(cmd);
+                }
+            })));
         }
       } else {
         appendLog("Can not parse response");
@@ -366,6 +408,10 @@
       on_connecting: function(sender, stage) {
         appendLog("Connecting... (" + stage + ")", "#444");
       },
+      on_req_authorize: function(sender, stage) {
+        var pwd = prompt("Password is required to access device");
+        sender.send_raw("password " + pwd);
+      },
       on_connected: function(sender) {
         appendLog("➜ Ready")
         appendHtmlLog('<div>' +
@@ -386,8 +432,8 @@
         if(errors[0] === "AUTH_ERROR") {
             var $label = $("#device_label");
             appendLog("✗ Error: Auth failed", "red");
-            appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
-                          ';' + $label.attr("data-name") + '">Go to auth page</a>');
+            appendHtmlLog($('<span class="btn btn-primary btn-lg">Retry!! rrrrr</span>')
+                            .bind("click", function() {connectControl(); $(this).hide(300);}));
           } else {
             appendLog("✗ Error: "+ errors + " 😭", "red");
           }
@@ -575,7 +621,9 @@
   });
   </script>
 </head>
-<body>
+<body class="pinkpink">
+  <div id="bgWrap" style="background-color: rgb(88, 178, 220);"><div id="gloss"></div></div>
+
   <div class="container-fluid banner">
     <ol class="breadcrumb">
       <li><a href="index.html">Ghost</a></li>
@@ -591,7 +639,7 @@
   </div>
   <div class="container-fluid">
     <div class="col-xs-12">
-      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+      <div class="form-control" style="background-color:transparent; height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
     </div>
   </div>
   <div class="container-fluid">
@@ -628,24 +676,6 @@
           <span data-tag="current_task"></span>
         </span>
         <input id="controlcmd" type="text" class="form-control" autocomplete="off" />
-        <div data-cmd-group="root" class="input-group-btn dropup">
-          <span class="btn btn-primary fileinput-button">
-              <i class="glyphicon glyphicon-upload"></i>
-              <span>Upload</span>
-              <input type="file" class="fileinput-button" data-file-cmd="upload" name="file" />
-          </span>
-          <span type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-            <span class="caret"></span>
-            <span class="sr-only">Toggle Dropdown</span>
-          </span>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li class="fileinput-button"><a>
-              <i class="glyphicon glyphicon-upload"></i>
-              <span>Upload To SD</span>
-              <input type="file" class="fileinput-button" data-file-cmd="upload2sd" name="file" />
-            </a></li>
-          </ul>
-        </div>
       </div>
     </div>
   </div>

@@ -14,6 +14,7 @@ logger = logging.getLogger("API.CONTROL_BASE")
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_CONNECTIONG = '{"status": "connecting", "stage": "connecting"}'
+STAGE_REQUIRE_AUTHORIZE = '{"status": "req_authorize", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
@@ -57,6 +58,8 @@ def manager_mixin(cls):
                         return
                 else:
                     self.send_fatal("NOT_FOUND")
+                    return
+
             elif endpoint_type == "h2h":
                 usbprotocol = g.USBDEVS.get(endpoint_target)
                 self.send_text(STAGE_CONNECTIONG)
@@ -73,23 +76,44 @@ def manager_mixin(cls):
                 self.send_fatal("UNKNOWN_ENDPOINT_TYPE", endpoint_type)
                 return
 
-            self.send_text(STAGE_CONNECTED)
+            if self.manager.authorized:
+                self.send_text(STAGE_CONNECTED)
+            else:
+                self.send_text(STAGE_REQUIRE_AUTHORIZE)
             self.POOL_TIME = 30.0
             self.on_connected()
 
         def on_text_message(self, message):
             if self.client_key:
-                self.on_command(*split(message))
+                if self.manager.authorized:
+                    self.on_command(*split(message))
+                else:
+                    if message.startswith("password "):
+                        try:
+                            self.manager.authorize_with_password(message[9:])
+                            self.send_text(STAGE_CONNECTED)
+                        except (ManagerError, ManagerException) as e:
+                            self.send_fatal(" ".join(e.err_symbol))
+                    else:
+                        self.send_text(STAGE_REQUIRE_AUTHORIZE)
             else:
                 try:
                     self.client_key = KeyObject.load_keyobj(message)
-                    self.try_connect()
                 except ValueError:
                     self.send_fatal("BAD_PARAMS")
+                    return
                 except Exception:
                     logger.error("RSA Key load error: %s", message)
                     self.send_fatal("BAD_PARAMS")
                     raise
+
+                try:
+                    self.try_connect()
+                except (ManagerException, ManagerError) as e:
+                    self.send_fatal(" ".join(e.err_symbol))
+                except Exception:
+                    logger.exception("Error while manager connecting")
+                    self.send_fatal("UNKNOWN_ERROR")
 
         def on_binary_message(self, buf):
             self.send_fatal("PROTOCOL_ERROR",
@@ -131,6 +155,7 @@ def manager_mixin(cls):
         def cmd_set_password(self, old_password, new_password, *args):
             reset_acl = "reset_acl" in args
             self.manager.set_password(old_password, new_password, reset_acl)
+            self.send_ok()
 
         def cmd_set_network(self, *args):
             options = {}
@@ -140,6 +165,7 @@ def manager_mixin(cls):
                     k, v = kv
                     options[k] = v
             self.manager.set_network(**options)
+            self.send_ok()
 
         def cmd_scan_wifi_access_points(self, *args):
             self.send_ok(access_points=self.manager.scan_wifi_access_points())

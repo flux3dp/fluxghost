@@ -3,6 +3,12 @@ body {
     min-width: 640px;
 }
 
+body.pinkpink {
+    background-color: #FEDFE1;
+    background-attachment: scroll;
+    background-image: url("texture.png");
+}
+
 body.dark {
     background-color: rgb(11, 16, 19);
     background-attachment: scroll;

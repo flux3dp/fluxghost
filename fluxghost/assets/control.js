@@ -109,6 +109,11 @@
                         options.on_connecting(self, payload.stage);
                     }
                     break;
+                case "req_authorize":
+                    if(options.on_req_authorize) {
+                        options.on_req_authorize(self, payload.stage);
+                    }
+                    break;
                 case "connected":
                     _status = ST_CONNECTED;
                     if(options.on_connected) {
@@ -319,6 +324,10 @@
 
         this.is_busy = function() {
             return waitting_response;
+        }
+
+        this.send_raw = function(data) {
+            ws.send(data)
         }
 
         this.send_command = function(command, options) {

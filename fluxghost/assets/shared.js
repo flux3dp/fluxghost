@@ -51,7 +51,7 @@ function appendLog(text, color, bgcolor) {
   var seconds = dt.getSeconds() < 10 ? "0" + String(dt.getSeconds()) : String(dt.getSeconds());
   
   var log_text = "[" + hour + ":" + minute + ":" + seconds + "] " + text;
-  var $row = $("<div></div>").text(log_text);
+  var $row = $("<div style=\"padding: 0.1em 0.4em;\"></div>").text(log_text);
   if(color) $row.css("color", color);
   if(bgcolor) $row.css("background-color", bgcolor);
 
