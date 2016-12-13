@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from signal import SIGTERM
+from time import sleep
 import argparse
 import sys
 import os
@@ -15,6 +17,8 @@ def main():
                         help="Bind to IP Address")
     parser.add_argument("--port", dest='port', type=int, default=8000,
                         help="Port")
+    parser.add_argument("--trace-pid", dest="trace_pid", type=int,
+                        default=None)
     parser.add_argument("--log", dest='logfile', type=str, default=None,
                         help="Output log to specific")
     parser.add_argument('-d', '--debug', dest='debug', action='store_const',
@@ -76,6 +80,21 @@ def main():
                         address=(options.ipaddr, options.port,),
                         allow_foreign=options.allow_foreign,
                         debug=options.debug)
+
+    if options.trace_pid:
+        def r():
+            try:
+                while True:
+                    os.kill(options.trace_pid, 0)
+                    sleep(0.8)
+            except:
+                pass
+            finally:
+                os.kill(os.getpid(), SIGTERM)
+        from threading import Thread
+        t = Thread(target=r)
+        t.daemon = True
+        t.start()
 
     server.serve_forever()
 
