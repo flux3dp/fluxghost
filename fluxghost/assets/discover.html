@@ -9,6 +9,9 @@
   <script src="shared.js"></script>
   <link href="res/shared.css" rel="stylesheet" />
   <script>
+  window.sort_index = localStorage["discover-sort-index"] || "nickname";
+  window.sort_inverse = localStorage["discover-sort-inverse"] ? -1 : 1;
+
   function updateAttribute($dom, key, value) {
     var attr = "data-" + key;
     if($dom.attr(attr) == value) {
@@ -72,6 +75,8 @@
 
     if(payload.st_id !== undefined) {
       var st_id = payload.st_id;
+      $dom.attr("data-st-id", st_id);
+
       $("[data-st-id]", $dom).attr("data-st-id", st_id);
 
       var $stlabel = $("[data-tag=st-label]", $dom);
@@ -192,6 +197,8 @@
           css("width", st_prog + "%");
       }
     }
+
+    sortDevice($dom, true);
   }
 
   function len(str) {
@@ -200,18 +207,32 @@
     return str.length + (m ? m.length : 0);
   }
 
-  function insertDeviceIntoList($dom) {
-    var $objects = $("#devices").children();
-    var name = $(".nickname", $dom).text();
-    for(var i=0;i<$objects.length;i++) {
-      var $obj = $($objects[i]);
-      var oname = $(".nickname", $obj).text();
-      if(oname > name) {
-        $dom.insertBefore($obj);
-        return;
-      }
+  function compareDevice($l, $r) {
+    var attr = "data-" + window.sort_index;
+    var va = $l.attr(attr);
+    var vb = $r.attr(attr);
+    if(va > vb) { return 1 * window.sort_inverse; }
+    else if(va < vb) { return -1 * window.sort_inverse; }
+    else {
+      va = $l.attr("data-device");
+      vb = $r.attr("data-device");
+      return ((va > vb) ? 1 : -1) * window.sort_inverse;
     }
-    $("#devices").append($dom);
+  }
+
+  function sortDevice($dom, seeknext) {
+    var $p;
+
+    $p = $dom.prev();
+    while($p.length && compareDevice($p, $dom) > 0) {
+      $dom.insertBefore($p);
+      $p = $dom.prev();
+    }
+    $p = $dom.next()
+    while(seeknext && $p.length && compareDevice($dom, $p) > 0) {
+      $dom.insertAfter($p);
+      $p = $dom.next();
+    }
   }
 
   function createDeviceDom(uuid, serial, nickname, version) {
@@ -222,9 +243,11 @@
           <div class="profile"> \
             <div class="clearfix"> \
               <div class="col-xs-12" style="white-space: nowrap; overflow: hidden"> \
-                <span class="glyphicon glyphicon-lock" style="font-size: 0.8em"></span> \
+                <span class="favo" style="color: #aa0"><i class="glyphicon"></i></span> \
                 <a target="_blank" class="nickname"></a> \
                 <span class="pull-right"> \
+                  <span class="glyphicon glyphicon-lock" style="font-size: 0.8em"></span> \
+                  <span> </span> \
                   <a target="_blank" class="camera"> \
                     <i class="glyphicon glyphicon-camera"></i></a> \
                   <span> </span> \
@@ -259,6 +282,23 @@
     $("a.camera", $d).attr("href", "camera.html#" + uuid + ";" + nickname);
     $("a.manager", $d).attr("href", "device-manager.html#" + uuid + ";" + nickname);
 
+    $(".favo i", $d).addClass(localStorage["star-" + uuid] ? "glyphicon-star" : "glyphicon-star-empty");
+    $d.attr("data-star", localStorage["star-" + uuid] ? "0" : "1");
+    $(".favo", $d).bind("click", function() {
+      if(localStorage["star-" + uuid]) {
+        localStorage.removeItem("star-" + uuid);
+        $d.attr("data-star", "1");
+        $(".favo i", $d).removeClass("glyphicon-star");
+        $(".favo i", $d).addClass("glyphicon-star-empty");
+      } else {
+        localStorage["star-" + uuid] = "1";
+        $d.attr("data-star", "0");
+        $(".favo i", $d).removeClass("glyphicon-star-empty");
+        $(".favo i", $d).addClass("glyphicon-star");
+      }
+      sortDevice($d, true);
+    });
+
     sv = version.split(".");
     if(!((sv[0] > "1") ||
          (sv[0] == "1" && sv[1] > "1") ||
@@ -272,11 +312,9 @@
     var $dom = $("[data-device=" + uuid + "]", "#devices");
     if($dom.length === 0) {
       $dom = createDeviceDom(uuid, dataset.serial, dataset.name, dataset.version);
-      updateDevice($dom, dataset);
-      insertDeviceIntoList($dom);
-    } else {
-      updateDevice($dom, dataset);
+      $("#devices").append($dom);
     }
+    updateDevice($dom, dataset);
   }
 
   function ping() {
@@ -331,6 +369,25 @@
         alert("Bad IP Address");
       }
     });
+
+    $("[name=sort_btn][value=" + window.sort_index + "]").prop("checked", true).parent().addClass("active");
+    $("[name=sort_btn]").bind("change", function() {
+      localStorage["discover-sort-index"] = window.sort_index = this.value;
+      var $devices = $("#devices").children();
+      for(var i=0;i<$devices.length;i++) {
+        sortDevice($($devices[i]), false);
+      }
+    });
+    $("[name=sort_inv][value=" + (window.sort_inverse > 0 ? "inc" : "dec") + "]").prop("checked", true).parent().addClass("active");
+    $("[name=sort_inv]").bind("change", function() {
+      window.sort_inverse = (this.value === "inc") ? 1 : -1;
+      if(window.sort_inverse === -1) {localStorage["discover-sort-inverse"] = "Y";}
+      else {localStorage.removeItem("discover-sort-inverse");}
+      var $devices = $("#devices").children();
+      for(var i=0;i<$devices.length;i++) {
+        sortDevice($($devices[i]), false);
+      }
+    });
   });
   </script>
 </head>
@@ -343,6 +400,38 @@
     <ol class="breadcrumb">
       <li><a href="index.html">Ghost</a></li>
       <li>Devices</li>
+      <li>
+
+        <div class="btn-group" data-toggle="buttons">
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_btn" value="nickname" autocomplete="off">Nickname
+          </label>
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_btn" value="star" autocomplete="off">Star
+          </label>
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_btn" value="st-id" autocomplete="off">Status
+          </label>
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_btn" value="device" autocomplete="off">Serial
+          </label>
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_btn" value="version" autocomplete="off">Version
+          </label>
+        </div>
+
+        <div class="btn-group" data-toggle="buttons">
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_inv" value="inc" autocomplete="off">
+            <span class="glyphicon glyphicon-sort-by-attributes"></span>
+          </label>
+          <label class="btn btn-xs btn-default">
+            <input type="radio" name="sort_inv" value="dec" autocomplete="off">
+            <span class="glyphicon glyphicon-sort-by-attributes-alt"></span>
+          </label>
+        </div>
+
+      </li>
     </ol>
   </div>
   <div class="container-fluid" id="devices"></div>
