@@ -116,6 +116,7 @@ def control_api_mixin(cls):
                     "backward": self.scan_backward,
                     "forward": self.scan_forward,
                     "step": self.scan_step,
+                    "laser": self.scan_lasr,
                 },
 
                 "task": {
@@ -621,6 +622,14 @@ def control_api_mixin(cls):
 
         def scan_step(self, length):
             self.task.step_length(float(length))
+            self.send_ok()
+
+        def scan_lasr(self, flag):
+            if flag.isdigit():
+                dflag = int(flag)
+                self.task.laser(dflag & 1, dflag & 2)
+            else:
+                self.task.laser(False, False)
             self.send_ok()
 
         def play_info(self):
