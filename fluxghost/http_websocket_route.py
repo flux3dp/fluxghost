@@ -19,13 +19,13 @@ ROUTES = [
     (re.compile("3d-scan-control/(?P<serial>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
 
+    (re.compile("usb-config"),
+     "fluxghost.websocket.usb_config.WebsocketUsbConfig"),
+
     (re.compile("usb/(?P<usb_addr>[0-9]{1,3})"),
      "fluxghost.websocket.usb.USBControl"),
     (re.compile("usb"),
      "fluxghost.websocket.usb.UsbInterfaces"),
-
-    (re.compile("usb-config"),
-     "fluxghost.websocket.usb_config.WebsocketUsbConfig"),
 
     (re.compile("ver"),
      "fluxghost.websocket.ver.WebsocketVer"),
