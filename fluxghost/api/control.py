@@ -88,6 +88,7 @@ def control_api_mixin(cls):
                     "zprobe": self.maintain_zprobe,
                     "headinfo": self.maintain_headinfo,
                     "diagnosis_sensor": self.maintain_diagnosis_sensor,
+                    "diagnosis": self.maintain_diagnosis,
                     "headstatus": self.maintain_headstatus,
                     "home": self.maintain_home,
                     "update_hbfw": self.maintain_update_hbfw
@@ -548,6 +549,9 @@ def control_api_mixin(cls):
         def maintain_diagnosis_sensor(self):
             result = self.task.diagnosis_sensor()
             self.send_ok(sensor=result)
+
+        def maintain_diagnosis(self, option):
+            self.send_ok(ret=self.task.diagnosis(option))
 
         def maintain_headstatus(self):
             status = self.task.head_status()
