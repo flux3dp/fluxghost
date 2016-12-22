@@ -139,8 +139,8 @@
                 console.log(err);
                 // MONKEY PATCH // MONKEY PATCH // MONKEY PATCH // MONKEY PATCH
                 if(str.indexOf("NaN")) {
-                    console.log("Parse response failed but find magic str: NaN, try replace and parse again");
-                    console.log("Data: '" + str + "'")
+                    // console.log("Parse response failed but find magic str: NaN, try replace and parse again");
+                    // console.log("Data: '" + str + "'")
                     return ParseJsonData(str.replace("NaN", "null"));
                 }
                 throw err;

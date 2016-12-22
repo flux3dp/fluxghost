@@ -97,6 +97,8 @@
   <script>
   var filesinfo = {};
   var bcst_status = undefined;
+  var monitor_mode = false;
+  var auto_report = false;
 
   function ProgressBar(title) {
     var $html = $(' \
@@ -397,6 +399,7 @@
     task: function(controller, cmd, payload) {
       $("[data-cmd-group]").hide()
       if(payload.task === "") {
+        render_buttons(0);
         $("[data-tag=current_task]").text("");
         $("[data-cmd-group=root]").show();
       } else {
@@ -405,6 +408,9 @@
       }
       appendLog("ok");
     },
+    "play start": function(controller, cmd, payload) { deviceStatusManager(8); appendLog("ok"); },
+    "play pause": function(controller, cmd, payload) { deviceStatusManager(8); appendLog("ok"); },
+    "play abort": function(controller, cmd, payload) { deviceStatusManager(8); appendLog("ok"); },
     "play select": function(controller, cmd, payload) {
       appendLog("File '" + payload.path + "' is selected");
       appendHtmlLog($('<div class="btn btn-primary btn-lg" data-cmd="play start"><i class="glyphicon glyphicon-fire"></i> Start</div>'));
@@ -434,9 +440,45 @@
       render_fileinfo(filename);
     },
     "play report": function(controller, cmd, payload) {
-      delete payload.status;
-      delete payload.cmd;
-      appendLog(JSON.stringify(payload));
+      render_buttons(payload.device_status.st_id);
+
+      key = ["status"];
+      data = {status: payload.device_status.st_label + " (" + payload.device_status.st_id + ")"}
+
+      if(payload.device_status.st_id < 0) {
+        key.push("by"); data.by = payload.device_status.info;
+        delete payload.device_status.info;
+      }
+      else if(payload.device_status.st_id > 0) {
+        key.push("module"); data.module = payload.device_status.module;
+        key.push("prog"); data.prog = payload.device_status.prog;
+        delete payload.device_status.module;
+        delete payload.device_status.prog;
+
+        if(data.module == "EXTRUDER") {
+          for(var i=0;i<payload.device_status.rt.length;i++) {
+            key.push("temp" + i);
+            data["temp" + i] = payload.device_status.rt[i] + " / " + payload.device_status.tt[i];
+          }
+          delete payload.device_status.tt;
+          delete payload.device_status.rt;
+        }
+
+        key.push("pos"); data.pos = "X:" + payload.device_status.pos.X + ", Y:" + payload.device_status.pos.Y + ", Z:" + payload.device_status.pos.Z;
+        delete payload.device_status.pos;
+      }
+
+      for(var k in payload.device_status) {
+        if(k === "st_id" || k === "st_label") { continue; }
+        data[k] = payload.device_status[k];}
+
+      if(monitor_mode) {
+        var $m = $("#monitor_modal");
+        var $body = $(".modal-body", $m);
+
+      } else {
+        appendKeyValueLog(data, key);
+      }
     },
     "scan oneshot": function(controller, cmd, payload, data) {
       var width = (Math.round(100 / payload.binaries.length) - 1) + "%";
@@ -517,6 +559,7 @@
         appendLog("Connecting... (" + stage + ")", "#444");
       },
       on_connected: function(sender) {
+        deviceStatusManager(1);
         appendLog("➜ Ready")
         appendHtmlLog('<div>' +
           '<img src="ready.png?" height="60px" />' +
@@ -591,7 +634,39 @@
     }
   }
 
+  function deviceStatusManager(aggressive) {
+    if(aggressive === 1) {
+      setTimeout(deviceStatusManager, 1);
+      return;
+    } else if(aggressive === 8) {
+      setTimeout(deviceStatusManager, 100);
+      setTimeout(deviceStatusManager, 200);
+      setTimeout(deviceStatusManager, 500);
+      setTimeout(deviceStatusManager, 800);
+      setTimeout(deviceStatusManager, 1200);
+      return;
+    }
+
+    if(auto_report === false && $("[data-tag=current_task]").text() === "") {
+      if(window.controller && window.controller.status() === "CONNECTED") {
+        auto_report = true;
+
+        window.controller.send_command("play report", function(controller, command, payload) {
+          auto_report = false;
+          render_buttons(payload.device_status.st_id);
+        });
+      }
+    }
+    setTimeout(deviceStatusManager, 5000);
+  }
+
   $(window).ready(function() {
+    $("[data-action=monitor]").on("click", function() {
+      // monitor_mode = true;
+      $("#monitor_modal").modal('show');
+      send_cmd("play report");
+    });
+
     $("[data-role=reset-control]").on("click", function() {
       connectControl();
     });
@@ -623,6 +698,7 @@
         var val = prompt($(this).attr("data-cmd-param-help").replace(/\\n/g, "\n"));
         if(!val) {
           appendLog("Command canceled: '" + $(this).attr("data-cmd") + "'");
+          return;
         }
         var cmd = $(this).attr("data-cmd").replace(/{}/g, val);
         send_cmd(cmd);
@@ -688,54 +764,7 @@
     });
     // End Upload File Codes
 
-    // Begin status management
-    function onDiscoverMessage(m) {
-      try {
-        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
-        if (payload.uuid === window.device_information.uuid) {
-          if((bcst_status && bcst_status.st_id) !== payload.st_id) {
-            render_buttons(payload.st_id);
-          }
-          bcst_status = payload;
-        }
-      } catch (err) {
-        console.log("Can not handle discover message: '" + m.data + "', err=" + err);
-      }
-    }
-
-    function discoverManager() {
-      if(window.discover && window.discover.readyState > 2) {
-        window.discover.close();
-        window.discover = undefined;
-        console.log("Discover disconnected.");
-      }
-
-      if(!window.discover) {
-        if(new Date() - window.discover_timestamp < window.discover_retry_delay) {
-          console.log("Delay re-connect to discover." + window.discover_retry_delay);
-          setTimeout(discoverManager, window.discover_retry_delay);
-          return;
-        }
-        window.discover_timestamp = new Date();
-        window.discover = new WebSocket("ws://" + window.location.host + "/ws/discover");
-        window.discover.onopen = function() {
-          window.discover_retry_delay = 2000;
-        };
-        window.discover.onmessage = onDiscoverMessage;
-        window.discover.onclose = function() {
-          var nd = window.discover_retry_delay + 1000;
-          window.discover_retry_delay = Math.max(nd, 60000);
-          discoverManager();
-        }
-        setTimeout(discoverManager, 15000);
-      } else {
-        window.discover.send("ping");
-        setTimeout(discoverManager, 15000);
-      }
-    }
-    window.discover_retry_delay = 3000;
-    window.discover_timestamp = new Date(0);
-    discoverManager();
+    deviceStatusManager();
 
     // Begin UI
     var match_uuid = /^#[0-9a-fA-F]+;[\w\W]+$/.exec(document.location.hash);
@@ -780,7 +809,8 @@
   </div>
   <div class="container-fluid">
     <div class="col-xs-12">
-      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log"></div>
+      <div class="form-control" style="height: 400px; overflow-y: scroll; border: 1px gray solid" id="log">
+      </div>
     </div>
   </div>
   <div class="container-fluid">
@@ -854,9 +884,14 @@
       </div>
 
       <div style="margin: 0.5em 0; display: none" data-cmd-group="maintain">
-        <!-- filament -->
-        <span data-cmd="maintain load_filament 0 210" class="btn btn-xs btn-default">Load filament</span>
-        <span data-cmd="maintain unload_filament 0 210" class="btn btn-xs btn-default">Unload filament</span>
+        <span data-cmd="maintain home" class="btn btn-xs btn-default">
+          Home
+        </span>
+
+        <div class="btn-group">
+          <span data-cmd="maintain load_filament 0 210" class="btn btn-xs btn-default">Load filament</span>
+          <span data-cmd="maintain unload_filament 0 210" class="btn btn-xs btn-default">Unload filament</span>
+        </div>
 
         <!-- calibrating -->
         <div class="btn-group btn-xs dropup">
@@ -874,16 +909,19 @@
           Z-probe
         </span>
 
-        <span data-cmd="maintain home" class="btn btn-xs btn-default">
-          Home
-        </span>
+        <span> | Head </span>
+        <div class="btn-group">
+          <span data-cmd="maintain headinfo" class="btn btn-xs btn-default">
+            Profile
+          </span>
+          <span data-cmd="maintain headstatus" class="btn btn-xs btn-default">
+            Status
+          </span>
+        </div>
 
-        <span data-cmd="maintain headinfo" class="btn btn-xs btn-default">
-          Head Info
-        </span>
-
-        <span data-cmd="maintain headstatus" class="btn btn-xs btn-default">
-          Head Status
+        <span class="btn btn-xs btn-default" data-cmd="maintain set_heater 0 {}"
+              data-cmd-require-param="1"data-cmd-param-help="Give temperature">
+          Heater
         </span>
 
         <span class="btn btn-xs btn-default fileinput-button">
@@ -896,7 +934,7 @@
         <!-- Report -->
         <div class="btn-group btn-xs dropup">
           <span data-cmd="play report" class="btn btn-xs btn-default">Report</span>
-          <span class="btn btn-xs btn-default">
+          <span data-action="monitor" class="btn btn-xs btn-default">
             <span class="glyphicon glyphicon-new-window"></span>
           </span>
         </div> 
@@ -915,7 +953,7 @@
           <i class="glyphicon glyphicon-pause"></i> Pause</span>
         <span data-cmd="play resume" data-sg data-sg data-sg data-sg36 data-sg48 class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
           <i class="glyphicon glyphicon-play"></i> Resume</span>
-        <span data-cmd="play abort" data-sg data-sg4 data-sg36 data-sg48 data-sg16 class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
+        <span data-cmd="play abort" data-sg data-sg4 data-sg18 data-sg36 data-sg48 data-sg50 data-sg16 class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
           <i class="glyphicon glyphicon-remove"></i> Abort</span>
         <span data-cmd="play quit" data-sg data-sg64 data-sg128 class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Quit">
           <i class="glyphicon glyphicon-eject"></i> Quit</span>
@@ -923,8 +961,8 @@
 
         <!-- Tasks -->
         <span data-sg data-sg0>
-          <span> | Tasks</span>
-          <div class="btn-group btn-xs dropup">
+          <span> | Tasks </span>
+          <div class="btn-group btn-xs">
             <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
             <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
             <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
@@ -934,63 +972,96 @@
         <span> | </span>
 
         <!-- Configs -->
-        <div class="btn-group btn-xs dropup">
-          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <span>Config</span>
-              <span class="caret"></span>
-              <span class="sr-only">Toggle Dropdown</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li class="dropdown-header">correction: A a H N (default:Y)</li>
-            <li>
-              <div data-cmd="config get correction" class="config-btn">GET</div>
-              <div data-cmd="config set correction {}" class="config-btn"
-                   data-cmd-require-param="1"
-                   data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction">SET</div>
-              <div data-cmd="config del correction" class="config-btn">DEL</div>
-            </li>
+        <span> Config </span>
+        <div class="btn-group btn-xs">
+          <div class="btn-group dropup">
+            <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <span>General</span>
+                <span class="caret"></span>
+                <span class="sr-only">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right">
+              <li class="dropdown-header">correction: A a H N (default:Y)</li>
+              <li>
+                <div data-cmd="config get correction" class="config-btn">GET</div>
+                <div data-cmd="config set correction {}" class="config-btn"
+                     data-cmd-require-param="1"
+                     data-cmd-param-help="Correction option:\nA: Do all\nH: Do Z-probe only\nN: No correction">SET</div>
+                <div data-cmd="config del correction" class="config-btn">DEL</div>
+              </li>
 
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">filament_detect: Y N (default:Y)</li>
-            <li>
-              <div data-cmd="config get filament_detect" class="config-btn">GET</div>
-              <div data-cmd="config set filament_detect {}" class="config-btn"
-                   data-cmd-require-param="1"
-                   data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable">SET</div>
-              <div data-cmd="config del filament_detect" class="config-btn">DEL</div>
-            </li>
+              <li role="separator" class="divider"></li>
+              <li class="dropdown-header">filament_detect: Y N (default:Y)</li>
+              <li>
+                <div data-cmd="config get filament_detect" class="config-btn">GET</div>
+                <div data-cmd="config set filament_detect {}" class="config-btn"
+                     data-cmd-require-param="1"
+                     data-cmd-param-help="Filament Detect option:\nY: Enable\nN: Disable">SET</div>
+                <div data-cmd="config del filament_detect" class="config-btn">DEL</div>
+              </li>
 
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">head_error_level: A number</li>
-            <li>
-              <div data-cmd="config get head_error_level" class="config-btn">GET</div>
-              <div data-cmd="config set head_error_level {}" class="config-btn"
-                   data-cmd-param-help="Head error level:"
-                   data-cmd-require-param="1">SET</div>
-              <div data-cmd="config del head_error_level" class="config-btn">DEL</div>
-            </li>
+              <li role="separator" class="divider"></li>
+              <li class="dropdown-header">head_error_level: A number</li>
+              <li>
+                <div data-cmd="config get head_error_level" class="config-btn">GET</div>
+                <div data-cmd="config set head_error_level {}" class="config-btn"
+                     data-cmd-param-help="Head error level:"
+                     data-cmd-require-param="1">SET</div>
+                <div data-cmd="config del head_error_level" class="config-btn">DEL</div>
+              </li>
 
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">autoresume: Y N (default:N)</li>
-            <li>
-              <div data-cmd="config get autoresume" class="config-btn">GET</div>
-              <div data-cmd="config set autoresume {}" class="config-btn"
-                   data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
-                   data-cmd-require-param="1">SET</div>
-              <div data-cmd="config del autoresume" class="config-btn">DEL</div>
-            </li>
+              <li role="separator" class="divider"></li>
+              <li class="dropdown-header">autoresume: Y N (default:N)</li>
+              <li>
+                <div data-cmd="config get autoresume" class="config-btn">GET</div>
+                <div data-cmd="config set autoresume {}" class="config-btn"
+                     data-cmd-param-help="Correction option:\nY: Enable\nN: Disable"
+                     data-cmd-require-param="1">SET</div>
+                <div data-cmd="config del autoresume" class="config-btn">DEL</div>
+              </li>
 
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">broadcast: L A N (default:L)</li>
-            <li>
-              <div data-cmd="config get broadcast" class="config-btn">GET</div>
-              <div data-cmd="config set broadcast {}" class="config-btn"
-                   data-cmd-param-help="Broadcast option:\nL: Lazy\nA: Aggressive\nN: Disable"
-                   data-cmd-require-param="1">SET</div>
-              <div data-cmd="config del broadcast" class="config-btn">DEL</div>
-            </li>
-          </ul>
+              <li role="separator" class="divider"></li>
+              <li class="dropdown-header">broadcast: L A N (default:L)</li>
+              <li>
+                <div data-cmd="config get broadcast" class="config-btn">GET</div>
+                <div data-cmd="config set broadcast {}" class="config-btn"
+                     data-cmd-param-help="Broadcast option:\nL: Lazy\nA: Aggressive\nN: Disable"
+                     data-cmd-require-param="1">SET</div>
+                <div data-cmd="config del broadcast" class="config-btn">DEL</div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="btn-group dropup">
+            <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                <span>Advance</span>
+                <span class="caret"></span>
+                <span class="sr-only">Toggle Dropdown</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right">
+              <li class="dropdown-header">enable_backlash: Y N (default:N)</li>
+              <li>
+                <div data-cmd="config get enable_backlash" class="config-btn">GET</div>
+                <div data-cmd="config set enable_backlash {}" class="config-btn"
+                     data-cmd-require-param="1"
+                     data-cmd-param-help="Enable backlash option:\nY: Enable\nN: Disable">SET</div>
+                <div data-cmd="config del enable_backlash" class="config-btn">DEL</div>
+              </li>
+
+              <li role="separator" class="divider"></li>
+              <li class="dropdown-header">backlash: (number) (default:10)</li>
+              <li>
+                <div data-cmd="config get backlash" class="config-btn">GET</div>
+                <div data-cmd='config set backlash "A:{} B:{} C:{}"' class="config-btn"
+                     data-cmd-require-param="1"
+                     data-cmd-param-help="backlash option: Give a NUMBER">SET</div>
+                <div data-cmd="config del backlash" class="config-btn">DEL</div>
+              </li>
+            </ul>
+          </div>
         </div>
+
+        <span> | <span>
 
         <!-- Device info -->
         <span data-cmd="deviceinfo" style="margin-left: 10px;" class="btn btn-xs btn-default">
@@ -1080,11 +1151,11 @@
   </div>
 
   <div id="monitor_modal" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
           <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title">Modal title</h4>
+          <h4 class="modal-title">Monitor</h4>
         </div>
         <div class="modal-body">
         </div>

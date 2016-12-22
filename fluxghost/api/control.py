@@ -87,6 +87,7 @@ def control_api_mixin(cls):
                     "calibrate": self.maintain_calibrate,
                     "zprobe": self.maintain_zprobe,
                     "headinfo": self.maintain_headinfo,
+                    "set_heater": self.maintain_set_heater,
                     "diagnosis_sensor": self.maintain_diagnosis_sensor,
                     "diagnosis": self.maintain_diagnosis,
                     "headstatus": self.maintain_headstatus,
@@ -545,6 +546,10 @@ def control_api_mixin(cls):
             if "version" not in info:
                 info["version"] = info["VERSION"]
             self.send_ok(**info)
+
+        def maintain_set_heater(self, index, temperature):
+            self.task.set_heater(int(index), float(temperature))
+            self.send_ok()
 
         def maintain_diagnosis_sensor(self):
             result = self.task.diagnosis_sensor()
