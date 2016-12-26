@@ -68,7 +68,7 @@ def manager_mixin(cls):
                     self.manager = DeviceManager.from_usb(self.client_key,
                                                           usbprotocol)
                 else:
-                    self.send_fatal("UNKNOWN_DEVICE")
+                    self.send_fatal("L_UNKNOWN_DEVICE")
             elif endpoint_type == "uart":
                 self.manager = DeviceManager.from_uart(self.client_key,
                                                        endpoint_target)
@@ -113,7 +113,7 @@ def manager_mixin(cls):
                     self.send_fatal(" ".join(e.err_symbol))
                 except Exception:
                     logger.exception("Error while manager connecting")
-                    self.send_fatal("UNKNOWN_ERROR")
+                    self.send_fatal("L_UNKNOWN_ERROR")
 
         def on_binary_message(self, buf):
             self.send_fatal("PROTOCOL_ERROR",
@@ -133,7 +133,7 @@ def manager_mixin(cls):
                 self.send_fatal(symbol=e.err_symbol)
             except Exception:
                 logger.exception("Device manager crashed")
-                self.send_fatal("UNKNOWN_ERROR")
+                self.send_fatal("L_UNKNOWN_ERROR")
 
         def cmd_list_trust(self, *args):
             self.send_ok(acl=self.manager.list_trust())

@@ -192,6 +192,7 @@ def control_api_mixin(cls):
                              repr(e.args), e.symbol)
                 self.send_fatal(*e.symbol)
             except RuntimeError as e:
+                logger.debug("RuntimeError Error%s", repr(e.args))
                 self.send_error(*e.args)
 
             except (TimeoutError, ConnectionResetError,  # noqa
