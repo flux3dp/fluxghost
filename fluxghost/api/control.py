@@ -6,6 +6,7 @@ import logging
 import socket
 import shlex
 
+from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
@@ -186,6 +187,10 @@ def control_api_mixin(cls):
                              repr(e.args), e.error_symbol)
                 self.send_fatal(*e.error_symbol)
 
+            except FluxUSBError as e:
+                logger.debug("USB Error%s [error_symbol=%s]",
+                             repr(e.args), e.symbol)
+                self.send_fatal(*e.symbol)
             except RuntimeError as e:
                 self.send_error(*e.args)
 

@@ -4,6 +4,7 @@ from uuid import UUID
 import logging
 import socket
 
+from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.robot.robot import FluxRobot
 from fluxclient.utils.version import StrictVersion
@@ -81,16 +82,20 @@ def control_base_mixin(cls):
                     self.send_fatal("NOT_FOUND")
 
             elif self.usb_addr:
-                usbprotocol = g.USBDEVS.get(self.usb_addr)
-                self.send_text(STAGE_CONNECTIONG)
+                try:
+                    usbprotocol = g.USBDEVS.get(self.usb_addr)
+                    self.send_text(STAGE_CONNECTIONG)
 
-                if usbprotocol:
-                    self.remote_version = StrictVersion(
-                        usbprotocol.endpoint_profile["version"])
+                    if usbprotocol:
+                        self.remote_version = StrictVersion(
+                            usbprotocol.endpoint_profile["version"])
 
-                    self.robot = self.get_robot_from_h2h(usbprotocol)
-                else:
-                    self.send_fatal("UNKNOWN_DEVICE")
+                        self.robot = self.get_robot_from_h2h(usbprotocol)
+                    else:
+                        self.send_fatal("UNKNOWN_DEVICE")
+                except FluxUSBError:
+                    logger.exception("USB control open failed.")
+                    self.send_fatal("PROTOCOL_ERROR")
             else:
                 self.send_fatal("?")
 
