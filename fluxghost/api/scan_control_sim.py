@@ -142,21 +142,6 @@ def control_base_mixin(cls):
             self.binary_handler = binary_handler
             self.send_continue()
 
-        def _fix_auth_error(self, task):
-            self.send_text(STAGE_DISCOVER)
-            if task.timedelta < -15:
-                logger.warn("Auth error, try fix time delta")
-                old_td = task.timedelta
-                task.reload_remote_profile(lookup_timeout=30.)
-                if task.timedelta - old_td > 0.5:
-                    # Fix timedelta issue let's retry
-                    p = self.server.discover_devices.get(self.uuid)
-                    if p:
-                        p["timedelta"] = task.timedelta
-                        self.server.discover_devices[self.uuid] = p
-                        return True
-            return False
-
         def on_closed(self):
             if self.robot:
                 self.robot.close()

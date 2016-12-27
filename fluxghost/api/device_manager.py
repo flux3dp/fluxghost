@@ -5,6 +5,7 @@ from uuid import UUID
 import logging
 import socket
 
+from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.device.manager import (DeviceManager, ManagerError,
                                        ManagerException)
 from fluxclient.encryptor import KeyObject
@@ -65,10 +66,18 @@ def manager_mixin(cls):
                 self.send_text(STAGE_CONNECTIONG)
 
                 if usbprotocol:
-                    self.manager = DeviceManager.from_usb(self.client_key,
-                                                          usbprotocol)
+                    try:
+                        self.manager = DeviceManager.from_usb(self.client_key,
+                                                              usbprotocol)
+                    except FluxUSBError:
+                        logger.exception("USB control open failed.")
+                        usbprotocol.stop()
+                        raise RuntimeError("PROTOCOL_ERROR")
                 else:
-                    self.send_fatal("L_UNKNOWN_DEVICE")
+                    logger.debug(
+                        "Try to connect to unknown device (addr=%s)",
+                        self.usb_addr)
+                    raise RuntimeError("UNKNOWN_DEVICE")
             elif endpoint_type == "uart":
                 self.manager = DeviceManager.from_uart(self.client_key,
                                                        endpoint_target)
@@ -111,6 +120,8 @@ def manager_mixin(cls):
                     self.try_connect()
                 except (ManagerException, ManagerError) as e:
                     self.send_fatal(" ".join(e.err_symbol))
+                except RuntimeError as e:
+                    self.send_fatal(e.args[0])
                 except Exception:
                     logger.exception("Error while manager connecting")
                     self.send_fatal("L_UNKNOWN_ERROR")

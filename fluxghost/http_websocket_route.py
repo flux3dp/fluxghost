@@ -19,7 +19,7 @@ ROUTES = [
     (re.compile("device-manager/uart/(?P<uart>[\w\W]+)"),
      "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
 
-    (re.compile("control/(?P<serial>[0-9a-fA-F]{32})"),
+    (re.compile("control/(?P<uuid>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.control.WebsocketControl"),
     (re.compile("control/usb/(?P<usb_addr>[0-9]{1,3})"),
      "fluxghost.websocket.control.WebsocketControl"),
@@ -31,7 +31,7 @@ ROUTES = [
 
     (re.compile("3d-scan-control/" + '0' * 32),
      "fluxghost.websocket.scan_control.Websocket3DScanControlSimulation"),
-    (re.compile("3d-scan-control/(?P<serial>[0-9a-fA-F]{32})"),
+    (re.compile("3d-scan-control/(?P<uuid>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
     (re.compile("3d-scan-control/usb/(?P<usb_addr>[0-9]{1,3})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
