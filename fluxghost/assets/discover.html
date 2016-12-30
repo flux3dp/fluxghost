@@ -8,6 +8,20 @@
   <meta charset="UTF-8">
   <script src="shared.js"></script>
   <link href="res/shared.css" rel="stylesheet" />
+  <style>
+  .model-delta-1p::before {
+    content: "PLUS";
+    color: white;
+    font-size: 0.8em;
+  }
+
+  .model-delta-1p {
+    padding: 0 0.2em 0.1em 0.2em;
+    border-radius: 2px;
+    background-color: #e00;
+  }
+
+  </style>
   <script>
   window.sort_index = localStorage["discover-sort-index"] || "nickname";
   window.sort_inverse = localStorage["discover-sort-inverse"] ? -1 : 1;
@@ -235,7 +249,7 @@
     }
   }
 
-  function createDeviceDom(uuid, serial, nickname, version) {
+  function createDeviceDom(uuid, serial, nickname, version, model) {
     console.log("Add device: " + uuid);
     var $d = $(
       '<div class="col-xs-4 col-lg-3"> \
@@ -274,6 +288,8 @@
             <span data-tag="ipaddr"></span> \
             <span>/</span> \
             <span data-tag="version"></span> \
+            <span data-tag="model"> \
+            </span> \
           </div> \
         </div> \
       </div>').attr("data-device", uuid);
@@ -281,6 +297,7 @@
     $("a.nickname", $d).attr("href", "control.html#" + uuid + ";" + nickname);
     $("a.camera", $d).attr("href", "camera.html#" + uuid + ";" + nickname);
     $("a.manager", $d).attr("href", "device-manager.html#" + uuid + ";" + nickname);
+    $("[data-tag=model]", $d).append($("<span></span>").addClass("model-" + model))
 
     $(".favo i", $d).addClass(localStorage["star-" + uuid] ? "glyphicon-star" : "glyphicon-star-empty");
     $d.attr("data-star", localStorage["star-" + uuid] ? "0" : "1");
@@ -311,7 +328,7 @@
   function processDeviceInfo(uuid, dataset) {
     var $dom = $("[data-device=" + uuid + "]", "#devices");
     if($dom.length === 0) {
-      $dom = createDeviceDom(uuid, dataset.serial, dataset.name, dataset.version);
+      $dom = createDeviceDom(uuid, dataset.serial, dataset.name, dataset.version, dataset.model);
       $("#devices").append($dom);
     }
     updateDevice($dom, dataset);
