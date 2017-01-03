@@ -1,4 +1,8 @@
 
+function getCorrectDomainName(l) {
+  return l.host.indexOf(':') > 0 ? l.host : 'localhost:' + process.env.ghostPort;
+}
+
 function getKeyPem() {
   if(typeof(Storage) !== "undefined") {
     if(localStorage["flux_identify"]) {

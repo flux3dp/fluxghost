@@ -258,7 +258,7 @@
             <div class="clearfix"> \
               <div class="col-xs-12" style="white-space: nowrap; overflow: hidden"> \
                 <span class="favo" style="color: #aa0"><i class="glyphicon"></i></span> \
-                <a target="_blank" class="nickname"></a> \
+                <a '+ (window.process ? '' : 'target="_blank"') + ' class="nickname"></a> \
                 <span class="pull-right"> \
                   <span class="glyphicon glyphicon-lock" style="font-size: 0.8em"></span> \
                   <span> </span> \
@@ -342,7 +342,7 @@
   }
 
   function connectDiscover() {
-    window.discover_ws = new WebSocket("ws://" + window.location.host + "/ws/discover");
+    window.discover_ws = new WebSocket("ws://" + getCorrectDomainName(window.location) + "/ws/discover");
     window.discover_ws.onopen = function() {
       setTimeout(ping, 5000);
     };

@@ -2,30 +2,9 @@
 <html>
 <head>
   <title>FLUXStudio</title>
-  <script src="res/jquery-2.1.4.min.js"></script>
-  <script src="res/bootstrap/js/bootstrap.min.js"></script>
   <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
   <meta charset="UTF-8">
   <link href="res/shared.css" rel="stylesheet" />
-  <script>
-    $(window).ready(function() {
-      var ws = new WebSocket("ws://" + window.location.host + "/ws/ver");
-      ws.onopen = function() {
-        console.log("/ws/ver Connected");
-      };
-      ws.onmessage = function(m) {
-        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
-        $("[data-tag=fluxclient]").
-          text("fluxclient " + payload.fluxclient).
-          fadeIn(1200);
-        setTimeout(function() {
-          $("[data-tag=fluxghost]").
-            text("fluxghost " + payload.fluxghost).
-            fadeIn(1200);
-        }, 900);
-      }
-    });
-  </script>
   <style>
   .task {
     margin: 0.4em;
@@ -48,6 +27,35 @@
     background-color: #FEDFE1;
   }
   </style>
+  <script type="text/javascript" src="./res/jquery-2.1.4.min.js"></script>
+  <script type="text/javascript" src="./res/bootstrap/js/bootstrap.min.js"></script>
+  <script src="shared.js"></script>
+  <script type="text/javascript">
+    if(window.nw){
+      nw.Window.onClose = function() {}
+    }
+
+    console.log("Jquery", window.$);
+    window.jQuery = window.$;
+
+    $(window).ready(function() {
+      var ws = new WebSocket("ws://" + getCorrectDomainName(window.location) + "/ws/ver");
+      ws.onopen = function() {
+        console.log("/ws/ver Connected");
+      };
+      ws.onmessage = function(m) {
+        var payload = JSON.parse(m.data.replace(/NaN/g, "null"));
+        $("[data-tag=fluxclient]").
+          text("fluxclient " + payload.fluxclient).
+          fadeIn(1200);
+        setTimeout(function() {
+          $("[data-tag=fluxghost]").
+            text("fluxghost " + payload.fluxghost).
+            fadeIn(1200);
+        }, 900);
+      }
+    });
+  </script>
 </head>
 <body class="dark">
   <div class="bgmask"></div>

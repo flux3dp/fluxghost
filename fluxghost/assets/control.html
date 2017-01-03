@@ -658,8 +658,9 @@
       appendLog("Connect to " + uuid);
     }
 
-    window.controller = new FLUXControl(uuid, {
+    var control_opts = {
       clientkey: getKeyPem(),
+      baseurl: getCorrectDomainName(window.location),
       usb: window.device_information.usb,
       usb_addr: window.device_information.usb_addr,
       on_connecting: function(sender, stage) {
@@ -698,7 +699,8 @@
         }
         ws_close_handler("Control")(wsparam)
       }
-    });
+    };
+    window.controller = new FLUXControl(uuid, control_opts);
   }
 
   function dispatch_handler(cmd) {
