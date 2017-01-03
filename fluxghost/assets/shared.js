@@ -1,4 +1,8 @@
 
+function getCorrectDomainName(l) {
+  return l.host.indexOf(':') > 0 ? l.host : 'localhost:' + process.env.ghostPort;
+}
+
 function getKeyPem() {
   if(typeof(Storage) !== "undefined") {
     if(localStorage["flux_identify"]) {
@@ -51,7 +55,7 @@ function appendLog(text, color, bgcolor) {
   var seconds = dt.getSeconds() < 10 ? "0" + String(dt.getSeconds()) : String(dt.getSeconds());
   
   var log_text = "[" + hour + ":" + minute + ":" + seconds + "] " + text;
-  var $row = $("<div></div>").text(log_text);
+  var $row = $("<div style=\"padding: 0.1em 0.4em;\"></div>").text(log_text);
   if(color) $row.css("color", color);
   if(bgcolor) $row.css("background-color", bgcolor);
 
@@ -66,6 +70,38 @@ function appendHtmlLog(html) {
         var h = $("#log")[0].scrollHeight;
         $("#log").animate({ scrollTop: h }, "fast");
     }, 5);
+}
+
+function appendKeyValueLog(data, pre_sort) {
+  var output = [];
+  if(pre_sort) {
+    for(var i in pre_sort) {
+      var val = data[pre_sort[i]];
+      output.push($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(pre_sort[i])))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(val)))
+      delete data[pre_sort[i]];
+    }
+  }
+
+  for(var key in data) {
+      var val = data[key];
+      output.push($('<div></div>')
+          .append($('<span class="label label-primary"></span>')
+            .append($("<i class=\"glyphicon glyphicon-tag\"></i>"))
+            .append($("<span></span>").html("&nbsp;"))
+            .append($("<span></span>").text(key)))
+          .append($("<span></span>").html("&nbsp;"))
+          .append($('<span></span>').text(val)))
+  }
+
+  for(var i=0;i<output.length;i++) {
+    appendHtmlLog(output[i]);
+  }
 }
 
 function ws_close_handler(name) {

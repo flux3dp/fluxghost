@@ -3,6 +3,8 @@
 from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
 
 from PyInstaller import __version__ as PyInstallerVersion
+from PyInstaller import is_win
+
 if parse_version(PyInstallerVersion) >= parse_version('3.1'):
     from PyInstaller.utils.hooks import collect_submodules
 else:
@@ -41,42 +43,50 @@ hiddenimports += collect_submodules("fluxclient")
 
 
 hiddenimports += collect_submodules("fluxghost")  # this is not working, manually hotfix below
-hiddenimports += ['fluxghost.websocket.scan_modeling',
-                  'fluxghost.websocket.stl_slicing_parser',
-                  'fluxghost.http_handler',
-                  'fluxghost.websocket.scan_control',
-                  'fluxghost.websocket.fcode_reader',
-                  'fluxghost.http_handlers.websocket_handler',
-                  'fluxghost.websocket.echo',
-                  'fluxghost.websocket.usb_config',
-                  'fluxghost.websocket.upnp_ws',
+hiddenimports += ['fluxghost',
                   'fluxghost.http_server',
+                  'fluxghost.http_handler',
+                  'fluxghost.http_handlers.websocket_handler',
                   'fluxghost.http_handlers.file_handler',
-                  'fluxghost.utils.websocket',
-                  'fluxghost',
-                  'fluxghost.websocket.touch',
                   'fluxghost.http_handlers',
-                  'fluxghost.websocket.laser_svg_parser',
-                  'fluxghost.websocket.pen_svg_parser',
                   'fluxghost.http_server_base',
-                  'fluxghost.websocket.control',
                   'fluxghost.http_websocket_route',
+                  'fluxghost.http_server_debug',
+                  'fluxghost.utils',
+                  'fluxghost.utils.websocket',
+                  'fluxghost.websocket',
+                  'fluxghost.websocket.touch',
                   'fluxghost.websocket.base',
                   'fluxghost.websocket.laser_bitmap_parser',
                   'fluxghost.websocket.ver',
-                  'fluxghost.websocket',
-                  'fluxghost.http_server_debug',
-                  'fluxghost.utils',
+                  'fluxghost.websocket.laser_svg_parser',
+                  'fluxghost.websocket.pen_svg_parser',
+                  'fluxghost.websocket.control',
                   'fluxghost.websocket.discover',
                   'fluxghost.websocket.config',
-                  'fluxghost.websocket.camera']
+                  'fluxghost.websocket.camera',
+                  'fluxghost.websocket.scan_modeling',
+                  'fluxghost.websocket.stl_slicing_parser',
+                  'fluxghost.websocket.scan_control',
+                  'fluxghost.websocket.fcode_reader',
+                  'fluxghost.websocket.echo',
+                  'fluxghost.websocket.usb_config',
+                  'fluxghost.websocket.upnp_ws',
+                  'fluxghost.websocket.device_manager',
+                  'fluxghost.websocket.usb_interfaces',
+]
+
+binaries = []
+if is_win:
+  binaries.append( ('C:\\Windows\\System32\\libusb0.dll', '.') )
 
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
              hookspath=None,
              runtime_hooks=None,
              excludes=None,
-             cipher=block_cipher)
+             cipher=block_cipher,
+             binaries=binaries)
 a.datas += fetch_datas()
 pyz = PYZ(a.pure,
           cipher=block_cipher)

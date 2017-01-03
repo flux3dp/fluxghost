@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>FLUXStudio - USB</title>
+  <script src="res/jquery-2.1.4.min.js"></script>
+  <script src="res/bootstrap/js/bootstrap.min.js"></script>
+  <link href="res/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <script src="shared.js"></script>
+  <link href="res/shared.css" rel="stylesheet" />
+  <style>
+  a:hover {
+    cursor: pointer;
+    color: #ccc;
+  }
+
+  .interface {
+    padding: 4px 8px;
+  }
+
+  .interface .address {
+    width: 5em;
+    display: inline-block;
+    text-align: right;
+  }
+
+  .interface .control {
+    display: inline-block;
+  }
+
+  .interface .control {
+    display: none;
+  }
+
+  .interface:not(.enabled) .disabled {
+    display: inline-block;
+  }
+
+  .interface.enabled .enabled {
+    display: inline-block;
+  }
+
+  </style>
+  <script>
+  var USBDEV_TEMP = ' \
+    <div class="interface enabled"> \
+      <div> \
+        <div class="control disabled"><a data-action="open">Open</a></div> \
+        <div class="control enabled"><a data-action="close">Close</a></div> \
+        <div class="address">Address:<span data-label="addr"></span></div> \
+        <div class="control disabled">Idle</div> \
+        <div class="control enabled">Opened</div> \
+        <div class="control enabled">| <span data-label="nickname"></span></div> \
+        <div class="control enabled">| <span data-label="serial"></span></div> \
+        <div class="control enabled">| <span data-label="firmware"></span></div> \
+      </div> \
+      <div class="control enabled"> \
+        <a target="_blank" data-action="control">Control</a> | \
+        <a target="_blank" data-action="camera">Camera</a> | \
+        <a target="_blank" data-action="manager">Manager</a> \
+      </div> \
+    </div>'
+
+  var UART_TEMP = ' \
+  <div class="uart"> \
+    <a target="_blank">Manager</a> \
+  </div>'
+
+  function on_message(m) {
+      var cmd = window.ws_commands.shift();
+      try {
+        var data = JSON.parse(m.data);
+        switch(cmd) {
+          case "list":
+            refresh_h2h_devices(data.h2h);
+            refresh_uart_devices(data.uart);
+            break;
+          case "open":
+            if(data.status == "ok") {
+              var $dev = $(".interfaces").children("[data-addr=" + data.devopen + "]");
+              update_widget($dev, data.profile);
+              $dev.removeClass("enabled");
+              $dev.addClass("disabled");
+            } else {
+              alert(data.error);
+            }
+            break;
+          case "close":
+            if(data.status == "ok") {
+              var $dev = $(".interfaces").children("[data-addr=" + data.devopen + "]");
+              $dev.removeClass("disabled");
+              $dev.addClass("enabled");
+            } else {
+              alert(data.error);
+            }
+            break;
+          default:
+            console.log("Unknown command: '" + cmd + "' with data: " + m.data);
+        }
+      } catch(err) {
+        window.err = err;
+        alert("Error: " + err);
+        m.srcElement.close();
+        throw err;
+      }
+  }
+
+  function refresh_h2h_devices(devices) {
+    var $c = $(".interfaces");
+    var $e = $c.children();
+    for(var i=0;i<$e.length;i++) {
+      var addr = $($e[i]).attr("data-addr");
+      if(devices[addr] === undefined) {
+        $($e[i]).hide();
+      }
+    }
+
+    for(var addr in devices) {
+      var stat = devices[addr];
+      var $dev = $c.children("[data-addr=" + addr + "]");
+      if($dev.length === 0) {
+        $dev = create_widget(addr);
+      }
+
+      if(stat.constructor === Object) {
+        update_widget($dev, stat);
+      }
+
+      if(stat) {
+        $dev.removeClass("disabled");
+        $dev.addClass("enabled");
+      } else {
+        $dev.addClass("disabled");
+        $dev.removeClass("enabled");
+      }
+    }
+  }
+
+  function refresh_uart_devices(uarts) {
+    var $c = $(".uart_interfaces");
+    var $e = $c.children();
+    for(var i=0;i<$e.length;i++) {
+      var addr = $($e[i]).attr("data-addr");
+      if(uarts.indexOf(addr) == -1) {
+        $($e[i]).hide();
+      }
+    }
+
+    for(var i=0;i<uarts.length;i++) {
+      var port = uarts[i];
+      var $e = $("[data-addr=\"" + port + "\"]", $c);
+      if($e.length) { $e.show(); }
+      else {
+        $e = $(UART_TEMP).attr("data-addr", port);
+        $("a", $e)
+          .attr("href", "device-manager.html#UART:" + port + ";" + "0" + ";" + port)
+          .text(port);
+        $c.append($e);
+      }
+    }
+  }
+
+  function create_widget(addr) {
+    $dev = $(USBDEV_TEMP);
+    $dev.attr("data-addr", addr);
+
+    $("[data-label=addr]", $dev).text(addr);
+    $("[data-action=open]", $dev).bind("click", function() {
+      if(window.ws && window.ws.readyState == 1) {
+        window.ws_commands.push("open");
+        window.ws.send("open " + addr);
+      } else {
+        alert("No connection");
+      }
+    });
+    $("[data-action=close]", $dev).bind("click", function() {
+      if(window.ws && window.ws.readyState == 1) {
+        window.ws_commands.push("close");
+        window.ws.send("close " + addr);
+      } else {
+        alert("No connection");
+      }
+    });
+    $("[data-action=control]", $dev).attr("href", "control.html#USB:" + addr);
+    $("[data-action=camera]", $dev).attr("href", "camera.html#USB:" + addr);
+    $("[data-action=manager]", $dev).attr("href", "device-manager.html#USB:" + addr);
+    $(".interfaces").append($dev);
+    return $dev;
+  }
+
+  function update_widget($dev, profile) {
+    $("[data-label=nickname]", $dev).text(profile.nickname);
+    $("[data-label=serial]", $dev).text(profile.serial);
+    $("[data-label=firmware]", $dev).text(profile.version);
+
+    var $conn = $("[data-action=control]", $dev);
+    var conn_url = $conn.attr("href").split(";")[0];
+    conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
+    $conn.attr("href", conn_url);
+
+    var $conn = $("[data-action=camera]", $dev);
+    var conn_url = $conn.attr("href").split(";")[0];
+    conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
+    $conn.attr("href", conn_url);
+
+    var $conn = $("[data-action=manager]", $dev);
+    var conn_url = $conn.attr("href").split(";")[0];
+    conn_url = conn_url + ";" + profile.uuid + ";" + profile.nickname;
+    $conn.attr("href", conn_url);
+  }
+
+  function connect_usb() {
+    window.ws_commands = [];
+    window.ws = new WebSocket("ws://" + window.location.host + "/ws/usb/interfaces");
+    window.ws.onclose = function() {
+      window.ws = undefined;
+      $("#disconnect_dialog").modal('show');
+    };
+    window.ws.onmessage = on_message;
+    window.ws.onopen = function() {}
+  }
+
+  function list_devices(skip_timer) {
+    if(window.ws && window.ws.readyState == 1) {
+      window.ws_commands.push("list");
+      window.ws.send("list");
+    }
+    if(!skip_timer) {
+      setTimeout(list_devices, 800);
+    }
+  }
+
+  $(window).ready(function() {
+    $("#reconnect").bind("click", function() {
+      $("#disconnect_dialog").modal('hide');
+      connect_usb();
+    });
+    connect_usb();
+
+    setTimeout(list_devices, 800);
+  });
+  </script>
+</head>
+<body class="dark">
+  <div class="container-fluid banner">
+    <ol class="breadcrumb">
+      <li><a href="index.html">Ghost</a></li>
+      <li>USB</li>
+    </ol>
+  </div>
+
+  <div class="container-fluid">
+    <div class="col-md-8">
+      <div style="border-bottom: 1px gray solid; padding: 2px; margin: 2px;">H2H USB</div>
+      <div class="interfaces"></div>
+    </div>
+    <div class="col-md-4">
+      <div style="border-bottom: 1px gray solid; padding: 2px; margin: 2px;">Uart</div>
+      <div class="uart_interfaces"></div>
+    </div>
+  </div>
+
+  <!-- **** DISCONNECT **** -->
+  <div class="modal fade" tabindex="-1" role="dialog" id="disconnect_dialog">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-body">
+          <div>Disconnected</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-warning btn-sm" id="reconnect">
+            <i class="glyphicon glyphicon-repeat"></i>
+            Retry
+          </button>
+        </div>
+      </div><!-- /.modal-content -->
+    </div><!-- /.modal-dialog -->
+  </div><!-- /.modal -->
+
+</body>
+</html>

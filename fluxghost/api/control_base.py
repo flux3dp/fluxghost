@@ -4,19 +4,25 @@ from uuid import UUID
 import logging
 import socket
 
-from fluxclient.encryptor import KeyObject
+from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
+from fluxclient.robot.robot import FluxRobot
+from fluxclient.utils.version import StrictVersion
+from fluxclient.encryptor import KeyObject
+from fluxghost import g
 
 logger = logging.getLogger("API.CONTROL_BASE")
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
-STAGE_ROBOT_CONNECTING = '{"status": "connecting", "stage": "connecting"}'
+STAGE_CONNECTIONG = '{"status": "connecting", "stage": "connecting"}'
 STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
 def control_base_mixin(cls):
     class ControlBaseAPI(cls):
+        target = None
+
         binary_handler = None
         cmd_mapping = None
         client_key = None
@@ -24,48 +30,81 @@ def control_base_mixin(cls):
 
         def __init__(self, *args, **kw):
             super().__init__(*args)
-            self.uuid = UUID(hex=kw["serial"])
+            if "uuid" in kw:
+                self.target = ("uuid", UUID(hex=kw["uuid"]))
+            elif "serial" in kw:
+                self.target = ("uuid", UUID(hex=kw["serial"]))
+            elif "usb_addr" in kw:
+                self.target = ("h2h", int(kw["usb_addr"]))
+            else:
+                raise SystemError("Poor connection configuration")
             self.POOL_TIME = 1.5
 
         def on_connected(self):
             pass
 
         def on_loop(self):
-            if self.client_key and not self.robot:
-                self.try_connect()
+            pass
 
         def get_robot_from_device(self, device):
             return device.connect_robot(
                 self.client_key, conn_callback=self._conn_callback)
 
+        def get_robot_from_h2h(self, usbprotocol):
+            return FluxRobot.from_usb(self.client_key, usbprotocol)
+
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
-            logger.debug("DISCOVER")
-            uuid = self.uuid
+            endpoint_type, endpoint_target = self.target
 
-            if uuid in self.server.discover_devices:
-                device = self.server.discover_devices[uuid]
-                self.remote_version = device.version
-                self.ipaddr = device.ipaddr
-                self.send_text(STAGE_ROBOT_CONNECTING)
+            if endpoint_type == "uuid":
+                uuid = endpoint_target
+                if uuid in self.server.discover_devices:
+                    device = self.server.discover_devices[uuid]
+                    self.remote_version = device.version
+                    self.send_text(STAGE_CONNECTIONG)
 
-                try:
-                    self.robot = self.get_robot_from_device(device)
+                    try:
+                        self.robot = self.get_robot_from_device(device)
 
-                except (OSError, ConnectionError, socket.timeout) as e:  # noqa
-                    logger.error("Socket erorr: %s", e)
-                    self.send_fatal("DISCONNECTED")
+                    except (OSError, ConnectionError, socket.timeout) as e:  # noqa
+                        logger.error("Socket erorr: %s", e)
+                        raise RuntimeError("DISCONNECTED")
 
-                except (RobotError, RobotSessionError) as err:
-                    if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
-                        self.server.discover_devices.pop(uuid)
-                        self.server.discover.devices.pop(uuid)
-                    self.send_fatal(*err.error_symbol)
-                    return
+                    except (RobotError, RobotSessionError) as err:
+                        if err.error_symbol[0] == "REMOTE_IDENTIFY_ERROR":
+                            self.server.discover_devices.pop(uuid)
+                            self.server.discover.devices.pop(uuid)
+                        raise RuntimeError(*err.error_symbol)
 
-                self.send_text(STAGE_CONNECTED)
-                self.POOL_TIME = 30.0
-                self.on_connected()
+                else:
+                    self.send_fatal("NOT_FOUND")
+
+            elif endpoint_type == "h2h":
+                usbprotocol = g.USBDEVS.get(endpoint_target)
+                self.send_text(STAGE_CONNECTIONG)
+
+                if usbprotocol:
+                    try:
+                        self.remote_version = StrictVersion(
+                            usbprotocol.endpoint_profile["version"])
+
+                        self.robot = self.get_robot_from_h2h(usbprotocol)
+                    except FluxUSBError:
+                        logger.exception("USB control open failed.")
+                        usbprotocol.stop()
+                        raise RuntimeError("PROTOCOL_ERROR")
+                else:
+                    logger.debug(
+                        "Try to connect to unknown device (addr=%s)",
+                        endpoint_target)
+                    raise RuntimeError("UNKNOWN_DEVICE")
+            else:
+                self.send_fatal("?")
+
+            self.send_text(STAGE_CONNECTED)
+            self.POOL_TIME = 30.0
+            self.on_connected()
 
         def on_text_message(self, message):
             if self.client_key:
@@ -75,12 +114,20 @@ def control_base_mixin(cls):
                     self.client_key = KeyObject.load_keyobj(message)
                 except ValueError:
                     self.send_fatal("BAD_PARAMS")
+                    return
                 except Exception:
                     logger.error("RSA Key load error: %s", message)
                     self.send_fatal("BAD_PARAMS")
                     raise
 
-                self.try_connect()
+                try:
+                    self.try_connect()
+                except RuntimeError as e:
+                    self.send_fatal(e.args[0])
+                except Exception:
+                    logger.exception("Connection failed")
+                    self.send_fatal("DISCONNECTED")
+                    raise
 
         def on_binary_message(self, buf):
             try:
@@ -135,21 +182,6 @@ def control_base_mixin(cls):
             self.binary_handler = binary_handler
             self.send_continue()
 
-        def _fix_auth_error(self, task):
-            self.send_text(STAGE_DISCOVER)
-            if task.timedelta < -15:
-                logger.warn("Auth error, try fix time delta")
-                old_td = task.timedelta
-                task.reload_remote_profile(lookup_timeout=30.)
-                if task.timedelta - old_td > 0.5:
-                    # Fix timedelta issue let's retry
-                    p = self.server.discover_devices.get(self.uuid)
-                    if p:
-                        p["timedelta"] = task.timedelta
-                        self.server.discover_devices[self.uuid] = p
-                        return True
-            return False
-
         def on_closed(self):
             if self.robot:
                 self.robot.close()
@@ -161,6 +193,6 @@ def control_base_mixin(cls):
             return True
 
         def _conn_callback(self, *args):
-            self.send_text(STAGE_ROBOT_CONNECTING)
+            self.send_text(STAGE_CONNECTIONG)
             return True
     return ControlBaseAPI

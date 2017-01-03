@@ -6,23 +6,41 @@ import re
 ROUTES = [
     (re.compile("discover"),
      "fluxghost.websocket.discover.WebsocketDiscover"),
+
     (re.compile("upnp-config"),
      "fluxghost.websocket.upnp_ws.WebsocketUpnp"),
     (re.compile("touch"),
      "fluxghost.websocket.touch.WebsocketTouch"),
-    (re.compile("control/(?P<serial>[0-9a-fA-F]{32})"),
+
+    (re.compile("device-manager/(?P<uuid>[0-9a-fA-F]{32})"),
+     "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
+    (re.compile("device-manager/usb/(?P<usb_addr>[0-9]{1,3})"),
+     "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
+    (re.compile("device-manager/uart/(?P<uart>[\w\W]+)"),
+     "fluxghost.websocket.device_manager.WebsocketDeviceManager"),
+
+    (re.compile("control/(?P<uuid>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.control.WebsocketControl"),
-    (re.compile("camera/(?P<serial>[0-9a-fA-F]{32})"),
+    (re.compile("control/usb/(?P<usb_addr>[0-9]{1,3})"),
+     "fluxghost.websocket.control.WebsocketControl"),
+
+    (re.compile("camera/(?P<uuid>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.camera.WebsocketCamera"),
+    (re.compile("camera/usb/(?P<usb_addr>[0-9]{1,3})"),
+     "fluxghost.websocket.camera.WebsocketCamera"),
+
     (re.compile("3d-scan-control/" + '0' * 32),
      "fluxghost.websocket.scan_control.Websocket3DScanControlSimulation"),
-    (re.compile("3d-scan-control/(?P<serial>[0-9a-fA-F]{32})"),
+    (re.compile("3d-scan-control/(?P<uuid>[0-9a-fA-F]{32})"),
      "fluxghost.websocket.scan_control.Websocket3DScanControl"),
+    (re.compile("3d-scan-control/usb/(?P<usb_addr>[0-9]{1,3})"),
+     "fluxghost.websocket.scan_control.Websocket3DScanControl"),
+
+    (re.compile("usb/interfaces"),
+     "fluxghost.websocket.usb_interfaces.WebsocketUsbInterfaces"),
     (re.compile("usb-config"),
      "fluxghost.websocket.usb_config.WebsocketUsbConfig"),
 
-    (re.compile("echo"),
-     "fluxghost.websocket.echo.WebsocketEcho"),
     (re.compile("ver"),
      "fluxghost.websocket.ver.WebsocketVer"),
     (re.compile("3d-scan-modeling"),

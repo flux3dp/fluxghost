@@ -6,6 +6,7 @@ import logging
 import socket
 import shlex
 
+from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
@@ -25,12 +26,6 @@ def control_api_mixin(cls):
     class ControlApi(control_base_mixin(cls)):
         _task = None
         raw_sock = None
-
-        def __init__(self, *args, **kw):
-            try:
-                super().__init__(*args, **kw)
-            except RobotError:
-                pass
 
         def on_connected(self):
             self.set_hooks()
@@ -93,6 +88,9 @@ def control_api_mixin(cls):
                     "calibrate": self.maintain_calibrate,
                     "zprobe": self.maintain_zprobe,
                     "headinfo": self.maintain_headinfo,
+                    "set_heater": self.maintain_set_heater,
+                    "diagnosis_sensor": self.maintain_diagnosis_sensor,
+                    "diagnosis": self.maintain_diagnosis,
                     "headstatus": self.maintain_headstatus,
                     "home": self.maintain_home,
                     "update_hbfw": self.maintain_update_hbfw
@@ -112,6 +110,13 @@ def control_api_mixin(cls):
                     "pause": self.pause_play,
                     "resume": self.resume_play,
                     "abort": self.abort_play,
+                    "toolhead": {
+                        "operation": self.set_toolhead_operating,
+                        "standby": self.set_toolhead_standby,
+                    },
+                    "load_filament": self.load_filamend_in_play,
+                    "unload_filament": self.unload_filamend_in_play,
+                    "press_button": self.press_button_in_play,
                     "quit": self.quit_play
                 },
 
@@ -121,6 +126,7 @@ def control_api_mixin(cls):
                     "backward": self.scan_backward,
                     "forward": self.scan_forward,
                     "step": self.scan_step,
+                    "laser": self.scan_lasr,
                 },
 
                 "task": {
@@ -188,7 +194,12 @@ def control_api_mixin(cls):
                              repr(e.args), e.error_symbol)
                 self.send_fatal(*e.error_symbol)
 
+            except FluxUSBError as e:
+                logger.debug("USB Error%s [error_symbol=%s]",
+                             repr(e.args), e.symbol)
+                self.send_fatal(*e.symbol)
             except RuntimeError as e:
+                logger.debug("RuntimeError Error%s", repr(e.args))
                 self.send_error(*e.args)
 
             except (TimeoutError, ConnectionResetError,  # noqa
@@ -400,6 +411,26 @@ def control_api_mixin(cls):
             self.robot.abort_play()
             self.send_ok()
 
+        def set_toolhead_operating(self):
+            self.robot.set_toolhead_operating_in_play()
+            self.send_ok()
+
+        def set_toolhead_standby(self):
+            self.robot.set_toolhead_standby_in_play()
+            self.send_ok()
+
+        def load_filamend_in_play(self, index):
+            self.robot.load_filament_in_play(int(index))
+            self.send_ok()
+
+        def unload_filamend_in_play(self, index):
+            self.robot.unload_filament_in_play(int(index))
+            self.send_ok()
+
+        def press_button_in_play(self):
+            self.robot.press_button_in_play()
+            self.send_ok()
+
         def quit_play(self):
             self.robot.quit_play()
             self.send_ok()
@@ -549,6 +580,17 @@ def control_api_mixin(cls):
                 info["version"] = info["VERSION"]
             self.send_ok(**info)
 
+        def maintain_set_heater(self, index, temperature):
+            self.task.set_heater(int(index), float(temperature))
+            self.send_ok()
+
+        def maintain_diagnosis_sensor(self):
+            result = self.task.diagnosis_sensor()
+            self.send_ok(sensor=result)
+
+        def maintain_diagnosis(self, option):
+            self.send_ok(ret=self.task.diagnosis(option))
+
         def maintain_headstatus(self):
             status = self.task.head_status()
             self.send_ok(**status)
@@ -624,6 +666,14 @@ def control_api_mixin(cls):
             self.task.step_length(float(length))
             self.send_ok()
 
+        def scan_lasr(self, flag):
+            if flag.isdigit():
+                dflag = int(flag)
+                self.task.laser(dflag & 1, dflag & 2)
+            else:
+                self.task.laser(False, False)
+            self.send_ok()
+
         def play_info(self):
             metadata, images = self.robot.play_info()
 
@@ -632,8 +682,8 @@ def control_api_mixin(cls):
                 self.send_binary(buf)
             self.send_ok(**metadata)
 
-        def config_set(self, key, value):
-            self.robot.config[key] = value
+        def config_set(self, key, *value):
+            self.robot.config[key] = " ".join(value)
             self.send_ok(key=key)
 
         def config_get(self, key):

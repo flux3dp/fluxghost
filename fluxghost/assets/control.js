@@ -1,6 +1,6 @@
 
 (function(base) {
-    BinaryReciver = function(mimetype, size) {
+    var BinaryReciver = function(mimetype, size) {
         var blobs = []
         var buffered = 0;
 
@@ -31,10 +31,11 @@
 
     }
 
-    base.FLUXControl = function(uuid, options, delayed) {
+    base.FLUXControl = function(uuid, options) {
         /* options = {
             clientkey: "RSA key (pem)",
             baseurl: "http://localhost:8000",
+            usb: trur|false,
 
             on_connecting: function(obj|controller, str|stage) {},
             on_connected: function(obj|controller) {},
@@ -75,8 +76,16 @@
         var ST_CLOSED = "CLOSED";
 
         var self = this;
-        var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:' + process.env.ghostPort ;
-        var ws_url = "ws://" + (options.baseurl || host ) + "/ws/control/" + uuid;
+        var scope = options.scope ? options.scope : "control";
+        var ws_url;
+        if(options.usb) {
+            ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/" + scope + "/usb/" + options.usb_addr;
+        } else if(options.uart) {
+            ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/" + scope + "/uart/" + options.uart_port;
+        } else {
+            ws_url = "ws://" + (options.baseurl || base.location.host ) + "/ws/" + scope + "/" + uuid;
+        }
+        console.log("Connect control endpoint: " + ws_url)
         var ws = new WebSocket(ws_url);
         var command_queue = [];
         var waitting_response = false;
@@ -98,6 +107,11 @@
                 case "connecting":
                     if(options.on_connecting) {
                         options.on_connecting(self, payload.stage);
+                    }
+                    break;
+                case "req_authorize":
+                    if(options.on_req_authorize) {
+                        options.on_req_authorize(self, payload.stage);
                     }
                     break;
                 case "connected":
@@ -125,8 +139,8 @@
                 console.log(err);
                 // MONKEY PATCH // MONKEY PATCH // MONKEY PATCH // MONKEY PATCH
                 if(str.indexOf("NaN")) {
-                    console.log("Parse response failed but find magic str: NaN, try replace and parse again");
-                    console.log("Data: '" + str + "'")
+                    // console.log("Parse response failed but find magic str: NaN, try replace and parse again");
+                    // console.log("Data: '" + str + "'")
                     return ParseJsonData(str.replace("NaN", "null"));
                 }
                 throw err;
@@ -310,6 +324,10 @@
 
         this.is_busy = function() {
             return waitting_response;
+        }
+
+        this.send_raw = function(data) {
+            ws.send(data)
         }
 
         this.send_command = function(command, options) {

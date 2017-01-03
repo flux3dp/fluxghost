@@ -6,7 +6,8 @@ import sys
 
 from serial.tools import list_ports as _list_ports
 from fluxclient.encryptor import KeyObject
-from fluxclient.usb.task import UsbTask, UsbTaskError, UsbTaskException
+from fluxclient.device.manager_backends import (UartBackend, ManagerError,
+                                                ManagerException)
 
 
 logger = logging.getLogger("API.USBCONFIG")
@@ -36,7 +37,7 @@ def usb_config_api_mixin(cls):
             try:
                 if self.task:
                     self.task.close()
-                    self.task = None
+                    self.task = NoneTask()
 
                 if not self.client_key:
                     self.send_error("KEY_ERROR")
@@ -45,48 +46,55 @@ def usb_config_api_mixin(cls):
                 if port == "SIMULATE":
                     self.task = t = SimulateTask()
                 else:
-                    self.task = t = UsbTask(port=port,
-                                            client_key=self.client_key)
+                    t = UartBackend(self.client_key, port)
+                    t.connect()
+                    self.task = t
+                    # self.task = t = UsbTask(port=port,
+                    #                         client_key=self.client_key)
                 self.send_json(status="ok", cmd="connect", serial=t.serial,
-                               version=t.remote_version, name=t.name,
-                               model=t.model_id, password=t.has_password)
+                               version=str(t.version), name=t.nickname,
+                               model=t.model_id, password=True)
+                # self.send_json(status="ok", cmd="connect", serial=t.serial,
+                #                version=t.remote_version, name=t.name,
+                #                model=t.model_id, password=t.has_password)
             except Exception:
                 self.task = NoneTask()
                 raise
 
-        def auth(self, password=None):
-            if password:
-                self.task.auth(password)
-            else:
-                self.task.auth()
-            self.send_text('{"status": "ok", "cmd": "auth"}')
-
         def config_general(self, params):
             options = json.loads(params)
-            self.task.config_general(options)
+            self.task.set_nickname(options["name"])
             self.send_text('{"status": "ok"}')
-
-        def scan_wifi(self):
-            ret = self.task.list_ssid()
-            self.send_json(status="ok", cmd="scan", wifi=ret)
-
-        def config_network(self, params):
-            options = json.loads(params)
-            self.task.config_network(options)
-            self.send_text('{"status": "ok"}')
-
-        def get_network(self):
-            payload = {"status": "ok", "cmd": "network"}
-            payload["ssid"] = self.task.get_ssid()
-            payload["ipaddr"] = self.task.get_ipaddr()
-            self.send_json(payload)
 
         def set_password(self, password):
-            ret = self.task.set_password(password)
+            ret = self.task.set_password("", password, False)
             if ret == "OK":
                 self.send_text('{"status": "ok", "cmd": "password"}')
             else:
                 self.send_error(ret)
+
+        def scan_wifi(self):
+            ret = self.task.scan_wifi_access_points()
+            self.send_json(status="ok", cmd="scan", wifi=ret)
+
+        def config_network(self, params):
+            options = json.loads(params)
+            self.task.set_network(options)
+            self.send_text('{"status": "ok"}')
+
+        def get_network(self):
+            payload = {"status": "ok", "cmd": "network"}
+            payload["ssid"] = self.task.get_wifi_ssid()
+            payload["ipaddr"] = self.task.get_ipaddr()
+            self.send_json(payload)
+
+        def auth(self, password=None):
+            try:
+                self.task.add_trust("DUMMY",
+                                    self.client_key.public_key_pem.decode())
+            except ManagerError:
+                pass
+            self.send_text('{"status": "ok", "cmd": "auth"}')
 
         def on_text_message(self, message):
             try:
@@ -115,13 +123,14 @@ def usb_config_api_mixin(cls):
                 else:
                     self.send_error("L_UNKNOWN_COMMAND")
 
-            except UsbTaskException as e:
-                self.send_error(" ".join(e.args), info=str(e))
+            except ManagerException as e:
+                self.send_error(" ".join(e.err_symbol), info=str(e))
+                logger.exception("UART request error")
                 if self.task:
                     self.task.close()
                     self.task = NoneTask()
 
-            except UsbTaskError as e:
+            except ManagerError as e:
                 self.send_error(" ".join(e.args))
 
             except Exception:

@@ -5,7 +5,7 @@ import logging
 import json
 
 from fluxclient.encryptor import KeyObject
-from fluxclient.upnp import UpnpTask, UpnpError
+from fluxclient.device.manager import DeviceManager, ManagerError
 
 logger = logging.getLogger("API.TOUCH")
 
@@ -60,9 +60,9 @@ def touch_api_mixin(cls):
                     if device:
                         task = device.manage_device(client_key)
                     else:
-                        task = UpnpTask(uuid,
-                                        client_key=client_key,
-                                        lookup_timeout=30.0)
+                        task = DeviceManager.from_uuid(uuid,
+                                                       client_key=client_key,
+                                                       lookup_timeout=30.0)
                 except IOError as e:
                     logger.warning("%s", e)
                     self.send_text(json.dumps({
@@ -72,21 +72,17 @@ def touch_api_mixin(cls):
                     return
 
                 if not task.authorized:
-                    if task.device_meta.get("has_password", False) is True:
-                        if password:
-                            task.authorize_with_password(password)
-                        else:
-                            self.send_text(json.dumps({
-                                "uuid": uuid.hex, "has_response": True,
-                                "reachable": True, "auth": False}))
-                            return
+                    if password:
+                        task.authorize_with_password(password)
                     else:
-                        task.authorize_with_password(":-)")
-
+                        self.send_text(json.dumps({
+                            "uuid": uuid.hex, "has_response": True,
+                            "reachable": True, "auth": False}))
+                        return
                 try:
                     task.add_trust(getuser(),
                                    client_key.public_key_pem.decode())
-                except UpnpError:
+                except ManagerError:
                     pass
 
                 self.send_text(json.dumps({
@@ -94,7 +90,7 @@ def touch_api_mixin(cls):
                     "auth": True
                 }))
 
-            except UpnpError as e:
+            except ManagerError as e:
                 if e.err_symbol == ("AUTH_ERROR", ):
                     self.send_text(json.dumps({
                         "uuid": uuid.hex, "has_response": True,
