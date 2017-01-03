@@ -11,6 +11,82 @@
   <script src="control.js"></script>
   <link href="res/shared.css" rel="stylesheet" />
   <style>
+
+  #status_bar {
+    background-color: #eee;
+    margin-bottom: 0.5em;
+    padding: 1px 6px;
+  }
+
+  #status_bar .st {
+    display: inline-block;
+  }
+
+  #status_bar .st.split::before {
+    content: "|";
+    padding-right: 4px;
+    color: #aaa;
+  }
+
+  #status_bar .st.st-id {
+    font-size: 0.8em;
+    min-width: 35px;
+    margin-bottom: 2px;
+  }
+
+  #status_bar .st.st-label {
+    min-width: 80px;
+  }
+
+  #status_bar .st.st-prog::after {
+    content: "%";
+    font-size: 0.8em;
+  }
+
+  #status_bar .st.st-position .X,
+  #status_bar .st.st-position .Y,
+  #status_bar .st.st-position .Z {
+    padding-right: 5px;
+  }
+
+  #status_bar .st.st-position .X::before,
+  #status_bar .st.st-position .Y::before,
+  #status_bar .st.st-position .Z::before {
+    padding-right: 2px;
+    font-size: 0.8em;
+  }
+
+
+  #status_bar .st.st-position .X::before {
+    content: "X";
+  }
+
+  #status_bar .st.st-position .Y::before {
+    content: "Y";
+  }
+
+  #status_bar .st.st-position .Z::before {
+    content: "Z";
+  }
+
+  #status_bar .st.EXTRUDER .T::before {
+    content: "TEMP";
+    padding-right: 2px;
+    font-size: 0.8em;
+  }
+
+  #status_bar .st.EXTRUDER .F::before {
+    content: "FAN";
+    padding-right: 2px;
+    font-size: 0.8em;
+  }
+
+  #status_bar .st.OPERATION .BY::before {
+    content: "BY";
+    padding-right: 2px;
+    font-size: 0.8em;
+  }
+
   .file-node {
     overflow: hidden;
     margin-top: 2px;
@@ -97,7 +173,6 @@
   <script>
   var filesinfo = {};
   var bcst_status = undefined;
-  var monitor_mode = false;
   var auto_report = false;
 
   function ProgressBar(title) {
@@ -188,6 +263,75 @@
       $("[data-sgp]").show();
       $("[data-sg" + st_id + "]").show();
     }
+  }
+
+  function update_devicestatus(controller, cmd, payload) {
+    render_buttons(payload.device_status.st_id);
+
+    var $panel = $("#status_bar");
+    var st_id = payload.device_status.st_id,
+        st_label = payload.device_status.st_label;
+
+    key = ["status"];
+    data = {status: st_label + " (" + st_id + ")"}
+    $(".st.st-id", $panel).text(st_id);
+    $(".st.st-label", $panel).text(st_label);
+
+    if(st_id < 0) {
+      key.push("by"); data.by = payload.device_status.info;
+      delete payload.device_status.info;
+      $(".BY", $panel).text(data.by);
+      $(".TH.OPERATION", $panel).show();
+      $(".TH:not(.OPERATION)", $panel).hide();
+    }
+    else if(st_id > 0) {
+      key.push("module"); data.module = payload.device_status.module;
+      key.push("prog"); data.prog = payload.device_status.prog;
+      delete payload.device_status.module;
+      delete payload.device_status.prog;
+
+      if(data.module == "EXTRUDER") {
+        var status_bar_temp_text = []
+
+        for(var i=0;i<payload.device_status.rt.length;i++) {
+          key.push("temp" + i);
+          data["temp" + i] = payload.device_status.rt[i] + "/" + payload.device_status.tt[i];
+          status_bar_temp_text.push(
+            Math.round(payload.device_status.rt[i] * 10) / 10 + "/" + 
+            Math.round(payload.device_status.tt[i] * 10) / 10);
+        }
+
+        $(".st.TH.EXTRUDER .T", $panel).text(status_bar_temp_text.join(", "));
+        $(".st.TH.EXTRUDER .F", $panel).text(payload.device_status.FA);
+        delete payload.device_status.tt;
+        delete payload.device_status.rt;
+      }
+
+      var X = payload.device_status.pos.X,
+          Y = payload.device_status.pos.Y,
+          Z = payload.device_status.pos.Z
+      key.push("pos"); data.pos = "X:" + X + ", Y:" + Y + ", Z:" + Z;
+
+      $(".st.st-module", $panel).text(data.module);
+      $(".st.st-prog", $panel).text(Math.round(data.prog * 10000) / 100);
+      $(".st.st-position .X", $panel).text(Math.round(X * 100) / 100);
+      $(".st.st-position .Y", $panel).text(Math.round(Y * 100) / 100);
+      $(".st.st-position .Z", $panel).text(Math.round(Z * 100) / 100);
+      delete payload.device_status.pos;
+
+      $(".TH." + data.module, $panel).show();
+      $(".TH:not(." + data.module + ")", $panel).hide();
+
+    } else {
+      $(".TH", $panel).hide();
+    }
+
+    for(var k in payload.device_status) {
+      if(k === "st_id" || k === "st_label") { continue; }
+      data[k] = payload.device_status[k];}
+
+    return {"key": key, "data": data}
+    // appendKeyValueLog(data, key);
   }
 
   function update_fileinfo(filename, metadata, previews) {
@@ -440,45 +584,8 @@
       render_fileinfo(filename);
     },
     "play report": function(controller, cmd, payload) {
-      render_buttons(payload.device_status.st_id);
-
-      key = ["status"];
-      data = {status: payload.device_status.st_label + " (" + payload.device_status.st_id + ")"}
-
-      if(payload.device_status.st_id < 0) {
-        key.push("by"); data.by = payload.device_status.info;
-        delete payload.device_status.info;
-      }
-      else if(payload.device_status.st_id > 0) {
-        key.push("module"); data.module = payload.device_status.module;
-        key.push("prog"); data.prog = payload.device_status.prog;
-        delete payload.device_status.module;
-        delete payload.device_status.prog;
-
-        if(data.module == "EXTRUDER") {
-          for(var i=0;i<payload.device_status.rt.length;i++) {
-            key.push("temp" + i);
-            data["temp" + i] = payload.device_status.rt[i] + " / " + payload.device_status.tt[i];
-          }
-          delete payload.device_status.tt;
-          delete payload.device_status.rt;
-        }
-
-        key.push("pos"); data.pos = "X:" + payload.device_status.pos.X + ", Y:" + payload.device_status.pos.Y + ", Z:" + payload.device_status.pos.Z;
-        delete payload.device_status.pos;
-      }
-
-      for(var k in payload.device_status) {
-        if(k === "st_id" || k === "st_label") { continue; }
-        data[k] = payload.device_status[k];}
-
-      if(monitor_mode) {
-        var $m = $("#monitor_modal");
-        var $body = $(".modal-body", $m);
-
-      } else {
-        appendKeyValueLog(data, key);
-      }
+      var d = update_devicestatus(controller, cmd, payload);
+      appendKeyValueLog(d.data, d.key);
     },
     "scan oneshot": function(controller, cmd, payload, data) {
       var width = (Math.round(100 / payload.binaries.length) - 1) + "%";
@@ -653,7 +760,7 @@
 
         window.controller.send_command("play report", function(controller, command, payload) {
           auto_report = false;
-          render_buttons(payload.device_status.st_id);
+          update_devicestatus(controller, command, payload);
         });
       }
     }
@@ -661,12 +768,6 @@
   }
 
   $(window).ready(function() {
-    $("[data-action=monitor]").on("click", function() {
-      // monitor_mode = true;
-      $("#monitor_modal").modal('show');
-      send_cmd("play report");
-    });
-
     $("[data-role=reset-control]").on("click", function() {
       connectControl();
     });
@@ -931,14 +1032,6 @@
         <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
       </div>
       <div style="margin: 0.5em 0" data-cmd-group="root">
-        <!-- Report -->
-        <div class="btn-group btn-xs dropup">
-          <span data-cmd="play report" class="btn btn-xs btn-default">Report</span>
-          <span data-action="monitor" class="btn btn-xs btn-default">
-            <span class="glyphicon glyphicon-new-window"></span>
-          </span>
-        </div> 
-
         <!-- List file -->
         <span data-cmd="file ls" class="btn btn-xs btn-default">
           <span class="glyphicon glyphicon-folder-open"></span> List files
@@ -951,13 +1044,27 @@
           <i class="glyphicon glyphicon-info-sign"></i> Playing info</span>
         <span data-cmd="play pause" data-sg data-sg4 data-sg16 class="btn btn-xs btn-warning" data-toggle="tooltip" data-placement="top" title="Pause">
           <i class="glyphicon glyphicon-pause"></i> Pause</span>
-        <span data-cmd="play resume" data-sg data-sg data-sg data-sg36 data-sg48 class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
+        <span data-cmd="play resume" data-sg data-sg36 data-sg48 class="btn btn-xs btn-info" data-toggle="tooltip" data-placement="top" title="Resume">
           <i class="glyphicon glyphicon-play"></i> Resume</span>
         <span data-cmd="play abort" data-sg data-sg4 data-sg18 data-sg36 data-sg48 data-sg50 data-sg16 class="btn btn-xs btn-danger" data-toggle="tooltip" data-placement="top" title="Abort">
           <i class="glyphicon glyphicon-remove"></i> Abort</span>
         <span data-cmd="play quit" data-sg data-sg64 data-sg128 class="btn btn-xs btn-default" data-toggle="tooltip" data-placement="top" title="Quit">
           <i class="glyphicon glyphicon-eject"></i> Quit</span>
         <span data-cmd="kick" data-sg data-sgn style="margin-left: 10px;" class="btn btn-xs btn-danger">Kick</span>
+
+        <span data-sg data-sg48>
+          <span>Toolhead</span>
+          <span class="btn-group">
+            <span class="btn btn-default btn-xs" data-cmd="play toolhead operation">Enable</span>
+            <span class="btn btn-default btn-xs" data-cmd="play toolhead standby">Disable</span>
+          </span>
+          <span>Filament</span>
+          <span class="btn-group">
+            <span class="btn btn-default btn-xs" data-cmd="play load_filament 0">Load</span>
+            <span class="btn btn-default btn-xs" data-cmd="play unload_filament 0">Unload</span>
+            <span class="btn btn-default btn-xs" data-cmd="play press_button">Interrupt</span>
+          </span>
+        </span>
 
         <!-- Tasks -->
         <span data-sg data-sg0>
@@ -1070,7 +1177,7 @@
         </span>
 
         <!-- Update Device -->
-        <div class="btn-group btn-xs dropup">
+        <div class="btn-group btn-xs dropup" data-sg data-sg0>
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <span>Update Device</span>
               <span class="caret"></span>
@@ -1119,8 +1226,32 @@
 
       </div>
     </div>
-  </div>
-  <div class="container-fluid">
+
+    <div class="col-xs-12">
+      <div id="status_bar">
+        <div class="st updated pull-right">
+          <a data-cmd="play report" style="cursor: pointer;">More...</a>
+        </div>
+
+        <span class="badge st st-id">??</span>
+        <div class="st st-label">----</div>
+        <div class="st st-module split">----</div>
+        <div class="st st-prog split">??</div>
+        <div class="st st-position split">
+          <span class="X">??</span><span class="Y">??</span><span class="Z">??</span>
+        </div>
+
+        <div class="st split TH EXTRUDER">
+          <span class="T">??/??, ??/??</span>
+          <span class="F">??</span>
+        </div>
+
+        <div class="st split TH OPERATION">
+          <span class="BY"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="col-xs-12">
       <div class="input-group input-group">
         <span class="input-group-addon">
@@ -1149,22 +1280,6 @@
       </div>
     </div>
   </div>
-
-  <div id="monitor_modal" class="modal fade" tabindex="-1" role="dialog">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title">Monitor</h4>
-        </div>
-        <div class="modal-body">
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        </div>
-      </div><!-- /.modal-content -->
-    </div><!-- /.modal-dialog -->
-  </div><!-- /.modal -->
 
   <div id="shared_modal" class="modal fade" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg">

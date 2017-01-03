@@ -110,6 +110,13 @@ def control_api_mixin(cls):
                     "pause": self.pause_play,
                     "resume": self.resume_play,
                     "abort": self.abort_play,
+                    "toolhead": {
+                        "operation": self.set_toolhead_operating,
+                        "standby": self.set_toolhead_standby,
+                    },
+                    "load_filament": self.load_filamend_in_play,
+                    "unload_filament": self.unload_filamend_in_play,
+                    "press_button": self.press_button_in_play,
                     "quit": self.quit_play
                 },
 
@@ -402,6 +409,26 @@ def control_api_mixin(cls):
 
         def abort_play(self):
             self.robot.abort_play()
+            self.send_ok()
+
+        def set_toolhead_operating(self):
+            self.robot.set_toolhead_operating_in_play()
+            self.send_ok()
+
+        def set_toolhead_standby(self):
+            self.robot.set_toolhead_standby_in_play()
+            self.send_ok()
+
+        def load_filamend_in_play(self, index):
+            self.robot.load_filament_in_play(int(index))
+            self.send_ok()
+
+        def unload_filamend_in_play(self, index):
+            self.robot.unload_filament_in_play(int(index))
+            self.send_ok()
+
+        def press_button_in_play(self):
+            self.robot.press_button_in_play()
             self.send_ok()
 
         def quit_play(self):
