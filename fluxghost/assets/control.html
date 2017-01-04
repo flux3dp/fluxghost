@@ -12,10 +12,18 @@
   <link href="res/shared.css" rel="stylesheet" />
   <style>
 
-  #status_bar {
+  .status_nav {
+    border-radius: 3px;
     background-color: #eee;
     margin-bottom: 0.5em;
     padding: 1px 6px;
+
+    /* just avoid height change */
+    height: 21px;
+  }
+
+  [data-tag=current_task]:first-letter {
+    text-transform:uppercase;
   }
 
   #status_bar .st {
@@ -23,8 +31,7 @@
   }
 
   #status_bar .st.split::before {
-    content: "|";
-    padding-right: 4px;
+    content: " | ";
     color: #aaa;
   }
 
@@ -38,35 +45,41 @@
     min-width: 80px;
   }
 
+  #status_bar .st.st-module::before {
+    content: "TH ";
+    font-size: 0.8em;
+    font-weight: bold;
+    color: #666;
+  }
+
   #status_bar .st.st-prog::after {
     content: "%";
     font-size: 0.8em;
   }
 
-  #status_bar .st.st-position .X,
-  #status_bar .st.st-position .Y,
-  #status_bar .st.st-position .Z {
-    padding-right: 5px;
+  #status_bar .st.st-error {
+    color: #f55;
+    font-weight: 500;
   }
 
   #status_bar .st.st-position .X::before,
   #status_bar .st.st-position .Y::before,
   #status_bar .st.st-position .Z::before {
-    padding-right: 2px;
     font-size: 0.8em;
+    font-weight: bold;
+    color: #666;
   }
 
-
   #status_bar .st.st-position .X::before {
-    content: "X";
+    content: "X ";
   }
 
   #status_bar .st.st-position .Y::before {
-    content: "Y";
+    content: " Y ";
   }
 
   #status_bar .st.st-position .Z::before {
-    content: "Z";
+    content: " Z ";
   }
 
   #status_bar .st.EXTRUDER .T::before {
@@ -82,8 +95,7 @@
   }
 
   #status_bar .st.OPERATION .BY::before {
-    content: "BY";
-    padding-right: 2px;
+    content: "BY ";
     font-size: 0.8em;
   }
 
@@ -283,6 +295,7 @@
       $(".BY", $panel).text(data.by);
       $(".TH.OPERATION", $panel).show();
       $(".TH:not(.OPERATION)", $panel).hide();
+      $(".st-playing", $panel).hide();
     }
     else if(st_id > 0) {
       key.push("module"); data.module = payload.device_status.module;
@@ -312,18 +325,22 @@
           Z = payload.device_status.pos.Z
       key.push("pos"); data.pos = "X:" + X + ", Y:" + Y + ", Z:" + Z;
 
-      $(".st.st-module", $panel).text(data.module);
+      $(".st.st-module", $panel).text(data.module || "N/A");
       $(".st.st-prog", $panel).text(Math.round(data.prog * 10000) / 100);
+      if(payload.device_status.error) {
+        $(".st.st-error", $panel).text(payload.device_status.error.join(", "));
+      }
       $(".st.st-position .X", $panel).text(Math.round(X * 100) / 100);
       $(".st.st-position .Y", $panel).text(Math.round(Y * 100) / 100);
       $(".st.st-position .Z", $panel).text(Math.round(Z * 100) / 100);
       delete payload.device_status.pos;
 
+      $(".st-playing", $panel).show();
       $(".TH." + data.module, $panel).show();
       $(".TH:not(." + data.module + ")", $panel).hide();
-
     } else {
       $(".TH", $panel).hide();
+      $(".st-playing", $panel).hide();
     }
 
     for(var k in payload.device_status) {
@@ -331,7 +348,6 @@
       data[k] = payload.device_status[k];}
 
     return {"key": key, "data": data}
-    // appendKeyValueLog(data, key);
   }
 
   function update_fileinfo(filename, metadata, previews) {
@@ -544,9 +560,11 @@
       $("[data-cmd-group]").hide()
       if(payload.task === "") {
         render_buttons(0);
+        $("#status_bar").show();
         $("[data-tag=current_task]").text("");
         $("[data-cmd-group=root]").show();
       } else {
+        $("#status_bar").hide();
         $("[data-tag=current_task]").text(payload.task);
         $("[data-cmd-group=" + payload.task + "]").show();
       }
@@ -560,17 +578,6 @@
       appendHtmlLog($('<div class="btn btn-primary btn-lg" data-cmd="play start"><i class="glyphicon glyphicon-fire"></i> Start</div>'));
     },
     ping: function(controller) {
-      setTimeout(function() {
-        if(controller.status() === "CONNECTED") {
-          if(controller.is_busy()) {
-            callbacks.ping(controller);
-          } else {
-            controller.send_command("ping", callbacks.ping)
-          }
-        } else {
-          console.log("ping aborted because controller status = " + controller.status());
-        }
-      }, 60000);
     },
     "play info": function(controller, cmd, payload) {
       delete payload.status;
@@ -673,7 +680,6 @@
           '<img src="ready.png?" height="60px" />' +
           '<img src="ready.png?" height="60px" />' +
           '<img src="ready.png?" height="60px" />' + '</div>');
-        callbacks.ping(sender);
       },
       on_error: callbacks.error,
       on_raw: function(sender, text) {
@@ -766,7 +772,7 @@
         });
       }
     }
-    setTimeout(deviceStatusManager, 5000);
+    setTimeout(deviceStatusManager, 3000);
   }
 
   $(window).ready(function() {
@@ -909,6 +915,36 @@
         </a>
       </li>
     </ol>
+  </div>
+  <div class="container-fluid" style="margin-top: -1em;">
+    <div class="col-xs-12">
+      <div class="status_nav">
+        <div data-tag="current_task"></div>
+        <div id="status_bar">
+          <div class="st updated pull-right">
+            <a data-cmd="play report" style="cursor: pointer;">More...</a>
+          </div>
+
+          <span class="badge st st-id">??</span>
+          <div class="st st-label st-playing">----</div>
+          <div class="st st-prog st-playing split">??</div>
+          <div class="st st-module st-playing">----</div>
+          <div class="st st-error st-playing">^_^</div>
+          <div class="st st-position st-playing split">
+            <span class="X">??</span><span class="Y">??</span><span class="Z">??</span>
+          </div>
+
+          <div class="st split TH EXTRUDER">
+            <span class="T">??/??, ??/??</span>
+            <span class="F">??</span>
+          </div>
+
+          <div class="st split TH OPERATION">
+            <span class="BY"></span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="container-fluid">
     <div class="col-xs-12">
@@ -1230,35 +1266,9 @@
     </div>
 
     <div class="col-xs-12">
-      <div id="status_bar">
-        <div class="st updated pull-right">
-          <a data-cmd="play report" style="cursor: pointer;">More...</a>
-        </div>
-
-        <span class="badge st st-id">??</span>
-        <div class="st st-label">----</div>
-        <div class="st st-module split">----</div>
-        <div class="st st-prog split">??</div>
-        <div class="st st-position split">
-          <span class="X">??</span><span class="Y">??</span><span class="Z">??</span>
-        </div>
-
-        <div class="st split TH EXTRUDER">
-          <span class="T">??/??, ??/??</span>
-          <span class="F">??</span>
-        </div>
-
-        <div class="st split TH OPERATION">
-          <span class="BY"></span>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-xs-12">
       <div class="input-group input-group">
         <span class="input-group-addon">
           <i class="glyphicon glyphicon-console"></i>
-          <span data-tag="current_task"></span>
         </span>
         <input id="controlcmd" type="text" class="form-control" autocomplete="off" />
         <div data-cmd-group="root" class="input-group-btn dropup">
