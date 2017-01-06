@@ -84,6 +84,7 @@ def usb_interfaces_api_mixin(cls):
                         t = Thread(target=h2h_usb_daemon_thread,
                                    args=(usbprotocol, addr))
                         t.daemon = True
+                        t.name = "USB Daemon: %s" % addr
                         t.start()
                         self.send_ok(devopen=addr,
                                      profile=usbprotocol.endpoint_profile)

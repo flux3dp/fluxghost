@@ -379,6 +379,7 @@ def control_api_mixin(cls):
                     self.robot.update_firmware(stream, int(size),
                                                self.cb_upload_callback)
                     self.send_ok()
+                    self.close()
                 except RobotError as e:
                     logger.debug("RobotError%s [error_symbol=%s]",
                                  repr(e.args), e.error_symbol)

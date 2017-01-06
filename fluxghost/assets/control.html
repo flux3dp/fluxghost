@@ -186,6 +186,7 @@
   var filesinfo = {};
   var bcst_status = undefined;
   var auto_report = false;
+  var aggressive_report = false;
 
   function ProgressBar(title) {
     var $html = $(' \
@@ -278,11 +279,16 @@
   }
 
   function update_devicestatus(controller, cmd, payload) {
-    render_buttons(payload.device_status.st_id);
-
-    var $panel = $("#status_bar");
     var st_id = payload.device_status.st_id,
         st_label = payload.device_status.st_label;
+
+    if(document.getElementById("agrp").checked) {
+      window.aggressive_report = true;
+    } else {
+      window.aggressive_report = ([1, 4, 6, 18, 38, 50, 66].indexOf(st_id) >= 0);
+    }
+    render_buttons(st_id);
+    var $panel = $("#status_bar");
 
     key = ["status"];
     data = {status: st_label + " (" + st_id + ")"}
@@ -749,21 +755,9 @@
     }
   }
 
-  function deviceStatusManager(aggressive) {
-    if(aggressive === 1) {
-      setTimeout(deviceStatusManager, 1);
-      return;
-    } else if(aggressive === 8) {
-      setTimeout(deviceStatusManager, 100);
-      setTimeout(deviceStatusManager, 200);
-      setTimeout(deviceStatusManager, 500);
-      setTimeout(deviceStatusManager, 800);
-      setTimeout(deviceStatusManager, 1200);
-      return;
-    }
-
+  function _deviceStatusManager() {
     if(auto_report === false && $("[data-tag=current_task]").text() === "") {
-      if(window.controller && window.controller.status() === "CONNECTED") {
+      if(window.controller && window.controller.status() === "CONNECTED" && window.controller.is_busy() === false) {
         auto_report = true;
 
         window.controller.send_command("play report", function(controller, command, payload) {
@@ -772,7 +766,17 @@
         });
       }
     }
-    setTimeout(deviceStatusManager, 3000);
+  }
+
+  function deviceStatusManager(aggressive) {
+    if(aggressive === 1) {
+      setTimeout(_deviceStatusManager, 10);
+    } else if(aggressive === 8) {
+      setTimeout(_deviceStatusManager, 300);
+    } else {
+      _deviceStatusManager();
+      setTimeout(deviceStatusManager, window.aggressive_report ? 700 : 3000);
+    }
   }
 
   $(window).ready(function() {
@@ -922,6 +926,10 @@
         <div data-tag="current_task"></div>
         <div id="status_bar">
           <div class="st updated pull-right">
+            <label style="background-color: #0af; border-radius: 2px; padding: 0 0.5em;">
+              <input type="checkbox" id="agrp" style="vertical-align:top;" />
+              <span class="glyphicon glyphicon-flash"></span>
+            </label>
             <a data-cmd="play report" style="cursor: pointer;">More...</a>
           </div>
 
