@@ -57,9 +57,9 @@ class ApiBase(object):
         self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
                        (length, mime))
 
-    def send_error(self, errcode, info=None, symbol=None, *args):
+    def send_error(self, errcode, info=None, symbol=None, *args, **kw):
         if symbol:
-            self.send_json(status="error", error=symbol)
+            self.send_json(status="error", error=symbol, **kw)
         elif info:
             self.send_text(
                 '{"status": "error", "error": "%s", "info":"%s"}' % (errcode,
