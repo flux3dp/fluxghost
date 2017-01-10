@@ -70,7 +70,7 @@ def usb_interfaces_api_mixin(cls):
             else:
                 uart = [s[0] for s in _list_ports.comports() if s[2] != "n/a"]
 
-            self.send_ok(h2h=h2h, uart=uart)
+            self.send_ok(h2h=h2h, uart=uart, cmd="list")
 
         def open_device(self, addr):
             if g.USBDEVS.get(addr):
@@ -87,12 +87,13 @@ def usb_interfaces_api_mixin(cls):
                         t.name = "USB Daemon: %s" % addr
                         t.start()
                         self.send_ok(devopen=addr,
-                                     profile=usbprotocol.endpoint_profile)
+                                     profile=usbprotocol.endpoint_profile,
+                                     cmd="open")
                         logger.debug("USB address %s opened: %s", addr,
                                      usbprotocol.endpoint_profile)
                         return
                     except FluxUSBError as e:
-                        self.send_error(e.symbol)
+                        self.send_error(symbol=e.symbol, cmd="open")
                         return
             self.send_error("NOT_FOUND")
 
@@ -100,7 +101,7 @@ def usb_interfaces_api_mixin(cls):
             usbprotocol = g.USBDEVS.get(addr)
             if usbprotocol:
                 usbprotocol.stop()
-                self.send_ok(devclose=addr)
+                self.send_ok(devclose=addr, cmd="close")
                 logger.debug("USB address %x closed", addr)
             else:
                 self.send_error("NOT_FOUND")
