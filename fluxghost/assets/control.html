@@ -755,14 +755,21 @@
     }
   }
 
-  function _deviceStatusManager() {
+  function _deviceStatusManager(reset_on_error) {
     if(auto_report === false && $("[data-tag=current_task]").text() === "") {
       if(window.controller && window.controller.status() === "CONNECTED" && window.controller.is_busy() === false) {
         auto_report = true;
 
-        window.controller.send_command("play report", function(controller, command, payload) {
-          auto_report = false;
-          update_devicestatus(controller, command, payload);
+        window.controller.send_command("play report", {
+          on_success: function(controller, command, payload) {
+            auto_report = false;
+            update_devicestatus(controller, command, payload);
+          },
+          on_error: function(sender, cmd, errors, data) {
+            if(reset_on_error) {
+              setTimeout(deviceStatusManager, 700);
+            }
+          }
         });
       }
     }
@@ -774,7 +781,7 @@
     } else if(aggressive === 8) {
       setTimeout(_deviceStatusManager, 300);
     } else {
-      _deviceStatusManager();
+      _deviceStatusManager(true);
       setTimeout(deviceStatusManager, window.aggressive_report ? 700 : 3000);
     }
   }
