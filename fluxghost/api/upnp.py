@@ -117,7 +117,7 @@ def upnp_api_mixin(cls):
                 valid_params['backend_options']['password'] = self.password
 
             if 'uuid' in valid_params and valid_params["client_key"]:
-                self.upnp_task = UpnpTask(**valid_params)
+                self.upnp_task = UpnpTask.from_uuid(**valid_params)
                 if self.upnp_task.authorized:
                     self.send_ok()
                     print('rsa success')
