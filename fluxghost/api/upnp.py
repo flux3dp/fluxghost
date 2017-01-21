@@ -108,13 +108,9 @@ def upnp_api_mixin(cls):
             #          backend_options={}, lookup_callback=None,
             #          lookup_timeout=float("INF")
             valid_params = {'client_key': self.client_key, 'uuid': self.uuid}
-            for i in ['ipaddr', 'device_metadata', 'backend_options', 'lookup_callback', 'lookup_timeout']:
+            for i in ['ipaddr', 'device_metadata', 'lookup_callback', 'lookup_timeout']:
                 if i in params:
                     valid_params[i] = params[i]
-
-            if self.password:
-                valid_params['backend_options'] = valid_params.get('backend_options', {})
-                valid_params['backend_options']['password'] = self.password
 
             if 'uuid' in valid_params and valid_params["client_key"]:
                 self.upnp_task = UpnpTask.from_uuid(**valid_params)
