@@ -67,7 +67,7 @@ def usb_config_api_mixin(cls):
             self.send_text('{"status": "ok"}')
 
         def set_password(self, password):
-            ret = self.task.set_password("", password, False)
+            ret = self.task.set_password("", password, True)
             if ret == "OK":
                 self.send_text('{"status": "ok", "cmd": "password"}')
             else:
