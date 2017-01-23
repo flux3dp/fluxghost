@@ -96,7 +96,7 @@ def discover_api_mixin(cls):
                 self.send_text(self.build_response("h2h", usbdevice))
 
         def on_review_devices(self):
-            # self.review_lan_devices()
+            self.review_lan_devices()
             self.review_usb_devices()
 
         def on_text_message(self, message):
