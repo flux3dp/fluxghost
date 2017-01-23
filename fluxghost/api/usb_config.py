@@ -79,7 +79,7 @@ def usb_config_api_mixin(cls):
 
         def config_network(self, params):
             options = json.loads(params)
-            self.task.set_network(options)
+            self.task.set_network(**options)
             self.send_text('{"status": "ok"}')
 
         def get_network(self):
