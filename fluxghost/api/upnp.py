@@ -164,6 +164,9 @@ def upnp_api_mixin(cls):
             old, new = params.split()
             try:
                 self.upnp_task.modify_password(old, new)
+                self.upnp_task.add_trust(
+                    getpass.getuser(),
+                    self.client_key.public_key_pem.decode())
             except UpnpError:
                 self.send_error('password changing fail')
             else:
