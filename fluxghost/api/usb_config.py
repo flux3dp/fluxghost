@@ -67,7 +67,7 @@ def usb_config_api_mixin(cls):
             self.send_text('{"status": "ok"}')
 
         def set_password(self, password):
-            ret = self.task.set_password("", password, False)
+            ret = self.task.set_password("", password, True)
             if ret == "OK":
                 self.send_text('{"status": "ok", "cmd": "password"}')
             else:
@@ -79,7 +79,7 @@ def usb_config_api_mixin(cls):
 
         def config_network(self, params):
             options = json.loads(params)
-            self.task.set_network(options)
+            self.task.set_network(**options)
             self.send_text('{"status": "ok"}')
 
         def get_network(self):
