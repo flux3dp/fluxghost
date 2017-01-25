@@ -167,6 +167,10 @@ def manager_mixin(cls):
             self.manager.set_nickname(nickname)
             self.send_ok()
 
+        def cmd_reset_password(self, new_password):
+            self.manager.reset_password(new_password)
+            self.send_ok()
+
         def cmd_set_password(self, old_password, new_password, *args):
             reset_acl = "reset_acl" in args
             self.manager.set_password(old_password, new_password, reset_acl)
