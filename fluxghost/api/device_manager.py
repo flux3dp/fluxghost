@@ -16,7 +16,6 @@ logger = logging.getLogger("API.CONTROL_BASE")
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_CONNECTIONG = '{"status": "connecting", "stage": "connecting"}'
 STAGE_REQUIRE_AUTHORIZE = '{"status": "req_authorize", "stage": "connecting"}'
-STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
@@ -39,7 +38,13 @@ def manager_mixin(cls):
             self.POOL_TIME = 1.5
 
         def on_connected(self):
-            pass
+            import json
+            payload = {"status": "connected",
+                       "serial": self.manager.serial,
+                       "version": str(self.manager.version),
+                       "model": self.manager.model_id,
+                       "name": self.manager.nickname}
+            self.send_text(json.dumps(payload))
 
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
@@ -86,11 +91,10 @@ def manager_mixin(cls):
                 return
 
             if self.manager.authorized:
-                self.send_text(STAGE_CONNECTED)
+                self.on_connected()
             else:
                 self.send_text(STAGE_REQUIRE_AUTHORIZE)
             self.POOL_TIME = 30.0
-            self.on_connected()
 
         def on_text_message(self, message):
             if self.client_key:
@@ -100,7 +104,7 @@ def manager_mixin(cls):
                     if message.startswith("password "):
                         try:
                             self.manager.authorize_with_password(message[9:])
-                            self.send_text(STAGE_CONNECTED)
+                            self.on_connected()
                         except (ManagerError, ManagerException) as e:
                             self.send_fatal(" ".join(e.err_symbol))
                     else:
