@@ -81,7 +81,7 @@ def manager_mixin(cls):
                 else:
                     logger.debug(
                         "Try to connect to unknown device (addr=%s)",
-                        self.usb_addr)
+                        self.target[1])
                     raise RuntimeError("UNKNOWN_DEVICE")
             elif endpoint_type == "uart":
                 self.manager = DeviceManager.from_uart(self.client_key,
