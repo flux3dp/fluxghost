@@ -99,7 +99,10 @@ def manager_mixin(cls):
         def on_text_message(self, message):
             if self.client_key:
                 if self.manager.authorized:
-                    self.on_command(*split(message))
+                    if message.startswith("set_network2 "):
+                        self.cmd_set_network_old(message[13:])
+                    else:
+                        self.on_command(*split(message))
                 else:
                     if message.startswith("password "):
                         try:
@@ -185,6 +188,12 @@ def manager_mixin(cls):
                     options[k] = v
             self.manager.set_network(**options)
             self.send_ok()
+
+        def cmd_set_network_old(self, message):
+            import json
+            m = json.loads(message)
+            p = ["%s=%s" % (k, v) for k, v in m.items()]
+            self.cmd_set_network(*p)
 
         def cmd_scan_wifi_access_points(self, *args):
             self.send_ok(access_points=self.manager.scan_wifi_access_points())
