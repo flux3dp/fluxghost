@@ -196,7 +196,7 @@ def manager_mixin(cls):
             self.cmd_set_network(*p)
 
         def cmd_scan_wifi_access_points(self, *args):
-            self.send_ok(access_points=self.manager.scan_wifi_access_points())
+            self.send_ok(access_points=self.manager.scan_wifi_access_points(), cmd="scan")
 
         def cmd_get_wifi_ssid(self, *args):
             self.send_ok(ssid=self.manager.get_wifi_ssid())
