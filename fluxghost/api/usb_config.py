@@ -53,10 +53,8 @@ def usb_config_api_mixin(cls):
                     #                         client_key=self.client_key)
                 self.send_json(status="ok", cmd="connect", serial=t.serial,
                                version=str(t.version), name=t.nickname,
-                               model=t.model_id, password=True)
-                # self.send_json(status="ok", cmd="connect", serial=t.serial,
-                #                version=t.remote_version, name=t.name,
-                #                model=t.model_id, password=t.has_password)
+                               model=t.model_id, password=True,
+                               uuid=t.uuid.hex)
             except Exception:
                 self.task = NoneTask()
                 raise
