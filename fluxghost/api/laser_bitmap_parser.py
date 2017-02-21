@@ -1,7 +1,7 @@
 
-from os import environ
 import logging
 
+from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient.laser.laser_bitmap import LaserBitmap
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -95,16 +95,15 @@ def laser_bitmap_parser_api_mixin(cls):
             logger.debug("  add image finished, generating gcode")
             self.send_progress('Generating FCode', 0.97)
             if '-g' in args:
-                output_binary = self.m_laser_bitmap.gcode_generate().encode()
+                w = GCodeMemoryWriter()
+                self.m_laser_bitmap.process(w)
+                output_binary = w.get_buffer()
                 time_need = 0
             else:
-                output_binary, m_GcodeToFcode = self.m_laser_bitmap.fcode_generate()
-                time_need = float(m_GcodeToFcode.md['TIME_COST'])
-                # ######### fake code  ########################
-                if environ.get("flux_debug") == '1':
-                    with open('output.fc', 'wb') as f:
-                        f.write(output_binary)
-                # #############################################
+                w = FCodeV1MemoryWriter()
+                self.m_laser_bitmap.process(w)
+                output_binary = w.get_buffer()
+                time_need = float(w.get_metadata().get("TIME_COST", 0))
 
             self.send_progress('finishing', 1.0)
             self.send_text('{"status": "complete", "length": %d, "time": %.3f}' % (len(output_binary), time_need))
