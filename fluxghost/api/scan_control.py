@@ -35,10 +35,18 @@ def scan_control_api_mixin(cls):
         def on_connected(self):
             self.try_control()
 
+        def turn_on_hd(self):
+            """Turn on support for hd camera"""
+            self.scan_settings.set_camera(720, 1280)
+            self.send_ok()
+
         def on_command(self, message):
             logger.info(message)
             if message == "take_control":
                 self.take_control()
+
+            elif message == "turn_on_hd":
+                self.turn_on_hd()
 
             elif message == "retry":
                 self.try_control()
@@ -60,7 +68,7 @@ def scan_control_api_mixin(cls):
                 self.turn_laser(True)
 
             elif message.startswith("turn_off_laser"):
-                scan.turn_laser(False)
+                self.turn_laser(False)
 
             elif message.startswith('set_params'):
                 self.set_params(message)
