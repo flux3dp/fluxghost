@@ -42,9 +42,9 @@ def stl_slicing_parser_api_mixin(cls):
             super().__init__(*args)
 
             try:
+                global StlSlicer
+                global StlSlicerCura
                 if StlSlicer is None:
-                    global StlSlicer
-                    global StlSlicerCura
                     from fluxclient.printer.stl_slicer import (
                         StlSlicer as _StlSlicer,
                         StlSlicerCura as _StlSlicerCura)
@@ -309,10 +309,14 @@ def stl_slicing_parser_api_mixin(cls):
                         engine_path = "../Slic3r/slic3r.pl"
                 self.m_stl_slicer = StlSlicer(engine_path).from_other(self.m_stl_slicer)
             elif engine == 'cura':
-                logger.debug("Using cura")
+                logger.debug("Using %s" % (engine))
                 if engine_path == 'default':
                     engine_path = get_default_cura()
                 self.m_stl_slicer = StlSlicerCura(engine_path).from_other(self.m_stl_slicer)
+            elif engine == 'cura2':
+                if engine_path == 'default':
+                    engine_path = get_default_cura()
+                self.m_stl_slicer = StlSlicerCura(engine_path, 2).from_other(self.m_stl_slicer)
             else:
                 return False
             return True
