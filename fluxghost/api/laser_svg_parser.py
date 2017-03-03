@@ -1,9 +1,9 @@
 
-from os import environ
 import logging
 import sys
 
 from fluxclient.laser.laser_svg import LaserSvg
+from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.LASER.SVG")
@@ -98,7 +98,6 @@ def laser_svg_parser_api_mixin(cls):
             self.begin_recv_svg('%s %d' % (name, svg_length + bitmap_w * bitmap_h), 'compute', [w, h, x1, y1, x2, y2, rotation, svg_length, bitmap_w, bitmap_h])
 
         def go(self, params):
-
             names = params.split()
             gen_flag = '-f'
             if names[-1] == '-g' or names[-1] == '-f':
@@ -107,23 +106,20 @@ def laser_svg_parser_api_mixin(cls):
             logger.info("go names:%s flag:%s" % (" ".join(names), gen_flag))
             self.send_progress('initializing', 0.01)
             if gen_flag == '-f':
-                output_binary, m_GcodeToFcode = self.m_laser_svg.fcode_generate(names, self)
-                time_need = float(m_GcodeToFcode.md['TIME_COST'])
-                # ######### fake code  ########################
-                if environ.get("flux_debug") == '1':
-                    with open('output.fc', 'wb') as f:
-                        f.write(output_binary)
-                # #############################################
+                writer = FCodeV1MemoryWriter("LASER", {}, ())
+                self.m_laser_svg.process(writer, names, self)
+                preview = self.m_laser_svg.dump(mode="preview")
+                writer.set_previews((preview, ))
+                writer.terminated()
+                output_binary = writer.get_buffer()
+                time_need = float(writer.get_metadata().get("TIME_COST", 0))
 
             elif gen_flag == '-g':
-                output_binary = self.m_laser_svg.gcode_generate(names, self).encode()
+                writer = GCodeMemoryWriter()
+                self.m_laser_svg.process(writer, names, self)
+                output_binary = writer.get_buffer()
+                writer.terminated()
                 time_need = 0
-
-                # ######### fake code  ########################
-                if environ.get("flux_debug") == '1':
-                    with open('output.gcode', 'wb') as f:
-                        f.write(output_binary)
-                # #############################################
 
             self.send_progress('finishing', 1.0)
             self.send_text('{"status": "complete", "length": %d, "time": %.3f}' % (len(output_binary), time_need))

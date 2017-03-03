@@ -97,11 +97,14 @@ def laser_bitmap_parser_api_mixin(cls):
             if '-g' in args:
                 w = GCodeMemoryWriter()
                 self.m_laser_bitmap.process(w)
+                w.terminated()
                 output_binary = w.get_buffer()
                 time_need = 0
             else:
-                w = FCodeV1MemoryWriter()
+                preview = self.m_laser_bitmap.dump(mode="preview")
+                w = FCodeV1MemoryWriter("LASER", {}, (preview, ))
                 self.m_laser_bitmap.process(w)
+                w.terminated()
                 output_binary = w.get_buffer()
                 time_need = float(w.get_metadata().get("TIME_COST", 0))
 
