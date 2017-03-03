@@ -86,9 +86,7 @@ def control_base_mixin(cls):
 
                 if usbprotocol:
                     try:
-                        self.remote_version = StrictVersion(
-                            usbprotocol.endpoint_profile["version"])
-
+                        self.remote_version = usbprotocol.version
                         self.robot = self.get_robot_from_h2h(usbprotocol)
                     except FluxUSBError:
                         logger.exception("USB control open failed.")

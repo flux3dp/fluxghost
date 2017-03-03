@@ -93,7 +93,9 @@
   }
 
   function send_ping() {
-    if(window.control_ws) window.control_ws.send("ping");
+    if(window.control_ws) {
+      window.control_ws.send("ping");
+    };
   }
 
   function cb_standard(m) {
@@ -115,7 +117,7 @@
       try {
         payload = JSON.parse(m.data);
         if(payload.status === "pong") {
-
+          setTimeout(send_ping, 30000);
         } else {
           appendLog(m.data, "#F05E1C");
         }

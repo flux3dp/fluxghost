@@ -53,10 +53,8 @@ def usb_config_api_mixin(cls):
                     #                         client_key=self.client_key)
                 self.send_json(status="ok", cmd="connect", serial=t.serial,
                                version=str(t.version), name=t.nickname,
-                               model=t.model_id, password=True)
-                # self.send_json(status="ok", cmd="connect", serial=t.serial,
-                #                version=t.remote_version, name=t.name,
-                #                model=t.model_id, password=t.has_password)
+                               model=t.model_id, password=True,
+                               uuid=t.uuid.hex)
             except Exception:
                 self.task = NoneTask()
                 raise
@@ -67,7 +65,7 @@ def usb_config_api_mixin(cls):
             self.send_text('{"status": "ok"}')
 
         def set_password(self, password):
-            ret = self.task.set_password("", password, False)
+            ret = self.task.set_password("", password, True)
             if ret == "OK":
                 self.send_text('{"status": "ok", "cmd": "password"}')
             else:
@@ -79,7 +77,7 @@ def usb_config_api_mixin(cls):
 
         def config_network(self, params):
             options = json.loads(params)
-            self.task.set_network(options)
+            self.task.set_network(**options)
             self.send_text('{"status": "ok"}')
 
         def get_network(self):

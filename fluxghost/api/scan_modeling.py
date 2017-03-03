@@ -18,12 +18,14 @@ def scan_modeling_api_mixin(cls):
             SIMULATE = False
             # ##################################
             if not SIMULATE:
-                self.m_pc_process = PcProcess(ScanSetting())
+                self.scan_settings = ScanSetting()
+                self.m_pc_process = PcProcess(self.scan_settings)
                 logger.debug('  using PcProcess')
             if SIMULATE:
                 self.m_pc_process = PcProcessNoPCL()
                 logger.debug('  using PcProcessNoPCL()')
             self.cmd_mapping = {
+                'turn_on_hd': [self._turn_on_hd],
                 'upload': [self._begin_upload],
                 'cut': [self.cut],
                 'delete_noise': [self.delete_noise],
@@ -38,6 +40,10 @@ def scan_modeling_api_mixin(cls):
                 'export_collect': [self.export_collect],
                 'subset': [self.subset],
             }
+
+        def _turn_on_hd(self, params):
+            self.scan_settings.set_camera(720, 1280)
+            self.send_ok()
 
         def _begin_upload(self, params):  # name, left_len, right_len="0"
             logger.info('upload')

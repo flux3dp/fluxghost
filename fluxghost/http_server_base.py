@@ -13,6 +13,7 @@ logger = logging.getLogger("HTTPServer")
 class HttpServerBase(object):
     runmode = None
     discover_mutex = None
+    discover = None
 
     def __init__(self, assets_path, address, allow_foreign=False,
                  enable_discover=False, backlog=10, debug=False):
@@ -49,20 +50,36 @@ class HttpServerBase(object):
             self.simulate_device = s = SimulateDevice()
             self.discover_devices[s.uuid] = s
 
-        self.launch_discover()
+        try:
+            self.launch_discover()
+        except OSError:
+            logger.exception("Can not start discover service")
 
     def launch_discover(self):
-        from fluxclient.upnp.discover import UpnpDiscover
-        self.discover = UpnpDiscover()
+        from fluxclient.device.discover import DeviceDiscover
+        self.discover = DeviceDiscover()
         self.discover_socks = self.discover.socks
 
     def serve_forever(self):
         self.running = True
         disc = self.discover
-        args = ((self.sock, ) + self.discover_socks, (), (), 30.)
+        if disc:
+            args = ((self.sock, ) + self.discover_socks, (), (), 5.)
+        else:
+            args = ((self.sock, ), (), (), 5.)
 
         while self.running:
             try:
+                if disc is None:
+                    try:
+                        self.launch_discover()
+                        disc = self.discover
+                        args = ((self.sock, ) + self.discover_socks, (), (),
+                                30.)
+                        logger.info("Discover started")
+                    except OSError:
+                        pass
+
                 for sock in select(*args)[0]:
                     if sock == self.sock:
                         self.on_accept()

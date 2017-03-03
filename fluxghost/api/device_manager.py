@@ -16,7 +16,6 @@ logger = logging.getLogger("API.CONTROL_BASE")
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_CONNECTIONG = '{"status": "connecting", "stage": "connecting"}'
 STAGE_REQUIRE_AUTHORIZE = '{"status": "req_authorize", "stage": "connecting"}'
-STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
@@ -39,7 +38,13 @@ def manager_mixin(cls):
             self.POOL_TIME = 1.5
 
         def on_connected(self):
-            pass
+            import json
+            payload = {"status": "connected",
+                       "serial": self.manager.serial,
+                       "version": str(self.manager.version),
+                       "model": self.manager.model_id,
+                       "name": self.manager.nickname}
+            self.send_text(json.dumps(payload))
 
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
@@ -76,7 +81,7 @@ def manager_mixin(cls):
                 else:
                     logger.debug(
                         "Try to connect to unknown device (addr=%s)",
-                        self.usb_addr)
+                        self.target[1])
                     raise RuntimeError("UNKNOWN_DEVICE")
             elif endpoint_type == "uart":
                 self.manager = DeviceManager.from_uart(self.client_key,
@@ -86,21 +91,31 @@ def manager_mixin(cls):
                 return
 
             if self.manager.authorized:
-                self.send_text(STAGE_CONNECTED)
+                self.on_connected()
             else:
                 self.send_text(STAGE_REQUIRE_AUTHORIZE)
             self.POOL_TIME = 30.0
-            self.on_connected()
 
         def on_text_message(self, message):
             if self.client_key:
                 if self.manager.authorized:
-                    self.on_command(*split(message))
+                    if message.startswith("set_network2 "):
+                        try:
+                            self.cmd_set_network_old(message[13:])
+                        except Exception:
+                            logger.exception("ERR")
+                    elif message.startswith("set_nickname "):
+                        try:
+                            self.cmd_set_nickname(message[13:])
+                        except Exception:
+                            logger.exception("ERR")
+                    else:
+                        self.on_command(*split(message))
                 else:
                     if message.startswith("password "):
                         try:
                             self.manager.authorize_with_password(message[9:])
-                            self.send_text(STAGE_CONNECTED)
+                            self.on_connected()
                         except (ManagerError, ManagerException) as e:
                             self.send_fatal(" ".join(e.err_symbol))
                     else:
@@ -163,6 +178,10 @@ def manager_mixin(cls):
             self.manager.set_nickname(nickname)
             self.send_ok()
 
+        def cmd_reset_password(self, new_password):
+            self.manager.reset_password(new_password)
+            self.send_ok()
+
         def cmd_set_password(self, old_password, new_password, *args):
             reset_acl = "reset_acl" in args
             self.manager.set_password(old_password, new_password, reset_acl)
@@ -178,8 +197,14 @@ def manager_mixin(cls):
             self.manager.set_network(**options)
             self.send_ok()
 
+        def cmd_set_network_old(self, message):
+            import json
+            m = json.loads(message)
+            p = ["%s=%s" % (k, v) for k, v in m.items()]
+            self.cmd_set_network(*p)
+
         def cmd_scan_wifi_access_points(self, *args):
-            self.send_ok(access_points=self.manager.scan_wifi_access_points())
+            self.send_ok(access_points=self.manager.scan_wifi_access_points(), cmd="scan")
 
         def cmd_get_wifi_ssid(self, *args):
             self.send_ok(ssid=self.manager.get_wifi_ssid())
