@@ -100,7 +100,15 @@ def manager_mixin(cls):
             if self.client_key:
                 if self.manager.authorized:
                     if message.startswith("set_network2 "):
-                        self.cmd_set_network_old(message[13:])
+                        try:
+                            self.cmd_set_network_old(message[13:])
+                        except Exception:
+                            logger.exception("ERR")
+                    elif message.startswith("set_nickname "):
+                        try:
+                            self.cmd_set_nickname(message[13:])
+                        except Exception:
+                            logger.exception("ERR")
                     else:
                         self.on_command(*split(message))
                 else:
