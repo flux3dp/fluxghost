@@ -9,7 +9,7 @@ from fluxclient.utils.version import StrictVersion
 def check_fluxclient():
     from fluxclient import __version__ as v
     sys.modules.pop("fluxclient")
-    lower_bound = '1.2.3'
+    lower_bound = '1.3.0'
     upper_bound = '2.0a1'
     if StrictVersion(v) < StrictVersion(lower_bound):
         raise RuntimeError(
