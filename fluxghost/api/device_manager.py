@@ -214,6 +214,9 @@ def manager_mixin(cls):
         def cmd_get_ipaddr(self, *args):
             self.send_ok(ipaddrs=self.manager.get_ipaddr())
 
+        def cmd_get_network_status(self, *args):
+            self.send_ok(ipaddr=self.manager.get_ipaddr(), ssid=self.manager.get_wifi_ssid())
+
         def cmd_not_found(self, *args):
             self.send_error("", symbol=("L_UNKNOWN_COMMAND", ))
 
