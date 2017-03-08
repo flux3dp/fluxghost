@@ -152,6 +152,8 @@ def manager_mixin(cls):
                 function(*args)
             except ManagerError as e:
                 self.send_error("", symbol=e.err_symbol)
+            except FluxUSBError as e:
+                self.send_error("", symbol=e.symbol)
             except RuntimeError as e:
                 self.send_error("", symbol=e.args)
             except ManagerException as e:
