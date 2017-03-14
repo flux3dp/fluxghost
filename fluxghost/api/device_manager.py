@@ -38,13 +38,12 @@ def manager_mixin(cls):
             self.POOL_TIME = 1.5
 
         def on_connected(self):
-            import json
             payload = {"status": "connected",
                        "serial": self.manager.serial,
                        "version": str(self.manager.version),
                        "model": self.manager.model_id,
                        "name": self.manager.nickname}
-            self.send_text(json.dumps(payload))
+            self.send_json(payload)
 
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
@@ -153,6 +152,7 @@ def manager_mixin(cls):
             except ManagerError as e:
                 self.send_error("", symbol=e.err_symbol)
             except FluxUSBError as e:
+                logger.exception("H2H USB Error")
                 self.send_error("", symbol=e.symbol)
             except RuntimeError as e:
                 self.send_error("", symbol=e.args)
@@ -206,7 +206,8 @@ def manager_mixin(cls):
             self.cmd_set_network(*p)
 
         def cmd_scan_wifi_access_points(self, *args):
-            self.send_ok(access_points=self.manager.scan_wifi_access_points(), cmd="scan")
+            self.send_ok(access_points=self.manager.scan_wifi_access_points(),
+                         cmd="scan")
 
         def cmd_get_wifi_ssid(self, *args):
             self.send_ok(ssid=self.manager.get_wifi_ssid())

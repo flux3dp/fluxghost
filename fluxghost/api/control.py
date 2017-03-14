@@ -196,8 +196,8 @@ def control_api_mixin(cls):
                 self.send_fatal(*e.error_symbol)
 
             except FluxUSBError as e:
-                logger.debug("USB Error%s [error_symbol=%s]",
-                             repr(e.args), e.symbol)
+                logger.exception("USB Error%s [error_symbol=%s]",
+                                 repr(e.args), e.symbol)
                 self.send_fatal(*e.symbol)
             except RuntimeError as e:
                 logger.debug("RuntimeError Error%s", repr(e.args))

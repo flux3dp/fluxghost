@@ -93,6 +93,7 @@ def usb_interfaces_api_mixin(cls):
                                      usbprotocol.endpoint_profile)
                         return
                     except FluxUSBError as e:
+                        logger.exception("USB open error")
                         self.send_error(symbol=e.symbol, cmd="open")
                         return
             self.send_error(symbol=["NOT_FOUND"], cmd="open")
