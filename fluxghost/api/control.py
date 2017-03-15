@@ -191,8 +191,8 @@ def control_api_mixin(cls):
                 self.send_error(e.error_symbol[0], symbol=e.error_symbol)
 
             except RobotSessionError as e:
-                logger.debug("RobotSessionError%s [error_symbol=%s]",
-                             repr(e.args), e.error_symbol)
+                logger.warning("RobotSessionError%s [error_symbol=%s]",
+                               repr(e.args), e.error_symbol)
                 self.send_fatal(*e.error_symbol)
 
             except FluxUSBError as e:
