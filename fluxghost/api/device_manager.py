@@ -151,9 +151,9 @@ def manager_mixin(cls):
             try:
                 function(*args)
             except ManagerError as e:
-                self.send_error("", symbol=e.err_symbol)
+                self.send_error(e.err_symbol)
             except RuntimeError as e:
-                self.send_error("", symbol=e.args)
+                self.send_error(e.args)
             except ManagerException as e:
                 logger.exception("Device manager crashed")
                 self.send_fatal(symbol=e.err_symbol)
@@ -204,7 +204,8 @@ def manager_mixin(cls):
             self.cmd_set_network(*p)
 
         def cmd_scan_wifi_access_points(self, *args):
-            self.send_ok(access_points=self.manager.scan_wifi_access_points(), cmd="scan")
+            self.send_ok(access_points=self.manager.scan_wifi_access_points(),
+                         cmd="scan")
 
         def cmd_get_wifi_ssid(self, *args):
             self.send_ok(ssid=self.manager.get_wifi_ssid())
@@ -213,7 +214,7 @@ def manager_mixin(cls):
             self.send_ok(ipaddrs=self.manager.get_ipaddr())
 
         def cmd_not_found(self, *args):
-            self.send_error("", symbol=("L_UNKNOWN_COMMAND", ))
+            self.send_error("L_UNKNOWN_COMMAND")
 
         def on_closed(self):
             if self.manager:

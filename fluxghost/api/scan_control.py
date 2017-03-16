@@ -108,13 +108,8 @@ def scan_control_api_mixin(cls):
                 self.task.quit()
                 self.send_text("bye")
                 self.close()
-    #########################
-            elif message == 'fatal':
-                del self.robot
-                self.send_fatal('fatal by command')
-    #########################
             else:
-                self.send_error("UNKNOW_COMMAND", message)
+                self.send_error("L_UNKNOW_COMMAND")
 
         def try_control(self):
             if self.task:
@@ -127,9 +122,9 @@ def scan_control_api_mixin(cls):
 
             except RobotError as err:
                 if err.error_symbol[0] == "RESOURCE_BUSY":
-                    self.send_error('DEVICE_BUSY', err.args[-1])
+                    self.send_error('DEVICE_BUSY')
                 else:
-                    self.send_error(err.error_symbol[0], *err.error_symbol[1:])
+                    self.send_error(err.error_symbol)
 
         def take_control(self):
             if self.task:
@@ -143,7 +138,7 @@ def scan_control_api_mixin(cls):
                 if err.args[0] == "RESOURCE_BUSY":
                     self.robot.kick()
                 else:
-                    self.send_error("DEVICE_ERROR", err.args[0])
+                    self.send_error(err.args)
                     return
 
                 self.task = self.robot.scan()
@@ -202,7 +197,7 @@ def scan_control_api_mixin(cls):
             if not self.task:
                 self.send_error("NOT_READY")
                 return
-                
+
             self.task.laser(laser_onoff, laser_onoff)
             self.send_ok()
 
@@ -212,7 +207,7 @@ def scan_control_api_mixin(cls):
                 return
 
             if not self.proc:
-                self.send_error("BAD_PARAMS", "resolution")
+                self.send_error("BAD_PARAMS", info="resolution")
                 return
 
             if step:

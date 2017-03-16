@@ -98,7 +98,7 @@ def laser_svg_api_mixin(cls):
                 self.send_binary(svg_image.buf)
             else:
                 logger.error("%r svg not found", name)
-                self.send_error('NOT_FOUND', symbol=("NOT_FOUND", ))
+                self.send_error('NOT_FOUND')
 
         def cmd_set_params(self, params):
             logger.info('set params %r', params)

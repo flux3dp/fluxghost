@@ -57,15 +57,11 @@ class ApiBase(object):
         self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
                        (length, mime))
 
-    def send_error(self, errcode=None, info=None, symbol=None, *args, **kw):
-        if symbol:
+    def send_error(self, symbol, **kw):
+        if isinstance(symbol, (tuple, list)):
             self.send_json(status="error", error=symbol, **kw)
-        elif info:
-            self.send_text(
-                '{"status": "error", "error": "%s", "info":"%s"}' % (errcode,
-                                                                     info))
         else:
-            self.send_text('{"status": "error", "error": "%s"}' % errcode)
+            self.send_json(status="error", error=(symbol, ), **kw)
 
     def send_fatal(self, *args):
         if args:
@@ -76,6 +72,17 @@ class ApiBase(object):
                 self.send_json(status="fatal", symbol=args, error=args[0])
         else:
             self.send_json(status="fatal", error="NOT_GIVEN", symbol=[])
+
+    def send_traceback(self, symbol):
+        import traceback
+        import sys
+        etype, value, tb = sys.exc_info()
+        if etype:
+            self.send_error(
+                symbol,
+                traceback=traceback.format_exception(etype, value, tb))
+        else:
+            self.send_error(symbol, traceback=None)
 
     def send_progress(self, message, percentage):
         self.send_text('{"status": "computing", "message": "%s", "percentage":'
