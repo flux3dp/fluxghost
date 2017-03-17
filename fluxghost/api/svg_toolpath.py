@@ -196,8 +196,8 @@ def laser_svg_api_mixin(cls):
     return LaserSvgApi
 
 
-def vinal_svg_api_mixin(cls):
-    class VinalSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
+def vinyl_svg_api_mixin(cls):
+    class VinylSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         precut_at = None
 
         def __init__(self, *args):
@@ -252,7 +252,7 @@ def vinal_svg_api_mixin(cls):
 
         def cmd_process(self, params):
             names = params.split(" ")
-            logger.info('Process vinal svg')
+            logger.info('Process vinyl svg')
 
             self.send_progress('Initializing', 0.03)
             factory = self.prepare_factory(names)
@@ -290,4 +290,4 @@ def vinal_svg_api_mixin(cls):
                            time=time_need)
             self.send_binary(output_binary)
             logger.info("Laser svg processed")
-    return VinalSvgApi
+    return VinylSvgApi
