@@ -1,9 +1,14 @@
 
+from datetime import datetime
+from getpass import getuser
 import logging
 
 from fluxclient.toolpath.svg_factory import SvgImage, SvgFactory
+from fluxclient.toolpath.penholder import svg2vinyl
 from fluxclient.toolpath.laser import svg2laser
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
+from fluxclient import __version__
+
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVG")
@@ -12,36 +17,36 @@ logger = logging.getLogger("API.SVG")
 def svg_base_api_mixin(cls):
     class SvgBaseApi(BinaryHelperMixin, cls):
         fcode_metadata = None
-        svgs = None
-
-        def cmd_set_fcode_metadata(self, params):
-            key, value = params.split()
-            logger.info('meta_option {}'.format(key))
-            self.fcode_metadata[key] = value
-            self.send_ok()
-
-    return SvgBaseApi
-
-
-def laser_svg_api_mixin(cls):
-    class LaserSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         object_height = 0.0
         height_offset = 0.0
-        engraving_speed = 0
-        max_engraving_strength = 1.0
+        working_speed = None
+        travel_speed = 2400
+        travel_lift = 5.0
+        svgs = None
 
-        def __init__(self, *args):
-            super().__init__(*args)
-            self.fcode_metadata = {}
-            self.svgs = {}
-            self.cmd_mapping = {
-                'upload': [self.cmd_upload_svg],
-                'compute': [self.cmd_upload_svg_and_preview],
-                'get': [self.cmd_fetch_svg],
-                'go': [self.cmd_process],
-                'set_params': [self.cmd_set_params],
-                'meta_option': [self.cmd_set_fcode_metadata]
-            }
+        def set_param(self, key, value):
+            if key == 'object_height':
+                self.object_height = float(value)
+            elif key == 'height_offset':
+                self.height_offset = float(value)
+            else:
+                return False
+            return True
+
+        def prepare_factory(self, names):
+            factory = SvgFactory()
+            self.send_progress('Initializing', 0.03)
+
+            for i, name in enumerate(names):
+                svg_image = self.svgs.get(name, None)
+                if svg_image is None:
+                    logger.error("Can not find svg named %r", name)
+                    continue
+                logger.info("Preprocessing image %s", name)
+                self.send_progress('Processing image',
+                                   (i / len(names) * 0.3 + 0.10))
+                factory.add_image(svg_image)
+            return factory
 
         def cmd_upload_svg(self, message):
             def upload_callback(buf, name):
@@ -100,21 +105,43 @@ def laser_svg_api_mixin(cls):
                 logger.error("%r svg not found", name)
                 self.send_error('NOT_FOUND')
 
+        def cmd_set_fcode_metadata(self, params):
+            key, value = params.split()
+            logger.info('meta_option {}'.format(key))
+            self.fcode_metadata[key] = value
+            self.send_ok()
+
+    return SvgBaseApi
+
+
+def laser_svg_api_mixin(cls):
+    class LaserSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
+        max_engraving_strength = 1.0
+
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.svgs = {}
+            self.cmd_mapping = {
+                'upload': [self.cmd_upload_svg],
+                'compute': [self.cmd_upload_svg_and_preview],
+                'get': [self.cmd_fetch_svg],
+                'go': [self.cmd_process],
+                'set_params': [self.cmd_set_params],
+                'meta_option': [self.cmd_set_fcode_metadata]
+            }
+
         def cmd_set_params(self, params):
             logger.info('set params %r', params)
             key, value = params.split()
-            if key == 'object_height':
-                self.object_height = float(value)
-            elif key == 'height_offset':
-                self.height_offset = float(value)
-            elif key == 'laser_speed':
-                self.engraving_speed = float(value) * 60  # mm/s -> mm/min
-            elif key == 'power':
-                self.max_engraving_strength = min(1, float(value))
-            elif key in ('shading', 'one_way', 'focus_by_color'):
-                pass
-            else:
-                raise KeyError('Bad key: %r' % key)
+            if not self.set_param(key, value):
+                if key == 'laser_speed':
+                    self.working_speed = float(value) * 60  # mm/s -> mm/min
+                elif key == 'power':
+                    self.max_engraving_strength = min(1, float(value))
+                elif key in ('shading', 'one_way', 'focus_by_color'):
+                    pass
+                else:
+                    raise KeyError('Bad key: %r' % key)
             self.send_ok()
 
         def cmd_process(self, params):
@@ -128,21 +155,20 @@ def laser_svg_api_mixin(cls):
                 names = names[:-1]
                 output_fcode = False
 
-            factory = SvgFactory()
             self.send_progress('Initializing', 0.03)
+            factory = self.prepare_factory(names)
 
-            for name in names:
-                svg_image = self.svgs.get(name, None)
-                if svg_image is None:
-                    logger.error("Can not find svg named %r", name)
-                    continue
-                factory.add_image(svg_image)
+            self.fcode_metadata.update({
+                "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "AUTHOR": getuser(),
+                "SOFTWARE": "fluxclient-%s-FS" % __version__,
+            })
+            self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
+            self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
+            self.fcode_metadata["BACKLASH"] = "Y"
 
             if output_fcode:
                 preview = factory.generate_preview()
-                self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
-                self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
-                # self.fcode_metadata["BACKLASH"] = "Y"
                 writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
                                              (preview, ))
             else:
@@ -153,7 +179,7 @@ def laser_svg_api_mixin(cls):
 
             svg2laser(writer, factory,
                       z_height=self.object_height + self.height_offset,
-                      travel_speed=2400, engraving_speed=self.engraving_speed,
+                      travel_speed=2400, engraving_speed=self.working_speed,
                       engraving_strength=self.max_engraving_strength,
                       progress_callback=progress_callback)
             writer.terminated()
@@ -168,3 +194,100 @@ def laser_svg_api_mixin(cls):
             logger.info("Laser svg processed")
 
     return LaserSvgApi
+
+
+def vinal_svg_api_mixin(cls):
+    class VinalSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
+        precut_at = None
+
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.fcode_metadata = {}
+            self.svgs = {}
+            self.cmd_mapping = {
+                'upload': [self.cmd_upload_svg],
+                'compute': [self.cmd_upload_svg_and_preview],
+                'get': [self.cmd_fetch_svg],
+                'go': [self.cmd_process],
+                'set_params': [self.cmd_set_params],
+                'meta_option': [self.cmd_set_fcode_metadata]
+            }
+
+        def cmd_set_params(self, params):
+            logger.info('Set params %r', params)
+            key, svalue = params.split()
+            if not self.set_param(key, svalue):
+                if key == 'cutting_speed':
+                    value = float(svalue) * 60  # mm/s -> mm/min
+                    assert value > 0
+                    self.working_speed = value
+                elif key == 'travel_speed':
+                    value = float(svalue) * 60  # mm/s -> mm/min
+                    assert value > 0
+                    self.travel_speed = value
+                elif key == 'cutting_zheight':
+                    value = float(svalue)
+                    assert value > 0
+                    self.object_height = value
+                elif key == 'travel_lift':
+                    value = float(svalue)
+                    assert value > 0
+                    self.travel_lift = value
+                elif key == 'precut':
+                    sx, sy = svalue.split(",")
+                    self.precut_at = (float(sx), float(sy))
+
+                elif key == 'speed':
+                    # TODO rename
+                    self.working_speed = float(svalue)
+                elif key == 'draw_height':
+                    # TODO rename
+                    self.object_height = float(svalue)
+                elif key == 'lift_height':
+                    # TODO rename
+                    self.travel_lift = float(svalue)
+                else:
+                    raise KeyError('Bad key: %r' % key)
+            self.send_ok()
+
+        def cmd_process(self, params):
+            names = params.split(" ")
+            logger.info('Process vinal svg')
+
+            self.send_progress('Initializing', 0.03)
+            factory = self.prepare_factory(names)
+
+            preview = factory.generate_preview()
+
+            self.fcode_metadata.update({
+                "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "AUTHOR": getuser(),
+                "SOFTWARE": "fluxclient-%s-FS" % __version__,
+            })
+            self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
+            self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
+            self.fcode_metadata["BACKLASH"] = "Y"
+            writer = FCodeV1MemoryWriter("N/A", self.fcode_metadata,
+                                         (preview, ))
+
+            def progress_callback(prog):
+                pass
+
+            object_h = self.object_height + self.height_offset
+            travel_h = object_h + self.travel_lift
+            svg2vinyl(writer, factory,
+                      cutting_zheight=object_h,
+                      cutting_speed=self.working_speed,
+                      travel_zheight=travel_h,
+                      travel_speed=self.travel_speed,
+                      precut_at=self.precut_at,
+                      progress_callback=progress_callback)
+            writer.terminated()
+            output_binary = writer.get_buffer()
+            time_need = float(writer.get_metadata().get("TIME_COST", 0))
+            self.send_progress('finishing', 1.0)
+            self.send_json(status="complete", length=len(output_binary),
+                           time=time_need)
+            self.send_binary(output_binary)
+            logger.info("Laser svg processed")
+    return VinalSvgApi

@@ -105,9 +105,9 @@ def laser_bitmap_api_mixin(cls):
 
             for i, bitmap_image in enumerate(self.images, start=1):
                 logger.info("Preprocessing image %s", bitmap_image)
-                factory.add_image(bitmap_image)
                 self.send_progress('Processing image',
                                    (i / len(self.images) * 0.3 + 0.10))
+                factory.add_image(bitmap_image)
 
             if '-g' in args:
                 writer = GCodeMemoryWriter()
