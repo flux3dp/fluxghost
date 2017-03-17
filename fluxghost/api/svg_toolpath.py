@@ -199,6 +199,8 @@ def laser_svg_api_mixin(cls):
 def vinyl_svg_api_mixin(cls):
     class VinylSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         precut_at = None
+        blade_radius = 0.24
+        overcut = 2
 
         def __init__(self, *args):
             super().__init__(*args)
@@ -236,7 +238,14 @@ def vinyl_svg_api_mixin(cls):
                 elif key == 'precut':
                     sx, sy = svalue.split(",")
                     self.precut_at = (float(sx), float(sy))
-
+                elif key == 'blade_radius':
+                    value = float(svalue)
+                    assert value > 0
+                    self.blade_radius = value
+                elif key == 'overcut':
+                    value = float(svalue)
+                    assert value > 0
+                    self.overcut = value
                 elif key == 'speed':
                     # TODO rename
                     self.working_speed = float(svalue)
@@ -281,6 +290,8 @@ def vinyl_svg_api_mixin(cls):
                       travel_zheight=travel_h,
                       travel_speed=self.travel_speed,
                       precut_at=self.precut_at,
+                      blade_radius=self.blade_radius,
+                      overcut=self.overcut,
                       progress_callback=progress_callback)
             writer.terminated()
             output_binary = writer.get_buffer()
