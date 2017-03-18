@@ -19,7 +19,7 @@ def svg_base_api_mixin(cls):
         fcode_metadata = None
         object_height = 0.0
         height_offset = 0.0
-        working_speed = None
+        working_speed = 1200
         travel_speed = 2400
         travel_lift = 5.0
         svgs = None
@@ -248,7 +248,7 @@ def vinyl_svg_api_mixin(cls):
                     self.overcut = value
                 elif key == 'speed':
                     # TODO rename
-                    self.working_speed = float(svalue)
+                    self.working_speed = float(svalue) * 60
                 elif key == 'draw_height':
                     # TODO rename
                     self.object_height = float(svalue)
@@ -295,10 +295,11 @@ def vinyl_svg_api_mixin(cls):
                       progress_callback=progress_callback)
             writer.terminated()
             output_binary = writer.get_buffer()
-            time_need = float(writer.get_metadata().get("TIME_COST", 0))
+            meta = writer.get_metadata()
+            time_need = float(meta.get(b'TIME_COST', '0.01'))
             self.send_progress('finishing', 1.0)
             self.send_json(status="complete", length=len(output_binary),
                            time=time_need)
             self.send_binary(output_binary)
-            logger.info("Laser svg processed")
+            logger.info("Processed Vinyl SVG")
     return VinylSvgApi
