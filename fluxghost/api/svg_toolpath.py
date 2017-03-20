@@ -285,13 +285,13 @@ def vinyl_svg_api_mixin(cls):
             object_h = self.object_height + self.height_offset
             travel_h = object_h + self.travel_lift
             svg2vinyl(writer, factory,
-                      cutting_zheight=object_h,
+                      travel_speed=self.travel_speed,
                       cutting_speed=self.working_speed,
                       travel_zheight=travel_h,
-                      travel_speed=self.travel_speed,
-                      precut_at=self.precut_at,
+                      cutting_zheight=object_h,
                       blade_radius=self.blade_radius,
                       overcut=self.overcut,
+                      precut_at=self.precut_at,
                       progress_callback=progress_callback)
             writer.terminated()
             output_binary = writer.get_buffer()
