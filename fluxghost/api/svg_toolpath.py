@@ -4,7 +4,7 @@ from getpass import getuser
 import logging
 
 from fluxclient.toolpath.svg_factory import SvgImage, SvgFactory
-from fluxclient.toolpath.penholder import svg2vinyl
+from fluxclient.toolpath.penholder import svg2drawing, svg2vinyl
 from fluxclient.toolpath.laser import svg2laser
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
@@ -24,11 +24,20 @@ def svg_base_api_mixin(cls):
         travel_lift = 5.0
         svgs = None
 
+        def __init__(self, *args, **kw):
+            super(SvgBaseApi, self).__init__(*args, **kw)
+            self.svgs = {}
+            self.fcode_metadata = {}
+
         def set_param(self, key, value):
             if key == 'object_height':
                 self.object_height = float(value)
             elif key == 'height_offset':
                 self.height_offset = float(value)
+            elif key == 'travel_lift':
+                fvalue = float(value)
+                assert fvalue > 0
+                self.travel_lift = fvalue
             else:
                 return False
             return True
@@ -196,6 +205,78 @@ def laser_svg_api_mixin(cls):
     return LaserSvgApi
 
 
+def drawing_svg_api_mixin(cls):
+    class DrawingSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.cmd_mapping = {
+                'upload': [self.cmd_upload_svg],
+                'compute': [self.cmd_upload_svg_and_preview],
+                'get': [self.cmd_fetch_svg],
+                'go': [self.cmd_process],
+                'set_params': [self.cmd_set_params],
+                'meta_option': [self.cmd_set_fcode_metadata]
+            }
+
+        def cmd_set_params(self, params):
+            logger.info('set params %r', params)
+            key, value = params.split()
+            if not self.set_param(key, value):
+                if key == 'speed':
+                    # TODO rename
+                    self.working_speed = float(value) * 60
+                elif key == 'draw_height':
+                    self.object_height = float(value)
+                elif key == 'lift_height':
+                    # TODO rename
+                    self.travel_lift = float(value)
+                else:
+                    raise KeyError('Bad key: %r' % key)
+            self.send_ok()
+
+        def cmd_process(self, params):
+            names = params.split(" ")
+            logger.info('Process drawing svg')
+
+            self.send_progress('Initializing', 0.03)
+            factory = self.prepare_factory(names)
+
+            preview = factory.generate_preview()
+
+            self.fcode_metadata.update({
+                "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "AUTHOR": getuser(),
+                "SOFTWARE": "fluxclient-%s-FS" % __version__,
+            })
+            self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
+            self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
+            self.fcode_metadata["BACKLASH"] = "Y"
+            writer = FCodeV1MemoryWriter("N/A", self.fcode_metadata,
+                                         (preview, ))
+
+            def progress_callback(prog):
+                pass
+
+            object_h = self.object_height + self.height_offset
+            travel_h = object_h + self.travel_lift
+            svg2drawing(writer, factory,
+                        drawing_zheight=object_h,
+                        travel_zheight=travel_h,
+                        drawing_speed=self.working_speed,
+                        travel_speed=self.travel_speed,
+                        progress_callback=progress_callback)
+            writer.terminated()
+            output_binary = writer.get_buffer()
+            meta = writer.get_metadata()
+            time_need = float(meta.get(b'TIME_COST', '0.01'))
+            self.send_progress('finishing', 1.0)
+            self.send_json(status="complete", length=len(output_binary),
+                           time=time_need)
+            self.send_binary(output_binary)
+            logger.info("Processed drawing SVG")
+    return DrawingSvgApi
+
+
 def vinyl_svg_api_mixin(cls):
     class VinylSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         precut_at = None
@@ -204,8 +285,6 @@ def vinyl_svg_api_mixin(cls):
 
         def __init__(self, *args):
             super().__init__(*args)
-            self.fcode_metadata = {}
-            self.svgs = {}
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_svg],
                 'compute': [self.cmd_upload_svg_and_preview],
@@ -231,10 +310,6 @@ def vinyl_svg_api_mixin(cls):
                     value = float(svalue)
                     assert value > 0
                     self.object_height = value
-                elif key == 'travel_lift':
-                    value = float(svalue)
-                    assert value > 0
-                    self.travel_lift = value
                 elif key == 'precut':
                     sx, sy = svalue.split(",")
                     self.precut_at = (float(sx), float(sy))

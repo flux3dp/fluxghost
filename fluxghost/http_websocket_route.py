@@ -50,7 +50,7 @@ ROUTES = [
     (re.compile("svg-laser-parser"),
      "fluxghost.websocket.toolpath.WebsocketLaserSvg"),
     (re.compile("pen-svg-parser"),
-     "fluxghost.websocket.pen_svg_parser.WebsocketPenSvgParser"),
+     "fluxghost.websocket.toolpath.WebsocketDrawingSvg"),
     (re.compile("svg-vinyl-parser"),
      "fluxghost.websocket.toolpath.WebsocketVinylSvg"),
     (re.compile("fcode-reader"),
