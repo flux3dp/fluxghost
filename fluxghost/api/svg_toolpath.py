@@ -282,6 +282,8 @@ def vinyl_svg_api_mixin(cls):
         precut_at = None
         blade_radius = 0.24
         overcut = 2
+        repeat = 1
+        step_height = 0.1
 
         def __init__(self, *args):
             super().__init__(*args)
@@ -315,12 +317,18 @@ def vinyl_svg_api_mixin(cls):
                     self.precut_at = (float(sx), float(sy))
                 elif key == 'blade_radius':
                     value = float(svalue)
-                    assert value > 0
+                    assert value >= 0
                     self.blade_radius = value
                 elif key == 'overcut':
                     value = float(svalue)
                     assert value > 0
                     self.overcut = value
+                elif key == 'repeat':
+                    value = int(svalue)
+                    self.repeat = value
+                elif key == 'step_height':
+                    value = float(svalue)
+                    self.step_height = value
                 elif key == 'speed':
                     # TODO rename
                     self.working_speed = float(svalue) * 60
@@ -359,15 +367,23 @@ def vinyl_svg_api_mixin(cls):
 
             object_h = self.object_height + self.height_offset
             travel_h = object_h + self.travel_lift
-            svg2vinyl(writer, factory,
-                      travel_speed=self.travel_speed,
-                      cutting_speed=self.working_speed,
-                      travel_zheight=travel_h,
-                      cutting_zheight=object_h,
-                      blade_radius=self.blade_radius,
-                      overcut=self.overcut,
-                      precut_at=self.precut_at,
-                      progress_callback=progress_callback)
+
+            for i in range(self.repeat):
+                svg2vinyl(writer, factory,
+                          travel_speed=self.travel_speed,
+                          cutting_speed=self.working_speed,
+                          travel_zheight=travel_h - i * self.step_height,
+                          cutting_zheight=object_h - i * self.step_height,
+                          blade_radius=self.blade_radius,
+                          overcut=self.overcut,
+                          precut_at=self.precut_at,
+                          progress_callback=progress_callback)
+
+            if self.repeat > 1:
+                writer.moveto(feedrate=5000, x=0, y=0, z=150)
+                for i in range(600):
+                    writer.sleep(1)
+
             writer.terminated()
             output_binary = writer.get_buffer()
             meta = writer.get_metadata()
