@@ -136,7 +136,7 @@ def laser_bitmap_api_mixin(cls):
             writer.terminated()
             output_binary = writer.get_buffer()
             time_need = 0 if '-g' in args else \
-                float(writer.get_metadata().get("TIME_COST", 0))
+                float(writer.get_metadata().get(b"TIME_COST", 0))
 
             self.send_progress('finishing', 1.0)
             self.send_json(status="complete", length=len(output_binary),

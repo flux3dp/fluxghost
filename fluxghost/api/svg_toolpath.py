@@ -193,7 +193,7 @@ def laser_svg_api_mixin(cls):
                       progress_callback=progress_callback)
             writer.terminated()
             output_binary = writer.get_buffer()
-            time_need = float(writer.get_metadata().get("TIME_COST", 0)) \
+            time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
                 if output_fcode else 0
 
             self.send_progress('finishing', 1.0)
