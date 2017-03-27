@@ -137,7 +137,11 @@ def control_api_mixin(cls):
                     "quit": self.task_quit,
                 },
 
-                "fetch_log": self.fetch_log
+                "laser": {
+                    "show_outline": self.laser_showOutline
+                },
+
+                "fetch_log": self.fetch_log,
             }
 
         @property
@@ -726,6 +730,35 @@ def control_api_mixin(cls):
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
 
+        def laser_showOutline(self, x=0, y=0, start_x=0, start_y=0, angle=0):
+            if x is 0 or y is 0:
+                self.send_error("X or Y cannot be 0")
+                return
+            command_list = ['G28',
+                            'G90',
+                            'G1 X{} Y{} Z10 F6000'.format(start_x, start_y),
+                            '1 DEBUG',
+                            '1 PING *33',
+                            'X2O010',
+                            'G91',
+                            'G1 Y{} F2000'.format(y),
+                            'G1 X{} F2000'.format(x),
+                            'G1 Y-{} F2000'.format(y),
+                            'G1 X-{} F2000'.format(x),
+                            'X2O000',
+                            'G28',
+                            ]
+            self.task = self.robot.raw()
+            self.raw_sock = RawSock(self.task.sock, self)
+            self.rlist.append(self.raw_sock)
+
+            for command in command_list:
+                self.on_raw_message(command)
+                logger.debug(self.raw_sock.sock.recv(128))
+
+            self.on_raw_message('quit')
+            self.send_ok()
+
     class DirtyLayer(ControlApi):
         __last_command = None
 
@@ -781,4 +814,3 @@ class RawSock(object):
                               text=buf.decode("ascii", "replace"))
         else:
             self.ws.rlist.remove(self)
-            self.ws.send_fatal("DISCONNECTED")

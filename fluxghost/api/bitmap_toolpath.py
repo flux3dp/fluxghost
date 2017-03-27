@@ -63,6 +63,7 @@ def laser_bitmap_api_mixin(cls):
 
         def cmd_upload_bitmap(self, message):
             options = message.split()
+            print(options)
             w, h = int(options[0]), int(options[1])
             x1, y1, x2, y2 = (float(o) for o in options[2:6])
             rotation = float(options[6])
