@@ -5,6 +5,7 @@ from io import BytesIO
 import logging
 import socket
 import shlex
+import itertools
 
 from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
@@ -12,6 +13,7 @@ from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 
 from .control_base import control_base_mixin
+from.laser_control import laserShowOutline
 
 logger = logging.getLogger("API.CONTROL")
 
@@ -730,31 +732,40 @@ def control_api_mixin(cls):
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
 
-        def laser_showOutline(self, x=0, y=0, start_x=0, start_y=0, angle=0):
-            if x is 0 or y is 0:
-                self.send_error("X or Y cannot be 0")
-                return
-            command_list = ['G28',
-                            'G90',
-                            'G1 X{} Y{} Z10 F6000'.format(start_x, start_y),
-                            '1 DEBUG',
-                            '1 PING *33',
-                            'X2O010',
-                            'G91',
-                            'G1 Y{} F2000'.format(y),
-                            'G1 X{} F2000'.format(x),
-                            'G1 Y-{} F2000'.format(y),
-                            'G1 X-{} F2000'.format(x),
-                            'X2O000',
-                            'G28',
-                            ]
+        def laser_showOutline(self, *positions):
+            def trace_to_command(trace):
+                fp = trace.pop(0)
+                idx = start_command.index('firstPoint')
+                start_command[idx] = 'G0 X{} Y{} Z10 F6000'.format(
+                                                                fp[0], fp[1])
+
+                for cmd in itertools.chain(start_command, trace, end_command):
+                    if isinstance(cmd, tuple):
+                        cmd = 'G1 X{} Y{} F3000'.format(cmd[0], cmd[1])
+                    yield cmd
+
+            start_command = ['G28',
+                             'G90',
+                             'firstPoint',
+                             '1 DEBUG',
+                             '1 PING *33',
+                             'X2O020',
+                             ]
+            end_command = ['X2O000',
+                           'G28',
+                           ]
+
+            laser = laserShowOutline(positions)
+            moveTrace = laser.run()
+
             self.task = self.robot.raw()
             self.raw_sock = RawSock(self.task.sock, self)
             self.rlist.append(self.raw_sock)
 
-            for command in command_list:
+            for command in trace_to_command(moveTrace):
                 self.on_raw_message(command)
-                logger.debug(self.raw_sock.sock.recv(128))
+                logger.debug('{} :{}'.format(command,
+                                             self.raw_sock.sock.recv(128)))
 
             self.on_raw_message('quit')
             self.send_ok()
