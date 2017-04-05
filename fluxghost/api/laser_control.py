@@ -3,7 +3,6 @@ from operator import itemgetter
 import math
 import sympy
 import logging
-import itertools
 
 logger = logging.getLogger("API.LASER_CONTROL")
 
@@ -15,10 +14,8 @@ class laserShowOutline(object):
         self.nextPoint = True
         self.needArc = False
         self.radius = 85
+        self.arcStep = 5 * math.pi / 180
         self.moveTrace = []
-
-    def move_trace_cal(self):
-        pass
 
     def try_itsections(self, intersetcions):
         for i in intersetcions:
@@ -59,6 +56,17 @@ class laserShowOutline(object):
         sol = sympy.solve((f1, f2), x, y)
         return sol
 
+    def cal_prev_itsection(self, prev, present):
+        prev_itsections = self.round_line_Intersection(prev, present)
+        logger.debug('prev_itsections :{}'.format(prev_itsections))
+        if self.try_itsections(prev_itsections):
+            prev_itse = self.select_closed_point(present, prev_itsections)
+        elif self.moveTrace:
+            prev_itse = self.moveTrace[-1]
+        else:
+            prev_itse = None
+        return prev_itse
+
     def calculate_cross(self, pos, idx):
         present = pos[idx]
         logger.debug('index :{}'.format(idx))
@@ -68,18 +76,8 @@ class laserShowOutline(object):
         logger.debug('prev :{}'.format(prev))
         logger.debug('_next :{}'.format(_next))
 
-        if self.nextPoint:
-            prev_itsections = self.round_line_Intersection(prev, present)
-            logger.debug('prev_itsections :{}'.format(prev_itsections))
-            if self.try_itsections(prev_itsections):
-                prev_itsection = self.select_closed_point(
-                                                      present, prev_itsections)
-            elif self.moveTrace:
-                prev_itsection = self.moveTrace[-1]
-            else:
-                prev_itsection = None
-        else:
-            prev_itsection = None
+        cal_prev = self.cal_prev_itsection
+        prev_itsection = cal_prev(prev, present) if self.nextPoint else None
         logger.debug('prev_itsection :{}'.format(prev_itsection))
 
         next_itsections = self.round_line_Intersection(present, _next)
@@ -102,22 +100,37 @@ class laserShowOutline(object):
                       math.pow(first[1] - second[1], 2))
         return d
 
+    def quadrant_jadge(self, point):
+        x = point[0]
+        y = point[1]
+        rad = math.acos(abs(x) / self.radius)
+        if x >= 0 and y >= 0:
+            quadrant_arc = rad
+        elif x < 0 and y >= 0:
+            quadrant_arc = math.pi / 2 + ((math.pi / 2) - rad)
+        elif x < 0 and y < 0:
+            quadrant_arc = math.pi + rad
+        elif x >= 0 and y < 0:
+            quadrant_arc = 3 * math.pi / 2 + ((math.pi / 2) - rad)
+        return quadrant_arc
+
     def draw_arc(self, first, second):
-        c = self.cal_distance(first, second)
-        cosR = (2 * (self.radius**2) - c**2) / (2 * (self.radius**2))
-        print('cosR :', cosR)
-        rad = math.acos(cosR)
-        print('rad :', rad)
-        one_step = 5 * math.pi / 180
-        step = one_step
+        arc_first = self.quadrant_jadge(first)
+        logger.debug('first rad:{}'.format(math.degrees(arc_first)))
+        arc_second = self.quadrant_jadge(second)
+        logger.debug('second rad:{}'.format(math.degrees(arc_second)))
+        rad = arc_first - arc_second
+        rad = 2 * math.pi + rad if rad < 0 else rad
+        logger.debug('rad :{}'.format(rad))
+
+        stepped = step = self.arcStep
         x, y = first
-        while step < rad:
-            new_x = (x * math.cos(one_step)) + (y * math.sin(one_step))
-            new_y = (x * math.sin(-one_step)) + (y * math.cos(one_step))
+        while stepped < rad:
+            new_x = (x * math.cos(step)) + (y * math.sin(step))
+            new_y = (x * math.sin(-step)) + (y * math.cos(step))
             self.moveTrace.append((new_x, new_y))
             x, y = self.moveTrace[-1]
-            step += one_step
-            print('step :', step)
+            stepped += step
 
     def redraw_if_over_radius(self):
         for index in range(len(self.positions)):
@@ -145,13 +158,13 @@ class laserShowOutline(object):
         return not self.moveTrace
 
     def draw_round(self):
-        self.moveTrace.append((0, -85))
-        rad = 5 * math.pi / 180
-        for i in range(71):
+        self.moveTrace.append((0, -self.radius))
+        loop = (2 * math.pi / self.arcStep) - 1
+        for i in range(int(loop)):
             x, y = self.moveTrace[-1]
-            new_x = (x * math.cos(rad)) + (y * math.sin(rad))
-            new_y = (x * math.sin(-rad)) + (y * math.cos(rad))
-            self.moveTrace.append((new_x, new_y))
+            n_x = (x * math.cos(self.arcStep)) + (y * math.sin(self.arcStep))
+            n_y = (x * math.sin(-self.arcStep)) + (y * math.cos(self.arcStep))
+            self.moveTrace.append((n_x, n_y))
 
     def run(self):
         self.sort_positions()
@@ -159,7 +172,7 @@ class laserShowOutline(object):
         self.redraw_if_over_radius()
         if self.is_full_round():
             self.draw_round()
-            return(self.moveTrace)
+
         if self.needArc:
             self.draw_arc(self.moveTrace[-1], self.moveTrace[0])
         self.moveTrace.append(self.moveTrace[0])

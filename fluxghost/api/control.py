@@ -749,7 +749,7 @@ def control_api_mixin(cls):
                              'firstPoint',
                              '1 DEBUG',
                              '1 PING *33',
-                             'X2O020',
+                             'X2O015',
                              ]
             end_command = ['X2O000',
                            'G28',
