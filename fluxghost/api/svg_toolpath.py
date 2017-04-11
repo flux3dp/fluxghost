@@ -59,7 +59,12 @@ def svg_base_api_mixin(cls):
 
         def cmd_upload_svg(self, message):
             def upload_callback(buf, name):
-                svg_image = SvgImage(buf)
+                try:
+                    svg_image = SvgImage(buf)
+                except Exception:
+                    logger.exception("Load SVG Error")
+                    self.send_error("SVG_BROKEN")
+                    return
                 for error in svg_image.errors:
                     self.send_warning(error)
                 self.svgs[name] = svg_image
@@ -310,18 +315,15 @@ def vinyl_svg_api_mixin(cls):
                     self.travel_speed = value
                 elif key == 'cutting_zheight':
                     value = float(svalue)
-                    assert value > 0
                     self.object_height = value
                 elif key == 'precut':
                     sx, sy = svalue.split(",")
                     self.precut_at = (float(sx), float(sy))
                 elif key == 'blade_radius':
                     value = float(svalue)
-                    assert value >= 0
                     self.blade_radius = value
                 elif key == 'overcut':
                     value = float(svalue)
-                    assert value > 0
                     self.overcut = value
                 elif key == 'repeat':
                     value = int(svalue)

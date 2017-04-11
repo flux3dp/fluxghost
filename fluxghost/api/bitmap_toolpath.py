@@ -61,6 +61,18 @@ def laser_bitmap_api_mixin(cls):
                 'meta_option': [self.cmd_set_fcode_metadata]
             }
 
+        def _process_fcode_metadata(self):
+            self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
+            self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
+
+            if len(self.images) == 1:
+                anchors = self.images[0].get_bound()
+                proj_anchor = ";".join(("%.1f,%.1f" % a for a in anchors))
+                proj_at = self.object_height + self.height_offset
+
+                self.fcode_metadata["PROJECT_ANCHOR"] = proj_anchor
+                self.fcode_metadata["PROJECT_AT"] = str(proj_at)
+
         def cmd_upload_bitmap(self, message):
             options = message.split()
             print(options)
@@ -113,9 +125,8 @@ def laser_bitmap_api_mixin(cls):
             if '-g' in args:
                 writer = GCodeMemoryWriter()
             else:
+                self._process_fcode_metadata()
                 preview = factory.generate_preview()
-                self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
-                self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
                 writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
                                              (preview, ))
 
