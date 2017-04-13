@@ -1,6 +1,7 @@
 
 from operator import itemgetter
 import math
+import json
 import sympy
 import logging
 
@@ -8,8 +9,7 @@ logger = logging.getLogger("API.LASER_CONTROL")
 
 
 class laserShowOutline(object):
-    def __init__(self, positions):
-        self.positions = positions
+    def __init__(self):
         self.speed = 3000
         self.nextPoint = True
         self.needArc = False
@@ -26,25 +26,38 @@ class laserShowOutline(object):
             return True
 
     def sort_positions(self):
-        split = lambda s: list(map(float, s.split(',')))
-        self.positions = list(map(split, self.positions))
         self.positions.sort()
         l_positions = sorted(self.positions[0:2], key=itemgetter(1))
         r_positions = sorted(
                     self.positions[2:4], key=itemgetter(1), reverse=True)
         self.positions = l_positions + r_positions
 
-    def select_closed_point(self, first, sol):
-        distance = math.sqrt(math.pow(first[0] - sol[0][0], 2) +
-                             math.pow(first[1] - sol[0][1], 2))
-        distance1 = math.sqrt(math.pow(first[0] - sol[1][0], 2) +
-                              math.pow(first[1] - sol[1][1], 2))
-        if distance > distance1:
+    def select_closed_point(self, prev, present, sol):
+    #    limit_d = self.cal_distance(prev, present)
+        first_d = self.cal_distance(present, sol[0])
+        second_d = self.cal_distance(present, sol[1])
+    #    distance = math.sqrt(math.pow(present[0] - sol[0][0], 2) +
+    #                         math.pow(present[1] - sol[0][1], 2))
+    #    distance1 = math.sqrt(math.pow(present[0] - sol[1][0], 2) +
+    #                          math.pow(present[1] - sol[1][1], 2))
+    #    if first_d > limit_d and second_d > limit_d:
+    #        self.nextPoint = False
+    #        return None
+        if first_d > second_d:
+            self.nextPoint = True
             return sol[1]
         else:
+            self.nextPoint = True
             return sol[0]
 
+    #def cal_ref_point(self, first, second, third):
+        #first_d = self.cal_distance((0,0), first)
+        #second_d = self.cal_distance((0,0), second)
+        #third__d = self.cal_distance((0,0), third)
+        #return max(first_d, second_d, third_d)
+
     def round_line_Intersection(self, first, second):
+        # TODO fix sqrt() and distance equal r bugs.
         x = sympy.Symbol('x')
         y = sympy.Symbol('y')
         if first[0] - second[0] == 0:
@@ -60,7 +73,8 @@ class laserShowOutline(object):
         prev_itsections = self.round_line_Intersection(prev, present)
         logger.debug('prev_itsections :{}'.format(prev_itsections))
         if self.try_itsections(prev_itsections):
-            prev_itse = self.select_closed_point(present, prev_itsections)
+            #ref_point = self.cal_ref_point(prev, present, third)
+            prev_itse = self.select_closed_point(prev, present, prev_itsections)
         elif self.moveTrace:
             prev_itse = self.moveTrace[-1]
         else:
@@ -77,6 +91,7 @@ class laserShowOutline(object):
         logger.debug('_next :{}'.format(_next))
 
         cal_prev = self.cal_prev_itsection
+        print('nextPoint: ', self.nextPoint)
         prev_itsection = cal_prev(prev, present) if self.nextPoint else None
         logger.debug('prev_itsection :{}'.format(prev_itsection))
 
@@ -84,8 +99,7 @@ class laserShowOutline(object):
         logger.debug('next_itsections :{}'.format(next_itsections))
 
         if self.try_itsections(next_itsections):
-            next_itsection = self.select_closed_point(present, next_itsections)
-            self.nextPoint = True
+            next_itsection = self.select_closed_point(prev, present, next_itsections)
         else:
             next_itsection = None
             self.nextPoint = False
@@ -128,7 +142,8 @@ class laserShowOutline(object):
         while stepped < rad:
             new_x = (x * math.cos(step)) + (y * math.sin(step))
             new_y = (x * math.sin(-step)) + (y * math.cos(step))
-            self.moveTrace.append((new_x, new_y))
+
+            self.moveTrace.append((float(new_x), float(new_y)))
             x, y = self.moveTrace[-1]
             stepped += step
 
@@ -176,4 +191,9 @@ class laserShowOutline(object):
         if self.needArc:
             self.draw_arc(self.moveTrace[-1], self.moveTrace[0])
         self.moveTrace.append(self.moveTrace[0])
+
+    def get_move_trace(self, positions):
+        self.__init__()
+        self.positions = json.loads(positions)
+        self.run()
         return self.moveTrace
