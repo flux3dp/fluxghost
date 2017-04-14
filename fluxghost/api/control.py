@@ -736,8 +736,7 @@ def control_api_mixin(cls):
             def trace_to_command(trace):
                 fp = trace.pop(0)
                 idx = start_command.index('firstPoint')
-                start_command[idx] = 'G0 X{} Y{} Z10 F6000'.format(
-                                                                fp[0], fp[1])
+                start_command[idx] = 'G0 X{} Y{} Z10 F6000'.format(fp[0], fp[1])
 
                 for cmd in itertools.chain(start_command, trace, end_command):
                     if isinstance(cmd, tuple):
@@ -750,9 +749,7 @@ def control_api_mixin(cls):
                              '1 DEBUG',
                              '1 PING *33',
                              ]
-            end_command = [
-                           'G28',
-                           ]
+            end_command = ['G28']
 
             laser = laserShowOutline()
             moveTraces = []
@@ -760,9 +757,8 @@ def control_api_mixin(cls):
                 moveTrace = laser.get_move_trace(frame)
                 moveTrace.insert(1, 'X2O015')
                 moveTrace.append('X2O000')
-                print('moveTrace: ', moveTrace)
                 moveTraces.extend(moveTrace)
-            print('moveTraces :', moveTraces)
+            logger.debug('moveTraces :{}'.format(moveTraces))
 
             # into raw mode then send movetrace via socket.
             self.task = self.robot.raw()

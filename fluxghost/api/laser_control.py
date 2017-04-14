@@ -32,34 +32,33 @@ class laserShowOutline(object):
                     self.positions[2:4], key=itemgetter(1), reverse=True)
         self.positions = l_positions + r_positions
 
-    def select_closed_point(self, prev, present, sol):
-    #    limit_d = self.cal_distance(prev, present)
-        first_d = self.cal_distance(present, sol[0])
-        second_d = self.cal_distance(present, sol[1])
-    #    distance = math.sqrt(math.pow(present[0] - sol[0][0], 2) +
-    #                         math.pow(present[1] - sol[0][1], 2))
-    #    distance1 = math.sqrt(math.pow(present[0] - sol[1][0], 2) +
-    #                          math.pow(present[1] - sol[1][1], 2))
-    #    if first_d > limit_d and second_d > limit_d:
-    #        self.nextPoint = False
-    #        return None
-        if first_d > second_d:
-            self.nextPoint = True
-            return sol[1]
-        else:
-            self.nextPoint = True
-            return sol[0]
+    def select_closed_point(self, ref, present, sol):
+        limit = self.cal_distance(ref, present)
+        first = self.cal_distance(present, sol[0])
+        second = self.cal_distance(present, sol[1])
+        first_with_ref = self.cal_distance(ref, sol[0])
+        second_with_ref = self.cal_distance(ref, sol[1])
 
-    #def cal_ref_point(self, first, second, third):
-        #first_d = self.cal_distance((0,0), first)
-        #second_d = self.cal_distance((0,0), second)
-        #third__d = self.cal_distance((0,0), third)
-        #return max(first_d, second_d, third_d)
+        # return None if two point both are not on straight line.
+        present_over_limit = first > limit and second > limit
+        ref_over_limit = first_with_ref > limit and second_with_ref > limit
+        if present_over_limit or ref_over_limit:
+            self.nextPoint = False
+            return None
+
+        self.nextPoint = True
+        point = sol[1] if first > second else sol[0]
+        return point
 
     def round_line_Intersection(self, first, second):
-        # TODO fix sqrt() and distance equal r bugs.
+        """
+        f1 is straight line equation, f2 is circle equation,
+        this function can calculate straignt line and circle intersection.
+        """
         x = sympy.Symbol('x')
         y = sympy.Symbol('y')
+
+        #if The slope dose not exist.
         if first[0] - second[0] == 0:
             f1 = first[0] - x
         else:
@@ -73,7 +72,6 @@ class laserShowOutline(object):
         prev_itsections = self.round_line_Intersection(prev, present)
         logger.debug('prev_itsections :{}'.format(prev_itsections))
         if self.try_itsections(prev_itsections):
-            #ref_point = self.cal_ref_point(prev, present, third)
             prev_itse = self.select_closed_point(prev, present, prev_itsections)
         elif self.moveTrace:
             prev_itse = self.moveTrace[-1]
@@ -87,11 +85,12 @@ class laserShowOutline(object):
 
         prev = pos[-1] if idx is 0 else pos[idx-1]
         _next = pos[0] if idx+1 is len(pos) else pos[idx+1]
+
         logger.debug('prev :{}'.format(prev))
         logger.debug('_next :{}'.format(_next))
 
         cal_prev = self.cal_prev_itsection
-        print('nextPoint: ', self.nextPoint)
+        logger.debug('nextPoint: {}'.format(self.nextPoint))
         prev_itsection = cal_prev(prev, present) if self.nextPoint else None
         logger.debug('prev_itsection :{}'.format(prev_itsection))
 
@@ -99,7 +98,10 @@ class laserShowOutline(object):
         logger.debug('next_itsections :{}'.format(next_itsections))
 
         if self.try_itsections(next_itsections):
-            next_itsection = self.select_closed_point(prev, present, next_itsections)
+            # force sympy.sqrt() turn to float type
+            # that can prevent incorrect point acquire.
+            next_itsections = [tuple(map(float, i)) for i in next_itsections]
+            next_itsection = self.select_closed_point(_next, present, next_itsections)
         else:
             next_itsection = None
             self.nextPoint = False
@@ -110,13 +112,15 @@ class laserShowOutline(object):
         return math.hypot(point[0], point[1]) >= self.radius
 
     def cal_distance(self, first, second):
+        """
+        calculate distance between two point.
+        """
         d = math.sqrt(math.pow(first[0] - second[0], 2) +
                       math.pow(first[1] - second[1], 2))
         return d
 
     def quadrant_jadge(self, point):
-        x = point[0]
-        y = point[1]
+        x, y = point
         rad = math.acos(abs(x) / self.radius)
         if x >= 0 and y >= 0:
             quadrant_arc = rad
