@@ -213,6 +213,7 @@ def scan_control_api_mixin(cls):
                 self.current_step = step
 
             il, ir, io = self.task.scanimages()
+            self.task.forward()
             left_r, right_r = self.proc.feed(
                 io[1], il[1], ir[1], self.current_step,
                 -self.scan_settings.LLaserAdjustment,
@@ -223,7 +224,6 @@ def scan_control_api_mixin(cls):
             self.send_text('{"status": "chunk", "left": %d, "right": %d}' %
                            (len(left_r), len(right_r)))
             self.send_binary(b''.join(left_r + right_r))
-            self.task.forward()
             self.send_ok()
 
         def calibrate(self):
