@@ -732,11 +732,14 @@ def control_api_mixin(cls):
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
 
-        def laser_showOutline(self, *positions):
+        def laser_showOutline(self, object_height, *positions):
+            object_height = int(object_height) + 10
             def trace_to_command(trace):
                 fp = trace.pop(0)
                 idx = start_command.index('firstPoint')
-                start_command[idx] = 'G0 X{} Y{} Z10 F6000'.format(fp[0], fp[1])
+                start_command[idx] = 'G0 X{} Y{} Z{} F6000'.format(
+                                          fp[0], fp[1], object_height)
+
 
                 for cmd in itertools.chain(start_command, trace, end_command):
                     if isinstance(cmd, tuple):
