@@ -85,11 +85,10 @@ class ApiBase(object):
             self.send_error(symbol, traceback=None)
 
     def send_progress(self, message, percentage):
-        self.send_text('{"status": "computing", "message": "%s", "percentage":'
-                       ' %.2f}' % (message, percentage))
+        self.send_json(status="computing", message=message, percentage=percentage)
 
     def send_warning(self, message):
-        self.send_text('{"status": "warning", "message" : "%s"}' % (message))
+        self.send_json(status="warning", message=message)
 
     def on_loop(self):
         pass

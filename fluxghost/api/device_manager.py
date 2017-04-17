@@ -152,6 +152,8 @@ def manager_mixin(cls):
                 function(*args)
             except ManagerError as e:
                 self.send_error(e.err_symbol)
+            except FluxUSBError as e:
+                self.send_error(e.symbol)
             except RuntimeError as e:
                 self.send_error(e.args)
             except ManagerException as e:
@@ -212,6 +214,9 @@ def manager_mixin(cls):
 
         def cmd_get_ipaddr(self, *args):
             self.send_ok(ipaddrs=self.manager.get_ipaddr())
+
+        def cmd_get_network_status(self, *args):
+            self.send_ok(ipaddr=self.manager.get_ipaddr(), ssid=self.manager.get_wifi_ssid())
 
         def cmd_not_found(self, *args):
             self.send_error("L_UNKNOWN_COMMAND")
