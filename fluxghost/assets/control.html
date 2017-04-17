@@ -327,10 +327,14 @@
         delete payload.device_status.rt;
       }
 
-      var X = payload.device_status.pos.X,
-          Y = payload.device_status.pos.Y,
-          Z = payload.device_status.pos.Z
-      key.push("pos"); data.pos = "X:" + X + ", Y:" + Y + ", Z:" + Z;
+      if(payload.device_status.pos) {
+        var X = payload.device_status.pos.X,
+            Y = payload.device_status.pos.Y,
+            Z = payload.device_status.pos.Z
+        key.push("pos"); data.pos = "X:" + X + ", Y:" + Y + ", Z:" + Z;
+      } else {
+        key.push("pos"); data.pos = "X:?, Y:?, Z:?";
+      }
 
       $(".st.st-module", $panel).text(data.module || "N/A");
       $(".st.st-prog", $panel).text(Math.round(data.prog * 10000) / 100);
@@ -343,8 +347,12 @@
       delete payload.device_status.pos;
 
       $(".st-playing", $panel).show();
-      $(".TH." + data.module, $panel).show();
-      $(".TH:not(." + data.module + ")", $panel).hide();
+      if(data.module === "N/A") {
+        $(".TH", $panel).hide();
+      } else {
+        $(".TH." + data.module, $panel).show();
+        $(".TH:not(." + data.module + ")", $panel).hide();
+      }
     } else {
       $(".TH", $panel).hide();
       $(".st-playing", $panel).hide();

@@ -111,13 +111,8 @@ def scan_control_api_mixin(cls):
                 self.task.quit()
                 self.send_text("bye")
                 self.close()
-    #########################
-            elif message == 'fatal':
-                del self.robot
-                self.send_fatal('fatal by command')
-    #########################
             else:
-                self.send_error("UNKNOW_COMMAND", message)
+                self.send_error("L_UNKNOW_COMMAND")
 
         def try_control(self):
             if self.task:
@@ -130,9 +125,9 @@ def scan_control_api_mixin(cls):
 
             except RobotError as err:
                 if err.error_symbol[0] == "RESOURCE_BUSY":
-                    self.send_error('DEVICE_BUSY', err.args[-1])
+                    self.send_error('DEVICE_BUSY')
                 else:
-                    self.send_error(err.error_symbol[0], *err.error_symbol[1:])
+                    self.send_error(err.error_symbol)
 
         def take_control(self):
             if self.task:
@@ -148,7 +143,7 @@ def scan_control_api_mixin(cls):
                     self.robot.kick()
                     self.try_control()
                 else:
-                    self.send_error("DEVICE_ERROR", err.args[0])
+                    self.send_error(err.args)
                     return
 
         def fetch_image(self):
@@ -201,7 +196,7 @@ def scan_control_api_mixin(cls):
             if not self.task:
                 self.send_error("NOT_READY")
                 return
-                
+
             self.task.laser(laser_onoff, laser_onoff)
             self.send_ok()
 
@@ -211,13 +206,14 @@ def scan_control_api_mixin(cls):
                 return
 
             if not self.proc:
-                self.send_error("BAD_PARAMS", "resolution")
+                self.send_error("BAD_PARAMS", info="resolution")
                 return
 
             if step:
                 self.current_step = step
 
             il, ir, io = self.task.scanimages()
+            self.task.forward()
             left_r, right_r = self.proc.feed(
                 io[1], il[1], ir[1], self.current_step,
                 -self.scan_settings.LLaserAdjustment,
@@ -228,7 +224,6 @@ def scan_control_api_mixin(cls):
             self.send_text('{"status": "chunk", "left": %d, "right": %d}' %
                            (len(left_r), len(right_r)))
             self.send_binary(b''.join(left_r + right_r))
-            self.task.forward()
             self.send_ok()
 
         def calibrate(self):

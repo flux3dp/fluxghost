@@ -188,20 +188,20 @@ def control_api_mixin(cls):
             except RobotError as e:
                 logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
                              e.error_symbol)
-                self.send_error(e.error_symbol[0], symbol=e.error_symbol)
+                self.send_error(e.error_symbol)
 
             except RobotSessionError as e:
                 logger.debug("RobotSessionError%s [error_symbol=%s]",
                              repr(e.args), e.error_symbol)
-                self.send_fatal(*e.error_symbol)
+                self.send_fatal(e.error_symbol)
 
             except FluxUSBError as e:
                 logger.debug("USB Error%s [error_symbol=%s]",
                              repr(e.args), e.symbol)
-                self.send_fatal(*e.symbol)
+                self.send_fatal(e.symbol)
             except RuntimeError as e:
                 logger.debug("RuntimeError Error%s", repr(e.args))
-                self.send_error(*e.args)
+                self.send_error(e.args)
 
             except (TimeoutError, ConnectionResetError,  # noqa
                     socket.timeout, ) as e:
@@ -214,7 +214,7 @@ def control_api_mixin(cls):
                         if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
                             self.send_fatal("TIMEOUT", repr(e.args))
                             return
-                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
+                self.send_traceback("L_UNKNOWN_ERROR")
 
             except socket.error as e:
                 if e.args[0] == EPIPE:
@@ -224,8 +224,8 @@ def control_api_mixin(cls):
                     self.send_fatal("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except Exception as e:
-                logger.exception("Unknow error while process text")
-                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
+                logger.exception("Unknow error while process command")
+                self.send_traceback("L_UNKNOWN_ERROR", repr(e.__class__))
 
         def kick(self):
             self.robot.kick()
@@ -277,7 +277,7 @@ def control_api_mixin(cls):
                 self.robot.mkdir(path)
                 self.send_json(status="ok", path=path)
             else:
-                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
+                self.send_error("NOT_SUPPORT")
 
         def rmdir(self, file):
             path = file if file.startswith("/") else "/" + file
@@ -285,7 +285,7 @@ def control_api_mixin(cls):
                 self.robot.rmdir(path)
                 self.send_ok(path=path)
             else:
-                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
+                self.send_error("NOT_SUPPORT")
 
         def rmfile(self, file):
             path = file if file.startswith("/") else "/" + file
@@ -293,7 +293,7 @@ def control_api_mixin(cls):
                 self.robot.rmfile(path)
                 self.send_json(status="ok", path=path)
             else:
-                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
+                self.send_error("NOT_SUPPORT")
 
         def download(self, file):
             def report(left, size):
@@ -384,7 +384,7 @@ def control_api_mixin(cls):
                 except RobotError as e:
                     logger.debug("RobotError%s [error_symbol=%s]",
                                  repr(e.args), e.error_symbol)
-                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
+                    self.send_error(e.error_symbol)
             self.simple_binary_receiver(size, on_recived)
 
         def update_mbfw(self, mimetype, ssize):
@@ -469,7 +469,7 @@ def control_api_mixin(cls):
                     self.task.update_hbfw(swap, size, nav_cb)
                     self.send_ok()
                 except RobotError as e:
-                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
+                    self.send_error(symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
                     self.send_fatal("L_UNKNOWN_ERROR", e.args)
@@ -611,7 +611,7 @@ def control_api_mixin(cls):
                 else:
                     sleep(0.2)
 
-            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
+            self.send_error("TIMEOUT")
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
@@ -646,7 +646,7 @@ def control_api_mixin(cls):
                 else:
                     sleep(0.2)
 
-            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
+            self.send_error("TIMEOUT")
 
         def scan_oneshot(self):
             images = self.task.oneshot()
