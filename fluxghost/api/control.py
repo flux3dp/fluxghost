@@ -2,6 +2,7 @@
 from errno import EPIPE
 from time import time, sleep
 from io import BytesIO
+import itertools
 import logging
 import socket
 import shlex
@@ -12,6 +13,7 @@ from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 
 from .control_base import control_base_mixin
+from .laser_control import LaserShowOutline
 
 logger = logging.getLogger("API.CONTROL")
 
@@ -137,7 +139,11 @@ def control_api_mixin(cls):
                     "quit": self.task_quit,
                 },
 
-                "fetch_log": self.fetch_log
+                "laser": {
+                    "show_outline": self.laser_show_outline
+                },
+
+                "fetch_log": self.fetch_log,
             }
 
         @property
@@ -725,6 +731,50 @@ def control_api_mixin(cls):
                 self.send_text('{"status": "ok", "task": ""}')
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
+
+        def laser_show_outline(self, object_height, *positions):
+            object_height = int(object_height) + 10
+            def trace_to_command(trace):
+                fp = trace.pop(0)
+                idx = start_command.index('firstPoint')
+                start_command[idx] = 'G0 X{} Y{} Z{} F6000'.format(
+                                                    fp[0], fp[1], object_height)
+
+
+                for cmd in itertools.chain(start_command, trace, end_command):
+                    if isinstance(cmd, tuple):
+                        cmd = 'G1 X{} Y{} F3000'.format(cmd[0], cmd[1])
+                    yield cmd
+
+            start_command = ['G28',
+                             'G90',
+                             'firstPoint',
+                             '1 DEBUG',
+                             '1 PING *33',
+                             ]
+            end_command = ['G28']
+
+            laser = LaserShowOutline()
+            moveTraces = []
+            for frame in positions:
+                moveTrace = laser.get_move_trace(frame)
+                moveTrace.insert(1, 'X2O015')
+                moveTrace.append('X2O000')
+                moveTraces.extend(moveTrace)
+            logger.debug('moveTraces :{}'.format(moveTraces))
+
+            # into raw mode then send movetrace via socket.
+            self.task = self.robot.raw()
+            self.raw_sock = RawSock(self.task.sock, self)
+            self.rlist.append(self.raw_sock)
+
+            for command in trace_to_command(moveTraces):
+                self.on_raw_message(command)
+                logger.debug('{} :{}'.format(command,
+                                             self.raw_sock.sock.recv(128)))
+
+            self.on_raw_message('quit')
+            self.send_ok()
 
     class DirtyLayer(ControlApi):
         __last_command = None
