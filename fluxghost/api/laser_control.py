@@ -1,16 +1,15 @@
 
 from operator import itemgetter
+import numpy as np
+import logging
 import math
 import json
-import sympy
-import logging
 
 logger = logging.getLogger("API.LASER_CONTROL")
 
 
 class LaserShowOutline(object):
     def __init__(self):
-        self.speed = 3000
         self.nextPoint = True
         self.needArc = False
         self.radius = 85
@@ -51,22 +50,43 @@ class LaserShowOutline(object):
         return point
 
     def round_line_Intersection(self, first, second):
-        """
-        f1 is straight line equation, f2 is circle equation,
-        this function can calculate straignt line and circle intersection.
-        """
-        x = sympy.Symbol('x')
-        y = sympy.Symbol('y')
+        # if straight line perpendicular to X.
+        if first[0] == second[0]:
+            x = first[0]
 
-        #if The slope dose not exist.
-        if first[0] - second[0] == 0:
-            f1 = first[0] - x
+            # if out of Circle's range.
+            if self.radius**2 - x**2 < 0:
+                return (None, None)
+
+            y = math.sqrt(self.radius**2 - x**2)
+            sol = [(x, y), (x, -y)]
+            return sol
+
         else:
-            m = (first[1] - second[1]) / (first[0] - second[0])
-            f1 = ((first[1] - y) / (first[0] - x)) - m
-        f2 = (x**2) + (y**2) - (self.radius**2)
-        sol = sympy.solve((f1, f2), x, y)
-        return sol
+            # get equation of straight line from two given position.
+            a = np.mat([[first[0], 1],
+                        [second[0], 1]])
+            b = np.mat([first[1], second[1]]).T
+            r = np.linalg.solve(a,b)
+            a, b = map(float, r)
+
+            A = 1 + a**2
+            B = 2 * a * b
+            C = b**2 - self.radius**2
+
+            if B**2 - 4*A*C < 0:
+                return (None, None)
+
+            # first intersetcion (x, y)
+            x = (-B + math.sqrt(B**2 - 4*A*C)) / (2*A)
+            y = a*x + b
+            sol = [(x, y)]
+
+            # second intersetcion (x, y)
+            x = (-B - math.sqrt(B**2 - 4*A*C)) / (2*A)
+            y = a*x + b
+            sol.append((x, y))
+            return sol
 
     def cal_prev_itsection(self, prev, present):
         prev_itsections = self.round_line_Intersection(prev, present)

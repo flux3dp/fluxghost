@@ -2,10 +2,10 @@
 from errno import EPIPE
 from time import time, sleep
 from io import BytesIO
+import itertools
 import logging
 import socket
 import shlex
-import itertools
 
 from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
@@ -754,7 +754,7 @@ def control_api_mixin(cls):
                              ]
             end_command = ['G28']
 
-            laser = laserShowOutline()
+            laser = LaserShowOutline()
             moveTraces = []
             for frame in positions:
                 moveTrace = laser.get_move_trace(frame)
