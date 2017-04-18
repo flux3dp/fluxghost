@@ -13,7 +13,7 @@ from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 
 from .control_base import control_base_mixin
-from.laser_control import LaserShowOutline
+from .laser_control import LaserShowOutline
 
 logger = logging.getLogger("API.CONTROL")
 
@@ -831,3 +831,4 @@ class RawSock(object):
                               text=buf.decode("ascii", "replace"))
         else:
             self.ws.rlist.remove(self)
+            self.ws.send_fatal("DISCONNECTED")
