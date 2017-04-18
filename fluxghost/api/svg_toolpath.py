@@ -361,6 +361,7 @@ def vinyl_svg_api_mixin(cls):
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
             self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
             self.fcode_metadata["BACKLASH"] = "Y"
+            self.fcode_metadata["TASK_TYPE"] = "VINYL"
             writer = FCodeV1MemoryWriter("N/A", self.fcode_metadata,
                                          (preview, ))
 
