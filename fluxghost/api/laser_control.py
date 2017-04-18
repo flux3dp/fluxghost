@@ -8,7 +8,7 @@ import logging
 logger = logging.getLogger("API.LASER_CONTROL")
 
 
-class laserShowOutline(object):
+class LaserShowOutline(object):
     def __init__(self):
         self.speed = 3000
         self.nextPoint = True

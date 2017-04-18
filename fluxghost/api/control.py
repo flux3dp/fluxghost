@@ -13,7 +13,7 @@ from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 
 from .control_base import control_base_mixin
-from.laser_control import laserShowOutline
+from.laser_control import LaserShowOutline
 
 logger = logging.getLogger("API.CONTROL")
 
@@ -140,7 +140,7 @@ def control_api_mixin(cls):
                 },
 
                 "laser": {
-                    "show_outline": self.laser_showOutline
+                    "show_outline": self.laser_show_outline
                 },
 
                 "fetch_log": self.fetch_log,
@@ -732,13 +732,13 @@ def control_api_mixin(cls):
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
 
-        def laser_showOutline(self, object_height, *positions):
+        def laser_show_outline(self, object_height, *positions):
             object_height = int(object_height) + 10
             def trace_to_command(trace):
                 fp = trace.pop(0)
                 idx = start_command.index('firstPoint')
                 start_command[idx] = 'G0 X{} Y{} Z{} F6000'.format(
-                                          fp[0], fp[1], object_height)
+                                                    fp[0], fp[1], object_height)
 
 
                 for cmd in itertools.chain(start_command, trace, end_command):
