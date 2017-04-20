@@ -64,6 +64,7 @@ def laser_bitmap_api_mixin(cls):
         def _process_fcode_metadata(self):
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
             self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
+            self.fcode_metadata["BACKLASH"] = "N"
 
             if len(self.images) == 1:
                 anchors = self.images[0].get_bound()
