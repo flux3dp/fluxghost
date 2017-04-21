@@ -285,11 +285,11 @@ def drawing_svg_api_mixin(cls):
 def vinyl_svg_api_mixin(cls):
     class VinylSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         precut_at = None
-        blade_radius = 0.24
+        blade_radius = 0.28
         overcut = 2
         repeat = 1
         step_height = 0.1
-        height_offset = -0.2
+        height_offset = -0.3
 
         def __init__(self, *args):
             super().__init__(*args)
