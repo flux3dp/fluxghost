@@ -289,7 +289,7 @@ def vinyl_svg_api_mixin(cls):
         overcut = 2
         repeat = 1
         step_height = 0.1
-        height_offset = -0.3
+        height_offset = -0.4
 
         def __init__(self, *args):
             super().__init__(*args)
