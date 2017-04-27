@@ -1,4 +1,6 @@
 
+from PIL import Image
+from io import BytesIO
 import logging
 
 from fluxclient.scanner.scan_settings import ScanSetting
@@ -32,21 +34,24 @@ def scan_control_api_mixin(cls):
             self.text_send("Protocol error")
             self.close()
 
+        def _setup_task(self):
+            self.task = self.robot.scan()
+            mimetype, buf = self.task.oneshot()[0]
+            img = Image.open(BytesIO(buf))
+            w, h = img.size
+            self.scan_settings.set_camera(w, h)
+            self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
+
         def on_connected(self):
             self.try_control()
 
-        def turn_on_hd(self):
-            """Turn on support for hd camera"""
-            self.scan_settings.set_camera(720, 1280)
-            self.send_ok()
-
         def on_command(self, message):
-            logger.info(message)
             if message == "take_control":
                 self.take_control()
 
             elif message == "turn_on_hd":
-                self.turn_on_hd()
+                # No use, just prevent error
+                self.send_ok()
 
             elif message == "retry":
                 self.try_control()
@@ -74,7 +79,6 @@ def scan_control_api_mixin(cls):
                 self.set_params(message)
 
             elif message.startswith("resolution "):
-
                 s_step = message.split(maxsplit=1)[-1]
                 self.steps = int(s_step, 10)
                 if self.steps in HW_PROFILE['model-1']['step_setting']:
@@ -89,8 +93,7 @@ def scan_control_api_mixin(cls):
 
                 self.scan_settings.scan_step = self.steps
                 self.current_step = 0
-                self.proc = image_to_pc.image_to_pc(self.steps,
-                                                    self.scan_settings)
+                self.proc.steps = self.steps
                 self.send_ok(info=str(self.steps))
 
             elif message.startswith("scan"):
@@ -108,13 +111,8 @@ def scan_control_api_mixin(cls):
                 self.task.quit()
                 self.send_text("bye")
                 self.close()
-    #########################
-            elif message == 'fatal':
-                del self.robot
-                self.send_fatal('fatal by command')
-    #########################
             else:
-                self.send_error("UNKNOW_COMMAND", message)
+                self.send_error("L_UNKNOW_COMMAND")
 
         def try_control(self):
             if self.task:
@@ -122,14 +120,14 @@ def scan_control_api_mixin(cls):
                 return
 
             try:
-                self.task = self.robot.scan()
-                self.send_text('{"status": "ready"}')
+                self._setup_task()
+                self.send_json(status="ready")
 
             except RobotError as err:
                 if err.error_symbol[0] == "RESOURCE_BUSY":
-                    self.send_error('DEVICE_BUSY', err.args[-1])
+                    self.send_error('DEVICE_BUSY')
                 else:
-                    self.send_error(err.error_symbol[0], *err.error_symbol[1:])
+                    self.send_error(err.error_symbol)
 
         def take_control(self):
             if self.task:
@@ -137,17 +135,16 @@ def scan_control_api_mixin(cls):
                 return
 
             try:
-                self.robot.scan()
+                self._setup_task()
+                self.send_json(status="ready")
 
             except RobotError as err:
                 if err.args[0] == "RESOURCE_BUSY":
                     self.robot.kick()
+                    self.try_control()
                 else:
-                    self.send_error("DEVICE_ERROR", err.args[0])
+                    self.send_error(err.args)
                     return
-
-                self.task = self.robot.scan()
-                self.send_text('{"status": "ready"}')
 
         def fetch_image(self):
             if not self.task:
@@ -195,14 +192,11 @@ def scan_control_api_mixin(cls):
             self.scan_settings.LLaserAdjustment = l
             self.scan_settings.RLaserAdjustment = r
 
-            self.proc = image_to_pc.image_to_pc(self.steps, self.scan_settings)
-            return
-
         def turn_laser(self, laser_onoff):
             if not self.task:
                 self.send_error("NOT_READY")
                 return
-                
+
             self.task.laser(laser_onoff, laser_onoff)
             self.send_ok()
 
@@ -212,24 +206,14 @@ def scan_control_api_mixin(cls):
                 return
 
             if not self.proc:
-                self.send_error("BAD_PARAMS", "resolution")
+                self.send_error("BAD_PARAMS", info="resolution")
                 return
 
             if step:
                 self.current_step = step
 
-            logger.debug('  Do scan %d' % (self.current_step))
-
-            # ###################
-            # if self.current_step > 10:
-            #     self.current_step += 1
-            #     self.send_text('{"status": "chunk", "left": 0, "right": 0}')
-            #     self.send_binary(b'')
-            #     self.send_ok()
-            #     return
-            # ###################
-
             il, ir, io = self.task.scanimages()
+            self.task.forward()
             left_r, right_r = self.proc.feed(
                 io[1], il[1], ir[1], self.current_step,
                 -self.scan_settings.LLaserAdjustment,
@@ -240,7 +224,6 @@ def scan_control_api_mixin(cls):
             self.send_text('{"status": "chunk", "left": %d, "right": %d}' %
                            (len(left_r), len(right_r)))
             self.send_binary(b''.join(left_r + right_r))
-            self.task.forward()
             self.send_ok()
 
         def calibrate(self):
@@ -268,8 +251,6 @@ def scan_control_api_mixin(cls):
                        'RLaserAdjustment',
                        'MagnitudeThreshold']:
                 setattr(self.scan_settings, key, value)
-                self.proc = image_to_pc.image_to_pc(self.steps,
-                                                    self.scan_settings)
                 self.send_ok()
             else:
                 self.send_error('{} key not exist'.format(key))

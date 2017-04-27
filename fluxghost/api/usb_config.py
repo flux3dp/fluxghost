@@ -122,18 +122,18 @@ def usb_config_api_mixin(cls):
                     self.send_error("L_UNKNOWN_COMMAND")
 
             except ManagerException as e:
-                self.send_error(" ".join(e.err_symbol), info=str(e))
+                self.send_error(e.err_symbol, info=str(e))
                 logger.exception("UART request error")
                 if self.task:
                     self.task.close()
                     self.task = NoneTask()
 
             except ManagerError as e:
-                self.send_error(" ".join(e.args))
+                self.send_error(e.args)
 
             except Exception:
                 logger.exception("Unhandle Error")
-                self.send_error("L_UNKNOWN_ERROR")
+                self.send_traceback("L_UNKNOWN_ERROR")
 
         def on_binary_message(self, buf):
             pass

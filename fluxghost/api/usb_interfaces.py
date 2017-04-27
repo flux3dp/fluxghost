@@ -74,7 +74,7 @@ def usb_interfaces_api_mixin(cls):
 
         def open_device(self, addr):
             if g.USBDEVS.get(addr):
-                self.send_error(symbol=["RESOURCE_BUSY"], cmd="open")
+                self.send_error("RESOURCE_BUSY", cmd="open")
                 return
 
             for usbdev in USBProtocol.get_interfaces():
@@ -93,10 +93,14 @@ def usb_interfaces_api_mixin(cls):
                                      usbprotocol.endpoint_profile)
                         return
                     except FluxUSBError as e:
+<<<<<<< HEAD
                         logger.exception("USB open error")
                         self.send_error(symbol=e.symbol, cmd="open")
+=======
+                        self.send_error(e.symbol, cmd="open")
+>>>>>>> release/0.8.0
                         return
-            self.send_error(symbol=["NOT_FOUND"], cmd="open")
+            self.send_error("NOT_FOUND", cmd="open")
 
         def close_device(self, addr):
             usbprotocol = g.USBDEVS.get(addr)
@@ -105,6 +109,6 @@ def usb_interfaces_api_mixin(cls):
                 self.send_ok(devclose=addr, cmd="close")
                 logger.debug("USB address %x closed", addr)
             else:
-                self.send_error(symbol=["NOT_FOUND"], cmd="close")
+                self.send_error("NOT_FOUND", cmd="close")
 
     return H2HInterfacesApi
