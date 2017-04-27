@@ -38,13 +38,12 @@ def manager_mixin(cls):
             self.POOL_TIME = 1.5
 
         def on_connected(self):
-            import json
             payload = {"status": "connected",
                        "serial": self.manager.serial,
                        "version": str(self.manager.version),
                        "model": self.manager.model_id,
                        "name": self.manager.nickname}
-            self.send_text(json.dumps(payload))
+            self.send_json(payload)
 
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
