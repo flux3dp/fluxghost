@@ -33,7 +33,7 @@ class HttpServerBase(object):
         if address[1] == 0:
             from sys import stdout
             address = s.getsockname()
-            stdout.write("LISTEN ON %i\n" % address[1])
+            stdout.write('{"type": "ready", "port": %i}\n' % address[1])
             stdout.flush()
 
         from fluxghost import __version__ as ghost_version
