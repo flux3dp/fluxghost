@@ -66,14 +66,6 @@ def laser_bitmap_api_mixin(cls):
             self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
             self.fcode_metadata["BACKLASH"] = "N"
 
-            if len(self.images) == 1:
-                anchors = self.images[0].get_bound()
-                proj_anchor = ";".join(("%.1f,%.1f" % a for a in anchors))
-                proj_at = self.object_height + self.height_offset
-
-                self.fcode_metadata["PROJECT_ANCHOR"] = proj_anchor
-                self.fcode_metadata["PROJECT_AT"] = str(proj_at)
-
         def cmd_upload_bitmap(self, message):
             options = message.split()
             w, h = int(options[0]), int(options[1])
