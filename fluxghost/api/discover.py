@@ -103,7 +103,7 @@ def discover_api_mixin(cls):
             try:
                 payload = json.loads(message)
             except Exception as e:
-                self.send_error("BAD_PARAMS", info=repr(e))
+                self.traceback("BAD_PARAMS")
                 return
 
             cmd = payload.get("cmd")
