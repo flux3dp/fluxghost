@@ -80,7 +80,7 @@ def usb_interfaces_api_mixin(cls):
             for usbdev in USBProtocol.get_interfaces():
                 if usbdev.address == addr:
                     try:
-                        usbprotocol = USBProtocol(usbdev)
+                        usbprotocol = USBProtocol.connect(usbdev)
                         t = Thread(target=h2h_usb_daemon_thread,
                                    args=(usbprotocol, addr))
                         t.daemon = True
