@@ -733,7 +733,7 @@ def control_api_mixin(cls):
                 self.raw_sock.sock.send(message.encode() + b"\n")
 
         def laser_show_outline(self, object_height, *positions):
-            object_height = int(object_height) + 10
+            object_height = float(object_height) + 10
 
             def trace_to_command(trace):
                 fp = trace.pop(0)
