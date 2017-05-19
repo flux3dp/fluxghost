@@ -41,8 +41,9 @@ hiddenimports = ["serial",
                  "scipy.linalg.cython_lapack"]
 hiddenimports += collect_submodules("fluxclient")
 
+# this is not working, manually hotfix below
+# hiddenimports += collect_submodules("fluxghost")
 
-hiddenimports += collect_submodules("fluxghost")  # this is not working, manually hotfix below
 hiddenimports += ['fluxghost',
                   'fluxghost.http_server',
                   'fluxghost.http_handler',
@@ -57,11 +58,8 @@ hiddenimports += ['fluxghost',
                   'fluxghost.websocket',
                   'fluxghost.websocket.touch',
                   'fluxghost.websocket.base',
-                  'fluxghost.websocket.laser_bitmap_parser',
                   'fluxghost.websocket.ver',
                   'fluxghost.websocket.toolpath',
-                  'fluxghost.websocket.laser_svg_parser',
-                  'fluxghost.websocket.pen_svg_parser',
                   'fluxghost.websocket.control',
                   'fluxghost.websocket.discover',
                   'fluxghost.websocket.config',
@@ -78,8 +76,10 @@ hiddenimports += ['fluxghost',
 ]
 
 binaries = []
+
 if is_win:
   binaries.append( ('C:\\Windows\\System32\\libusb0.dll', '.') )
+
 
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
