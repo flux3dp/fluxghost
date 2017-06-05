@@ -1,4 +1,34 @@
 
+"""
+Commands
+
+`list`
+function: list available usb interfaces
+return:
+    {
+        "h2h":{<DEVICE_ADDR>: <DEVICE_STATUS>, <DEVICE_ADDR>: <DEVICE_STATUS>...,
+        "uart": [<UART_PORT>, ...]
+    }
+    <DEVICE_ADDR>: USB Address
+    <DEVICE_STATUS>: USB hardware status. If the usb address is opened, it will
+        return a object contains device basic informations otherwise it will
+        return false.
+    <UART_PORT>: Available uart interfaces
+errors: n/a
+
+`open <DEVICE_ADDR>`
+function: open h2h usb device
+return:
+    {
+        "devopen": <DEVICE_ADDR>,
+        "profile": <DEVICE_STATUS>
+    }
+errors:
+    TIMEOUT: device no response
+    UNAVAILABLE: device could not be used. Maybe occupied by other program.
+    UNKNOWN_ERROR: unhandle error during opening/io usb device.
+"""
+
 from threading import Thread
 from glob import glob
 import logging
