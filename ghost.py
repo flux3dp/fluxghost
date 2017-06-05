@@ -80,11 +80,12 @@ def main():
     parser.add_argument('--allow-foreign', dest='allow_foreign',
                         action='store_const', const=True, default=False,
                         help='Allow websocket connection from foreign')
+
     parser.add_argument("--slic3r", dest='slic3r', type=str,
-                        default='../Slic3r/slic3r.pl',
+                        default=os.environ.get("GHOST_SLIC3R"),
                         help="Set slic3r location")
     parser.add_argument("--cura", dest='cura', type=str,
-                        default='',
+                        default=os.environ.get("GHOST_CURA"),
                         help="Set cura location")
 
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
@@ -101,18 +102,12 @@ def main():
 
     setup_env(options)
 
-    if options.debug:
-        os.environ["flux_debug"] = "1"
-
     from fluxghost.http_server import HttpServer
 
     if options.test:
         from tests.main import main
         main()
         sys.exit(0)
-
-    if options.simulate:
-        os.environ["flux_simulate"] = "1"
 
     if options.slic3r:
         os.environ["slic3r"] = options.slic3r
