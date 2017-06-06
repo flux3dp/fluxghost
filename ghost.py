@@ -106,8 +106,7 @@ def main():
 
     if options.test:
         from tests.main import main
-        main()
-        sys.exit(0)
+        sys.exit(main())
 
     if options.slic3r:
         os.environ["slic3r"] = options.slic3r
