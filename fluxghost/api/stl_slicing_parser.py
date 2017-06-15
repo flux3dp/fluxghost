@@ -13,22 +13,11 @@ StlSlicerCura = None
 
 
 def get_default_cura():
-    if 'cura' in os.environ:
-        engine_path = os.environ["cura"]
-    else:
-        p = check_platform()
-        if p[0] == 'OSX':
-            engine_path = "/Applications/Cura/Cura.app/Contents/Resources/CuraEngine"
-        elif p[0] == "Linux":
-            engine_path = "/usr/share/cura/CuraEngine"
-        elif p[0] == "Windows":
-            if p[1] == '64bit':
-                engine_path = "C:\Program Files (x86)\Cura_15.04.5\CuraEngine.exe"
-            elif p[1] == '32bit':
-                engine_path = "C:\Program Files\Cura_15.04.5\CuraEngine.exe"
-        else:
-            raise RuntimeError("Unknow Platform: {}".format(p))
-    return engine_path
+    return os.environ["cura"]
+
+
+def get_default_cura2():
+    return os.environ["cura2"]
 
 
 def stl_slicing_parser_api_mixin(cls):
@@ -262,7 +251,7 @@ def stl_slicing_parser_api_mixin(cls):
                         self.send_text(cropped_path)
                         cutting_index = i + 1
                 i += 1
-            
+
             if layers > 0:
                 cropped_path = '[%s]' % ( self.path_bytes[cutting_index:len_of_path-1].decode('ascii') );
                 self.send_text(cropped_path)
@@ -315,7 +304,7 @@ def stl_slicing_parser_api_mixin(cls):
                 self.m_stl_slicer = StlSlicerCura(engine_path).from_other(self.m_stl_slicer)
             elif engine == 'cura2':
                 if engine_path == 'default':
-                    engine_path = get_default_cura()
+                    engine_path = get_default_cura2()
                 self.m_stl_slicer = StlSlicerCura(engine_path, 2).from_other(self.m_stl_slicer)
             else:
                 return False

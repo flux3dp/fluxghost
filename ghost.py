@@ -87,6 +87,9 @@ def main():
     parser.add_argument("--cura", dest='cura', type=str,
                         default=os.environ.get("GHOST_CURA"),
                         help="Set cura location")
+    parser.add_argument("--cura2", dest='cura2', type=str,
+                        default=os.environ.get("GHOST_CURA2"),
+                        help="Set cura 2 location")
 
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
                         help="Use sentry logger")
@@ -108,11 +111,9 @@ def main():
         from tests.main import main
         sys.exit(main())
 
-    if options.slic3r:
-        os.environ["slic3r"] = options.slic3r
-
-    if options.cura:
-        os.environ["cura"] = options.cura
+    os.environ["slic3r"] = options.slic3r
+    os.environ["cura"] = options.cura
+    os.environ["cura2"] = options.cura2
 
     if not options.assets:
         options.assets = os.path.join(
