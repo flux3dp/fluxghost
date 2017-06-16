@@ -111,9 +111,12 @@ def main():
         from tests.main import main
         sys.exit(main())
 
-    os.environ["slic3r"] = options.slic3r
-    os.environ["cura"] = options.cura
-    os.environ["cura2"] = options.cura2
+    if options.slic3r:
+        os.environ["slic3r"] = options.slic3r
+    if options.cura:
+        os.environ["cura"] = options.cura
+    if options.cura2:
+        os.environ["cura2"] = options.cura2
 
     if not options.assets:
         options.assets = os.path.join(
