@@ -58,7 +58,7 @@ class HttpHandler(BaseHTTPRequestHandler):
     def serve_websocket(self, ws_class, kwargs):
         if not self.server.allow_foreign and "Origin" in self.headers:
             url = urlparse(self.headers["Origin"])
-            if url.scheme == "chrome-extension":
+            if url.scheme in ("chrome-extension", "file"):
                 pass
             elif url.hostname not in ('localhost', '127.0.0.1'):
                 logger.error("Bad websocket request from %s",

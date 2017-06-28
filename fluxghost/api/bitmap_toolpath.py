@@ -3,7 +3,7 @@ from time import time
 import logging
 
 from fluxclient.toolpath.bitmap_factory import BitmapImage, BitmapFactory
-from fluxclient.toolpath.laser import bitmap2laser
+from fluxclient.toolpath.laser import bitmap2laser, laserCalibration
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -45,6 +45,7 @@ def bitmap_base_api_mixin(cls):
 def laser_bitmap_api_mixin(cls):
     class LaserBitmapApi(OnTextMessageMixin, bitmap_base_api_mixin(cls)):
         one_way = True
+        calibration = False
         object_height = 0.0
         height_offset = 0.0
         engraving_speed = 0
@@ -65,14 +66,6 @@ def laser_bitmap_api_mixin(cls):
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
             self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
             self.fcode_metadata["BACKLASH"] = "N"
-
-            if len(self.images) == 1:
-                anchors = self.images[0].get_bound()
-                proj_anchor = ";".join(("%.1f,%.1f" % a for a in anchors))
-                proj_at = self.object_height + self.height_offset
-
-                self.fcode_metadata["PROJECT_ANCHOR"] = proj_anchor
-                self.fcode_metadata["PROJECT_AT"] = str(proj_at)
 
         def cmd_upload_bitmap(self, message):
             options = message.split()
@@ -105,6 +98,8 @@ def laser_bitmap_api_mixin(cls):
                 self.shading = int(value) == 1
             elif key == 'one_way':
                 self.one_way = int(value) == 1
+            elif key == 'calibration':
+                self.calibration = int(value) == 1
             else:
                 raise KeyError('Bad key: %r' % key)
             self.send_ok()
@@ -137,13 +132,16 @@ def laser_bitmap_api_mixin(cls):
             self.last_report = 0
 
             logger.info("Processing toolpath")
-            bitmap2laser(writer, factory,
-                         z_height=self.object_height + self.height_offset,
-                         one_way=self.one_way, vertical=False,
-                         shading=self.shading,
-                         engraving_speed=self.engraving_speed,
-                         max_engraving_strength=self.max_engraving_strength,
-                         progress_callback=bitmap2laser_progress)
+
+            func = laserCalibration if self.calibration else bitmap2laser
+
+            func(writer, factory,
+                 z_height=self.object_height + self.height_offset,
+                 one_way=self.one_way, vertical=False,
+                 shading=self.shading,
+                 engraving_speed=self.engraving_speed,
+                 max_engraving_strength=self.max_engraving_strength,
+                 progress_callback=bitmap2laser_progress)
 
             writer.terminated()
             output_binary = writer.get_buffer()

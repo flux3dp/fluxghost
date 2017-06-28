@@ -152,7 +152,7 @@ def laser_svg_api_mixin(cls):
                     self.working_speed = float(value) * 60  # mm/s -> mm/min
                 elif key == 'power':
                     self.max_engraving_strength = min(1, float(value))
-                elif key in ('shading', 'one_way', 'focus_by_color'):
+                elif key in ('shading', 'one_way', 'calibration'):
                     pass
                 else:
                     raise KeyError('Bad key: %r' % key)

@@ -9,6 +9,57 @@ import os
 from fluxghost.launcher import setup_env, show_version
 
 
+def trace_pid(pid):
+    def _nt():
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            DWORD = ctypes.c_ulong  # noqa
+            DWORD_PTR = ctypes.POINTER(DWORD)  # noqa
+            STILL_ALIVE = 259  # noqa
+
+            h_process = kernel32.OpenProcess(1040, 0, pid)
+            if not h_process:
+                raise RuntimeError("Trace pid error, pid not exist or access deny.")
+
+            exitcode = DWORD()
+
+            while True:
+                ret = kernel32.GetExitCodeProcess(h_process, ctypes.byref(exitcode))
+                if not ret:
+                    raise RuntimeError("Trace pid error, errno=%s" % kernel32.GetLastError())
+                elif exitcode.value == 259:
+                    sleep(0.8)
+                else:
+                    break
+        except Exception as e:
+            sys.stderr.write("%s\n" % e)
+        finally:
+            os.kill(os.getpid(), SIGTERM)
+
+    def _posix():
+        try:
+            while True:
+                os.kill(pid, 0)
+                sleep(0.8)
+        except:
+            pass
+        finally:
+            os.kill(os.getpid(), SIGTERM)
+
+    from threading import Thread
+    if os.name == "posix":
+        fn = _posix
+    elif os.name == "nt":
+        fn = _nt
+    else:
+        raise RuntimeError("Unknown os.name %r" % os.name)
+
+    t = Thread(target=fn)
+    t.daemon = True
+    t.start()
+
+
 def main():
     parser = argparse.ArgumentParser(description='FLUX Ghost')
     parser.add_argument("--assets", dest='assets', type=str,
@@ -29,12 +80,16 @@ def main():
     parser.add_argument('--allow-foreign', dest='allow_foreign',
                         action='store_const', const=True, default=False,
                         help='Allow websocket connection from foreign')
+
     parser.add_argument("--slic3r", dest='slic3r', type=str,
-                        default='../Slic3r/slic3r.pl',
+                        default=os.environ.get("GHOST_SLIC3R"),
                         help="Set slic3r location")
     parser.add_argument("--cura", dest='cura', type=str,
-                        default='',
+                        default=os.environ.get("GHOST_CURA"),
                         help="Set cura location")
+    parser.add_argument("--cura2", dest='cura2', type=str,
+                        default=os.environ.get("GHOST_CURA2"),
+                        help="Set cura 2 location")
 
     parser.add_argument("--sentry", dest='sentry', type=str, default=None,
                         help="Use sentry logger")
@@ -50,24 +105,18 @@ def main():
 
     setup_env(options)
 
-    if options.debug:
-        os.environ["flux_debug"] = "1"
-
     from fluxghost.http_server import HttpServer
 
     if options.test:
         from tests.main import main
-        main()
-        sys.exit(0)
-
-    if options.simulate:
-        os.environ["flux_simulate"] = "1"
+        sys.exit(main())
 
     if options.slic3r:
         os.environ["slic3r"] = options.slic3r
-
     if options.cura:
         os.environ["cura"] = options.cura
+    if options.cura2:
+        os.environ["cura2"] = options.cura2
 
     if not options.assets:
         options.assets = os.path.join(
@@ -82,19 +131,7 @@ def main():
                         debug=options.debug)
 
     if options.trace_pid:
-        def r():
-            try:
-                while True:
-                    os.kill(options.trace_pid, 0)
-                    sleep(0.8)
-            except:
-                pass
-            finally:
-                os.kill(os.getpid(), SIGTERM)
-        from threading import Thread
-        t = Thread(target=r)
-        t.daemon = True
-        t.start()
+        trace_pid(options.trace_pid)
 
     server.serve_forever()
 

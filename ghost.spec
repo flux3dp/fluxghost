@@ -40,9 +40,7 @@ hiddenimports = ["serial",
                  "scipy.linalg.cython_blas",
                  "scipy.linalg.cython_lapack"]
 hiddenimports += collect_submodules("fluxclient")
-
-
-hiddenimports += collect_submodules("fluxghost")  # this is not working, manually hotfix below
+hiddenimports += collect_submodules("pkg_resources")
 hiddenimports += ['fluxghost',
                   'fluxghost.http_server',
                   'fluxghost.http_handler',
@@ -57,11 +55,8 @@ hiddenimports += ['fluxghost',
                   'fluxghost.websocket',
                   'fluxghost.websocket.touch',
                   'fluxghost.websocket.base',
-                  'fluxghost.websocket.laser_bitmap_parser',
                   'fluxghost.websocket.ver',
                   'fluxghost.websocket.toolpath',
-                  'fluxghost.websocket.laser_svg_parser',
-                  'fluxghost.websocket.pen_svg_parser',
                   'fluxghost.websocket.control',
                   'fluxghost.websocket.discover',
                   'fluxghost.websocket.config',
@@ -78,14 +73,19 @@ hiddenimports += ['fluxghost',
 ]
 
 binaries = []
+excludes = ["matplotlib", "pydoc", "IPython"]
+
 if is_win:
   binaries.append( ('C:\\Windows\\System32\\libusb0.dll', '.') )
+else:
+  excludes.append("win32com")
+
 
 a = Analysis(['ghost.py'],
              hiddenimports=hiddenimports,
+             excludes=excludes,
              hookspath=None,
              runtime_hooks=None,
-             excludes=None,
              cipher=block_cipher,
              binaries=binaries)
 a.datas += fetch_datas()
