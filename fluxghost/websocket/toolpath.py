@@ -1,5 +1,6 @@
 
-from fluxghost.api.bitmap_toolpath import laser_bitmap_api_mixin
+from fluxghost.api.bitmap_toolpath import (laser_bitmap_api_mixin,
+                                           drawing_bitmap_api_mixin)
 from fluxghost.api.svg_toolpath import (laser_svg_api_mixin,
                                         drawing_svg_api_mixin,
                                         vinyl_svg_api_mixin)
@@ -19,4 +20,8 @@ class WebsocketDrawingSvg(drawing_svg_api_mixin(WebSocketBase)):
 
 
 class WebsocketVinylSvg(vinyl_svg_api_mixin(WebSocketBase)):
+    pass
+
+
+class WebsocketDrawingBitmap(drawing_bitmap_api_mixin(WebSocketBase)):
     pass

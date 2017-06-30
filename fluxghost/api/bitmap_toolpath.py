@@ -4,6 +4,7 @@ import logging
 
 from fluxclient.toolpath.bitmap_factory import BitmapImage, BitmapFactory
 from fluxclient.toolpath.laser import bitmap2laser, laserCalibration
+from fluxclient.toolpath.penholder import bmp2drawing
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -154,3 +155,104 @@ def laser_bitmap_api_mixin(cls):
             self.send_binary(output_binary)
             logger.info("Laser bitmap processed")
     return LaserBitmapApi
+
+
+def drawing_bitmap_api_mixin(cls):
+    class DrawingBitmapApi(OnTextMessageMixin, bitmap_base_api_mixin(cls)):
+        drawing_range = (0.0, 1.0)
+        travel_speed = 5000
+        travel_zheight = 2.0
+        pixel_per_mm = 10
+
+        def __init__(self, *args):
+            super().__init__(*args)
+            self.cmd_reset()
+            self.cmd_mapping = {
+                'upload': [self.cmd_upload_bitmap],
+                'go': [self.cmd_process],
+                'set_params': [self.cmd_set_params],
+                'clear_imgs': [self.cmd_reset],
+                'meta_option': [self.cmd_set_fcode_metadata]
+            }
+
+        def _process_fcode_metadata(self):
+            self.fcode_metadata["BACKLASH"] = "N"
+
+        def cmd_upload_bitmap(self, message):
+            options = message.split()
+            w, h = int(options[0]), int(options[1])
+            x1, y1, x2, y2 = (float(o) for o in options[2:6])
+            rotation = float(options[6])
+            thres = int(options[7])
+            image_size = w * h
+            self.begin_upload_image(image_size, x1, y1, x2, y2, w, h,
+                                    rotation, thres)
+
+        def cmd_reset(self, *args):
+            logger.info('Reset')
+            self.fcode_metadata = {}
+            self.images = []
+            self.send_ok()
+
+        def cmd_set_params(self, params):
+            logger.info('set params %r', params)
+            key, value = params.split()
+            if key == 'drawing_range':
+                min_val, max_val = value.split(" ")
+                self.drawing_range = (float(min_val), float(max_val))
+            elif key == 'travel_speed':
+                self.travel_speed = float(value) * 60  # mm/s -> mm/min
+            elif key == 'travel_zheight':
+                self.travel_zheight = float(value)
+            elif key == 'pixel_per_mm':
+                self.pixel_per_mm = float(value)
+            else:
+                raise KeyError('Bad key: %r' % key)
+            self.send_ok()
+
+        def cmd_process(self, *args):
+            logger.info('Process drawing bitmap')
+            self.send_progress('Initializing', 0.03)
+
+            factory = BitmapFactory(pixel_per_mm=self.pixel_per_mm)
+            self.send_progress('Initializing', 0.10)
+
+            for i, bitmap_image in enumerate(self.images, start=1):
+                logger.info("Preprocessing image %s", bitmap_image)
+                self.send_progress('Processing image',
+                                   (i / len(self.images) * 0.3 + 0.10))
+                factory.add_image(bitmap_image)
+
+            if '-g' in args:
+                writer = GCodeMemoryWriter()
+            else:
+                self._process_fcode_metadata()
+                preview = factory.generate_preview(True)
+                writer = FCodeV1MemoryWriter("N/A", self.fcode_metadata,
+                                             (preview, ))
+
+            def bitmap2laser_progress(prog):
+                if time() - self.last_report > 0.15:
+                    self.send_progress('Generating FCode', prog * 0.59 + 0.40)
+                    self.last_report = time()
+            self.last_report = 0
+
+            logger.info("Processing toolpath")
+
+            bmp2drawing(writer, factory,
+                        travel_speed=self.travel_speed,
+                        travel_zheight=self.travel_zheight,
+                        drawing_zheight=self.drawing_range,
+                        progress_callback=bitmap2laser_progress)
+
+            writer.terminated()
+            output_binary = writer.get_buffer()
+            time_need = 0 if '-g' in args else \
+                float(writer.get_metadata().get(b"TIME_COST", 0))
+
+            self.send_progress('finishing', 1.0)
+            self.send_json(status="complete", length=len(output_binary),
+                           time=time_need)
+            self.send_binary(output_binary)
+            logger.info("Drawing bitmap processed")
+    return DrawingBitmapApi
