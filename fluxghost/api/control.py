@@ -220,7 +220,7 @@ def control_api_mixin(cls):
                         if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
                             self.send_fatal("TIMEOUT", repr(e.args))
                             return
-                self.send_traceback("L_UNKNOWN_ERROR")
+                self.send_traceback("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except socket.error as e:
                 if e.args[0] == EPIPE:
