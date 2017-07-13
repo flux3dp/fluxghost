@@ -1,19 +1,139 @@
 
 from operator import itemgetter
+from time import sleep
 import numpy as np
+import threading
+import itertools
 import logging
+import socket
+import queue
 import math
 import json
 
 logger = logging.getLogger("API.LASER_CONTROL")
 
-
 class LaserShowOutline(object):
+    def __init__(self, object_height, socket, *positions):
+        self.object_height = float(object_height) + 10
+        self.positions = positions
+        self.socket = socket
+        self.running = True
+        self.sendQueue = queue.Queue()
+        self.recvQueue = queue.Queue()
+        self.recvThread = threading.Thread(target=self.socket_recv_master)
+        self.recvThread.start()
+        threading.Thread(target=self.socket_send_master).start()
+        threading.Thread(target=self.ping_toolhead).start()
+        self.start_command = ['G28',
+                         'G90',
+                         'firstPoint',
+                         ]
+        self.end_command = ['G28']
+
+    def gen_moveTraces(self):
+        moveTraces = []
+        for frame in self.positions:
+            moveTrace = CalculateMoveTrace().get_move_trace(frame)
+            moveTrace.insert(1, 'X2O015')
+            moveTrace.append('X2O000')
+            moveTraces.extend(moveTrace)
+        logger.info('moveTraces :{}'.format(moveTraces))
+        return moveTraces
+
+    def trace_to_command(self, trace):
+        firstPoint = trace.pop(0)
+        index = self.start_command.index('firstPoint')
+        self.start_command[index] = 'G0 X{} Y{} Z{} F6000'.format(
+            firstPoint[0], firstPoint[1], self.object_height)
+
+        for cmd in itertools.chain(self.start_command, trace, self.end_command):
+            if isinstance(cmd, tuple):
+                cmd = 'G1 X{} Y{} F3000'.format(cmd[0], cmd[1])
+            yield cmd
+
+    def recv_endline(self):
+        message = []
+        while self.running:
+            recv = self.socket.recv(1)
+            message.append(recv)
+            if recv == b'\n':
+                break
+        return b''.join(message)
+
+    def socket_recv_master(self):
+        while self.running:
+            try:
+                recv = self.recv_endline()
+                if recv == b'ok\n':
+                    self.recvQueue.put(recv)
+            except socket.timeout:
+                # Prevent blocking socket
+                pass
+
+    def queue_is_empty(self, Queue):
+        result = True if Queue.qsize() is 0 else False
+        return result
+
+    def is_ping(self, message):
+        result = True if message == '1 PING *33' else False
+        return result
+
+    def socket_send_master(self):
+        while self.running:
+            if self.queue_is_empty(self.sendQueue):
+                continue
+            message = self.sendQueue.get()
+            self.socket.send(message.encode() + b"\n")
+            if self.is_ping(message):
+                continue
+            logger.info('sent : {}'.format(message))
+
+    def ping_toolhead(self):
+        while self.running:
+            self.sendQueue.put('1 PING *33')
+            sleep(1)
+
+    def stop_running(self):
+        self.running = False
+        while self.recvThread.isAlive():
+            sleep(0.1)
+
+    def has_message(self, queue):
+        timeoutCount = 0
+        while self.queue_is_empty(queue):
+            timeoutCount += 1
+            sleep(0.1)
+            if timeoutCount > 20:
+                return False
+        return True
+
+    def send_command(self, command):
+        for i in range(3):
+            self.sendQueue.put(command)
+            if self.has_message(self.recvQueue):
+                return True
+        return False
+
+    def start(self):
+        self.moveTraces = self.gen_moveTraces()
+
+        for command in self.trace_to_command(self.moveTraces):
+            if self.send_command(command):
+                recv = self.recvQueue.get()
+                logger.info('recv : {}'.format(recv))
+            else :
+                self.stop_running()
+                return False
+
+        self.stop_running()
+        return True
+
+class CalculateMoveTrace(object):
     def __init__(self):
         self.nextPoint = True
         self.needArc = False
         self.radius = 85
-        self.arcStep = 5 * math.pi / 180
+        self.arcStep = 10 * math.pi / 180
         self.moveTrace = []
 
     def try_itsections(self, intersetcions):
