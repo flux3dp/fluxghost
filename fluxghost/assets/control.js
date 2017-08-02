@@ -20,7 +20,7 @@
             }
         }
 
-        this.getBlob = function(blob) {
+        this.getBlob = function() {
             if(buffered != size) {
                 console.log("Bad data length, buffered=" + buffered + ", size=" + size);
                 throw "Broken stream";
