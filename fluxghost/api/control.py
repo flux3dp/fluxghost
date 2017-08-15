@@ -339,6 +339,7 @@ def control_api_mixin(cls):
             self.send_ok(source=source, target=target)
 
         def upload_file(self, mimetype, ssize, upload_to="#"):
+            print('upload_file', minitype, ssize, upload_to)
             if upload_to == "#":
                 pass
             elif not upload_to.startswith("/"):
