@@ -2,6 +2,7 @@
 from errno import EPIPE
 from time import time, sleep
 from io import BytesIO
+import itertools
 import logging
 import socket
 import shlex
@@ -12,6 +13,7 @@ from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
 
 from .control_base import control_base_mixin
+from .laser_control import LaserShowOutline
 
 logger = logging.getLogger("API.CONTROL")
 
@@ -137,7 +139,11 @@ def control_api_mixin(cls):
                     "quit": self.task_quit,
                 },
 
-                "fetch_log": self.fetch_log
+                "laser": {
+                    "show_outline": self.laser_show_outline
+                },
+
+                "fetch_log": self.fetch_log,
             }
 
         @property
@@ -188,20 +194,20 @@ def control_api_mixin(cls):
             except RobotError as e:
                 logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
                              e.error_symbol)
-                self.send_error(e.error_symbol[0], symbol=e.error_symbol)
+                self.send_error(e.error_symbol)
 
             except RobotSessionError as e:
                 logger.debug("RobotSessionError%s [error_symbol=%s]",
                              repr(e.args), e.error_symbol)
-                self.send_fatal(*e.error_symbol)
+                self.send_fatal(e.error_symbol)
 
             except FluxUSBError as e:
                 logger.debug("USB Error%s [error_symbol=%s]",
                              repr(e.args), e.symbol)
-                self.send_fatal(*e.symbol)
+                self.send_fatal(e.symbol)
             except RuntimeError as e:
                 logger.debug("RuntimeError Error%s", repr(e.args))
-                self.send_error(*e.args)
+                self.send_error(e.args)
 
             except (TimeoutError, ConnectionResetError,  # noqa
                     socket.timeout, ) as e:
@@ -214,7 +220,7 @@ def control_api_mixin(cls):
                         if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
                             self.send_fatal("TIMEOUT", repr(e.args))
                             return
-                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
+                self.send_traceback("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except socket.error as e:
                 if e.args[0] == EPIPE:
@@ -224,8 +230,8 @@ def control_api_mixin(cls):
                     self.send_fatal("L_UNKNOWN_ERROR", repr(e.__class__))
 
             except Exception as e:
-                logger.exception("Unknow error while process text")
-                self.send_error("L_UNKNOWN_ERROR", repr(e.__class__))
+                logger.exception("Unknow error while process command")
+                self.send_traceback("L_UNKNOWN_ERROR", repr(e.__class__))
 
         def kick(self):
             self.robot.kick()
@@ -277,7 +283,7 @@ def control_api_mixin(cls):
                 self.robot.mkdir(path)
                 self.send_json(status="ok", path=path)
             else:
-                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
+                self.send_error("NOT_SUPPORT")
 
         def rmdir(self, file):
             path = file if file.startswith("/") else "/" + file
@@ -285,7 +291,7 @@ def control_api_mixin(cls):
                 self.robot.rmdir(path)
                 self.send_ok(path=path)
             else:
-                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
+                self.send_error("NOT_SUPPORT")
 
         def rmfile(self, file):
             path = file if file.startswith("/") else "/" + file
@@ -293,7 +299,7 @@ def control_api_mixin(cls):
                 self.robot.rmfile(path)
                 self.send_json(status="ok", path=path)
             else:
-                self.send_error("NOT_SUPPORT", symbol=["NOT_SUPPORT"])
+                self.send_error("NOT_SUPPORT")
 
         def download(self, file):
             def report(left, size):
@@ -384,7 +390,7 @@ def control_api_mixin(cls):
                 except RobotError as e:
                     logger.debug("RobotError%s [error_symbol=%s]",
                                  repr(e.args), e.error_symbol)
-                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
+                    self.send_error(e.error_symbol)
             self.simple_binary_receiver(size, on_recived)
 
         def update_mbfw(self, mimetype, ssize):
@@ -469,7 +475,7 @@ def control_api_mixin(cls):
                     self.task.update_hbfw(swap, size, nav_cb)
                     self.send_ok()
                 except RobotError as e:
-                    self.send_error(e.error_symbol[0], symbol=e.error_symbol)
+                    self.send_error(symbol=e.error_symbol)
                 except Exception as e:
                     logger.exception("ERR")
                     self.send_fatal("L_UNKNOWN_ERROR", e.args)
@@ -611,7 +617,7 @@ def control_api_mixin(cls):
                 else:
                     sleep(0.2)
 
-            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
+            self.send_error("TIMEOUT")
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
@@ -646,7 +652,7 @@ def control_api_mixin(cls):
                 else:
                     sleep(0.2)
 
-            self.send_error("TIMEOUT", symbol=["TIMEOUT"])
+            self.send_error("TIMEOUT")
 
         def scan_oneshot(self):
             images = self.task.oneshot()
@@ -725,6 +731,50 @@ def control_api_mixin(cls):
                 self.send_text('{"status": "ok", "task": ""}')
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
+
+        def laser_show_outline(self, object_height, *positions):
+            object_height = float(object_height) + 10
+
+            def trace_to_command(trace):
+                fp = trace.pop(0)
+                idx = start_command.index('firstPoint')
+                start_command[idx] = 'G0 X{} Y{} Z{} F6000'.format(
+                    fp[0], fp[1], object_height)
+
+                for cmd in itertools.chain(start_command, trace, end_command):
+                    if isinstance(cmd, tuple):
+                        cmd = 'G1 X{} Y{} F3000'.format(cmd[0], cmd[1])
+                    yield cmd
+
+            start_command = ['G28',
+                             'G90',
+                             'firstPoint',
+                             '1 DEBUG',
+                             '1 PING *33',
+                             ]
+            end_command = ['G28']
+
+            laser = LaserShowOutline()
+            moveTraces = []
+            for frame in positions:
+                moveTrace = laser.get_move_trace(frame)
+                moveTrace.insert(1, 'X2O015')
+                moveTrace.append('X2O000')
+                moveTraces.extend(moveTrace)
+            logger.debug('moveTraces :{}'.format(moveTraces))
+
+            # into raw mode then send movetrace via socket.
+            self.task = self.robot.raw()
+            self.raw_sock = RawSock(self.task.sock, self)
+            self.rlist.append(self.raw_sock)
+
+            for command in trace_to_command(moveTraces):
+                self.on_raw_message(command)
+                logger.debug('{} :{}'.format(command,
+                                             self.raw_sock.sock.recv(128)))
+
+            self.on_raw_message('quit')
+            self.send_ok()
 
     class DirtyLayer(ControlApi):
         __last_command = None

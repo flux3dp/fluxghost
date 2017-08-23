@@ -86,7 +86,7 @@ def discover_api_mixin(cls):
                     pass
                 else:
                     rmlist.append(addr)
-                    self.build_dead_response("h2h", uuid=uuid)
+                    self.send_text(self.build_dead_response("h2h", uuid=uuid))
             for addr in rmlist:
                 self.usb_alive_addr.pop(addr)
 
@@ -103,7 +103,7 @@ def discover_api_mixin(cls):
             try:
                 payload = json.loads(message)
             except Exception as e:
-                self.send_error("BAD_PARAMS", info=repr(e))
+                self.traceback("BAD_PARAMS")
                 return
 
             cmd = payload.get("cmd")

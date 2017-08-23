@@ -116,23 +116,18 @@ def upnp_api_mixin(cls):
                 self.upnp_task = UpnpTask.from_uuid(**valid_params)
                 if self.upnp_task.authorized:
                     self.send_ok()
-                    print('rsa success')
                 elif self.password:  # rsa connection fail
                     try:
                         self.upnp_task.authorize_with_password(self.password)
                         if self.upnp_task.authorized:
                             self.send_ok()
-                            print('pass success')
                     except:
                         self.send_error('UPNP_PASSWORD_FAIL')
-                        print('pass fail')
                 else:
-                    self.send_error('UPNP_CONNECTION_FAIL')
-                    print('rsa fail')
+                    self.send_error('UPNP_PASSWORD_FAIL')
 
             else:
                 self.send_fatal('API_FAIL')
-                print('valid_params', valid_params)
 
         @check_task
         def scan_wifi(self, params):

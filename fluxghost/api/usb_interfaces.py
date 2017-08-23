@@ -1,4 +1,34 @@
 
+"""
+Commands
+
+`list`
+function: list available usb interfaces
+return:
+    {
+        "h2h":{<DEVICE_ADDR>: <DEVICE_STATUS>, <DEVICE_ADDR>: <DEVICE_STATUS>...,
+        "uart": [<UART_PORT>, ...]
+    }
+    <DEVICE_ADDR>: USB Address
+    <DEVICE_STATUS>: USB hardware status. If the usb address is opened, it will
+        return a object contains device basic informations otherwise it will
+        return false.
+    <UART_PORT>: Available uart interfaces
+errors: n/a
+
+`open <DEVICE_ADDR>`
+function: open h2h usb device
+return:
+    {
+        "devopen": <DEVICE_ADDR>,
+        "profile": <DEVICE_STATUS>
+    }
+errors:
+    TIMEOUT: device no response
+    UNAVAILABLE: device could not be used. Maybe occupied by other program.
+    UNKNOWN_ERROR: unhandle error during opening/io usb device.
+"""
+
 from threading import Thread
 from glob import glob
 import logging
@@ -74,13 +104,13 @@ def usb_interfaces_api_mixin(cls):
 
         def open_device(self, addr):
             if g.USBDEVS.get(addr):
-                self.send_error(symbol=["RESOURCE_BUSY"], cmd="open")
+                self.send_error("RESOURCE_BUSY", cmd="open")
                 return
 
             for usbdev in USBProtocol.get_interfaces():
                 if usbdev.address == addr:
                     try:
-                        usbprotocol = USBProtocol(usbdev)
+                        usbprotocol = USBProtocol.connect(usbdev)
                         t = Thread(target=h2h_usb_daemon_thread,
                                    args=(usbprotocol, addr))
                         t.daemon = True
@@ -93,9 +123,9 @@ def usb_interfaces_api_mixin(cls):
                                      usbprotocol.endpoint_profile)
                         return
                     except FluxUSBError as e:
-                        self.send_error(symbol=e.symbol, cmd="open")
+                        self.send_error(e.symbol, cmd="open")
                         return
-            self.send_error(symbol=["NOT_FOUND"], cmd="open")
+            self.send_error("NOT_FOUND", cmd="open")
 
         def close_device(self, addr):
             usbprotocol = g.USBDEVS.get(addr)
@@ -104,6 +134,6 @@ def usb_interfaces_api_mixin(cls):
                 self.send_ok(devclose=addr, cmd="close")
                 logger.debug("USB address %x closed", addr)
             else:
-                self.send_error(symbol=["NOT_FOUND"], cmd="close")
+                self.send_error("NOT_FOUND", cmd="close")
 
     return H2HInterfacesApi
