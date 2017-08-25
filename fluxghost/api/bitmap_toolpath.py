@@ -27,7 +27,6 @@ def bitmap_base_api_mixin(cls):
                             "rotation: %s, thres: %s)", size, point1, point2,
                             rotation, thres)
 
-            print('begin_upload_image', self)
             helper = BinaryUploadHelper(
                 length, complete, (width, height), (x1, y1), (x2, y2),
                 rotation, thres)
