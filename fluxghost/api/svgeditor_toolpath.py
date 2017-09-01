@@ -44,7 +44,6 @@ def svg_base_api_mixin(cls):
             factory = SvgeditorFactory()
             self.send_progress('Initializing', 0.03)
 
-            print('self.svgs', self.svgs)
             for i, name in enumerate(names):
                 svg_image = self.svgs.get(name, None)
                 if svg_image is None:
@@ -81,10 +80,11 @@ def svg_base_api_mixin(cls):
                                 rotation, preview_bitmap_size):
                 svg_image = self.svgs.get(name, None)
                 if svg_image:
-                    svg_image.set_svg(buf[:-preview_bitmap_size])
-                    svg_image.set_preview(preview_size,
-                                          buf[-preview_bitmap_size:])
-                    svg_image.set_image_coordinate(point1, point2, rotation)
+                    pass
+                    #svg_image.set_svg(buf[:-preview_bitmap_size])
+                    #svg_image.set_preview(preview_size,
+                    #                      buf[-preview_bitmap_size:])
+                    #svg_image.set_image_coordinate(point1, point2, rotation)
                 else:
                     logger.error("Can not find SVG name %r", name)
                 self.send_ok()
@@ -129,18 +129,14 @@ def svg_base_api_mixin(cls):
 
 def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
-        max_engraving_strength = 1.0
-
         def __init__(self, *args):
+            self.max_engraving_strength = 1.0
             super().__init__(*args)
             self.svgs = {}
             self.cmd_mapping = {
-                'upload': [self.cmd_upload_svg],
                 'svgeditor_upload': [self.cmd_upload_svg_and_preview],
-                'get': [self.cmd_fetch_svg],
                 'go': [self.cmd_process],
                 'set_params': [self.cmd_set_params],
-                'meta_option': [self.cmd_set_fcode_metadata]
             }
 
         def cmd_set_params(self, params):
@@ -157,27 +153,6 @@ def laser_svgeditor_api_mixin(cls):
                     raise KeyError('Bad key: %r' % key)
             self.send_ok()
 
-    #    def cmd_upload_svg(self, name, file_length):
-    #        def upload_callback(buf, name):
-    #            try:
-    #                print('in')
-    #                svgeditor_image = SvgeditorImage(buf)
-    #                print('svgeditor_image', svgeditor_image)
-    #            except Exception:
-    #                logger.exception("Load SVG Error")
-    #                self.send_error("SVG_BROKEN")
-    #                return
-    #            for error in svgeditor_image.errors:
-    #                self.send_warning(error)
-    #            self.svgs[name] = svgeditor_image
-    #            self.send_ok()
-#
-    #        #name, file_length = message.split()
-    #        helper = BinaryUploadHelper(
-    #            int(file_length), upload_callback, name)
-    #        self.set_binary_helper(helper)
-    #        self.send_json(status="continue")
-
         def cmd_upload_svg_and_preview(self, params):
             def gen_svgs_database(buf, name):
                 try:
@@ -186,42 +161,18 @@ def laser_svgeditor_api_mixin(cls):
                     logger.exception("Load SVG Error")
                     self.send_error("SVG_BROKEN")
                     return
-                #for error in svgeditor_image.errors:
-                #    self.send_warning(error)
-                #self.svgs[name] = svgeditor_image
                 self.svgs = svgeditor_image
 
-            #def upload_callback(buf, name, preview_size, point1, point2,
-            #                    rotation, preview_bitmap_size):
-            def upload_callback(buf, name, preview_size, point1, point2,
-                                rotation):
+            def upload_callback(buf, name):
                 gen_svgs_database(buf, name)
-                #svg_image = self.svgs.get(name, None)
-                #svg_image = self.svgs
-                #if svg_image:
-                #    svg_image.set_svg(buf, 300, 200)
-                #    #svg_image.set_preview(preview_size,
-                #    #                      buf[-preview_bitmap_size:])
-                #    svg_image.set_image_coordinate(point1, point2, rotation)
-                #else:
-                #    logger.error("Can not find SVG name %r", name)
                 self.send_ok()
 
             logger.info('svg_editor')
 
-            name, x1, y1, x2, y2, rotation, file_length = params.split()
-            x1, y1, x2, y2, rotation = map(float, (x1, y1, x2, y2, rotation))
+            name, file_length = params.split()
             file_length = int(file_length)
-            preview_size_w = preview_size_h = 0
 
-            helper = BinaryUploadHelper(
-                                        file_length,
-                                        upload_callback,
-                                        name,
-                                        (preview_size_w, preview_size_h),
-                                        (x1, y1), (x2, y2),
-                                        rotation
-                                        )
+            helper = BinaryUploadHelper(file_length, upload_callback, name)
 
             self.set_binary_helper(helper)
             self.send_json(status="continue")
@@ -229,19 +180,6 @@ def laser_svgeditor_api_mixin(cls):
         def prepare_factory(self):
             factory = SvgeditorFactory()
             factory.add_image(self.svgs.groups, self.svgs.params)
-
-            #self.send_progress('Initializing', 0.03)
-
-            #for i, name in enumerate(names):
-            #    svg_image = self.svgs.get(name, None)
-            #    if svg_image is None:
-            #        logger.error("Can not find svg named %r", name)
-            #        continue
-            #    logger.info("Preprocessing image %s", name)
-            #    self.send_progress('Processing image',
-            #                       (i / len(names) * 0.3 + 0.10))
-#
-            #    factory.add_image(svg_image)
             return factory
 
         def cmd_process(self, params):
@@ -277,12 +215,10 @@ def laser_svgeditor_api_mixin(cls):
             else:
                 writer = GCodeMemoryWriter()
 
-
             svgeditor2laser(
                         writer, factory,
                         z_height=self.object_height + self.height_offset,
-                        travel_speed=2400,
-                        engraving_speed=self.working_speed,
+                        travel_speed=12000,
                         engraving_strength=self.max_engraving_strength,
                         progress_callback=progress_callback
                     )
