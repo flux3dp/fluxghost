@@ -183,8 +183,8 @@ def laser_svgeditor_api_mixin(cls):
             return factory
 
         def cmd_process(self, params):
-            def progress_callback(prog):
-                pass
+            def progress_callback(title, prog):
+                self.send_progress(title, prog)
 
             logger.info('Process laser svgeditor')
             #names = params.split()
