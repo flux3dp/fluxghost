@@ -158,6 +158,9 @@ def scan_control_api_mixin(cls):
             self.send_ok()
 
         def scan_check(self):
+            if not self.task:
+                self.send_error("NOT_READY")
+                return
             message = self.task.check_camera()
             message = int(message.split()[-1])
             if message & 1 == 0:
@@ -170,6 +173,9 @@ def scan_control_api_mixin(cls):
             self.send_text('{"status": "ok", "message": "%s"}' % (message))
 
         def get_cab(self):
+            if not self.task:
+                self.send_error("NOT_READY")
+                return
             self.cab = True
             tmp = list(map(float, self.task.get_calibrate().split()[1:]))
 

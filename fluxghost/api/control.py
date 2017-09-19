@@ -83,8 +83,10 @@ def control_api_mixin(cls):
                 },
 
                 "maintain": {
+                    "move": self.maintain_move,
                     "wait_head": self.maintain_wait_head,
                     "load_filament": self.maintain_load_filament,
+                    "load_flexible_filament": self.maintain_flexible_load_filament,
                     "unload_filament": self.maintain_unload_filament,
                     "calibrating": self.maintain_calibrate,
                     "calibrate": self.maintain_calibrate,
@@ -546,7 +548,11 @@ def control_api_mixin(cls):
 
             self.send_json(status="ok", data=ret)
 
-        def maintain_load_filament(self, index, temp):
+        def maintain_move(self, *args):
+            self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
+            self.send_ok()
+
+        def maintain_load_filament(self, index, temp, flexible_filament=False):
             def nav(robot, *args):
                 try:
                     stage = args[0]
@@ -562,8 +568,14 @@ def control_api_mixin(cls):
                 except Exception:
                     logger.exception("Error during load filament cb")
 
-            self.task.load_filament(int(index), float(temp), nav)
+            if flexible_filament:
+                self.task.load_flexible_filament(int(index), float(temp), nav)
+            else:
+                self.task.load_filament(int(index), float(temp), nav)
             self.send_ok()
+
+        def maintain_flexible_load_filament(self, index, temp):
+            self.maintain_load_filament(index, temp, flexible_filament=True)
 
         def maintain_unload_filament(self, index, temp):
             def nav(robot, *args):
