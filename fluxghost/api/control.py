@@ -83,6 +83,7 @@ def control_api_mixin(cls):
                 },
 
                 "maintain": {
+                    "move": self.maintain_move,
                     "wait_head": self.maintain_wait_head,
                     "load_filament": self.maintain_load_filament,
                     "load_flexible_filament": self.maintain_flexible_load_filament,
@@ -546,6 +547,10 @@ def control_api_mixin(cls):
                 ret = self.task.zprobe(process_callback=callback)
 
             self.send_json(status="ok", data=ret)
+
+        def maintain_move(self, *args):
+            self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
+            self.send_ok()
 
         def maintain_load_filament(self, index, temp, flexible_filament=False):
             def nav(robot, *args):
