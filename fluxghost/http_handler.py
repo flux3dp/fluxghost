@@ -60,7 +60,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             url = urlparse(self.headers["Origin"])
             if url.scheme in ("chrome-extension", "file"):
                 pass
-            elif url.hostname not in ('localhost', '127.0.0.1'):
+            elif url.hostname not in ('127.0.0.1', '127.0.0.1'):
                 logger.error("Bad websocket request from %s",
                              self.headers["Origin"])
                 self.response_404()

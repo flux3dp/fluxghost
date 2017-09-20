@@ -20,7 +20,7 @@
             }
         }
 
-        this.getBlob = function(blob) {
+        this.getBlob = function() {
             if(buffered != size) {
                 console.log("Bad data length, buffered=" + buffered + ", size=" + size);
                 throw "Broken stream";
@@ -34,7 +34,7 @@
     base.FLUXControl = function(uuid, options) {
         /* options = {
             clientkey: "RSA key (pem)",
-            baseurl: "http://localhost:8000",
+            baseurl: "http://127.0.0.1:8000",
             usb: trur|false,
 
             on_connecting: function(obj|controller, str|stage) {},

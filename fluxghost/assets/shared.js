@@ -1,6 +1,6 @@
 
 function getCorrectDomainName(l) {
-  return l.host.indexOf(':') > 0 ? l.host : 'localhost:' + process.env.ghostPort;
+  return l.host.indexOf(':') > 0 ? l.host : '127.0.0.1:' + process.env.ghostPort;
 }
 
 function getKeyPem() {

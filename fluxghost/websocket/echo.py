@@ -13,7 +13,7 @@ This is a simple ECHO websocket for testing only
 
 Javascript Example:
 
-ws = new WebSocket("ws://localhost:8000/ws/echo");
+ws = new WebSocket("ws://127.0.0.1:8000/ws/echo");
 ws.onmessage = function(v) { console.log(v.data);}
 ws.onclose = function(v) { console.log("CONNECTION CLOSED, code=" + v.code +
     "; reason=" + v.reason); }
