@@ -1,6 +1,6 @@
 
 function getCorrectDomainName(l) {
-  return l.host.indexOf(':') > 0 ? l.host : 'localhost:' + process.env.ghostPort;
+  return l.host.indexOf(':') > 0 ? l.host : '127.0.0.1:' + process.env.ghostPort;
 }
 
 function getKeyPem() {
@@ -53,7 +53,7 @@ function appendLog(text, color, bgcolor) {
   var hour = dt.getHours() < 10 ? "0" + String(dt.getHours()) : String(dt.getHours());
   var minute  = dt.getHours() < 10 ? "0" + String(dt.getMinutes()) : String(dt.getMinutes());
   var seconds = dt.getSeconds() < 10 ? "0" + String(dt.getSeconds()) : String(dt.getSeconds());
-  
+
   var log_text = "[" + hour + ":" + minute + ":" + seconds + "] " + text;
   var $row = $("<div style=\"padding: 0.1em 0.4em;\"></div>").text(log_text);
   if(color) $row.css("color", color);
@@ -267,4 +267,3 @@ function stopDiscover() {
   window.discover_ws = undefined;
   $("[data-role=discover]").removeClass("btn-warning").addClass("btn-success").text("Start Discover");
 }
-

@@ -11,7 +11,6 @@ from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVGEDITOR")
 
-
 def svg_base_api_mixin(cls):
     class SvgBaseApi(BinaryHelperMixin, cls):
         fcode_metadata = None
@@ -131,10 +130,10 @@ def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         def __init__(self, *args):
             self.max_engraving_strength = 1.0
+            self.pixel_per_mm = 20
             super().__init__(*args)
-            self.svgs = {}
             self.cmd_mapping = {
-                'svgeditor_upload': [self.cmd_upload_svg_and_preview],
+                'svgeditor_upload': [self.cmd_upload_svg_and_thumbnail],
                 'go': [self.cmd_process],
                 'set_params': [self.cmd_set_params],
             }
@@ -153,33 +152,37 @@ def laser_svgeditor_api_mixin(cls):
                     raise KeyError('Bad key: %r' % key)
             self.send_ok()
 
-        def cmd_upload_svg_and_preview(self, params):
-            def gen_svgs_database(buf, name):
+        def cmd_upload_svg_and_thumbnail(self, params):
+            def gen_svgs_database(buf, name, thumbnail_length):
                 try:
-                    svgeditor_image = SvgeditorImage(buf)
+                    thumbnail = buf[:thumbnail_length]
+                    svg_data = buf[thumbnail_length:]
+                    svgeditor_image = SvgeditorImage(
+                                thumbnail, svg_data, self.pixel_per_mm)
                 except Exception:
                     logger.exception("Load SVG Error")
                     self.send_error("SVG_BROKEN")
                     return
-                self.svgs = svgeditor_image
+                self.svg = svgeditor_image
 
-            def upload_callback(buf, name):
-                gen_svgs_database(buf, name)
+            def upload_callback(buf, name, thumbnail_length):
+                gen_svgs_database(buf, name, thumbnail_length)
                 self.send_ok()
 
             logger.info('svg_editor')
 
-            name, file_length = params.split()
-            file_length = int(file_length)
-
-            helper = BinaryUploadHelper(file_length, upload_callback, name)
+            name, file_length, thumbnail_length = params.split()
+            file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
+            helper = BinaryUploadHelper(
+                    file_length, upload_callback, name, thumbnail_length)
 
             self.set_binary_helper(helper)
             self.send_json(status="continue")
 
         def prepare_factory(self):
-            factory = SvgeditorFactory()
-            factory.add_image(self.svgs.groups, self.svgs.params)
+            factory = SvgeditorFactory(self.pixel_per_mm)
+            factory.add_image(self.svg.groups, self.svg.params)
+            factory.add_thumbnail(self.svg.thumbnail)
             return factory
 
         def cmd_process(self, params):
@@ -209,9 +212,9 @@ def laser_svgeditor_api_mixin(cls):
             self.fcode_metadata["BACKLASH"] = "Y"
 
             if output_fcode:
-                preview = factory.generate_preview()
+                thumbnail = factory.generate_thumbnail()
                 writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
-                                             (preview, ))
+                                             (thumbnail, ))
             else:
                 writer = GCodeMemoryWriter()
 

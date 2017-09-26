@@ -17,7 +17,7 @@
   }
 
   function touch_without_password(uuid, name, has_password) {
-    var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:' + process.env.ghostPort ;
+    var host = location.host.indexOf(':') > 0 ? window.location.host : '127.0.0.1:' + process.env.ghostPort ;
     var ws = new WebSocket("ws://" + host + "/ws/touch");
     var close_normally = false;
 
@@ -45,7 +45,7 @@
   function touch_with_password(uuid, name, has_password) {
     var pwd = prompt("Enter password for " + name + " (" + uuid + ")");
     if(pwd) {
-      var host = location.host.indexOf(':') > 0 ? window.location.host : 'localhost:' + process.env.ghostPort ;
+      var host = location.host.indexOf(':') > 0 ? window.location.host : '127.0.0.1:' + process.env.ghostPort ;
       var ws = new WebSocket("ws://" + host + "/ws/touch");
       var close_normally = false;
 
@@ -78,7 +78,7 @@
 
       if(payload.auth) {
         var $label = $("#device_label");
-        appendHtmlLog('<a href="control.html#' + $label.attr("data-uuid") + 
+        appendHtmlLog('<a href="control.html#' + $label.attr("data-uuid") +
               ';' + $label.attr("data-name") + '">Go to control page</a>');
 
       }
