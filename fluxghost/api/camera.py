@@ -5,7 +5,7 @@ from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
 from .control_base import control_base_mixin
 
-CRITICAL_VERSION = StrictVersion("1.3a1")
+CRITICAL_VERSION = StrictVersion("1.0")
 logger = logging.getLogger("API.CAMERA")
 
 
