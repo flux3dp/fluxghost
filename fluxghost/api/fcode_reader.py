@@ -20,7 +20,7 @@ def fcode_reader_api_mixin(cls):
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload': [self.begin_recv_buf, 'upload'],
-                'advanced_setting': [self.advanced_setting], 
+                'advanced_setting': [self.advanced_setting],
                 'get_img': [self.get_img],
                 'get_meta': [self.get_meta],
                 'get_path': [self.get_path],
@@ -83,7 +83,8 @@ def fcode_reader_api_mixin(cls):
         def end_recv_buf(self, buf, flag):
             if flag == 'upload':
                 if self.buf_type == '-f':
-                    res = self.data_parser.upload_content(buf)
+                    res = self.data_parser.upload_content(buf, model='beambox')
+                    print('data_parser', self.data_parser)
                     if res == 'ok' or res == 'out_of_bound':
                         tmp = StringIO()
                         self.data_parser.f_to_g(tmp)
@@ -92,7 +93,7 @@ def fcode_reader_api_mixin(cls):
                         if res == 'ok':
                             self.send_ok()
                         elif res == 'out_of_bound':
-                            self.send_error("6", info="gcode area too big")
+                            self.send_error("6", info="gcode area too big out of bound")
 
                     elif res == 'broken':
                         self.send_error('15', info='File broken')
@@ -107,14 +108,24 @@ def fcode_reader_api_mixin(cls):
                     if res != 'broken':
                         self.fcode = fcode_output.getvalue()
 
-                        if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
-                            self.send_error("6", info="gcode area too big")
-                        elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
-                            self.send_error("6", info="gcode area too big")
-                        elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
-                            self.send_error("6", info="gcode area too big")
-                        elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
-                            self.send_error("6", info="gcode area too big")
+                    #    if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
+                    #        self.send_error("6", info="gcode area too big")
+                    #    elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
+                    #        self.send_error("6", info="gcode area too big")
+                    #    elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
+                    #        self.send_error("6", info="gcode area too big")
+                    #    elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
+                    #        self.send_error("6", info="gcode area too big")
+                    #    else:
+                    #        self.send_ok()
+                        if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['beambox']['radius']:
+                            self.send_error("6", info="gcode area too big X")
+                        elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['beambox']['radius']:
+                            self.send_error("6", info="gcode area too big Y")
+                        elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['beambox']['radius']:
+                            self.send_error("6", info="gcode area too big R")
+                        elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['beambox']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
+                            self.send_error("6", info="gcode area too big z")
                         else:
                             self.send_ok()
                         logger.debug("gcode parsing done")

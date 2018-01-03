@@ -84,6 +84,7 @@ def control_api_mixin(cls):
 
                 "maintain": {
                     "move": self.maintain_move,
+                    "calibrate_beambox_camera": self.maintain_calibrate_beambox_camera,
                     "wait_head": self.maintain_wait_head,
                     "load_filament": self.maintain_load_filament,
                     "load_flexible_filament": self.maintain_flexible_load_filament,
@@ -550,6 +551,10 @@ def control_api_mixin(cls):
 
         def maintain_move(self, *args):
             self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
+            self.send_ok()
+
+        def maintain_calibrate_beambox_camera(self, *args):
+            self.task.calibrate_beambox_camera()
             self.send_ok()
 
         def maintain_load_filament(self, index, temp, flexible_filament=False):

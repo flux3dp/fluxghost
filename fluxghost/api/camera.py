@@ -5,7 +5,7 @@ from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
 from .control_base import control_base_mixin
 
-CRITICAL_VERSION = StrictVersion("1.3a1")
+CRITICAL_VERSION = StrictVersion("1.0")
 logger = logging.getLogger("API.CAMERA")
 
 
@@ -37,8 +37,15 @@ def camera_api_mixin(cls):
         def on_connected(self):
             if self.remote_version > CRITICAL_VERSION:
                 logger.debug("Request streaming")
-                self.robot.enable_streaming()
+                self.robot.enable_streaming() # TODO: we should enable streaming by command not by default
             self.rlist.append(CameraWrapper(self, self.robot))
+        
+        def on_command(self, message):
+            # if message == 'enable_streaming':
+            #     self.robot.enable_streaming() # TODO: we should enable streaming by command not by default
+            # if message == 'require_frame':
+            #     self.robot.require_frame()
+            logger.info(message)
 
         def on_image(self, camera, image):
             self.send_binary(image)

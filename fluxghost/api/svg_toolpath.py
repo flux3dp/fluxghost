@@ -5,7 +5,7 @@ import logging
 
 from fluxclient.toolpath.svg_factory import SvgImage, SvgFactory
 from fluxclient.toolpath.penholder import svg2drawing, svg2vinyl
-from fluxclient.toolpath.laser import svg2laser
+from fluxclient.toolpath.laser import svg2laser, svgeditor2laser
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
@@ -46,6 +46,7 @@ def svg_base_api_mixin(cls):
             factory = SvgFactory()
             self.send_progress('Initializing', 0.03)
 
+            print('self.svgs', self.svgs)
             for i, name in enumerate(names):
                 svg_image = self.svgs.get(name, None)
                 if svg_image is None:
@@ -54,6 +55,7 @@ def svg_base_api_mixin(cls):
                 logger.info("Preprocessing image %s", name)
                 self.send_progress('Processing image',
                                    (i / len(names) * 0.3 + 0.10))
+
                 factory.add_image(svg_image)
             return factory
 
@@ -208,7 +210,6 @@ def laser_svg_api_mixin(cls):
             logger.info("Laser svg processed")
 
     return LaserSvgApi
-
 
 def drawing_svg_api_mixin(cls):
     class DrawingSvgApi(OnTextMessageMixin, svg_base_api_mixin(cls)):

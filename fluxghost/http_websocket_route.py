@@ -49,6 +49,8 @@ ROUTES = [
      "fluxghost.websocket.toolpath.WebsocketLaserBitmap"),
     (re.compile("svg-laser-parser"),
      "fluxghost.websocket.toolpath.WebsocketLaserSvg"),
+    (re.compile("svgeditor-laser-parser"),
+     "fluxghost.websocket.toolpath.WebsocketLaserSvgeditor"),
     (re.compile("pen-svg-parser"),
      "fluxghost.websocket.toolpath.WebsocketDrawingSvg"),
     (re.compile("svg-vinyl-parser"),
@@ -56,8 +58,10 @@ ROUTES = [
     (re.compile("fcode-reader"),
      "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
     (re.compile("3dprint-slicing"),
-     "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing")]
-
+     "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
+    (re.compile("camera-calibration"),
+     "fluxghost.websocket.camera_calibration.WebsocketCameraCalibration")
+]
 
 def get_match_ws_service(path):
     for exp, module_path in ROUTES:
