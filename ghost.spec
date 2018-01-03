@@ -70,6 +70,7 @@ hiddenimports += ['fluxghost',
                   'fluxghost.websocket.upnp_ws',
                   'fluxghost.websocket.device_manager',
                   'fluxghost.websocket.usb_interfaces',
+                  'fluxghost.websocket.camera_calibration',
 ]
 
 binaries = []
