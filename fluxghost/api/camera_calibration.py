@@ -5,6 +5,10 @@ import io
 import numpy as np
 from PIL import Image
 
+import cv2
+from math import radians, degrees, cos, sin
+from pprint import pprint
+
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.CAMERA_CALIBBRATION")
@@ -31,10 +35,6 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status="continue")
 
     def calc_picture_shape(img):
-        import cv2
-        from math import radians, degrees, cos, sin
-        from pprint import pprint
-
         PI = np.pi
 
         def calc_it(img):
