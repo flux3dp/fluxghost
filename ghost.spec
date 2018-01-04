@@ -35,6 +35,7 @@ def fetch_datas():
 block_cipher = None
 hiddenimports = ["serial",
                  "PIL",
+                 "cv2",
                  "scipy.integrate",
                  "scipy.interpolate.rbf",
                  "scipy.linalg.cython_blas",
