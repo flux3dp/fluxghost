@@ -130,7 +130,7 @@ def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         def __init__(self, *args):
             self.max_engraving_strength = 1.0
-            self.pixel_per_mm = 25
+            self.pixel_per_mm = 20
             super().__init__(*args)
             self.cmd_mapping = {
                 'svgeditor_upload': [self.cmd_upload_svg_and_thumbnail],
