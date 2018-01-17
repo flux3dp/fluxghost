@@ -41,6 +41,8 @@ hiddenimports = ["serial",
                  "scipy.linalg.cython_blas",
                  "scipy.linalg.cython_lapack"]
 hiddenimports += collect_submodules("fluxclient")
+hiddenimports += collect_submodules("beamify")
+hiddenimports += collect_submodules("fluxsvg")
 hiddenimports += collect_submodules("pkg_resources")
 hiddenimports += ['fluxghost',
                   'fluxghost.http_server',
