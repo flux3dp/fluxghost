@@ -44,7 +44,9 @@ hiddenimports += collect_submodules("fluxclient")
 hiddenimports += collect_submodules("beamify")
 hiddenimports += collect_submodules("fluxsvg")
 hiddenimports += collect_submodules("pkg_resources")
-hiddenimports += ['fluxghost',
+hiddenimports += ['beamify',
+                  'fluxsvg',
+                  'fluxghost',
                   'fluxghost.http_server',
                   'fluxghost.http_handler',
                   'fluxghost.http_handlers.websocket_handler',
