@@ -33,7 +33,8 @@ def fetch_datas():
 
 
 block_cipher = None
-hiddenimports = ["serial",
+hiddenimports = ["cairocffi",
+                 "serial",
                  "PIL",
                  "cv2",
                  "scipy.integrate",
