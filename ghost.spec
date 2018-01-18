@@ -10,7 +10,8 @@ if parse_version(PyInstallerVersion) >= parse_version('3.1'):
 else:
     from PyInstaller.utils.hooks.hookutils import collect_submodules
 
-import os
+import 
+import platform
 
 
 def fetch_data(package, path):
@@ -84,13 +85,21 @@ excludes = ["matplotlib", "pydoc", "IPython"]
 
 if is_win:
   binaries.append( ('C:\\Windows\\System32\\libusb0.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\libcairo-2.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\libpixman-1-0.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\libfreetype-6.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\libfontconfig-1.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\libpng16-16.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\libxml2-2.dll', '.') )
-  binaries.append( ('C:\\jenkins\\cairo-dll\\zlib1.dll', '.') )
+  if platform.architecture()[0] == '64bit':
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libcairo-2.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libpixman-1-0.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libfreetype-6.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libfontconfig-1.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libpng16-16.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libxml2-2.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\zlib1.dll', '.') )
+  else:
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libcairo-2.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libfreetype-6.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libfontconfig-1.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libpng12.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libxml2.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\zlib1.dll', '.') )
 else:
   excludes.append("win32com")
 
