@@ -10,8 +10,7 @@ if parse_version(PyInstallerVersion) >= parse_version('3.1'):
 else:
     from PyInstaller.utils.hooks.hookutils import collect_submodules
 
-import 
-import platform
+import os, platform
 
 
 def fetch_data(package, path):
