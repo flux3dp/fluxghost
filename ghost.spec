@@ -102,7 +102,7 @@ if is_win:
 elif is_darwin:
   binaries.append( ('/usr/local/lib/libcairo.dylib', '.') )
   excludes.append("win32com")
-elif if_linux:
+elif is_linux:
   binaries.append( ('/usr/local/lib/libcairo.dylib', '.') )
   excludes.append("win32com")
 
