@@ -7,6 +7,8 @@ from fluxclient.toolpath.laser import svgeditor2laser
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
+import fluxsvg
+
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVGEDITOR")
@@ -133,6 +135,8 @@ def laser_svgeditor_api_mixin(cls):
             self.pixel_per_mm = 20
             super().__init__(*args)
             self.cmd_mapping = {
+                'upload_plain_svg': [self.cmd_upload_plain_svg],
+                'divide_svg': [self.divide_svg],
                 'svgeditor_upload': [self.cmd_upload_svg_and_thumbnail],
                 'go': [self.cmd_process],
                 'set_params': [self.cmd_set_params],
@@ -150,6 +154,16 @@ def laser_svgeditor_api_mixin(cls):
                     pass
                 else:
                     raise KeyError('Bad key: %r' % key)
+            self.send_ok()
+
+        def divide_svg(self, params):
+            outputs = fluxsvg.divide(self.plain_svg)
+            self.send_json(name="strokes", length=outputs[0].getbuffer().nbytes)
+            self.send_binary(outputs[0].getbuffer())
+            self.send_json(name="bitmap", length=outputs[1].getbuffer().nbytes)
+            self.send_binary(outputs[1].getbuffer())
+            self.send_json(name="colors", length=outputs[2].getbuffer().nbytes)
+            self.send_binary(outputs[2].getbuffer())
             self.send_ok()
 
         def cmd_upload_svg_and_thumbnail(self, params):
@@ -175,6 +189,22 @@ def laser_svgeditor_api_mixin(cls):
             file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
             helper = BinaryUploadHelper(
                     file_length, upload_callback, name, thumbnail_length)
+
+            self.set_binary_helper(helper)
+            self.send_json(status="continue")
+        
+        def cmd_upload_plain_svg(self, params):
+            def upload_callback(buf, name):
+                #todo divide buf as svg
+                self.plain_svg = buf
+                self.send_ok()
+
+            logger.info('svg_editor')
+
+            name, file_length = params.split()
+            file_length = int(file_length)
+            helper = BinaryUploadHelper(
+                    file_length, upload_callback, name)
 
             self.set_binary_helper(helper)
             self.send_json(status="continue")

@@ -99,7 +99,11 @@ if is_win:
     binaries.append( ('C:\\jenkins\\cairo-dll\\libpng12.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\libxml2.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\zlib1.dll', '.') )
-else:
+elif is_darwin:
+  binaries.append( ('/usr/local/lib/libcairo.dylib', '.') )
+  excludes.append("win32com")
+elif if_linux:
+  binaries.append( ('/usr/local/lib/libcairo.dylib', '.') )
   excludes.append("win32com")
 
 
