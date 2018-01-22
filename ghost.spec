@@ -3,7 +3,7 @@
 from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
 
 from PyInstaller import __version__ as PyInstallerVersion
-from PyInstaller import is_win, is_darwin, is_linux
+from PyInstaller import is_win, is_darwin, is_unix
 
 if parse_version(PyInstallerVersion) >= parse_version('3.1'):
     from PyInstaller.utils.hooks import collect_submodules
