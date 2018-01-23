@@ -3,16 +3,19 @@ from getpass import getuser
 import logging
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
+
 from fluxclient.toolpath.laser import svgeditor2laser
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
 import fluxsvg
 
+from .svg_toolpath import svg_base_api_mixin
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVGEDITOR")
 
+"""
 def svg_base_api_mixin(cls):
     class SvgBaseApi(BinaryHelperMixin, cls):
         fcode_metadata = None
@@ -127,12 +130,14 @@ def svg_base_api_mixin(cls):
             self.send_ok()
 
     return SvgBaseApi
+"""
 
 def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         def __init__(self, *args):
             self.max_engraving_strength = 1.0
             self.pixel_per_mm = 20
+            self.svg = None
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
@@ -173,9 +178,9 @@ def laser_svgeditor_api_mixin(cls):
                     svg_data = buf[thumbnail_length:]
                     svgeditor_image = SvgeditorImage(
                                 thumbnail, svg_data, self.pixel_per_mm)
-                except Exception:
+                except Exception as e:
                     logger.exception("Load SVG Error")
-                    self.send_error("SVG_BROKEN")
+                    self.send_error("SVG_BROKEN", str(e))
                     return
                 self.svg = svgeditor_image
 
