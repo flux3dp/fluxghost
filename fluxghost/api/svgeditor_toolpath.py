@@ -180,7 +180,8 @@ def laser_svgeditor_api_mixin(cls):
                                 thumbnail, svg_data, self.pixel_per_mm)
                 except Exception as e:
                     logger.exception("Load SVG Error")
-                    self.send_error("SVG_BROKEN", str(e))
+                    logger.exception(str(e))
+                    self.send_error("SVG_BROKEN")
                     return
                 self.svg = svgeditor_image
 
