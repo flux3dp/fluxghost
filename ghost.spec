@@ -105,11 +105,6 @@ elif is_darwin:
   binaries.append( ('/usr/local/lib/libfontconfig.1.dylib', '.') )
   binaries.append( ('/usr/local/lib/libfreetype.6.dylib', '.') )
   binaries.append( ('/usr/local/lib/libpng16.16.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libXrender.1.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libSM.6.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libICE.6.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libX11.6.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libXext.6.dylib', '.') )
   excludes.append("win32com")
 elif is_linux:
   binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
