@@ -165,19 +165,26 @@ def laser_svgeditor_api_mixin(cls):
             outputs = fluxsvg.divide(self.plain_svg)
             self.send_json(name="strokes", length=outputs[0].getbuffer().nbytes)
             self.send_binary(outputs[0].getbuffer())
-            self.send_json(name="bitmap", length=outputs[1].getbuffer().nbytes)
-            self.send_binary(outputs[1].getbuffer())
+            if outputs[1] is None:
+                self.send_json(name="bitmap", length=0)
+                self.send_binary(b"")
+            else:
+                self.send_json(name="bitmap", length=outputs[1].getbuffer().nbytes)
+                self.send_binary(outputs[1].getbuffer())
             self.send_json(name="colors", length=outputs[2].getbuffer().nbytes)
             self.send_binary(outputs[2].getbuffer())
             self.send_ok()
 
         def cmd_upload_svg_and_thumbnail(self, params):
+
+            def progress_callback(prog):
+                self.send_progress("Analyzing SVG - " + str(prog * 50) + "%", prog / 2)
+
             def gen_svgs_database(buf, name, thumbnail_length):
                 try:
                     thumbnail = buf[:thumbnail_length]
                     svg_data = buf[thumbnail_length:]
-                    svgeditor_image = SvgeditorImage(
-                                thumbnail, svg_data, self.pixel_per_mm)
+                    svgeditor_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, progress_callback=progress_callback)
                 except Exception as e:
                     logger.exception("Load SVG Error")
                     logger.exception(str(e))
@@ -222,10 +229,10 @@ def laser_svgeditor_api_mixin(cls):
             return factory
 
         def cmd_process(self, params):
-            def progress_callback(title, prog):
-                self.send_progress(title, prog)
+            def progress_callback(prog):
+                self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
 
-            logger.info('Process laser svgeditor')
+            logger.info('Calling laser svgeditor')
             #names = params.split()
             output_fcode = True
             #if names[-1] == '-f':
@@ -254,23 +261,21 @@ def laser_svgeditor_api_mixin(cls):
             else:
                 writer = GCodeMemoryWriter()
 
-            svgeditor2laser(
-                        writer, factory,
-                        z_height=self.object_height + self.height_offset,
+            svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
                         travel_speed=12000,
                         engraving_strength=self.max_engraving_strength,
-                        progress_callback=progress_callback
-                    )
+                        progress_callback=progress_callback)
+            
             writer.terminated()
 
             output_binary = writer.get_buffer()
             time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
                 if output_fcode else 0
 
-            self.send_progress('finishing', 1.0)
+            self.send_progress('Finishing', 1.0)
             self.send_json(status="complete", length=len(output_binary),
                            time=time_need)
             self.send_binary(output_binary)
-            logger.info("Laser svg processed")
+            logger.info("Svg Processed")
 
     return LaserSvgeditorApi
