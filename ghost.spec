@@ -118,6 +118,7 @@ elif is_darwin:
     binaries.append( ('/opt/X11/lib/libX11.6.dylib', '.') )
     binaries.append( ('/opt/X11/lib/libXext.6.dylib', '.') )
   else:
+    pass
   excludes.append("win32com")
 elif is_linux:
   binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
