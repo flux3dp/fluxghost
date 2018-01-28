@@ -101,11 +101,12 @@ if is_win:
     binaries.append( ('C:\\jenkins\\cairo-dll\\libxml2.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\zlib1.dll', '.') )
 elif is_darwin:
-  binaries.append( ('/usr/local/lib/libcairo.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libpixman-1.0.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libfontconfig.1.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libfreetype.6.dylib', '.') )
-  binaries.append( ('/usr/local/lib/libpng16.16.dylib', '.') )
+  binaries.append( ('/usr/local/opt/cairo/lib/libcairo.dylib', '.') )
+  binaries.append( ('/usr/local/opt/cairo/lib/libcairo.2.dylib', '.') )
+  binaries.append( ('/usr/local/opt/freetype/lib/libfreetype.6.dylib', '.') )
+  binaries.append( ('/usr/local/opt/pixman/lib/libpixman-1.0.dylib') )
+  binaries.append( ('/usr/local/opt/fontconfig/lib/libfontconfig.1.dylib') )
+  binaries.append( ('/usr/local/opt/libpng/lib/libpng16.16.dylib', '.') )
   binaries.append( ('/usr/lib/libz.1.dylib', '.') )
   if get_os_version().startswith("Darwin Kernel Version 17"):
     binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
@@ -116,6 +117,7 @@ elif is_darwin:
     binaries.append( ('/opt/X11/lib/libICE.6.dylib', '.') )
     binaries.append( ('/opt/X11/lib/libX11.6.dylib', '.') )
     binaries.append( ('/opt/X11/lib/libXext.6.dylib', '.') )
+  else:
   excludes.append("win32com")
 elif is_linux:
   binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
