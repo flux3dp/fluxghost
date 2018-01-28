@@ -110,6 +110,8 @@ def discover_api_mixin(cls):
             if cmd == "poke":
                 try:
                     self.server.discover.poke(payload["ipaddr"])
+                except OSError as e:
+                    pass
                 except Exception as e:
                     logger.error("Poke error: %s", repr(e))
             else:

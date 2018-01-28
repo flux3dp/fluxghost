@@ -271,10 +271,13 @@ def laser_svgeditor_api_mixin(cls):
             output_binary = writer.get_buffer()
             time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
                 if output_fcode else 0
+            
+            traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
+                if output_fcode else 0
 
             self.send_progress('Finishing', 1.0)
             self.send_json(status="complete", length=len(output_binary),
-                           time=time_need)
+                           time=time_need, traveled_dist=traveled_dist)
             self.send_binary(output_binary)
             logger.info("Svg Processed")
 

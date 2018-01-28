@@ -4,6 +4,7 @@ from pkg_resources import resource_listdir, resource_isdir, resource_filename, p
 
 from PyInstaller import __version__ as PyInstallerVersion
 from PyInstaller import is_win, is_darwin, is_linux
+from platform import version as get_os_version
 
 if parse_version(PyInstallerVersion) >= parse_version('3.1'):
     from PyInstaller.utils.hooks import collect_submodules
@@ -106,14 +107,15 @@ elif is_darwin:
   binaries.append( ('/usr/local/lib/libfreetype.6.dylib', '.') )
   binaries.append( ('/usr/local/lib/libpng16.16.dylib', '.') )
   binaries.append( ('/usr/lib/libz.1.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libxcb.1.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libXau.6.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libXdmcp.6.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libSM.6.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libICE.6.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libX11.6.dylib', '.') )
-  binaries.append( ('/opt/X11/lib/libXext.6.dylib', '.') )
+  if get_os_version().startswith("Darwin Kernel Version 17"):
+    binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libxcb.1.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libXau.6.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libXdmcp.6.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libSM.6.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libICE.6.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libX11.6.dylib', '.') )
+    binaries.append( ('/opt/X11/lib/libXext.6.dylib', '.') )
   excludes.append("win32com")
 elif is_linux:
   binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
