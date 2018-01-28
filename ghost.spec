@@ -104,8 +104,8 @@ elif is_darwin:
   binaries.append( ('/usr/local/opt/cairo/lib/libcairo.dylib', '.') )
   binaries.append( ('/usr/local/opt/cairo/lib/libcairo.2.dylib', '.') )
   binaries.append( ('/usr/local/opt/freetype/lib/libfreetype.6.dylib', '.') )
-  binaries.append( ('/usr/local/opt/pixman/lib/libpixman-1.0.dylib') )
-  binaries.append( ('/usr/local/opt/fontconfig/lib/libfontconfig.1.dylib') )
+  binaries.append( ('/usr/local/opt/pixman/lib/libpixman-1.0.dylib', '.') )
+  binaries.append( ('/usr/local/opt/fontconfig/lib/libfontconfig.1.dylib', '.') )
   binaries.append( ('/usr/local/opt/libpng/lib/libpng16.16.dylib', '.') )
   binaries.append( ('/usr/lib/libz.1.dylib', '.') )
   if get_os_version().startswith("Darwin Kernel Version 17"):
