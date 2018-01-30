@@ -94,7 +94,7 @@ if is_win:
     binaries.append( ('C:\\jenkins\\cairo-dll\\libxml2-2.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\zlib1.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\libexpat-1.dll', '.') )
-    binaries.append( ('C:\\jenkins\\cairo-dll\\libgcc_s_sjlj-1-6.dll', '.') )
+    binaries.append( ('C:\\jenkins\\cairo-dll\\libgcc_s_sjlj-1.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\libharfbuzz-0.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\libiconv-2.dll', '.') )
     binaries.append( ('C:\\jenkins\\cairo-dll\\libwinpthread-1.dll', '.') )
