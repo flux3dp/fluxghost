@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from getpass import getuser
 import logging
@@ -230,6 +231,7 @@ def laser_svgeditor_api_mixin(cls):
 
         def cmd_process(self, params):
             def progress_callback(prog):
+                prog = math.floor(prog * 500) / 500
                 self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
 
             logger.info('Calling laser svgeditor')
