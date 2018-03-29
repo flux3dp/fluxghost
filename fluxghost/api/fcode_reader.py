@@ -83,7 +83,7 @@ def fcode_reader_api_mixin(cls):
         def end_recv_buf(self, buf, flag):
             if flag == 'upload':
                 if self.buf_type == '-f':
-                    res = self.data_parser.upload_content(buf, model='beambox')
+                    res = self.data_parser.upload_content(buf, model='model-1')
                     print('data_parser', self.data_parser)
                     if res == 'ok' or res == 'out_of_bound':
                         tmp = StringIO()
@@ -93,7 +93,7 @@ def fcode_reader_api_mixin(cls):
                         if res == 'ok':
                             self.send_ok()
                         elif res == 'out_of_bound':
-                            self.send_error("6", info="gcode area too big out of bound")
+                            self.send_error("6", info="GCODE_OUT_OF_BOUND")
 
                     elif res == 'broken':
                         self.send_error('15', info='File broken')
