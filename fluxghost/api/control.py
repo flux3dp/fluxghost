@@ -84,6 +84,7 @@ def control_api_mixin(cls):
 
                 "maintain": {
                     "move": self.maintain_move,
+                    "close_fan": self.close_fan,
                     "calibrate_beambox_camera": self.maintain_calibrate_beambox_camera,
                     "wait_head": self.maintain_wait_head,
                     "load_filament": self.maintain_load_filament,
@@ -191,7 +192,7 @@ def control_api_mixin(cls):
                 if self.invoke_command(self.cmd_mapping, args):
                     pass
                 else:
-                    logger.warn("Unknow Command: %s" % message)
+                    logger.warn("Unknown Command: %s" % message)
                     self.send_error("L_UNKNOWN_COMMAND")
 
             except RobotError as e:
@@ -552,6 +553,10 @@ def control_api_mixin(cls):
         def maintain_move(self, *args):
             self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
             self.send_ok()
+        
+        def close_fan(self, *args):
+            self.task.close_fan()
+            self.send_ok()
 
         def maintain_calibrate_beambox_camera(self, *args):
             self.task.calibrate_beambox_camera()
@@ -827,6 +832,7 @@ def control_api_mixin(cls):
             if "device_status" in kw:
                 if kw["device_status"]["st_id"] == 64:
                     kw["device_status"].pop("prog", None)
+
 
             super().send_ok(**kw)
 
