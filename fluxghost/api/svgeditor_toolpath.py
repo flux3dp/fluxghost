@@ -235,9 +235,11 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
 
             logger.info('Calling laser svgeditor')
-            #names = params.split()
             output_fcode = True
-            #if names[-1] == '-f':
+            names = params.split()
+            max_x = 400
+            if names[-1] == '-pro':
+                max_x = 600 
             #    names = names[:-1]
             #    output_fcode = True
             #elif names[-1] == '-g':
@@ -266,7 +268,8 @@ def laser_svgeditor_api_mixin(cls):
             svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
                         travel_speed=12000,
                         engraving_strength=self.max_engraving_strength,
-                        progress_callback=progress_callback)
+                        progress_callback=progress_callback,
+                        max_x=400)
             
             writer.terminated()
 
