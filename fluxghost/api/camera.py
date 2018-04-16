@@ -35,15 +35,15 @@ def camera_api_mixin(cls):
             return FluxCamera.from_usb(self.client_key, usbprotocol)
 
         def on_connected(self):
-            if self.remote_version > CRITICAL_VERSION:
             self.rlist.append(CameraWrapper(self, self.robot))
         
         def on_command(self, message):
             logger.info(message)
-            if message == 'enable_streaming':
-                self.robot.enable_streaming()
-            if message == 'require_frame':
-                self.robot.require_frame()
+            if self.remote_version > CRITICAL_VERSION:
+                if message == 'enable_streaming':
+                    self.robot.enable_streaming()
+                if message == 'require_frame':
+                    self.robot.require_frame()
 
         def on_image(self, camera, image):
             self.send_binary(image)
