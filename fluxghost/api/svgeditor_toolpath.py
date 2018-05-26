@@ -16,135 +16,19 @@ from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVGEDITOR")
 
-"""
-def svg_base_api_mixin(cls):
-    class SvgBaseApi(BinaryHelperMixin, cls):
-        fcode_metadata = None
-        object_height = 0.0
-        height_offset = 0.0
-        working_speed = 1200
-        travel_speed = 2400
-        travel_lift = 5.0
-        svgs = None
-
-        def __init__(self, *args, **kw):
-            super(SvgBaseApi, self).__init__(*args, **kw)
-            self.svgs = {}
-            self.fcode_metadata = {}
-
-        def set_param(self, key, value):
-            if key == 'object_height':
-                self.object_height = float(value)
-            elif key == 'height_offset':
-                self.height_offset = float(value)
-            elif key == 'travel_lift':
-                fvalue = float(value)
-                assert fvalue > 0
-                self.travel_lift = fvalue
-            else:
-                return False
-            return True
-
-        def prepare_factory(self, names):
-            factory = SvgeditorFactory()
-            self.send_progress('Initializing', 0.03)
-
-            for i, name in enumerate(names):
-                svg_image = self.svgs.get(name, None)
-                if svg_image is None:
-                    logger.error("Can not find svg named %r", name)
-                    continue
-                logger.info("Preprocessing image %s", name)
-                self.send_progress('Processing image',
-                                   (i / len(names) * 0.3 + 0.10))
-
-                factory.add_image(svg_image)
-            return factory
-
-        def cmd_upload_svg(self, message):
-            def upload_callback(buf, name):
-                try:
-                    svg_image = SvgImage(buf)
-                except Exception:
-                    logger.exception("Load SVG Error")
-                    self.send_error("SVG_BROKEN")
-                    return
-                for error in svg_image.errors:
-                    self.send_warning(error)
-                self.svgs[name] = svg_image
-                self.send_ok()
-
-            name, file_length = message.split()
-            helper = BinaryUploadHelper(
-                int(file_length), upload_callback, name)
-            self.set_binary_helper(helper)
-            self.send_json(status="continue")
-
-        def cmd_upload_svg_and_preview(self, params):
-            def upload_callback(buf, name, preview_size, point1, point2,
-                                rotation, preview_bitmap_size):
-                svg_image = self.svgs.get(name, None)
-                if svg_image:
-                    pass
-                    #svg_image.set_svg(buf[:-preview_bitmap_size])
-                    #svg_image.set_preview(preview_size,
-                    #                      buf[-preview_bitmap_size:])
-                    #svg_image.set_image_coordinate(point1, point2, rotation)
-                else:
-                    logger.error("Can not find SVG name %r", name)
-                self.send_ok()
-
-            logger.info('compute')
-
-            options = params.split()
-            name = options[0]
-            # w, h = float(options[1]), float(options[2])
-            x1, y1, x2, y2 = (float(o) for o in options[3:7])
-            rotation = float(options[7])
-            svg_length = int(options[8])
-            bitmap_w = int(options[9])
-            bitmap_h = int(options[10])
-
-            helper = BinaryUploadHelper(
-                svg_length + bitmap_w * bitmap_h, upload_callback, name,
-                (bitmap_w, bitmap_h), (x1, y1), (x2, y2), rotation,
-                bitmap_w * bitmap_h)
-            self.set_binary_helper(helper)
-            self.send_json(status="continue")
-
-        def cmd_fetch_svg(self, name):
-            svg_image = self.svgs.get(name, None)
-            if svg_image:
-                self.send_json(
-                    status="continue", length=len(svg_image.buf),
-                    width=svg_image.viewbox_width,
-                    height=svg_image.viewbox_height)
-                self.send_binary(svg_image.buf)
-            else:
-                logger.error("%r svg not found", name)
-                self.send_error('NOT_FOUND')
-
-        def cmd_set_fcode_metadata(self, params):
-            key, value = params.split()
-            logger.info('meta_option {}'.format(key))
-            self.fcode_metadata[key] = value
-            self.send_ok()
-
-    return SvgBaseApi
-"""
-
 def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         def __init__(self, *args):
             self.max_engraving_strength = 1.0
             self.pixel_per_mm = 20
             self.svg = None
+            self.hardware_name = "beambox"
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
                 'divide_svg': [self.divide_svg],
-                'svgeditor_upload': [self.cmd_upload_svg_and_thumbnail],
-                'go': [self.cmd_process],
+                'svgeditor_upload': [self.cmd_svgeditor_upload],
+                'go': [self.cmd_go],
                 'set_params': [self.cmd_set_params],
             }
 
@@ -176,7 +60,7 @@ def laser_svgeditor_api_mixin(cls):
             self.send_binary(outputs[2].getbuffer())
             self.send_ok()
 
-        def cmd_upload_svg_and_thumbnail(self, params):
+        def cmd_svgeditor_upload(self, params):
 
             def progress_callback(prog):
                 self.send_progress("Analyzing SVG - " + str(prog * 50) + "%", prog / 2)
@@ -185,7 +69,7 @@ def laser_svgeditor_api_mixin(cls):
                 try:
                     thumbnail = buf[:thumbnail_length]
                     svg_data = buf[thumbnail_length:]
-                    svgeditor_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, progress_callback=progress_callback)
+                    svgeditor_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, hardware=self.hardware_name, progress_callback=progress_callback)
                 except Exception as e:
                     logger.exception("Load SVG Error")
                     logger.exception(str(e))
@@ -198,8 +82,14 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_ok()
 
             logger.info('svg_editor')
-
-            name, file_length, thumbnail_length = params.split()
+            params = params.split()
+            name = params[0]
+            file_length = params[1]
+            thumbnail_length = params[2]
+            self.hardware_name = 'beambox'
+            if params[-1] == '-pro':
+                max_x = 600 
+                self.hardware_name = 'beambox-pro'
             file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
             helper = BinaryUploadHelper(
                     file_length, upload_callback, name, thumbnail_length)
@@ -223,13 +113,13 @@ def laser_svgeditor_api_mixin(cls):
             self.set_binary_helper(helper)
             self.send_json(status="continue")
 
-        def prepare_factory(self):
-            factory = SvgeditorFactory(self.pixel_per_mm)
+        def prepare_factory(self, hardware_name):
+            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name)
             factory.add_image(self.svg.groups, self.svg.params)
             factory.add_thumbnail(self.svg.thumbnail)
             return factory
 
-        def cmd_process(self, params):
+        def cmd_go(self, params):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
                 self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
@@ -238,8 +128,10 @@ def laser_svgeditor_api_mixin(cls):
             output_fcode = True
             names = params.split()
             max_x = 400
+            hardware_name = 'beambox'
             if names[-1] == '-pro':
                 max_x = 600 
+                hardware_name = 'beambox-pro'
             #    names = names[:-1]
             #    output_fcode = True
             #elif names[-1] == '-g':
@@ -247,7 +139,7 @@ def laser_svgeditor_api_mixin(cls):
             #    output_fcode = False
 
             self.send_progress('Initializing', 0.03)
-            factory = self.prepare_factory()
+            factory = self.prepare_factory(hardware_name)
 
             self.fcode_metadata.update({
                 "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
