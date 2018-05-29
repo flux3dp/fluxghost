@@ -21,7 +21,7 @@ def laser_svgeditor_api_mixin(cls):
         def __init__(self, *args):
             self.max_engraving_strength = 1.0
             self.pixel_per_mm = 20
-            self.svg = None
+            self.svg_image = None
             self.hardware_name = "beambox"
             super().__init__(*args)
             self.cmd_mapping = {
@@ -69,13 +69,13 @@ def laser_svgeditor_api_mixin(cls):
                 try:
                     thumbnail = buf[:thumbnail_length]
                     svg_data = buf[thumbnail_length:]
-                    svgeditor_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, hardware=self.hardware_name, progress_callback=progress_callback)
+                    svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, hardware=self.hardware_name, progress_callback=progress_callback)
                 except Exception as e:
                     logger.exception("Load SVG Error")
                     logger.exception(str(e))
                     self.send_error("SVG_BROKEN")
                     return
-                self.svg = svgeditor_image
+                self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
                 gen_svgs_database(buf, name, thumbnail_length)
@@ -115,8 +115,7 @@ def laser_svgeditor_api_mixin(cls):
 
         def prepare_factory(self, hardware_name):
             factory = SvgeditorFactory(self.pixel_per_mm, hardware_name)
-            factory.add_image(self.svg.groups, self.svg.params)
-            factory.add_thumbnail(self.svg.thumbnail)
+            factory.add_image(self.svg_image)
             return factory
 
         def cmd_go(self, params):
