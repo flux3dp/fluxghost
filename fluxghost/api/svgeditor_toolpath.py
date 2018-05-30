@@ -20,7 +20,7 @@ def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         def __init__(self, *args):
             self.max_engraving_strength = 1.0
-            self.pixel_per_mm = 20
+            self.pixel_per_mm = 10
             self.svg_image = None
             self.hardware_name = "beambox"
             super().__init__(*args)
@@ -87,9 +87,19 @@ def laser_svgeditor_api_mixin(cls):
             file_length = params[1]
             thumbnail_length = params[2]
             self.hardware_name = 'beambox'
-            if params[-1] == '-pro':
+            if '-pro' in params:
                 max_x = 600 
                 self.hardware_name = 'beambox-pro'
+
+            if '-ldpi' in params:
+                self.pixel_per_mm = 5
+            
+            if '-mdpi' in params:
+                self.pixel_per_mm = 10
+            
+            if '-hdpi' in params:
+                self.pixel_per_mm = 20
+
             file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
             helper = BinaryUploadHelper(
                     file_length, upload_callback, name, thumbnail_length)
@@ -160,7 +170,7 @@ def laser_svgeditor_api_mixin(cls):
                         travel_speed=12000,
                         engraving_strength=self.max_engraving_strength,
                         progress_callback=progress_callback,
-                        max_x=400)
+                        max_x=max_x)
             
             writer.terminated()
 

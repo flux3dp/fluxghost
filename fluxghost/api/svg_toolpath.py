@@ -109,7 +109,7 @@ def svg_base_api_mixin(cls):
             self.set_binary_helper(helper)
             self.send_json(status="continue")
 
-        def cmd_fetch_svg(self, name):
+        def cmd_get(self, name):
             svg_image = self.svgs.get(name, None)
             if svg_image:
                 self.send_json(
@@ -140,7 +140,7 @@ def laser_svg_api_mixin(cls):
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_svg],
                 'compute': [self.cmd_upload_svg_and_preview],
-                'get': [self.cmd_fetch_svg],
+                'get': [self.cmd_get],
                 'go': [self.cmd_process],
                 'set_params': [self.cmd_set_params],
                 'meta_option': [self.cmd_set_fcode_metadata]
@@ -218,7 +218,7 @@ def drawing_svg_api_mixin(cls):
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_svg],
                 'compute': [self.cmd_upload_svg_and_preview],
-                'get': [self.cmd_fetch_svg],
+                'get': [self.cmd_get],
                 'go': [self.cmd_process],
                 'set_params': [self.cmd_set_params],
                 'meta_option': [self.cmd_set_fcode_metadata]
@@ -297,7 +297,7 @@ def vinyl_svg_api_mixin(cls):
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_svg],
                 'compute': [self.cmd_upload_svg_and_preview],
-                'get': [self.cmd_fetch_svg],
+                'get': [self.cmd_get],
                 'go': [self.cmd_process],
                 'set_params': [self.cmd_set_params],
                 'meta_option': [self.cmd_set_fcode_metadata]
