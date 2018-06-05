@@ -167,7 +167,7 @@ def laser_svgeditor_api_mixin(cls):
                 writer = GCodeMemoryWriter()
 
             svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
-                        travel_speed=12000,
+                        travel_speed=10000,
                         engraving_strength=self.max_engraving_strength,
                         progress_callback=progress_callback,
                         max_x=max_x)
