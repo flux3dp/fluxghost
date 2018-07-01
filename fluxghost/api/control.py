@@ -108,6 +108,12 @@ def control_api_mixin(cls):
                     "del": self.config_del
                 },
 
+                "pipe": {
+                    "set": self.pipe_set,
+                    "get": self.pipe_get,
+                    "del": self.pipe_del
+                },
+
                 "play": {
                     "select": self.select_file,
                     "start": self.start_play,
@@ -725,6 +731,17 @@ def control_api_mixin(cls):
 
         def config_del(self, key):
             del self.robot.config[key]
+            self.send_ok(key=key)
+        
+        def pipe_set(self, key, *value):
+            self.robot.pipe[key] = " ".join(value)
+            self.send_ok(key=key)
+
+        def pipe_get(self, key):
+            self.send_ok(key=key, value=self.robot.pipe[key])
+
+        def pipe_del(self, key):
+            del self.robot.pipe[key]
             self.send_ok(key=key)
 
         def fetch_log(self, logname):
