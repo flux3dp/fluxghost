@@ -60,6 +60,7 @@ def control_api_mixin(cls):
 
                 "update_fw": self.update_fw,
                 "update_mbfw": self.update_mbfw,
+                "upload_fcode_collection": self.upload_fcode_collection,
 
                 "deviceinfo": self.deviceinfo,
                 "cloud_validate_code": self.cloud_validate_code,
@@ -247,7 +248,9 @@ def control_api_mixin(cls):
             self.robot.kick()
             self.send_ok()
 
-        def list_file(self, location=""):
+        def list_file(self, location="", *args):
+            if len(args) > 0:
+                location = location + " " + " ".join(args)
             if location and location != "/":
                 path = location if location.startswith("/") else "/" + location
                 dirs = []
@@ -383,9 +386,21 @@ def control_api_mixin(cls):
                     self.robot.yihniwimda_upload_stream, mimetype, size,
                     upload_to=upload_to, cb=self.send_ok)
 
+            elif mimetype == "application/fcode_collection":
+                self.simple_binary_transfer(
+                    self.robot.yihniwimda_upload_stream, mimetype, size,
+                    upload_to=upload_to, cb=self.send_ok)
+
             else:
                 self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
                 return
+
+        def upload_fcode_collection(self, ssize):
+            size = int(ssize)
+            self.simple_binary_transfer(
+                self.robot.yihniwimda_upload_stream, "application/fcode_collection", size,
+                upload_to="/SD/films.tar", cb=self.send_ok)
+            return
 
         def update_fw(self, mimetype, ssize):
             size = int(ssize)
