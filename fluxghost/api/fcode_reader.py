@@ -118,13 +118,13 @@ def fcode_reader_api_mixin(cls):
                     #        self.send_error("6", info="gcode area too big")
                     #    else:
                     #        self.send_ok()
-                        if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['beambox']['radius']:
+                        if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
                             self.send_error("6", info="gcode area too big X")
-                        elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['beambox']['radius']:
+                        elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
                             self.send_error("6", info="gcode area too big Y")
-                        elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['beambox']['radius']:
+                        elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
                             self.send_error("6", info="gcode area too big R")
-                        elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['beambox']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
+                        elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
                             self.send_error("6", info="gcode area too big z")
                         else:
                             self.send_ok()
