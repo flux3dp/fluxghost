@@ -1,7 +1,7 @@
 from datetime import datetime
 from getpass import getuser
 import logging
-import io
+import io, sys
 import numpy as np
 from PIL import Image
 
@@ -23,13 +23,17 @@ def camera_calibration_api_mixin(cls):
             }
 
         def cmd_upload_image(self, message):
+            message = message.split(" ")
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
+                if "flip" in message:
+                    print("CameraCalibration flip", file=sys.stderr)
+                    img = img.rotate(180)
                 img_cv = np.array(img);
                 result = calc_picture_shape(img_cv)
                 self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], size=result['size'])
 
-            file_length = int(message)
+            file_length = int(message[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status="continue")
