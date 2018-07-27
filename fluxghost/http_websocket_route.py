@@ -60,7 +60,9 @@ ROUTES = [
     (re.compile("3dprint-slicing"),
      "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
     (re.compile("camera-calibration"),
-     "fluxghost.websocket.camera_calibration.WebsocketCameraCalibration")
+     "fluxghost.websocket.camera_calibration.WebsocketCameraCalibration"),
+     (re.compile("image-tracer"),
+     "fluxghost.websocket.image_tracer.WebsocketImageTracer")
 ]
 
 def get_match_ws_service(path):
