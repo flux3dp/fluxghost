@@ -47,17 +47,17 @@ def laser_svgeditor_api_mixin(cls):
             self.send_ok()
 
         def divide_svg(self, params):
-            outputs = fluxsvg.divide(self.plain_svg)
-            self.send_json(name="strokes", length=outputs[0].getbuffer().nbytes)
-            self.send_binary(outputs[0].getbuffer())
-            if outputs[1] is None:
+            result = fluxsvg.divide(self.plain_svg)
+            self.send_json(name="strokes", length=result['strokes'].getbuffer().nbytes)
+            self.send_binary(result['strokes'].getbuffer())
+            if result['bitmap'] is None:
                 self.send_json(name="bitmap", length=0)
                 self.send_binary(b"")
             else:
-                self.send_json(name="bitmap", length=outputs[1].getbuffer().nbytes)
-                self.send_binary(outputs[1].getbuffer())
-            self.send_json(name="colors", length=outputs[2].getbuffer().nbytes)
-            self.send_binary(outputs[2].getbuffer())
+                self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
+                self.send_binary(result['bitmap'].getbuffer())
+            self.send_json(name="colors", length=result['colors'].getbuffer().nbytes)
+            self.send_binary(result['colors'].getbuffer())
             self.send_ok()
 
         def cmd_svgeditor_upload(self, params):
@@ -167,7 +167,7 @@ def laser_svgeditor_api_mixin(cls):
                 writer = GCodeMemoryWriter()
 
             svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
-                        travel_speed=12000,
+                        travel_speed=10000,
                         engraving_strength=self.max_engraving_strength,
                         progress_callback=progress_callback,
                         max_x=max_x)
