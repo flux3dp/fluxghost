@@ -84,6 +84,7 @@ def control_api_mixin(cls):
 
                 "maintain": {
                     "move": self.maintain_move,
+                    "force_default": self.maintain_force_default,
                     "close_fan": self.close_fan,
                     "calibrate_beambox_camera": self.maintain_calibrate_beambox_camera,
                     "wait_head": self.maintain_wait_head,
@@ -122,6 +123,10 @@ def control_api_mixin(cls):
                     "pause": self.pause_play,
                     "resume": self.resume_play,
                     "abort": self.abort_play,
+                    "set_laser_power": self.set_laser_power,
+                    "get_laser_power": self.get_laser_power,
+                    "set_laser_speed": self.set_laser_speed,
+                    "get_laser_speed": self.get_laser_speed,
                     "toolhead": {
                         "operation": self.set_toolhead_operating,
                         "standby": self.set_toolhead_standby,
@@ -432,6 +437,22 @@ def control_api_mixin(cls):
         def abort_play(self):
             self.robot.abort_play()
             self.send_ok()
+        
+        def set_laser_power(self, value):
+            self.robot.set_laser_power(float(value))
+            self.send_ok()
+        
+        def set_laser_speed(self, value):
+            self.robot.set_laser_speed(float(value))
+            self.send_ok()
+        
+        def get_laser_power(self):
+            power = self.robot.get_laser_power()
+            self.send_ok(value=power)
+        
+        def get_laser_speed(self):
+            speed = self.robot.get_laser_speed()
+            self.send_ok(value=speed)
 
         def set_toolhead_operating(self):
             self.robot.set_toolhead_operating_in_play()
@@ -562,6 +583,10 @@ def control_api_mixin(cls):
 
         def maintain_move(self, *args):
             self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
+            self.send_ok()
+        
+        def maintain_force_default(self, *args):
+            self.task.force_default()
             self.send_ok()
         
         def close_fan(self, *args):
