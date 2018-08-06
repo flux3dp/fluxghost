@@ -118,6 +118,7 @@ def control_api_mixin(cls):
                 "play": {
                     "select": self.select_file,
                     "start": self.start_play,
+                    "preview": self.preview_play,
                     "info": self.play_info,
                     "report": self.report_play,
                     "pause": self.pause_play,
@@ -428,6 +429,10 @@ def control_api_mixin(cls):
 
         def start_play(self):
             self.robot.start_play()
+            self.send_ok()
+
+        def preview_play(self):
+            self.robot.preview_play()
             self.send_ok()
 
         def pause_play(self):
