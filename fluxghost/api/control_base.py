@@ -111,11 +111,11 @@ def control_base_mixin(cls):
                 try:
                     self.client_key = KeyObject.load_keyobj(message)
                 except ValueError:
-                    self.send_fatal("BAD_PARAMS")
+                    self.send_fatal("KEYOBJ_BAD_PARAMS")
                     return
                 except Exception:
                     logger.error("RSA Key load error: %s", message)
-                    self.send_fatal("BAD_PARAMS")
+                    self.send_fatal("RSA_BAD_PARAMS")
                     raise
 
                 try:

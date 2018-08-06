@@ -73,9 +73,10 @@ class ApiBase(object):
         else:
             self.send_json(status="fatal", error="NOT_GIVEN", symbol=[])
 
-    def send_traceback(self, symbol):
+    def send_traceback(self, symbol, classname="none"):
         import traceback
         import sys
+        logger.error("Error Classname = " + classname)
         etype, value, tb = sys.exc_info()
         if etype:
             self.send_error(

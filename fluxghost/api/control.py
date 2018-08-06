@@ -273,12 +273,16 @@ def control_api_mixin(cls):
                 self.send_ok(path=location,
                              directories=["SD", "USB"], files=[])
 
-        def select_file(self, file):
+        def select_file(self, file, *args):
+            if len(args) > 0:
+                file = file + " " + " ".join(args)
             path = file if file.startswith("/") else "/" + file
             self.robot.select_file(path)
             self.send_ok(path=path)
 
-        def fileinfo(self, file):
+        def fileinfo(self, file, *args):
+            if len(args) > 0:
+                file = file + " " + " ".join(args)
             path = file if file.startswith("/") else "/" + file
             info, binary = self.robot.file_info(path)
             if binary:
