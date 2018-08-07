@@ -128,23 +128,23 @@ def laser_svgeditor_api_mixin(cls):
             factory.add_image(self.svg_image)
             return factory
 
-        def cmd_go(self, params):
+        def cmd_go(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
                 self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
 
             logger.info('Calling laser svgeditor')
             output_fcode = True
-            names = params.split()
+            params = params_str.split()
             max_x = 400
             hardware_name = 'beambox'
-            if names[-1] == '-pro':
+            if '-pro' in params:
                 max_x = 600 
                 hardware_name = 'beambox-pro'
-            #    names = names[:-1]
+            #    params = params[:-1]
             #    output_fcode = True
-            #elif names[-1] == '-g':
-            #    names = names[:-1]
+            #elif params[-1] == '-g':
+            #    params = params[:-1]
             #    output_fcode = False
 
             self.send_progress('Initializing', 0.03)
@@ -158,6 +158,9 @@ def laser_svgeditor_api_mixin(cls):
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
             self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
             self.fcode_metadata["BACKLASH"] = "Y"
+            if '-film' in params:
+                self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
+            
 
             if output_fcode:
                 thumbnail = factory.generate_thumbnail()
