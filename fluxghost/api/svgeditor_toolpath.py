@@ -65,7 +65,7 @@ def laser_svgeditor_api_mixin(cls):
             def progress_callback(prog):
                 self.send_progress("Analyzing SVG - " + str(prog * 50) + "%", prog / 2)
 
-            def gen_svgs_database(buf, name, thumbnail_length):
+            def generate_svgeditor_image(buf, name, thumbnail_length):
                 try:
                     thumbnail = buf[:thumbnail_length]
                     svg_data = buf[thumbnail_length:]
@@ -78,7 +78,7 @@ def laser_svgeditor_api_mixin(cls):
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
-                gen_svgs_database(buf, name, thumbnail_length)
+                generate_svgeditor_image(buf, name, thumbnail_length)
                 self.send_ok()
 
             logger.info('svg_editor')
