@@ -38,9 +38,10 @@ def image_tracer_api_mixin(cls):
         def cmd_basic_processing(self, message):
             message = message.split(" ")
             def basic_processing_callback(buf):
-                img = Image.open(io.BytesIO(buf)).convert('L')
+                img = Image.open(io.BytesIO(buf)).convert('LA')
                 result = basicProcessing(img, float(message[1]), float(message[2]))
                 self.send_binary(result)
+                self.send_ok()
             
             file_length = message[0]
             helper = BinaryUploadHelper(int(file_length), basic_processing_callback)
