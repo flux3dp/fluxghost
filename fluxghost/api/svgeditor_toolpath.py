@@ -136,16 +136,21 @@ def laser_svgeditor_api_mixin(cls):
             logger.info('Calling laser svgeditor')
             output_fcode = True
             params = params_str.split()
+            default_travel_speed = 9000
             max_x = 400
             hardware_name = 'beambox'
+            spinning_axis_coord = -1
+
             if '-pro' in params:
                 max_x = 600 
                 hardware_name = 'beambox-pro'
-            #    params = params[:-1]
-            #    output_fcode = True
-            #elif params[-1] == '-g':
-            #    params = params[:-1]
-            #    output_fcode = False
+            
+            if '-film' in params:
+                self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
+
+            if '-spin' in params:
+                travel_speed = 4000
+                spinning_axis_coord = float(params[params.index('-spin')+1])
 
             self.send_progress('Initializing', 0.03)
             factory = self.prepare_factory(hardware_name)
@@ -158,10 +163,7 @@ def laser_svgeditor_api_mixin(cls):
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
             self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
             self.fcode_metadata["BACKLASH"] = "Y"
-            if '-film' in params:
-                self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
             
-
             if output_fcode:
                 thumbnail = factory.generate_thumbnail()
                 writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
@@ -170,10 +172,11 @@ def laser_svgeditor_api_mixin(cls):
                 writer = GCodeMemoryWriter()
 
             svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
-                        travel_speed=10000,
+                        travel_speed=default_travel_speed,
                         engraving_strength=self.max_engraving_strength,
                         progress_callback=progress_callback,
-                        max_x=max_x)
+                        max_x=max_x,
+                        spinning_axis_coord=spinning_axis_coord)
             
             writer.terminated()
 
