@@ -26,12 +26,9 @@ def camera_calibration_api_mixin(cls):
             message = message.split(" ")
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
-                if "flip" in message:
-                    print("CameraCalibration flip", file=sys.stderr)
-                    img = img.rotate(180)
                 img_cv = np.array(img);
                 result = calc_picture_shape(img_cv)
-                self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], size=result['size'])
+                self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], width=result['width'], height=result['height'])
 
             file_length = int(message[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
@@ -46,7 +43,7 @@ def camera_calibration_api_mixin(cls):
 
             lines = _find_four_main_lines(gray_image)
             angle = _get_angle(lines)
-            size = _get_size(lines)
+            [width, height] = _get_size(lines)
             [x, y] = _get_center(lines) 
 
             # output_img = np.copy(img)
@@ -67,7 +64,8 @@ def camera_calibration_api_mixin(cls):
                 'x': x,
                 'y': y,
                 'angle': angle,
-                'size': size,
+                'width': float(width),
+                'height': float(height)
             }
 
             return ret
@@ -124,8 +122,9 @@ def camera_calibration_api_mixin(cls):
         # return size in pixel
         def _get_size(lines):
             [top, bottom, left, right] = lines
-            average_size = ( (bottom[0]-top[0]) + (right[0]-left[0]) )/2
-            return average_size
+            width = right[0] - left[0]
+            height = bottom[0] - top[0]
+            return (width, height)
 
         # return [x, y] in pixel
         def _get_center(lines):
