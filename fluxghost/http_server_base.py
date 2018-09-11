@@ -3,6 +3,7 @@ from threading import Lock
 from select import select
 import logging
 import socket
+from sys import stdout
 
 from fluxghost.http_handlers.websocket_handler import WebSocketHandler
 from fluxghost.http_handlers.file_handler import FileHandler
@@ -31,10 +32,10 @@ class HttpServerBase(object):
         s.listen(backlog)
 
         if address[1] == 0:
-            from sys import stdout
             address = s.getsockname()
-            stdout.write('{"type": "ready", "port": %i}\n' % address[1])
-            stdout.flush()
+
+        stdout.write('{"type": "ready", "port": %i}\n' % address[1])
+        stdout.flush()
 
         from fluxghost import __version__ as ghost_version
         from fluxclient import __version__ as client_version
