@@ -6,7 +6,7 @@ import select
 import time
 import os
 import re
-
+from io import BytesIO
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +37,7 @@ else:
 
 BUF_SIZE = 65536
 
+file_caches = {"none": "none"}
 
 class FileHandler(object):
     def __init__(self, basedir):
@@ -86,6 +87,8 @@ class FileHandler(object):
 
         handler.end_headers()
         handler.wfile.flush()
+        file_cache = BytesIO()
+        do_cache = True if length < 1024000 else False
 
         with open(filepath, "rb") as f:
             buf = bytearray(4096)
@@ -99,8 +102,13 @@ class FileHandler(object):
                     while sent != l:
                         select.select((), (fd_dist, ), ())
                         sent += handler.wfile.write(mv[sent:l])
+                        if do_cache:
+                            file_cache.write(mv[sent:l])
                 else:
                     break
+            
+            if do_cache:
+                file_caches[filepath] = file_cache
 
     def proc_range_request(self, handler, file_length, request_range):
         if request_range:
