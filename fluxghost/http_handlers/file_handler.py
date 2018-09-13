@@ -37,7 +37,8 @@ else:
 
 BUF_SIZE = 65536
 
-file_caches = {"none": "none"}
+file_caches = {}
+file_info_caches = {}
 
 class FileHandler(object):
     def __init__(self, basedir):
@@ -71,7 +72,12 @@ class FileHandler(object):
             logger.debug("Error: %s", e)
 
     def make_response(self, handler, filepath):
-        length = os.path.getsize(filepath)
+        file_info = file_info_caches[filepath] if filepath in file_info_caches else None
+        
+        length = file_info["length"] if not file_info is None else os.path.getsize(filepath)
+        last_modified = file_info["last_modified"] if not file_info is None else get_last_modify(filepath)
+
+        file_info_caches[filepath] = {"length": length, "last_modified": last_modified}
 
         req_range = handler.headers.get("Range", None)
         start, until = self.proc_range_request(handler, length, req_range)
@@ -80,7 +86,7 @@ class FileHandler(object):
 
         handler.send_header('Content-Type', self.get_mime(fileExtension))
         handler.send_header('Content-Length', length - start)
-        handler.send_header('Last-Modified', get_last_modify(filepath))
+        handler.send_header('Last-Modified', last_modified)
 
         if not handler.close_connection:
             handler.send_header('Connection', 'Keep-Alive')
