@@ -89,9 +89,12 @@ class FileHandler(object):
         handler.wfile.flush()
         file_cache = BytesIO()
         do_cache = True if length < 1024000 else False
-
+        if filepath in file_caches:
+            f = file_caches[filepath]
+            do_cache = False
+            print("Cached ", filepath)
         with open(filepath, "rb") as f:
-            buf = bytearray(4096)
+            buf = bytearray(16384)
             mv = memoryview(buf)
             fd_dist = handler.wfile.fileno()
 
@@ -108,6 +111,7 @@ class FileHandler(object):
                     break
             
             if do_cache:
+                print("Caching ", filepath)
                 file_caches[filepath] = file_cache
 
     def proc_range_request(self, handler, file_length, request_range):
