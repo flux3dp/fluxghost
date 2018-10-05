@@ -61,8 +61,12 @@ ROUTES = [
      "fluxghost.websocket.stl_slicing_parser.Websocket3DSlicing"),
     (re.compile("camera-calibration"),
      "fluxghost.websocket.camera_calibration.WebsocketCameraCalibration"),
-     (re.compile("image-tracer"),
-     "fluxghost.websocket.image_tracer.WebsocketImageTracer")
+    (re.compile("image-tracer"),
+     "fluxghost.websocket.image_tracer.WebsocketImageTracer"),
+    (re.compile("push-studio"),
+     "fluxghost.websocket.push_studio.WebsocketPushStudio"),
+    (re.compile("inter-process"),
+     "fluxghost.websocket.inter_process.WebsocketInterProcess")
 ]
 
 def get_match_ws_service(path):

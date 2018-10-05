@@ -73,6 +73,8 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.debug("%s:%s connected" % (client, module))
             ws = ws_class(self.request, client, self.server, self.path,
                           **kwargs)
+            if self.path.find('push-studio') != -1: 
+                self.server.set_push_studio_ws(ws)
             ws.serve_forever()
             logger.debug("%s:%s disconnected" % (client, module))
 

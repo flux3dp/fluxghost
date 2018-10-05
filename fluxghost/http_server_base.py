@@ -4,6 +4,9 @@ from select import select
 import logging
 import socket
 from sys import stdout
+import platform
+from pathlib import Path
+from os import path
 
 from fluxghost.http_handlers.websocket_handler import WebSocketHandler
 from fluxghost.http_handlers.file_handler import FileHandler
@@ -25,6 +28,7 @@ class HttpServerBase(object):
         self.discover_devices = {}
         self.debug = debug
         self.allow_foreign = allow_foreign
+        self.push_studio_ws = None
 
         self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -33,6 +37,24 @@ class HttpServerBase(object):
 
         if address[1] == 0:
             address = s.getsockname()
+            home = str(Path.home())
+            sys = platform.system()
+            appdata = ''
+
+            if sys == 'Darwin':
+                appdata = path.join(home, 'Library', 'Application Support')
+            elif sys == 'Windows':
+                appdata = path.join(home, 'AppData', 'Roaming')
+            elif sys == 'Linux':
+                appdata = path.join(home, '.config')
+            else:
+                appdata = path.join(home, '.config')
+
+            appdata = path.join(appdata, 'FluxStudioPort')
+            
+            portFile = open(appdata, 'w')
+            portFile.write(str(address[1]))
+            portFile.close()
 
         stdout.write('{"type": "ready", "port": %i}\n' % address[1])
         stdout.flush()
@@ -103,3 +125,6 @@ class HttpServerBase(object):
         with self.discover_mutex:
             if uuid not in self.discover_devices:
                 self.discover_devices[uuid] = device
+
+    def set_push_studio_ws(self, ws):
+        self.push_studio_ws = ws
