@@ -140,6 +140,7 @@ def laser_svgeditor_api_mixin(cls):
             max_x = 400
             hardware_name = 'beambox'
             spinning_axis_coord = -1
+            send_fcode = True
 
             if '-pro' in params:
                 max_x = 600 
@@ -151,6 +152,9 @@ def laser_svgeditor_api_mixin(cls):
             if '-spin' in params:
                 travel_speed = 4000
                 spinning_axis_coord = float(params[params.index('-spin')+1])
+            
+            if '-temp' in params:
+                send_fcode = False
 
             self.send_progress('Initializing', 0.03)
             factory = self.prepare_factory(hardware_name)
@@ -160,9 +164,6 @@ def laser_svgeditor_api_mixin(cls):
                 "AUTHOR": getuser(),
                 "SOFTWARE": "fluxclient-%s-FS" % __version__,
             })
-            self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
-            self.fcode_metadata["HEIGHT_OFFSET"] = str(self.height_offset)
-            self.fcode_metadata["BACKLASH"] = "Y"
             
             if output_fcode:
                 thumbnail = factory.generate_thumbnail()
@@ -188,9 +189,14 @@ def laser_svgeditor_api_mixin(cls):
                 if output_fcode else 0
 
             self.send_progress('Finishing', 1.0)
-            self.send_json(status="complete", length=len(output_binary),
-                           time=time_need, traveled_dist=traveled_dist)
-            self.send_binary(output_binary)
-            logger.info("Svg Processed")
+            if send_fcode:
+                self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
+                self.send_binary(output_binary)
+            else:
+                output_file = open("/var/gcode/userspace/temp.fc", "wb")
+                output_file.write(output_binary)
+                output_file.close()
+                self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
+            logger.info("Svg Editor Processed")
 
     return LaserSvgeditorApi
