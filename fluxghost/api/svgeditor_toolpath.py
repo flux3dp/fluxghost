@@ -131,7 +131,7 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_go(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
+                self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
 
             logger.info('Calling laser svgeditor')
             output_fcode = True
