@@ -63,7 +63,7 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_svgeditor_upload(self, params):
 
             def progress_callback(prog):
-                self.send_progress("Analyzing SVG - " + str(prog * 50) + "%", prog / 2)
+                self.send_progress("Analyzing SVG - " + str(prog * 100) + "%", prog)
 
             def generate_svgeditor_image(buf, name, thumbnail_length):
                 try:
