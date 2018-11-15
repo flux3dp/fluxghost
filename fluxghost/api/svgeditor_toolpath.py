@@ -136,7 +136,7 @@ def laser_svgeditor_api_mixin(cls):
             logger.info('Calling laser svgeditor')
             output_fcode = True
             params = params_str.split()
-            default_travel_speed = 9000
+            default_travel_speed = 7500
             max_x = 400
             hardware_name = 'beambox'
             spinning_axis_coord = -1
