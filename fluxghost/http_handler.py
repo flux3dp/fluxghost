@@ -1,10 +1,15 @@
 
+import os
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse
+from urllib.request import Request
+from urllib.request import urlopen
 import logging
 
 from fluxghost.http_websocket_route import get_match_ws_service
 from fluxghost import __version__
+from io import StringIO
+import urllib.error
 
 logger = logging.getLogger("HTTP")
 
@@ -48,9 +53,93 @@ class HttpHandler(BaseHTTPRequestHandler):
                 self.response_404()
 
         elif self.path == "/":
-            self.serve_assets("index.html")
+            return self.serve_assets("index.html")
+        elif self.path.startswith("/api"):
+            try:
+                hostname = os.environ.get("proxy_api_host")
+                print("Proxying %s" % hostname)
+                url = 'http://{}{}'.format(hostname, self.path)
+                req = Request(url=url)
+                req_headers = self.headers.items()
+                for header, value in req_headers:
+                    if str(header).startswith("Host"):
+                        continue
+                    if str(header).startswith("Accept-Encoding"):
+                        continue
+                    req.add_header(header, value)
+                try:
+                    resp = urlopen(req)
+                except urllib.error.HTTPError as e:
+                    if e.getcode():
+                        resp = e
+                    else:
+                        self.send_error(599, u'error proxying: {}'.format(unicode(e)))
+                        return
+                self.send_response(resp.getcode())
+                respheaders = resp.getheaders()
+                for header, value in respheaders:
+                    if str(header).startswith("Transfer-Encoding"):
+                        continue
+                    #print("Response headers: " + header + " vs " + value)
+                    self.send_header(header, value)
+                self.end_headers()
+                self.wfile.write(resp.read())
+                self.wfile.flush()
+            except IOError as e:
+                self.send_error(404, 'error trying to proxy: {}'.format(str(e)))
         else:
+            #self.send_response(200)
+            #self.end_headers()
+            #self.wfile.write('sadvd'.encode('utf-8'))
+            #logger.error("all sent2 %d " % len('sadvd'))
             self.serve_assets(self.path[1:])
+
+    def do_POST(self):
+        hostname = os.environ.get("proxy_api_host")
+        print("Proxying %s" % hostname)
+        url = 'http://{}{}'.format(hostname, self.path)
+        req = Request(url=url)
+        req_headers = self.headers.items()
+        data_length = 0
+        print("Getting headers")
+        for header, value in req_headers:
+            if str(header).startswith("Host"):
+                continue
+            if str(header).startswith("Accept-Encoding"):
+                continue
+            if header == "Content-Length":
+                data_length = int(value) if value else 0
+            req.add_header(header, value)
+
+        print("Reading request %d" % data_length)
+        request_data = self.rfile.read(data_length)
+        print("Generating request")
+        resp = urlopen(req, data=request_data)
+        try:
+            print("Response generated")
+        except urllib.error.HTTPError as e:
+            if e.getcode():
+                resp = e
+                print("Response = e")
+            else:
+                print("Something went wrong..")
+                self.send_error(599, u'error proxying: {}'.format(unicode(e)))
+                return
+        print("Proxy response code %d" % resp.getcode())
+        self.send_response(resp.getcode())
+        respheaders = resp.getheaders()
+        for header, value in respheaders:
+            if str(header).startswith("Transfer-Encoding"):
+                continue
+            #print(self.path + " RESPH: " + header + " vs " + value)
+            self.send_header(header, value)
+        print(self.path + " end headers")
+        self.end_headers()
+        data = resp.read();
+        print(self.path + " response readed")
+        self.wfile.write(data)
+        self.wfile.flush()
+        print(self.path + " flushed")
 
     def serve_assets(self, path):
         self.server.assets_handler.handle_request(self, path)
