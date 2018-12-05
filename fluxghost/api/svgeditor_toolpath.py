@@ -63,7 +63,7 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_svgeditor_upload(self, params):
 
             def progress_callback(prog):
-                self.send_progress("Analyzing SVG - " + str(prog * 50) + "%", prog / 2)
+                self.send_progress("Analyzing SVG - " + str(round(prog * 100, 2)) + "%", prog)
 
             def generate_svgeditor_image(buf, name, thumbnail_length):
                 try:
@@ -131,12 +131,12 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_go(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress("Calculating Toolpath " + str(50 + prog * 50) + "%", 0.5 + prog / 2)
+                self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
 
             logger.info('Calling laser svgeditor')
             output_fcode = True
             params = params_str.split()
-            default_travel_speed = 9000
+            default_travel_speed = 7500
             max_x = 400
             hardware_name = 'beambox'
             spinning_axis_coord = -1
