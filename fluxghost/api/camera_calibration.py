@@ -26,9 +26,14 @@ def camera_calibration_api_mixin(cls):
             message = message.split(" ")
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
-                img_cv = np.array(img);
+                img_cv = np.array(img)
                 result = calc_picture_shape(img_cv)
-                self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], width=result['width'], height=result['height'])
+                if result is None:
+                    self.send_json(status="none")
+                elif result is 'Fail':
+                    self.send_json(status="fail")
+                else:
+                    self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], width=result['width'], height=result['height'])
 
             file_length = int(message[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
@@ -39,9 +44,17 @@ def camera_calibration_api_mixin(cls):
         PI = np.pi
 
         def calc_it(img):
-            gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY);
+            gray_image = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
             lines = _find_four_main_lines(gray_image)
+
+            if lines is None:
+                print('lines is None') 
+                return None
+            elif line is 'Fail':
+                print('lines Fail')
+                return 'Fail'
+
             angle = _get_angle(lines)
             [width, height] = _get_size(lines)
             [x, y] = _get_center(lines) 
@@ -73,14 +86,19 @@ def camera_calibration_api_mixin(cls):
         # use opencv to find four main lines of calibration image
         # return four lines, each contains [rho, theta]. see HoughLine to know what is rho and theta
         def _find_four_main_lines(img):
-            img_blur = cv2.medianBlur(img,5)
-            img_threshold = 255 - cv2.adaptiveThreshold(img_blur,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)
+            img_blur = cv2.medianBlur(img, 5)
+            img_threshold = 255 - cv2.adaptiveThreshold(img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
             
             # another technique to find edge
             # img_edge = cv2.Canny(img, 50, 150, apertureSize = 3)
 
             image_to_use = img_threshold #img_edge
             raw_lines = cv2.HoughLines(image_to_use, 1, radians(1), 100)
+
+            if raw_lines is None:
+                return None
+            elif np.isnan(raw_lines).tolist().count([True, True]) > 0:
+                return 'Fail'
 
             #make lines = [ [rho, theta], ... ]
             lines = [ x[0] for x in raw_lines ]
@@ -152,4 +170,3 @@ def camera_calibration_api_mixin(cls):
         return calc_it(img)
 
     return CameraCalibrationApi
-
