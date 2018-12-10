@@ -84,7 +84,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                     self.send_header(header, value)
                 self.end_headers()
                 resp_content = resp.read()
-                print("Response contents length " + str(resp_content))
+                print("Response contents length " + str(len(resp_content)))
                 self.wfile.write(resp_content)
                 self.wfile.flush()
             except IOError as e:
