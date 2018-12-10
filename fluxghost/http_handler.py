@@ -114,13 +114,13 @@ class HttpHandler(BaseHTTPRequestHandler):
         print("Reading request %d" % data_length)
         request_data = self.rfile.read(data_length)
         print("Generating request")
-        resp = urlopen(req, data=request_data)
         try:
+            resp = urlopen(req, data=request_data)
             print("Response generated")
         except urllib.error.HTTPError as e:
             if e.getcode():
                 resp = e
-                print("Response = e")
+                print("Response Error code " + str(e.getcode()))
             else:
                 print("Something went wrong..")
                 self.send_error(599, u'error proxying: {}'.format(unicode(e)))
