@@ -80,12 +80,12 @@ class HttpHandler(BaseHTTPRequestHandler):
                 for header, value in respheaders:
                     if str(header).startswith("Transfer-Encoding"):
                         continue
-                    print("Response headers: " + header + " vs " + value)
                     self.send_header(header, value)
                 self.end_headers()
-                resp_content = resp.read()
-                print("Response contents length " + str(len(resp_content)))
-                self.wfile.write(resp_content)
+                resp_content = resp.read(10240)
+                while resp_content:
+                    self.wfile.write(resp_content)
+                    resp_content = resp.read(10240)
                 self.wfile.flush()
             except IOError as e:
                 self.send_error(404, 'error trying to proxy: {}'.format(str(e)))
