@@ -1,4 +1,5 @@
 import math
+import re
 from datetime import datetime
 from getpass import getuser
 import logging
@@ -47,6 +48,8 @@ def laser_svgeditor_api_mixin(cls):
             self.send_ok()
 
         def divide_svg(self, params):
+            self.plain_svg = self.plain_svg.replace(b'encoding="UTF-16"', b'encoding="utf-8"')
+            self.plain_svg = self.plain_svg.replace(b'encoding="utf-16"', b'encoding="utf-8"')
             result = fluxsvg.divide(self.plain_svg)
             self.send_json(name="strokes", length=result['strokes'].getbuffer().nbytes)
             self.send_binary(result['strokes'].getbuffer())
