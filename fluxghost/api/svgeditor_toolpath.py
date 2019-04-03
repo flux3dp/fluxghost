@@ -23,6 +23,7 @@ def laser_svgeditor_api_mixin(cls):
             self.pixel_per_mm = 10
             self.svg_image = None
             self.hardware_name = "beambox"
+            self.loop_compensation = 0
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
@@ -33,13 +34,15 @@ def laser_svgeditor_api_mixin(cls):
             }
 
         def cmd_set_params(self, params):
-            logger.info('set params %r', params)
             key, value = params.split()
+            logger.info('setting parameter %r  = %r', key, value)
             if not self.set_param(key, value):
                 if key == 'laser_speed':
                     self.working_speed = float(value) * 60  # mm/s -> mm/min
                 elif key == 'power':
                     self.max_engraving_strength = min(1, float(value))
+                elif key == 'loop_compensation':
+                    self.loop_compensation = max(0, float(value))
                 elif key in ('shading', 'one_way', 'calibration'):
                     pass
                 else:
@@ -47,7 +50,7 @@ def laser_svgeditor_api_mixin(cls):
             self.send_ok()
 
         def divide_svg(self, params):
-            result = fluxsvg.divide(self.plain_svg)
+            result = fluxsvg.divide(self.plain_svg, loop_compensation=self.loop_compensation)
             self.send_json(name="strokes", length=result['strokes'].getbuffer().nbytes)
             self.send_binary(result['strokes'].getbuffer())
             if result['bitmap'] is None:
@@ -69,7 +72,10 @@ def laser_svgeditor_api_mixin(cls):
                 try:
                     thumbnail = buf[:thumbnail_length]
                     svg_data = buf[thumbnail_length:]
-                    svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, hardware=self.hardware_name, progress_callback=progress_callback)
+                    svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, 
+                                                hardware=self.hardware_name,
+                                                loop_compensation=self.loop_compensation,
+                                                progress_callback=progress_callback)
                 except Exception as e:
                     logger.exception("Load SVG Error")
                     logger.exception(str(e))
@@ -124,7 +130,7 @@ def laser_svgeditor_api_mixin(cls):
             self.send_json(status="continue")
 
         def prepare_factory(self, hardware_name):
-            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name)
+            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation)
             factory.add_image(self.svg_image)
             return factory
 
