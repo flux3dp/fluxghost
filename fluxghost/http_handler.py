@@ -135,6 +135,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 continue
             #print(self.path + " RESPH: " + header + " vs " + value)
             self.send_header(header, value)
+        self.send_header("Access-Control-Allow-Origin", "*")
         print(self.path + " end headers")
         self.end_headers()
         data = resp.read();
