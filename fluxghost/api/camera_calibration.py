@@ -49,10 +49,8 @@ def camera_calibration_api_mixin(cls):
             lines = _find_four_main_lines(gray_image)
 
             if lines is None:
-                print('lines is None') 
                 return None
-            elif line is 'Fail':
-                print('lines Fail')
+            elif lines is 'Fail':
                 return 'Fail'
 
             angle = _get_angle(lines)

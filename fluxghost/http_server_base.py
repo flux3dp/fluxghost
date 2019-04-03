@@ -37,7 +37,7 @@ class HttpServerBase(object):
 
         if address[1] == 0:
             address = s.getsockname()
-            home = str(Path.home())
+            home = str(path.expanduser("~"))
             sys = platform.system()
             appdata = ''
 
