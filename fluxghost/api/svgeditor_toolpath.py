@@ -24,7 +24,7 @@ def laser_svgeditor_api_mixin(cls):
             self.pixel_per_mm = 10
             self.svg_image = None
             self.hardware_name = "beambox"
-            self.loop_compensation = 0.1
+            self.loop_compensation = 0.0
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
