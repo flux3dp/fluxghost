@@ -9,7 +9,7 @@ import logging
 from fluxghost.http_websocket_route import get_match_ws_service
 from fluxghost import __version__
 from io import StringIO
-import commands
+import subprocess
 import urllib.error
 
 logger = logging.getLogger("HTTP")
@@ -61,7 +61,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             try:
                 hostname = os.environ.get("proxy_api_host")
                 if self.host_override is None:
-                    pcode, domain_info = commands.getstatusoutput("host mozu.simonko.tw")
+                    pcode, domain_info = subprocess.getstatusoutput("host mozu.simonko.tw")
                     if "has address " in domain_info:
                         slice_idx = domain_info.index("has address ") + len("has address ")
                         domain_ip = domain_info[slice_idx:]
