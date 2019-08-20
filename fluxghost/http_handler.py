@@ -9,6 +9,7 @@ import logging
 from fluxghost.http_websocket_route import get_match_ws_service
 from fluxghost import __version__
 from io import StringIO
+import commands
 import urllib.error
 
 logger = logging.getLogger("HTTP")
@@ -17,8 +18,10 @@ logger = logging.getLogger("HTTP")
 class HttpHandler(BaseHTTPRequestHandler):
     server_version = "FLUXGhost/%s" % __version__
     protocol_version = "HTTP/1.1"
+    host_override = None
 
     def __init__(self, request, client, server):
+        
         request.settimeout(60.)
         try:
             BaseHTTPRequestHandler.__init__(self, request, client, server)
@@ -57,6 +60,15 @@ class HttpHandler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api"):
             try:
                 hostname = os.environ.get("proxy_api_host")
+                if self.host_override is None:
+                    pcode, domain_info = commands.getstatusoutput("host mozu.simonko.tw")
+                    if "has address " in domain_info:
+                        slice_idx = domain_info.index("has address ") + len("has address ")
+                        domain_ip = domain_info[slice_idx:]
+                        self.host_override = domain_ip
+                        hostname = self.host_override
+                else:
+                    hostname = self.host_override
                 print("Proxying %s" % hostname)
                 url = 'http://{}{}'.format(hostname, self.path)
                 req = Request(url=url)
