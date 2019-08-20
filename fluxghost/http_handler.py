@@ -82,10 +82,10 @@ class HttpHandler(BaseHTTPRequestHandler):
                         continue
                     self.send_header(header, value)
                 self.end_headers()
-                resp_content = resp.read(10240)
+                resp_content = resp.read(4192)
                 while resp_content:
                     self.wfile.write(resp_content)
-                    resp_content = resp.read(10240)
+                    resp_content = resp.read(4192)
                 self.wfile.flush()
             except IOError as e:
                 self.send_error(404, 'error trying to proxy: {}'.format(str(e)))
