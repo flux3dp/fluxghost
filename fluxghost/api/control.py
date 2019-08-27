@@ -128,6 +128,8 @@ def control_api_mixin(cls):
                     "get_laser_power": self.get_laser_power,
                     "set_laser_speed": self.set_laser_speed,
                     "get_laser_speed": self.get_laser_speed,
+                    "set_fan": self.set_fan,
+                    "get_fan": self.get_fan,
                     "toolhead": {
                         "operation": self.set_toolhead_operating,
                         "standby": self.set_toolhead_standby,
@@ -454,6 +456,10 @@ def control_api_mixin(cls):
         def set_laser_speed(self, value):
             self.robot.set_laser_speed(float(value))
             self.send_ok()
+
+        def set_fan(self, value):
+            self.robot.set_fan(int(value))
+            self.send_ok()
         
         def get_laser_power(self):
             power = self.robot.get_laser_power()
@@ -462,6 +468,10 @@ def control_api_mixin(cls):
         def get_laser_speed(self):
             speed = self.robot.get_laser_speed()
             self.send_ok(value=speed)
+
+        def get_fan(self):
+            fan = self.robot.get_fan()
+            self.send_ok(value=fan)
 
         def set_toolhead_operating(self):
             self.robot.set_toolhead_operating_in_play()
