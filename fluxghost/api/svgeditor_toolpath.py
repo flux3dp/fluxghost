@@ -80,7 +80,8 @@ def laser_svgeditor_api_mixin(cls):
                     svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, 
                                                 hardware=self.hardware_name,
                                                 loop_compensation=self.loop_compensation,
-                                                progress_callback=progress_callback)
+                                                progress_callback=progress_callback,
+                                                enable_mask=self.enable_mask)
                 except Exception as e:
                     logger.exception("Load SVG Error")
                     logger.exception(str(e))
@@ -102,6 +103,10 @@ def laser_svgeditor_api_mixin(cls):
                 max_x = 600 
                 self.hardware_name = 'beambox-pro'
 
+            if '-beamo' in params:
+                max_x = 300 
+                self.hardware_name = 'beamo'
+
             if '-ldpi' in params:
                 self.pixel_per_mm = 5
             
@@ -110,6 +115,9 @@ def laser_svgeditor_api_mixin(cls):
             
             if '-hdpi' in params:
                 self.pixel_per_mm = 20
+            self.enable_mask = False
+            if '-mask' in params:
+                self.enable_mask = True
 
             file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
             helper = BinaryUploadHelper(
@@ -156,6 +164,10 @@ def laser_svgeditor_api_mixin(cls):
             if '-pro' in params:
                 max_x = 600 
                 hardware_name = 'beambox-pro'
+            
+            if '-beamo' in params:
+                max_x = 300 
+                hardware_name = 'beamo'
             
             if '-film' in params:
                 self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
