@@ -21,7 +21,18 @@ class HttpHandler(BaseHTTPRequestHandler):
     host_override = None
 
     def __init__(self, request, client, server):
-        
+        # This is force override
+        if self.host_override is None:
+            if "visutec" in os.environ.get("proxy_api_host"):
+                dynamic_domain = "visutec.simonko.tw"
+            else:
+                dynamic_domain = "mozu.simonko.tw"
+            pcode, domain_info = subprocess.getstatusoutput("host " + dynamic_domain)
+            if "has address " in domain_info:
+                slice_idx = domain_info.index("has address ") + len("has address ")
+                domain_ip = domain_info[slice_idx:]
+                self.host_override = domain_ip
+                hostname = self.host_override
         request.settimeout(60.)
         try:
             BaseHTTPRequestHandler.__init__(self, request, client, server)
@@ -110,6 +121,19 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         hostname = os.environ.get("proxy_api_host")
+        if self.host_override is None:
+            if "visutec" in os.environ.get("proxy_api_host"):
+                dynamic_domain = "visutec.simonko.tw"
+            else:
+                dynamic_domain = "mozu.simonko.tw"
+            pcode, domain_info = subprocess.getstatusoutput("host " + dynamic_domain)
+            if "has address " in domain_info:
+                slice_idx = domain_info.index("has address ") + len("has address ")
+                domain_ip = domain_info[slice_idx:]
+                self.host_override = domain_ip
+                hostname = self.host_override
+        else:
+            hostname = self.host_override
         print("Proxying %s" % hostname)
         url = 'http://{}{}'.format(hostname, self.path)
         req = Request(url=url)
