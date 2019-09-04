@@ -23,7 +23,7 @@ class HttpHandler(BaseHTTPRequestHandler):
     def __init__(self, request, client, server):
         # This is force override
         if self.host_override is None:
-            if "visutec" in os.environ.get("proxy_api_host"):
+            if "visutec" in os.environ.get("proxy_api_host", ''):
                 dynamic_domain = "visutec.simonko.tw"
             else:
                 dynamic_domain = "mozu.simonko.tw"
@@ -70,7 +70,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             return self.serve_assets("index.html")
         elif self.path.startswith("/api"):
             try:
-                hostname = os.environ.get("proxy_api_host")
+                hostname = os.environ.get("proxy_api_host", '')
                 if self.host_override is None:
                     pcode, domain_info = subprocess.getstatusoutput("host mozu.simonko.tw")
                     if "has address " in domain_info:
@@ -122,7 +122,7 @@ class HttpHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         hostname = os.environ.get("proxy_api_host")
         if self.host_override is None:
-            if "visutec" in os.environ.get("proxy_api_host"):
+            if "visutec" in os.environ.get("proxy_api_host", ''):
                 dynamic_domain = "visutec.simonko.tw"
             else:
                 dynamic_domain = "mozu.simonko.tw"
