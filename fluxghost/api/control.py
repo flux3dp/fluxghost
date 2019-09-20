@@ -67,6 +67,7 @@ def control_api_mixin(cls):
                 "kick": self.kick,
 
                 "file": {
+                    "lsusb": self.list_usb,
                     "ls": self.list_file,
                     "mkdir": self.mkdir,
                     "rmdir": self.rmdir,
@@ -275,6 +276,12 @@ def control_api_mixin(cls):
             else:
                 self.send_ok(path=location,
                              directories=["SD", "USB"], files=[])
+
+        def list_usb(self):
+            ret = self.robot.list_usb().split('\n')
+            ok = ret[0]
+            ret = ret[1:-1]
+            self.send_ok(cmd='lsusb' ,usbs=ret)
 
         def select_file(self, file, *args):
             if len(args) > 0:
@@ -878,7 +885,7 @@ def control_api_mixin(cls):
             # Override send_ok and send front request string at response.
             # Request from norman.
             if self.__last_command:
-                if self.__last_command.startswith("file ls"):
+                if self.__last_command.startswith("file ls "):
                     kw["cmd"] = "ls"
                 elif self.__last_command.startswith("play select"):
                     kw["cmd"] = "select"
