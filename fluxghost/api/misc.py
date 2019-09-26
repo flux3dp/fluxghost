@@ -51,7 +51,7 @@ class OnTextMessageMixin(object):
 
         except ValueError:
             logger.exception("Received Message: %s" % (message))
-            self.send_fatal("BAD_PARAM_TYPE")
+            self.send_json(status='Error', message='BAD_PARAM_TYPE')
 
         except RuntimeError as e:
             logger.exception("Received Message: %s" % (message))
