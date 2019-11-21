@@ -186,47 +186,50 @@ def laser_svgeditor_api_mixin(cls):
             if '-gc' in params:
                 output_fcode = False
 
-            self.send_progress('Initializing', 0.03)
-            factory = self.prepare_factory(hardware_name)
+            try:
+                self.send_progress('Initializing', 0.03)
+                factory = self.prepare_factory(hardware_name)
 
-            self.fcode_metadata.update({
-                "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "AUTHOR": getuser(),
-                "SOFTWARE": "fluxclient-%s-FS" % __version__,
-            })
-            
-            if output_fcode:
-                thumbnail = factory.generate_thumbnail()
-                writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
-                                             (thumbnail, ))
-            else:
-                writer = GCodeMemoryWriter()
+                self.fcode_metadata.update({
+                    "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    "AUTHOR": getuser(),
+                    "SOFTWARE": "fluxclient-%s-FS" % __version__,
+                })
+                
+                if output_fcode:
+                    thumbnail = factory.generate_thumbnail()
+                    writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
+                                                (thumbnail, ))
+                else:
+                    writer = GCodeMemoryWriter()
 
-            svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
-                        travel_speed=default_travel_speed,
-                        engraving_strength=self.max_engraving_strength,
-                        progress_callback=progress_callback,
-                        max_x=max_x,
-                        spinning_axis_coord=spinning_axis_coord)
-            
-            writer.terminated()
+                svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
+                            travel_speed=default_travel_speed,
+                            engraving_strength=self.max_engraving_strength,
+                            progress_callback=progress_callback,
+                            max_x=max_x,
+                            spinning_axis_coord=spinning_axis_coord)
+                
+                writer.terminated()
 
-            output_binary = writer.get_buffer()
-            time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
-                if output_fcode else 0
-            
-            traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
-                if output_fcode else 0
-            print(time_need, traveled_dist)
-            self.send_progress('Finishing', 1.0)
-            if send_fcode:
-                self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
-                self.send_binary(output_binary)
-            else:
-                output_file = open("/var/gcode/userspace/temp.fc", "wb")
-                output_file.write(output_binary)
-                output_file.close()
-                self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
-            logger.info("Svg Editor Processed")
+                output_binary = writer.get_buffer()
+                time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
+                    if output_fcode else 0
+                
+                traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
+                    if output_fcode else 0
+                # print(time_need, traveled_dist)
+                self.send_progress('Finishing', 1.0)
+                if send_fcode:
+                    self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
+                    self.send_binary(output_binary)
+                else:
+                    output_file = open("/var/gcode/userspace/temp.fc", "wb")
+                    output_file.write(output_binary)
+                    output_file.close()
+                    self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
+                logger.info("Svg Editor Processed")
+            except Exception as e:
+                self.send_json(status='Error', message=str(e))
 
     return LaserSvgeditorApi
