@@ -54,19 +54,23 @@ def laser_svgeditor_api_mixin(cls):
             
             self.plain_svg = self.plain_svg.replace(b'encoding="UTF-16"', b'encoding="utf-8"')
             self.plain_svg = self.plain_svg.replace(b'encoding="utf-16"', b'encoding="utf-8"')
-            result = fluxsvg.divide(self.plain_svg, loop_compensation=self.loop_compensation)
+            try:
+                result = fluxsvg.divide(self.plain_svg, loop_compensation=self.loop_compensation)
 
-            self.send_json(name="strokes", length=result['strokes'].getbuffer().nbytes)
-            self.send_binary(result['strokes'].getbuffer())
-            if result['bitmap'] is None:
-                self.send_json(name="bitmap", length=0)
-                self.send_binary(b"")
-            else:
-                self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
-                self.send_binary(result['bitmap'].getbuffer())
-            self.send_json(name="colors", length=result['colors'].getbuffer().nbytes)
-            self.send_binary(result['colors'].getbuffer())
-            self.send_ok()
+                self.send_json(name="strokes", length=result['strokes'].getbuffer().nbytes)
+                self.send_binary(result['strokes'].getbuffer())
+                if result['bitmap'] is None:
+                    self.send_json(name="bitmap", length=0)
+                    self.send_binary(b"")
+                else:
+                    self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
+                    self.send_binary(result['bitmap'].getbuffer())
+                self.send_json(name="colors", length=result['colors'].getbuffer().nbytes)
+                self.send_binary(result['colors'].getbuffer())
+                self.send_ok()
+            except Exception as e:
+                self.send_json(status='Error', message=str(e))
+
 
         def cmd_svgeditor_upload(self, params):
 
@@ -179,6 +183,9 @@ def laser_svgeditor_api_mixin(cls):
             if '-temp' in params:
                 send_fcode = False
 
+            if '-gc' in params:
+                output_fcode = False
+
             self.send_progress('Initializing', 0.03)
             factory = self.prepare_factory(hardware_name)
 
@@ -210,7 +217,7 @@ def laser_svgeditor_api_mixin(cls):
             
             traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
                 if output_fcode else 0
-
+            print(time_need, traveled_dist)
             self.send_progress('Finishing', 1.0)
             if send_fcode:
                 self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
