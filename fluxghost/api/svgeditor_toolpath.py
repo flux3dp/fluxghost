@@ -122,13 +122,15 @@ def laser_svgeditor_api_mixin(cls):
             self.enable_mask = False
             if '-mask' in params:
                 self.enable_mask = True
+            try:
+                file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
+                helper = BinaryUploadHelper(
+                        file_length, upload_callback, name, thumbnail_length)
 
-            file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
-            helper = BinaryUploadHelper(
-                    file_length, upload_callback, name, thumbnail_length)
-
-            self.set_binary_helper(helper)
-            self.send_json(status="continue")
+                self.set_binary_helper(helper)
+                self.send_json(status="continue")
+            except Exception as e:
+                self.send_json(status='Error', message=str(e))      
         
         def cmd_upload_plain_svg(self, params):
             def upload_callback(buf, name):
