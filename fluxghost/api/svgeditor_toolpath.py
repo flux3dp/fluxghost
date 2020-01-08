@@ -70,6 +70,7 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_ok()
             except Exception as e:
                 self.send_json(status='Error', message=str(e))
+                raise e
 
 
         def cmd_svgeditor_upload(self, params):
@@ -130,7 +131,8 @@ def laser_svgeditor_api_mixin(cls):
                 self.set_binary_helper(helper)
                 self.send_json(status="continue")
             except Exception as e:
-                self.send_json(status='Error', message=str(e))      
+                self.send_json(status='Error', message=str(e))
+                raise e
         
         def cmd_upload_plain_svg(self, params):
             def upload_callback(buf, name):
@@ -166,27 +168,36 @@ def laser_svgeditor_api_mixin(cls):
             hardware_name = 'beambox'
             spinning_axis_coord = -1
             send_fcode = True
+            blade_radius = 0
+            precut = None
 
-            if '-pro' in params:
-                max_x = 600 
-                hardware_name = 'beambox-pro'
-            
-            if '-beamo' in params:
-                max_x = 300 
-                hardware_name = 'beamo'
-            
-            if '-film' in params:
-                self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
+            for i, param in enumerate(params):
+                if param == '-pro':
+                    max_x = 600 
+                    hardware_name = 'beambox-pro'
 
-            if '-spin' in params:
-                travel_speed = 4000
-                spinning_axis_coord = float(params[params.index('-spin')+1])
-            
-            if '-temp' in params:
-                send_fcode = False
+                elif param == '-beamo':
+                    max_x = 300 
+                    hardware_name = 'beamo'
 
-            if '-gc' in params:
-                output_fcode = False
+                elif param == '-film':
+                    self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
+
+                elif param == '-spin':
+                    travel_speed = 4000
+                    spinning_axis_coord = float(params[i+1])
+
+                elif param == '-blade':
+                    blade_radius = float(params[i+1])
+
+                elif param == '-precut':
+                    precut = [float(j) for j in params[i+1].split(',')]
+
+                elif param == '-temp':
+                    send_fcode = False
+                
+                elif param == '-gc':
+                    output_fcode = False
 
             try:
                 self.send_progress('Initializing', 0.03)
@@ -210,7 +221,9 @@ def laser_svgeditor_api_mixin(cls):
                             engraving_strength=self.max_engraving_strength,
                             progress_callback=progress_callback,
                             max_x=max_x,
-                            spinning_axis_coord=spinning_axis_coord)
+                            spinning_axis_coord=spinning_axis_coord,
+                            blade_radius=blade_radius,
+                            precut_at=precut)
                 
                 writer.terminated()
 
@@ -233,5 +246,6 @@ def laser_svgeditor_api_mixin(cls):
                 logger.info("Svg Editor Processed")
             except Exception as e:
                 self.send_json(status='Error', message=str(e))
+                raise e
 
     return LaserSvgeditorApi
