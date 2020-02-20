@@ -170,6 +170,7 @@ def laser_svgeditor_api_mixin(cls):
             send_fcode = True
             blade_radius = 0
             precut = None
+            enable_autofocus = False
 
             for i, param in enumerate(params):
                 if param == '-pro':
@@ -199,6 +200,9 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-gc':
                     output_fcode = False
 
+                elif param == '-af':
+                    enable_autofocus = True
+
             try:
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory(hardware_name)
@@ -223,7 +227,8 @@ def laser_svgeditor_api_mixin(cls):
                             max_x=max_x,
                             spinning_axis_coord=spinning_axis_coord,
                             blade_radius=blade_radius,
-                            precut_at=precut)
+                            precut_at=precut,
+                            enable_autofocus=enable_autofocus)
                 
                 writer.terminated()
 
@@ -233,7 +238,7 @@ def laser_svgeditor_api_mixin(cls):
                 
                 traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
                     if output_fcode else 0
-                # print(time_need, traveled_dist)
+                print('time cost:', time_need, '\ntravel distance', traveled_dist)
                 self.send_progress('Finishing', 1.0)
                 if send_fcode:
                     self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
