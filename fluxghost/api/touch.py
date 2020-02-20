@@ -109,7 +109,7 @@ def touch_api_mixin(cls):
                     }))
 
             except RuntimeError as err:
-                logger.debug("Error: %s" % err)
+                logger.error("Error: %s" % err)
                 self.send_text(json.dumps({
                     "uuid": uuid.hex,
                     "has_response": False,
