@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 from getpass import getuser
 import logging
+import urllib.parse
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
@@ -209,7 +210,7 @@ def laser_svgeditor_api_mixin(cls):
 
                 self.fcode_metadata.update({
                     "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    "AUTHOR": getuser(),
+                    "AUTHOR": urllib.parse.quote(getuser()),
                     "SOFTWARE": "fluxclient-%s-FS" % __version__,
                 })
                 
