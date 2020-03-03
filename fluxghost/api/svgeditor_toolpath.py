@@ -172,6 +172,7 @@ def laser_svgeditor_api_mixin(cls):
             blade_radius = 0
             precut = None
             enable_autofocus = False
+            support_diode = False
 
             for i, param in enumerate(params):
                 if param == '-pro':
@@ -203,6 +204,9 @@ def laser_svgeditor_api_mixin(cls):
 
                 elif param == '-af':
                     enable_autofocus = True
+                
+                elif param == '-diode':
+                    support_diode = True
 
             try:
                 self.send_progress('Initializing', 0.03)
@@ -229,7 +233,8 @@ def laser_svgeditor_api_mixin(cls):
                             spinning_axis_coord=spinning_axis_coord,
                             blade_radius=blade_radius,
                             precut_at=precut,
-                            enable_autofocus=enable_autofocus)
+                            enable_autofocus=enable_autofocus,
+                            support_diode=support_diode)
                 
                 writer.terminated()
 
