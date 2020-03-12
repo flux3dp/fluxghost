@@ -1,0 +1,60 @@
+name: Build ghost win
+
+on:
+  push:
+    branches: 
+      - develop
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+        arch: [32, 64]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        env: 
+        # env for windows to install pycrypto; MSVC version may change
+          CL: /FI"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Tools\\MSVC\\14.24.28314\\INCLUDE\\stdint.h"
+      # using https://github.com/InVisionApp/private-action-loader for private repo.
+      - name: Install Beamify
+        uses: invisionapp/private-action-loader@v3
+        with:
+          pal-repo-token: ${{ secrets.REPO_TOKEN }}
+          pal-repo-name: flux3dp/beamify@master
+
+      - name: Install Fluxsvg
+        uses: flux3dp/fluxsvg@master
+
+      - name: Install FluxClient
+        uses: invisionapp/private-action-loader@v3
+        with:
+          pal-repo-token: ${{ secrets.REPO_TOKEN }}
+          pal-repo-name: flux3dp/fluxclient-dev@develop
+
+      - name: Build Flux Api
+        run: |
+          sh -c "set -e 1; pyinstaller --clean ghost-github-action.spec"
+          ./dist/flux_api/flux_api --test --without_pcl
+      
+      - name: Cleanup artifacts
+        run: |
+          mkdir artifacts
+          mv dist/flux_api artifacts
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v1
+        with:
+          name: win-x${{matrix.arch}}
+          path: artifacts
