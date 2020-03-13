@@ -174,6 +174,8 @@ def laser_svgeditor_api_mixin(cls):
             enable_autofocus = False
             support_diode = False
             diode_offset = None
+            stripe_compensation = False
+            stripe_param = None
 
             for i, param in enumerate(params):
                 if param == '-pro':
@@ -210,6 +212,10 @@ def laser_svgeditor_api_mixin(cls):
                     support_diode = True
                     diode_offset = [float(j) for j in params[i+1].split(',')]
 
+                elif param == '-strpcom':
+                    stripe_compensation = True
+                    stripe_param = [float(j) for j in params[i+1].split(',')]
+
             try:
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory(hardware_name)
@@ -237,7 +243,8 @@ def laser_svgeditor_api_mixin(cls):
                             precut_at=precut,
                             enable_autofocus=enable_autofocus,
                             support_diode=support_diode,
-                            diode_offset=diode_offset)
+                            diode_offset=diode_offset,
+                            stripe_param=stripe_param)
                 
                 writer.terminated()
 
