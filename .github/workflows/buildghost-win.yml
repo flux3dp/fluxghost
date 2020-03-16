@@ -2,8 +2,8 @@ name: Build ghost win
 
 on:
   push:
-    branches: 
-      - develop
+    tags:
+      - '*'
 
 jobs:
   build:

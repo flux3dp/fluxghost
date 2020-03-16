@@ -60,3 +60,6 @@ temp.transform
 workspace.jpg
 
 test.png
+
+# Node Modules
+!node_modules/**/lib

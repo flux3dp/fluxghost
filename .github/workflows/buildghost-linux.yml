@@ -2,8 +2,8 @@ name: Build ghost linux
 
 on:
   push:
-    branches: 
-      - develop
+    tags:
+      - '*'
 
 jobs:
   build:

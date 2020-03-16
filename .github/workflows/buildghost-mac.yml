@@ -2,8 +2,8 @@ name: Build ghost mac
 
 on:
   push:
-    branches: 
-      - develop
+    tags:
+      - '*'
 
 jobs:
   build:

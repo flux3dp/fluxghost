@@ -1,0 +1,28 @@
+{
+  "name": "fluxghost",
+  "version": "1.0.0",
+  "description": "FLUXGhost provides a websocket based API for Beam-Studio frontend, which connects to fluxclient.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flux3dp/fluxghost.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/flux3dp/fluxghost/issues"
+  },
+  "homepage": "https://github.com/flux3dp/fluxghost#readme",
+  "dependencies": {
+    "@actions/core": "^1.2.3",
+    "@actions/exec": "^1.0.3"
+  }
+}
