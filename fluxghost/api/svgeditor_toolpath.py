@@ -80,24 +80,24 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_progress("Analyzing SVG - " + str(round(prog * 100, 2)) + "%", prog)
 
             def generate_svgeditor_image(buf, name, thumbnail_length):
-                try:
-                    thumbnail = buf[:thumbnail_length]
-                    svg_data = buf[thumbnail_length:]
-                    svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, 
-                                                hardware=self.hardware_name,
-                                                loop_compensation=self.loop_compensation,
-                                                progress_callback=progress_callback,
-                                                enable_mask=self.enable_mask)
-                except Exception as e:
-                    logger.exception("Load SVG Error")
-                    logger.exception(str(e))
-                    self.send_error("SVG_BROKEN")
-                    return
+                thumbnail = buf[:thumbnail_length]
+                svg_data = buf[thumbnail_length:]
+                svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, 
+                                            hardware=self.hardware_name,
+                                            loop_compensation=self.loop_compensation,
+                                            progress_callback=progress_callback,
+                                            enable_mask=self.enable_mask)
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
-                generate_svgeditor_image(buf, name, thumbnail_length)
-                self.send_ok()
+                try:
+                    generate_svgeditor_image(buf, name, thumbnail_length)
+                    self.send_ok()
+                except Exception as e:
+                    logger.exception("Load SVG Error")
+                    logger.exception(str(e))
+                    self.send_json(status='Error', message=str(e))
+                    raise e
 
             logger.info('svg_editor')
             params = params.split()
