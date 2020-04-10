@@ -178,8 +178,8 @@ def laser_svgeditor_api_mixin(cls):
             enable_autofocus = False
             support_diode = False
             diode_offset = None
-            stripe_compensation = False
             stripe_param = None
+            support_fast_gradient = False
 
             for i, param in enumerate(params):
                 if param == '-pro':
@@ -211,13 +211,15 @@ def laser_svgeditor_api_mixin(cls):
 
                 elif param == '-af':
                     enable_autofocus = True
-                
+
+                elif param == '-fg':
+                    support_fast_gradient = True
+
                 elif param == '-diode':
                     support_diode = True
                     diode_offset = [float(j) for j in params[i+1].split(',')]
 
                 elif param == '-strpcom':
-                    stripe_compensation = True
                     stripe_param = [float(j) for j in params[i+1].split(',')]
 
             try:
@@ -248,6 +250,7 @@ def laser_svgeditor_api_mixin(cls):
                             enable_autofocus=enable_autofocus,
                             support_diode=support_diode,
                             diode_offset=diode_offset,
+                            support_fast_gradient=support_fast_gradient,
                             stripe_param=stripe_param)
                 
                 writer.terminated()
