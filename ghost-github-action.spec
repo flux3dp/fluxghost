@@ -45,21 +45,16 @@ def fetch_data(package, path):
                     if os.path.isdir(fp):
                         data += fetch_data(package, np)
                     else:
-                        data.append((os.path.join(package, np),
-                                    fp,
-                                    'DATA'))
-
+                        data.append((os.path.join(package, np), fp, 'DATA'))
+                            
     return data
 
 
 def fetch_datas():
     datas = []
-    datas += fetch_data("fluxclient", "assets")
-    datas += fetch_data('cffi', '')
-    datas += fetch_data('cssselect2', '')
-    datas += fetch_data('pycparser', '')
-    datas += fetch_data('tinycss2', '')
-    datas += fetch_data('cairocffi', '')
+    packages_to_fetch = [('fluxclient', 'assets'), ('cffi', ''), ('cssselect2', ''), ('pycparser', ''), ('tinycss2', ''), ('cairocffi', '')]
+    for p in packages_to_fetch:
+        datas += fetch_data(p[0], p[1])
     return datas
 
 
@@ -118,6 +113,9 @@ excludes = ["matplotlib", "pydoc", "IPython"]
 
 if os_type.startswith('Windows'):
     if platform.architecture()[0] == '64bit':
+        binaries.append( ('C:\\windows\\system32\\MSVCP140.dll', '.') )
+        binaries.append( ('C:\\windows\\system32\\VCRUNTIME140.dll', '.') )
+        binaries.append( ('C:\\windows\\system32\\VCRUNTIME140_1.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x64\\libusb0.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x64\\libcairo-2.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x64\\libpixman-1-0.dll', '.') )
@@ -133,6 +131,9 @@ if os_type.startswith('Windows'):
         binaries.append( ('.\\lib\\cairo-dll\\x64\\libwinpthread-1.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x64\\liblzma-5.dll', '.') )
     else:
+        binaries.append( ('C:\\windows\\system32\\MSVCP140.dll', '.') )
+        binaries.append( ('C:\\windows\\system32\\VCRUNTIME140.dll', '.') )
+        binaries.append( ('C:\\windows\\system32\\VCRUNTIME140_1.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x32\\libusb0.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x32\\libcairo-2.dll', '.') )
         binaries.append( ('.\\lib\\cairo-dll\\x32\\freetype6.dll', '.') )
@@ -150,7 +151,7 @@ elif os_type.startswith('Darwin'):
     binaries.append( ('/usr/local/opt/pixman/lib/libpixman-1.0.dylib', '.') )
     binaries.append( ('/usr/local/opt/fontconfig/lib/libfontconfig.1.dylib', '.') )
     binaries.append( ('/usr/local/opt/libpng/lib/libpng16.16.dylib', '.') )
-    binaries.append( ('/usr/lib/libz.1.dylib', 'libz.1.dylib') )
+    binaries.append( ('/usr/lib/libz.1.dylib', '.') )
     if get_os_version().startswith("Darwin Kernel Version 17"):
         binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
         binaries.append( ('/opt/X11/lib/libxcb.1.dylib', '.') )
@@ -187,6 +188,22 @@ exe = EXE(pyz,
           strip=None,
           upx=True,
           console=True)
+
+# print('Datas:')
+# for d in a.datas:
+#   print(d)
+# print('=====')
+
+# print('Hidden imports:')
+# for h in a.hiddenimports:
+#   print(h)
+# print('=====')
+
+# print('Binaries:')
+# for b in a.binaries:
+#   print(b)
+# print('=====')
+
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
