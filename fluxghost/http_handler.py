@@ -13,6 +13,11 @@ import subprocess
 import urllib.error
 
 logger = logging.getLogger("HTTP")
+isMozuMachine = False
+if os.path.exists('/etc/model_override'):
+    model_override = open("/etc/model_override").read().replace('\n', '')
+    if model_override in ['mozu1', 'modunx', 'qianjibianx', 'fbm1', 'visutecx', 'vinyl-ls01']:
+        isMozuMachine = True
 
 
 class HttpHandler(BaseHTTPRequestHandler):
@@ -22,7 +27,7 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def __init__(self, request, client, server):
         # This is force override
-        if self.host_override is None:
+        if isMozuMachine and self.host_override is None:
             if "visutec" in os.environ.get("proxy_api_host", ''):
                 dynamic_domain = "visutec.simonko.tw"
             else:
@@ -121,7 +126,7 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         hostname = os.environ.get("proxy_api_host")
-        if self.host_override is None:
+        if isMozuMachine and self.host_override is None:
             if "visutec" in os.environ.get("proxy_api_host", ''):
                 dynamic_domain = "visutec.simonko.tw"
             else:
