@@ -180,6 +180,7 @@ def laser_svgeditor_api_mixin(cls):
             diode_offset = None
             stripe_param = None
             support_fast_gradient = False
+            has_vector_speed_constraint = False
 
             for i, param in enumerate(params):
                 if param == '-pro':
@@ -214,6 +215,9 @@ def laser_svgeditor_api_mixin(cls):
 
                 elif param == '-fg':
                     support_fast_gradient = True
+                
+                elif param == '-vsc':
+                    has_vector_speed_constraint = True
 
                 elif param == '-diode':
                     support_diode = True
@@ -251,7 +255,8 @@ def laser_svgeditor_api_mixin(cls):
                             support_diode=support_diode,
                             diode_offset=diode_offset,
                             support_fast_gradient=support_fast_gradient,
-                            stripe_param=stripe_param)
+                            stripe_param=stripe_param,
+                            has_vector_speed_constraint=has_vector_speed_constraint)
                 
                 writer.terminated()
 
