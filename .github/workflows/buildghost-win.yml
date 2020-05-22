@@ -46,6 +46,12 @@ jobs:
 
       - name: Build Flux Api
         run: |
+          if ("${{ matrix.arch }}" -eq "32") {
+            cp ./lib/x32/* C:\Windows\System32
+          } else {
+            cp ./lib/x64/* C:\Windows\System32
+          }
+          sh -c "set -e 1; python ghost.py --test --without_pcl"
           sh -c "set -e 1; pyinstaller --clean ghost-github-action.spec"
           ./dist/flux_api/flux_api --test --without_pcl
       
