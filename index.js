@@ -12,10 +12,11 @@ const main = async () => {
         console.log(process.env);
         if (os.platform() === 'win32') {
             if (os.arch() === 'x64') {
-                await exec.exec('sudo', ['cp', './lib/x64/*', 'C:\\Windows\\system32'], options);
+                await exec.exec('cp', ['./lib/x64/*', 'C:\\Windows\\system32'], options);
             } else {
-                await exec.exec('sudo', ['cp', './lib/x32/*', 'C:\\Windows\\system32'], options);
+                await exec.exec('cp', ['./lib/x32/*', 'C:\\Windows\\system32'], options);
             }
+            await exec.exec('python', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
         } else if( os.platform() === 'linux' ) {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
