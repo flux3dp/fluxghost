@@ -56,6 +56,7 @@ jobs:
           sudo cp -R /Library/Frameworks/Python.framework/Versions/3.6/lib/tcl8.6 dist/flux_api/tcl
           sudo cp -R /Library/Frameworks/Python.framework/Versions/3.6/lib/tk8.6 dist/flux_api/tk
           sudo cp ./lib/mac/libwebp.7.dylib dist/flux_api
+          sudo cp ./lib/mac/libfontconfig.1.dylib dist/flux_api
           ./dist/flux_api/flux_api --test --without_pcl
       
       - name: Cleanup artifacts
