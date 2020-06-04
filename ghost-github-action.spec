@@ -132,6 +132,9 @@ if os_type.startswith('Windows'):
         binaries.append( ('.\\lib\\x32\\libpixman-1-0.dll', '.') )
         binaries.append( ('.\\lib\\x32\\zlib1.dll', '.') )
         binaries.append( ('.\\lib\\x32\\libexpat-1.dll', '.') )
+    for file in os.listdir('.\\lib\\win'):
+        path = os.path.join('.\\lib\\win', file)
+        binaries.append( (path, '.') )
 elif os_type.startswith('Darwin'):
     binaries.append( ('./lib/mac/libcairo.dylib', '.') )
     binaries.append( ('./lib/mac/libcairo.2.dylib', '.') )
