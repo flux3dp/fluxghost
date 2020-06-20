@@ -8,8 +8,15 @@ const main = async () => {
             cwd: __dirname,
         };
         console.log(os.platform());
+        console.log(os.arch());
         console.log(process.env);
         if (os.platform() === 'win32') {
+            if (os.arch() === 'x64') {
+                await exec.exec('cp', ['./lib/x64/*', 'C:\\Windows\\system32'], options);
+            } else {
+                await exec.exec('cp', ['./lib/x32/*', 'C:\\Windows\\system32'], options);
+            }
+            await exec.exec('python', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
         } else if( os.platform() === 'linux' ) {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
@@ -17,7 +24,10 @@ const main = async () => {
         } else if( os.platform() === 'darwin' ) {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
-            await exec.exec('sudo', ['cp', '/usr/local/lib/libwebp.7.dylib', 'dist/flux_api'], options);
+            await exec.exec('sudo', ['cp', './lib/mac/libwebp.7.dylib', 'dist/flux_api'], options);
+            // pyinstaller failed to hook tcl & tk for precomiled python so hard code copy when
+            await exec.exec('sudo', ['cp', '-R', '/Library/Frameworks/Python.framework/Versions/3.6/lib/tcl8.6', 'dist/flux_api/tcl/'], options);
+            await exec.exec('sudo', ['cp', '-R', '/Library/Frameworks/Python.framework/Versions/3.6/lib/tk8.6', 'dist/flux_api/tk'], options);
         } else {
             throw `Unsupported OS: ${os.platform()}`
         }

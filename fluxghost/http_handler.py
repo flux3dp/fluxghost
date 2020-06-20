@@ -62,6 +62,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.info("%s %s" % (self.address_string(), format % args))
 
     def do_GET(self):  # noqa
+        logger.debug(f'Start handling GET {self.path}')
         if self.path.startswith("/ws/"):
             klass, kwargs = get_match_ws_service(self.path[4:])
 

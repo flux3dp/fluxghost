@@ -21,31 +21,21 @@ for d in sitepackages:
 
 def fetch_data(package, path):
     data = []
-    if not os_type.startswith('Windows'):
-        for fn in resource_listdir(package, path):
-            np = os.path.join(path, fn)
-            if resource_isdir(package, np):
-                data += fetch_data(package, np)
-            else:
-                data.append((os.path.join(package, np),
-                            resource_filename(package, np),
-                            'DATA'))
-    else:
-        for sys_path in os.listdir(sitepackages):
-            if package == sys_path or (package == 'fluxclient' and package in sys_path):
-                if package == 'fluxclient':
-                    sys_path = os.path.join(sitepackages, sys_path, package)
-                else :
-                    sys_path = os.path.join(sitepackages, sys_path)
-                if not os.path.isdir(sys_path):
-                    continue
-                for fn in os.listdir(os.path.join(sys_path, path)):
-                    np = os.path.join(path, fn)
-                    fp = os.path.join(sys_path, np)
-                    if os.path.isdir(fp):
-                        data += fetch_data(package, np)
-                    else:
-                        data.append((os.path.join(package, np), fp, 'DATA'))
+    for sys_path in os.listdir(sitepackages):
+        if package == sys_path or (package == 'fluxclient' and package in sys_path):
+            if package == 'fluxclient':
+                sys_path = os.path.join(sitepackages, sys_path, package)
+            else :
+                sys_path = os.path.join(sitepackages, sys_path)
+            if not os.path.isdir(sys_path):
+                continue
+            for fn in os.listdir(os.path.join(sys_path, path)):
+                np = os.path.join(path, fn)
+                fp = os.path.join(sys_path, np)
+                if os.path.isdir(fp):
+                    data += fetch_data(package, np)
+                else:
+                    data.append((os.path.join(package, np), fp, 'DATA'))
                             
     return data
 
@@ -116,41 +106,44 @@ if os_type.startswith('Windows'):
         binaries.append( ('C:\\windows\\system32\\MSVCP140.dll', '.') )
         binaries.append( ('C:\\windows\\system32\\VCRUNTIME140.dll', '.') )
         binaries.append( ('C:\\windows\\system32\\VCRUNTIME140_1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libusb0.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libcairo-2.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libpixman-1-0.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libfreetype-6.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libfontconfig-1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libpng16-16.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libxml2-2.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\zlib1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libexpat-1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libgcc_s_sjlj-1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libharfbuzz-0.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libiconv-2.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\libwinpthread-1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x64\\liblzma-5.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libusb0.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libcairo-2.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libpixman-1-0.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libfreetype-6.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libfontconfig-1.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libpng16-16.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libxml2-2.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\zlib1.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libexpat-1.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libgcc_s_sjlj-1.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libharfbuzz-0.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libiconv-2.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\libwinpthread-1.dll', '.') )
+        binaries.append( ('.\\lib\\x64\\liblzma-5.dll', '.') )
     else:
         binaries.append( ('C:\\windows\\system32\\MSVCP140.dll', '.') )
         binaries.append( ('C:\\windows\\system32\\VCRUNTIME140.dll', '.') )
         binaries.append( ('C:\\windows\\system32\\VCRUNTIME140_1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\libusb0.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\libcairo-2.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\freetype6.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\libfontconfig-1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\libpng12-0.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\libpixman-1-0.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\zlib1.dll', '.') )
-        binaries.append( ('.\\lib\\cairo-dll\\x32\\libexpat-1.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\libusb0.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\libcairo-2.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\freetype6.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\libfontconfig-1.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\libpng12-0.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\libpixman-1-0.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\zlib1.dll', '.') )
+        binaries.append( ('.\\lib\\x32\\libexpat-1.dll', '.') )
+    for file in os.listdir('.\\lib\\win'):
+        path = os.path.join('.\\lib\\win', file)
+        binaries.append( (path, '.') )
 elif os_type.startswith('Darwin'):
-    binaries.append( ('/usr/local/opt/cairo/lib/libcairo.dylib', '.') )
-    binaries.append( ('/usr/local/opt/cairo/lib/libcairo.2.dylib', '.') )
-    binaries.append( ('/usr/local/opt/cairo/lib/libcairo-gobject.dylib', '.') )
-    binaries.append( ('/usr/local/opt/cairo/lib/libcairo-gobject.2.dylib', '.') )
-    binaries.append( ('/usr/local/opt/freetype/lib/libfreetype.6.dylib', '.') )
-    binaries.append( ('/usr/local/opt/pixman/lib/libpixman-1.0.dylib', '.') )
-    binaries.append( ('/usr/local/opt/fontconfig/lib/libfontconfig.1.dylib', '.') )
-    binaries.append( ('/usr/local/opt/libpng/lib/libpng16.16.dylib', '.') )
+    binaries.append( ('./lib/mac/libcairo.dylib', '.') )
+    binaries.append( ('./lib/mac/libcairo.2.dylib', '.') )
+    binaries.append( ('./lib/mac/libcairo-gobject.dylib', '.') )
+    binaries.append( ('./lib/mac/libcairo-gobject.2.dylib', '.') )
+    binaries.append( ('./lib/mac/libfreetype.6.dylib', '.') )
+    binaries.append( ('./lib/mac/libpixman-1.0.dylib', '.') )
+    binaries.append( ('./lib/mac/libfontconfig.1.dylib', '.') )
+    binaries.append( ('./lib/mac/libpng16.16.dylib', '.') )
     binaries.append( ('/usr/lib/libz.1.dylib', '.') )
     if get_os_version().startswith("Darwin Kernel Version 17"):
         binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )

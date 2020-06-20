@@ -108,6 +108,7 @@ def laser_svgeditor_api_mixin(cls):
             name = params[0]
             file_length = params[1]
             thumbnail_length = params[2]
+            self.dict_kwargs = {}
             self.hardware_name = 'beambox'
             if '-pro' in params:
                 max_x = 600 
@@ -125,6 +126,11 @@ def laser_svgeditor_api_mixin(cls):
             
             if '-hdpi' in params:
                 self.pixel_per_mm = 20
+
+            if '-udpi' in params:
+                self.pixel_per_mm = 50
+                self.dict_kwargs['pixel_per_mm_x'] = 20
+
             self.enable_mask = False
             if '-mask' in params:
                 self.enable_mask = True
@@ -156,7 +162,7 @@ def laser_svgeditor_api_mixin(cls):
             self.send_json(status="continue")
 
         def prepare_factory(self, hardware_name):
-            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation)
+            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation, **self.dict_kwargs)
             factory.add_image(self.svg_image)
             return factory
 
