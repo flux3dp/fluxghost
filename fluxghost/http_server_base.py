@@ -44,6 +44,8 @@ class HttpServerBase(object):
             if sys == 'Darwin':
                 appdata = path.join(home, 'Library', 'Application Support')
             elif sys == 'Windows':
+                from win32com.shell import shell,shellcon
+                home = home = shell.SHGetFolderPath(0, shellcon.CSIDL_PROFILE, None, 0)
                 appdata = path.join(home, 'AppData', 'Roaming')
             elif sys == 'Linux':
                 appdata = path.join(home, '.config')
