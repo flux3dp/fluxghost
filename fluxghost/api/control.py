@@ -134,6 +134,8 @@ def control_api_mixin(cls):
                     "set_fan": self.set_fan,
                     "set_fan_temp": self.set_fan_temp,
                     "get_fan": self.get_fan,
+                    'set_origin_x': self.set_origin_x,
+                    'set_origin_y': self.set_origin_y,
                     "toolhead": {
                         "operation": self.set_toolhead_operating,
                         "standby": self.set_toolhead_standby,
@@ -483,6 +485,14 @@ def control_api_mixin(cls):
             self.robot.set_fan_temp(int(value))
             self.send_ok()
         
+        def set_origin_x(self, value):
+            self.robot.set_origin_x(float(value))
+            self.send_ok()
+        
+        def set_origin_y(self, value):
+            self.robot.set_origin_y(float(value))
+            self.send_ok()
+
         def get_laser_power(self):
             power = self.robot.get_laser_power()
             self.send_ok(value=power)
