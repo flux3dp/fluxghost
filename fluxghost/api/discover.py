@@ -116,11 +116,19 @@ def discover_api_mixin(cls):
                     logger.error("Poke error: %s", repr(e))
             elif cmd == "poketcp":
                 try:
-                    self.server.discover.poketcp(payload["ipaddr"])
+                    self.server.discover.add_poketcp_ipaddr(payload["ipaddr"])
                 except OSError as e:
                     pass
                 except Exception as e:
                     logger.error("Poke TCP error: %s", repr(e))
+            elif cmd == 'testtcp':
+                print(payload["ipaddr"])
+                try:
+                    self.server.discover.test_poketcp_ipaddr(payload["ipaddr"])
+                except OSError as e:
+                    pass
+                except Exception as e:
+                    logger.error("Test TCP error: %s", repr(e))
             else:
                 self.send_error("L_UNKNOWN_COMMAND")
 
