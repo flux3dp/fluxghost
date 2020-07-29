@@ -846,8 +846,9 @@ def control_api_mixin(cls):
             if message == "quit" or message == "task quit":
                 self.rlist.remove(self.raw_sock)
                 self.raw_sock = None
-                self.task.quit()
-                self.send_text('{"status": "ok", "task": ""}')
+                self.task_quit()
+            elif message == 'raw home':
+                self.raw_sock.home()
             else:
                 self.raw_sock.sock.send(message.encode() + b"\n")
 
@@ -943,6 +944,9 @@ class RawSock(object):
 
     def fileno(self):
         return self.sock.fileno()
+    
+    def home(self):
+        self.sock.send(b'$H\n')
 
     def on_read(self):
         buf = self.sock.recv(128)
