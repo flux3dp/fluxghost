@@ -23,21 +23,9 @@ if os.path.exists('/etc/model_override'):
 class HttpHandler(BaseHTTPRequestHandler):
     server_version = "FLUXGhost/%s" % __version__
     protocol_version = "HTTP/1.1"
-    host_override = None
 
     def __init__(self, request, client, server):
-        # This is force override
-        if isMozuMachine and self.host_override is None:
-            if "visutec" in os.environ.get("proxy_api_host", ''):
-                dynamic_domain = "visutec.simonko.tw"
-            else:
-                dynamic_domain = "mozu.simonko.tw"
-            pcode, domain_info = subprocess.getstatusoutput("host " + dynamic_domain)
-            if "has address " in domain_info:
-                slice_idx = domain_info.index("has address ") + len("has address ")
-                domain_ip = domain_info[slice_idx:]
-                self.host_override = domain_ip
-                hostname = self.host_override
+        hostname = os.environ.get("proxy_api_host", '')
         request.settimeout(60.)
         try:
             BaseHTTPRequestHandler.__init__(self, request, client, server)
@@ -77,15 +65,6 @@ class HttpHandler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api"):
             try:
                 hostname = os.environ.get("proxy_api_host", '')
-                if self.host_override is None:
-                    pcode, domain_info = subprocess.getstatusoutput("host mozu.simonko.tw")
-                    if "has address " in domain_info:
-                        slice_idx = domain_info.index("has address ") + len("has address ")
-                        domain_ip = domain_info[slice_idx:]
-                        self.host_override = domain_ip
-                        hostname = self.host_override
-                else:
-                    hostname = self.host_override
                 print("Proxying %s" % hostname)
                 url = 'http://{}{}'.format(hostname, self.path)
                 req = Request(url=url)
@@ -127,19 +106,6 @@ class HttpHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         hostname = os.environ.get("proxy_api_host")
-        if isMozuMachine and self.host_override is None:
-            if "visutec" in os.environ.get("proxy_api_host", ''):
-                dynamic_domain = "visutec.simonko.tw"
-            else:
-                dynamic_domain = "mozu.simonko.tw"
-            pcode, domain_info = subprocess.getstatusoutput("host " + dynamic_domain)
-            if "has address " in domain_info:
-                slice_idx = domain_info.index("has address ") + len("has address ")
-                domain_ip = domain_info[slice_idx:]
-                self.host_override = domain_ip
-                hostname = self.host_override
-        else:
-            hostname = self.host_override
         print("Proxying %s" % hostname)
         url = 'http://{}{}'.format(hostname, self.path)
         req = Request(url=url)
