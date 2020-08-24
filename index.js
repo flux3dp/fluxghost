@@ -11,9 +11,11 @@ const main = async () => {
         console.log(os.arch());
         console.log(process.env);
         if (os.platform() === 'win32') {
-            if (os.arch() === 'x64') {
+            if (os.arch() === 'x64' && process.env.WIN_ARCH !== 'x86') {
+                console.log('index 64');
                 await exec.exec('cp', ['./lib/x64/*', 'C:\\Windows\\system32'], options);
             } else {
+                console.log('index 86');
                 await exec.exec('cp', ['./lib/x32/*', 'C:\\Windows\\system32'], options);
             }
             await exec.exec('python', ['ghost.py', '--test', '--without_pcl'], options);
