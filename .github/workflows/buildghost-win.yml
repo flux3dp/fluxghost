@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.7]
-        arch: [32, 64]
+        arch: [32]
 
     steps:
       - uses: actions/checkout@v2
@@ -20,6 +20,7 @@ jobs:
         uses: actions/setup-python@v1
         with:
           python-version: ${{ matrix.python-version }}
+          architecture: 'x86'
 
       - name: Install dependencies
         run: |
