@@ -103,7 +103,7 @@ excludes = ["matplotlib", "pydoc", "IPython"]
 
 if os_type.startswith('Windows'):
     print(platform.architecture()[0])
-    if not os.environ['WIN_ARCH'] == 'x86':
+    if platform.architecture()[0] == '64bit':
         print('ghost spec x64')
         binaries.append( ('C:\\windows\\system32\\MSVCP140.dll', '.') )
         binaries.append( ('C:\\windows\\system32\\VCRUNTIME140.dll', '.') )
