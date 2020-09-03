@@ -105,6 +105,9 @@ class HttpServerBase(object):
                     except OSError:
                         pass
 
+                for device in disc.tcp_devices:
+                    self.on_discover_device(disc, device.uuid, device)
+
                 for sock in select(*args)[0]:
                     if sock == self.sock:
                         self.on_accept()
