@@ -30,6 +30,7 @@ def laser_svgeditor_api_mixin(cls):
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
                 'divide_svg': [self.divide_svg],
+                'divide_svg_by_layer': [self.divide_svg_by_layer],
                 'svgeditor_upload': [self.cmd_svgeditor_upload],
                 'go': [self.cmd_go],
                 'set_params': [self.cmd_set_params],
@@ -72,6 +73,43 @@ def laser_svgeditor_api_mixin(cls):
                     self.send_binary(result['bitmap'].getbuffer())
                 self.send_json(name="colors", length=result['colors'].getbuffer().nbytes)
                 self.send_binary(result['colors'].getbuffer())
+                self.send_ok()
+            except Exception as e:
+                self.send_json(status='Error', message=str(e))
+                raise e
+        
+        def divide_svg_by_layer(self, params):
+            params = params.split()
+            divide_params = {}
+            for i, param in enumerate(params):
+                if param == '-s':
+                    divide_params['scale'] = float(params[i+1])
+            self.plain_svg = self.plain_svg.replace(b'encoding="UTF-16"', b'encoding="utf-8"')
+            self.plain_svg = self.plain_svg.replace(b'encoding="utf-16"', b'encoding="utf-8"')
+            try:
+                result = fluxsvg.divide_by_layer(self.plain_svg, params=divide_params, loop_compensation=self.loop_compensation)
+
+                self.send_json(name="nolayer", length=result['nolayer'].getbuffer().nbytes)
+                self.send_binary(result['nolayer'].getbuffer())
+                if result['bitmap'] is None:
+                    self.send_json(name="bitmap", length=0)
+                    self.send_binary(b"")
+                else:
+                    self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
+                    self.send_binary(result['bitmap'].getbuffer())
+                for key, item in result.items():
+                    if key is 'bitmap_offset':
+                        continue
+                    if key is 'bitmap':
+                        if item is None:
+                            self.send_json(name='bitmap', length=0)
+                            self.send_binary(b"")
+                        else:
+                            self.send_json(name='bitmap', length=item.getbuffer().nbytes, offset=result['bitmap_offset'])
+                            self.send_binary(item.getbuffer())
+                    else:
+                        self.send_json(name=key, length=item.getbuffer().nbytes)
+                        self.send_binary(item.getbuffer())
                 self.send_ok()
             except Exception as e:
                 self.send_json(status='Error', message=str(e))
