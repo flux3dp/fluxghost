@@ -64,7 +64,7 @@ def discover_api_mixin(cls):
 
         def review_lan_devices(self):
             t = time()
-            logger.info('Review LAN device')
+            logger.debug('Review LAN device')
             with self.server.discover_mutex:
                 for uuid, device in self.server.discover_devices.items():
                     if t - device.last_update > 30:
