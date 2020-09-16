@@ -6,7 +6,7 @@ import json
 from fluxghost import g
 
 logger = logging.getLogger("API.DISCOVER")
-
+## Review Usb is temporarily disabled because it will block review LAN devices when connecting delta with usb sometimes
 
 def get_online_message(source, device):
     st = None
@@ -64,7 +64,7 @@ def discover_api_mixin(cls):
 
         def review_lan_devices(self):
             t = time()
-            logger.debug('review lan device')
+            logger.info('Review LAN device')
             with self.server.discover_mutex:
                 for uuid, device in self.server.discover_devices.items():
                     if t - device.last_update > 30:
@@ -97,7 +97,7 @@ def discover_api_mixin(cls):
 
         def on_review_devices(self):
             self.review_lan_devices()
-            self.review_usb_devices()
+            # self.review_usb_devices()
 
         def on_text_message(self, message):
             try:
