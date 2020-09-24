@@ -13,19 +13,13 @@ import subprocess
 import urllib.error
 
 logger = logging.getLogger("HTTP")
-isMozuMachine = False
-if os.path.exists('/etc/model_override'):
-    model_override = open("/etc/model_override").read().replace('\n', '')
-    if model_override in ['mozu1', 'modunx', 'qianjibianx', 'fbm1', 'visutecx', 'vinyl-ls01']:
-        isMozuMachine = True
-
 
 class HttpHandler(BaseHTTPRequestHandler):
     server_version = "FLUXGhost/%s" % __version__
     protocol_version = "HTTP/1.1"
 
     def __init__(self, request, client, server):
-        hostname = os.environ.get("proxy_api_host", '')
+        hostname = self.get_hostname()
         request.settimeout(60.)
         try:
             BaseHTTPRequestHandler.__init__(self, request, client, server)
@@ -36,6 +30,9 @@ class HttpHandler(BaseHTTPRequestHandler):
                 logger.error("%s", e)
         except Exception:
             logger.exception("Unhandle Error")
+    
+    def get_hostname(self):
+        return os.environ.get("proxy_api_host", '').replace("back.52mozu", "back3.52mozu")
 
     def version_string(self):
         return self.server_version
@@ -64,7 +61,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             return self.serve_assets("index.html")
         elif self.path.startswith("/api"):
             try:
-                hostname = os.environ.get("proxy_api_host", '')
+                hostname = self.get_hostname()
                 print("Proxying %s" % hostname)
                 url = 'http://{}{}'.format(hostname, self.path)
                 req = Request(url=url)
@@ -105,7 +102,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             self.serve_assets(self.path[1:])
 
     def do_POST(self):
-        hostname = os.environ.get("proxy_api_host")
+        hostname = self.get_hostname()
         print("Proxying %s" % hostname)
         url = 'http://{}{}'.format(hostname, self.path)
         req = Request(url=url)
