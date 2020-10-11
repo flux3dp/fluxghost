@@ -67,7 +67,8 @@ class HttpHandler(BaseHTTPRequestHandler):
                 req = Request(url=url)
                 req_headers = self.headers.items()
                 for header, value in req_headers:
-                    if str(header).startswith("Host"):
+                    if str(header).lower().startswith("host"):
+                        req.add_header(header, hostname)
                         continue
                     if str(header).startswith("Accept-Encoding"):
                         continue
@@ -110,7 +111,8 @@ class HttpHandler(BaseHTTPRequestHandler):
         data_length = 0
         print("Getting headers")
         for header, value in req_headers:
-            if str(header).startswith("Host"):
+            if str(header).lower().startswith("host"):
+                req.add_header(header, hostname)
                 continue
             if str(header).startswith("Accept-Encoding"):
                 continue
