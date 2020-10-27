@@ -3,6 +3,7 @@ import re
 from datetime import datetime
 from getpass import getuser
 import logging
+import threading
 import urllib.parse
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
@@ -26,7 +27,9 @@ def laser_svgeditor_api_mixin(cls):
             self.svg_image = None
             self.hardware_name = "beambox"
             self.loop_compensation = 0.0
+            self.is_task_interrupted = False
             super().__init__(*args)
+            self.is_svgeditor = True
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
                 'divide_svg': [self.divide_svg],
@@ -34,6 +37,7 @@ def laser_svgeditor_api_mixin(cls):
                 'svgeditor_upload': [self.cmd_svgeditor_upload],
                 'go': [self.cmd_go],
                 'set_params': [self.cmd_set_params],
+                'interrupt': [self.cmd_interrupt],
             }
 
         def cmd_set_params(self, params):
@@ -128,12 +132,16 @@ def laser_svgeditor_api_mixin(cls):
                                             hardware=self.hardware_name,
                                             loop_compensation=self.loop_compensation,
                                             progress_callback=progress_callback,
+                                            check_interrupted=self.check_interrupted,
                                             enable_mask=self.enable_mask)
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
                 try:
                     generate_svgeditor_image(buf, name, thumbnail_length)
+                    if self.check_interrupted():
+                        logger.info('svgeditor_upload interrupted')
+                        return
                     self.send_ok()
                 except Exception as e:
                     logger.exception("Load SVG Error")
@@ -142,6 +150,7 @@ def laser_svgeditor_api_mixin(cls):
                     raise e
 
             logger.info('svg_editor')
+            self.is_task_interrupted = False
             params = params.split()
             name = params[0]
             file_length = params[1]
@@ -210,6 +219,7 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
 
             logger.info('Calling laser svgeditor')
+            self.is_task_interrupted = False
             output_fcode = True
             params = params_str.split()
             default_travel_speed = 7500
@@ -287,22 +297,27 @@ def laser_svgeditor_api_mixin(cls):
                 else:
                     writer = GCodeMemoryWriter()
 
-                svgeditor2laser(writer, factory, z_height=self.object_height + self.height_offset,
-                            travel_speed=default_travel_speed,
-                            engraving_strength=self.max_engraving_strength,
-                            progress_callback=progress_callback,
-                            max_x=max_x,
-                            spinning_axis_coord=spinning_axis_coord,
-                            blade_radius=blade_radius,
-                            precut_at=precut,
-                            enable_autofocus=enable_autofocus,
-                            support_diode=support_diode,
-                            diode_offset=diode_offset,
-                            support_fast_gradient=support_fast_gradient,
-                            stripe_param=stripe_param,
-                            has_vector_speed_constraint=has_vector_speed_constraint)
+                svgeditor2laser(writer, factory,
+                                travel_speed=default_travel_speed,
+                                engraving_strength=self.max_engraving_strength,
+                                progress_callback=progress_callback,
+                                max_x=max_x,
+                                spinning_axis_coord=spinning_axis_coord,
+                                blade_radius=blade_radius,
+                                precut_at=precut,
+                                enable_autofocus=enable_autofocus,
+                                support_diode=support_diode,
+                                diode_offset=diode_offset,
+                                support_fast_gradient=support_fast_gradient,
+                                stripe_param=stripe_param,
+                                has_vector_speed_constraint=has_vector_speed_constraint,
+                                check_interrupted=self.check_interrupted)
                 
                 writer.terminated()
+
+                if self.check_interrupted():
+                    logger.info('cmd go interrupted')
+                    return
 
                 output_binary = writer.get_buffer()
                 time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
@@ -324,5 +339,19 @@ def laser_svgeditor_api_mixin(cls):
             except Exception as e:
                 self.send_json(status='Error', message=str(e))
                 raise e
+
+        def cmd_interrupt(self, params):
+            self.is_task_interrupted = True
+            self.send_ok()
+        
+        def check_interrupted(self) :
+            return self.is_task_interrupted
+        
+        def _handle_message(self, opcode, message):
+            msg_thread = threading.Thread(
+                target=cls._handle_message,
+                args=[self, opcode, message]
+            )
+            msg_thread.start()
 
     return LaserSvgeditorApi
