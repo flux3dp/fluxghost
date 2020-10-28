@@ -29,7 +29,6 @@ def laser_svgeditor_api_mixin(cls):
             self.loop_compensation = 0.0
             self.is_task_interrupted = False
             super().__init__(*args)
-            self.is_svgeditor = True
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
                 'divide_svg': [self.divide_svg],
@@ -137,6 +136,8 @@ def laser_svgeditor_api_mixin(cls):
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
+                if self.has_binary_helper():
+                    self.set_binary_helper(None) 
                 try:
                     generate_svgeditor_image(buf, name, thumbnail_length)
                     if self.check_interrupted():
@@ -194,6 +195,8 @@ def laser_svgeditor_api_mixin(cls):
         
         def cmd_upload_plain_svg(self, params):
             def upload_callback(buf, name):
+                if self.has_binary_helper():
+                    self.set_binary_helper(None) 
                 #todo divide buf as svg
                 self.plain_svg = buf
                 self.send_ok()

@@ -30,7 +30,7 @@ class BinaryHelperMixin(object):
 class OnTextMessageMixin(object):
     def on_text_message(self, message):
         try:
-            if not self.has_binary_helper() or message != b'interrupt':
+            if not self.has_binary_helper():
                 message = message.rstrip().split(maxsplit=1)
                 if len(message) == 1:
                     cmd = message[0]
