@@ -349,8 +349,8 @@ def laser_svgeditor_api_mixin(cls):
         
         def _handle_message(self, opcode, message):
             msg_thread = threading.Thread(
-                target=cls._handle_message,
-                args=[self, opcode, message]
+                target=super()._handle_message,
+                args=[opcode, message]
             )
             msg_thread.start()
 
