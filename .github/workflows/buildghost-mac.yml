@@ -2,8 +2,8 @@ name: Build ghost mac
 
 on:
   push:
-    tags:
-      - '*'
+    branch:
+      - 'dev-update-cairo'
 
 jobs:
   build:
