@@ -203,6 +203,7 @@ def control_api_mixin(cls):
                 return
 
             if self.raw_sock:
+                logger.info('Raw Message %s' % message)
                 self.on_raw_message(message)
                 return
 
@@ -946,7 +947,7 @@ class RawSock(object):
         return self.sock.fileno()
     
     def home(self):
-        self.sock.send(b'$H\n')
+        self.sock.send('$H\n'.encode())
 
     def on_read(self):
         buf = self.sock.recv(128)
