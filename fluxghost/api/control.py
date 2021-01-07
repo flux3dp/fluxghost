@@ -203,7 +203,7 @@ def control_api_mixin(cls):
                 return
 
             if self.raw_sock:
-                logger.info('Raw Message %s' % message)
+                logger.info('Raw: => %s' % message)
                 self.on_raw_message(message)
                 return
 
@@ -952,6 +952,8 @@ class RawSock(object):
     def on_read(self):
         buf = self.sock.recv(128)
         if buf:
+            logger.info('Raw: <= %s' % buf.decode("ascii", "replace"))
+            
             self.ws.send_json(status="raw",
                               text=buf.decode("ascii", "replace"))
         else:
