@@ -1,5 +1,6 @@
 import math
 import re
+import sys
 from datetime import datetime
 from getpass import getuser
 import logging
@@ -78,7 +79,9 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_binary(result['colors'].getbuffer())
                 self.send_ok()
             except Exception as e:
-                self.send_json(status='Error', message=str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                file_name = exc_tb.tb_frame.f_code.co_filename
+                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                 raise e
         
         def divide_svg_by_layer(self, params):
@@ -115,7 +118,9 @@ def laser_svgeditor_api_mixin(cls):
                         self.send_binary(item.getbuffer())
                 self.send_ok()
             except Exception as e:
-                self.send_json(status='Error', message=str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                file_name = exc_tb.tb_frame.f_code.co_filename
+                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                 raise e
 
 
@@ -147,7 +152,9 @@ def laser_svgeditor_api_mixin(cls):
                 except Exception as e:
                     logger.exception("Load SVG Error")
                     logger.exception(str(e))
-                    self.send_json(status='Error', message=str(e))
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    file_name = exc_tb.tb_frame.f_code.co_filename
+                    self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                     raise e
 
             logger.info('svg_editor')
@@ -190,7 +197,9 @@ def laser_svgeditor_api_mixin(cls):
                 self.set_binary_helper(helper)
                 self.send_json(status="continue")
             except Exception as e:
-                self.send_json(status='Error', message=str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                file_name = exc_tb.tb_frame.f_code.co_filename
+                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                 raise e
         
         def cmd_upload_plain_svg(self, params):
@@ -340,7 +349,9 @@ def laser_svgeditor_api_mixin(cls):
                     self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
                 logger.info("Svg Editor Processed")
             except Exception as e:
-                self.send_json(status='Error', message=str(e))
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                file_name = exc_tb.tb_frame.f_code.co_filename
+                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                 raise e
 
         def cmd_interrupt(self, params):
