@@ -125,6 +125,7 @@ def control_api_mixin(cls):
                     "pause": self.pause_play,
                     "resume": self.resume_play,
                     "abort": self.abort_play,
+                    'restart': self.restart_play,
                     "set_laser_power": self.set_laser_power,
                     "set_laser_power_temp": self.set_laser_power_temp,
                     "get_laser_power": self.get_laser_power,
@@ -460,6 +461,10 @@ def control_api_mixin(cls):
 
         def abort_play(self):
             self.robot.abort_play()
+            self.send_ok()
+
+        def restart_play(self):
+            self.robot.restart_play()
             self.send_ok()
         
         def set_laser_power(self, value):
