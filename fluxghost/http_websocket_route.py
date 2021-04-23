@@ -66,7 +66,9 @@ ROUTES = [
     (re.compile("push-studio"),
      "fluxghost.websocket.push_studio.WebsocketPushStudio"),
     (re.compile("inter-process"),
-     "fluxghost.websocket.inter_process.WebsocketInterProcess")
+     "fluxghost.websocket.inter_process.WebsocketInterProcess"),
+    (re.compile("opencv"),
+     "fluxghost.websocket.opencv.WebsocketOpenCV"),
 ]
 
 def get_match_ws_service(path):
