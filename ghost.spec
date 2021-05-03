@@ -3,7 +3,7 @@
 from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
 
 from PyInstaller import __version__ as PyInstallerVersion
-from PyInstaller import is_win, is_darwin, is_linux
+is_win, is_darwin, is_linux = False, True, False
 from platform import version as get_os_version
 
 if parse_version(PyInstallerVersion) >= parse_version('3.1'):
@@ -80,7 +80,8 @@ hiddenimports += ['beamify',
                   'fluxghost.websocket.camera_calibration',
                   'fluxghost.websocket.image_tracer',
                   'fluxghost.websocket.inter_process',
-                  'fluxghost.websocket.push_studio'
+                  'fluxghost.websocket.push_studio',
+                  'fluxghost.websocket.opencv',
 ]
 
 binaries = []

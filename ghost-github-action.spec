@@ -95,7 +95,8 @@ hiddenimports += ['beamify',
                   'fluxghost.websocket.camera_calibration',
                   'fluxghost.websocket.image_tracer',
                   'fluxghost.websocket.inter_process',
-                  'fluxghost.websocket.push_studio'
+                  'fluxghost.websocket.push_studio',
+                  'fluxghost.websocket.opencv',
 ]
 
 binaries = []
