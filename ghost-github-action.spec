@@ -49,18 +49,18 @@ def fetch_datas():
 
 
 block_cipher = None
-hiddenimports = ["cairocffi",
-                 "serial",
-                 "PIL",
-                 "cv2",
-                 "scipy.integrate",
-                 "scipy.interpolate.rbf",
-                 "scipy.linalg.cython_blas",
-                 "scipy.linalg.cython_lapack"]
-hiddenimports += collect_submodules("fluxclient")
-hiddenimports += collect_submodules("beamify")
-hiddenimports += collect_submodules("fluxsvg")
-hiddenimports += collect_submodules("pkg_resources")
+hiddenimports = ['cairocffi',
+                 'serial',
+                 'PIL',
+                 'cv2',
+                 'scipy.integrate',
+                 'scipy.interpolate.rbf',
+                 'scipy.linalg.cython_blas',
+                 'scipy.linalg.cython_lapack']
+hiddenimports += collect_submodules('fluxclient')
+hiddenimports += collect_submodules('beamify')
+hiddenimports += collect_submodules('fluxsvg')
+hiddenimports += collect_submodules('pkg_resources')
 hiddenimports += ['beamify',
                   'fluxsvg',
                   'fluxghost',
@@ -100,7 +100,7 @@ hiddenimports += ['beamify',
 ]
 
 binaries = []
-excludes = ["matplotlib", "pydoc", "IPython"]
+excludes = ['matplotlib', 'pydoc', 'IPython']
 
 if os_type.startswith('Windows'):
     print(platform.architecture()[0])
@@ -148,7 +148,7 @@ elif os_type.startswith('Darwin'):
     binaries.append( ('./lib/mac/libfontconfig.1.dylib', '.') )
     binaries.append( ('./lib/mac/libpng16.16.dylib', '.') )
     binaries.append( ('/usr/lib/libz.1.dylib', '.') )
-    if get_os_version().startswith("Darwin Kernel Version 17"):
+    if get_os_version().startswith('Darwin Kernel Version 17'):
         binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
         binaries.append( ('/opt/X11/lib/libxcb.1.dylib', '.') )
         binaries.append( ('/opt/X11/lib/libXau.6.dylib', '.') )
@@ -159,10 +159,10 @@ elif os_type.startswith('Darwin'):
         binaries.append( ('/opt/X11/lib/libXext.6.dylib', '.') )
     else:
         pass
-    excludes.append("win32com")
+    excludes.append('win32com')
 elif os_type.startswith('Linux'):
     # binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
-    excludes.append("win32com")
+    excludes.append('win32com')
 else:
     raise ValueError('Unknown Os Type {}'.format(os_type) )
 
@@ -199,6 +199,10 @@ exe = EXE(pyz,
 # for b in a.binaries:
 #   print(b)
 # print('=====')
+
+if os_type.startswith('Linux'):
+    a.binaries = [x for x in a.binaries if not x[0].startswith('libz.so')]
+    a.binaries = [x for x in a.binaries if not x[0].startswith('libfreetype.so')]
 
 coll = COLLECT(exe,
                a.binaries,

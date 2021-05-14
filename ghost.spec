@@ -154,6 +154,11 @@ exe = EXE(pyz,
           strip=None,
           upx=True,
           console=True)
+
+if os_type.startswith('Linux'):
+    a.binaries = [x for x in a.binaries if not x[0].startswith('libz.so')]
+    a.binaries = [x for x in a.binaries if not x[0].startswith('libfreetype.so')]
+
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
