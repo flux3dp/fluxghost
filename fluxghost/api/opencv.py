@@ -58,7 +58,7 @@ def opencv_mixin(cls):
             if img_url not in self.imgs:
                 return self.send_json(status='need_upload')
             open_cv_image = self.imgs[img_url]
-            ksize = 2 * radius - 1
+            ksize = 2 * radius + 1
             logger.info('Sharpening img: {} with sharpness {}, radius {}'.format(
                 img_url, sharpness, radius))
             gaussian_blur = cv2.GaussianBlur(open_cv_image, (ksize, ksize), 0)
