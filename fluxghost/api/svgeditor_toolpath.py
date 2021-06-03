@@ -295,11 +295,15 @@ def laser_svgeditor_api_mixin(cls):
             try:
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory(hardware_name)
-
+                username = 'user'
+                try:
+                    username = getuser()
+                except:
+                    logger.error('Unable to getuser')
                 self.fcode_metadata.update({
                     "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    "AUTHOR": urllib.parse.quote(getuser()),
-                    "SOFTWARE": "fluxclient-%s-FS" % __version__,
+                    "AUTHOR": urllib.parse.quote(username),
+                    "SOFTWARE": "fluxclient-%s-BS" % __version__,
                 })
                 
                 if output_fcode:
