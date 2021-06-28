@@ -69,7 +69,10 @@ ROUTES = [
      "fluxghost.websocket.inter_process.WebsocketInterProcess"),
     (re.compile("opencv"),
      "fluxghost.websocket.opencv.WebsocketOpenCV"),
+    (re.compile("utils"),
+     "fluxghost.websocket.utils.WebsocketUtils"),
 ]
+
 
 def get_match_ws_service(path):
     for exp, module_path in ROUTES:
