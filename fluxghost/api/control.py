@@ -59,6 +59,7 @@ def control_api_mixin(cls):
                 "upload": self.upload_file,
 
                 "update_fw": self.update_fw,
+                "update_laser_records": self.update_laser_records,
                 "update_mbfw": self.update_mbfw,
 
                 "deviceinfo": self.deviceinfo,
@@ -169,6 +170,7 @@ def control_api_mixin(cls):
                 },
 
                 "fetch_log": self.fetch_log,
+                "fetch_laser_records": self.fetch_laser_records,
             }
 
         @property
@@ -425,6 +427,21 @@ def control_api_mixin(cls):
                 try:
                     self.robot.update_firmware(stream, int(size),
                                                self.cb_upload_callback)
+                    self.send_ok()
+                    self.close()
+                except RobotError as e:
+                    logger.debug("RobotError%s [error_symbol=%s]",
+                                 repr(e.args), e.error_symbol)
+                    self.send_error(e.error_symbol)
+            self.simple_binary_receiver(size, on_recived)
+
+        def update_laser_records(self, mimetype, ssize):
+            size = int(ssize)
+            def on_recived(stream):
+                stream.seek(0)
+                try:
+                    self.robot.update_laser_records(stream, int(size),
+                                                    self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
@@ -842,6 +859,24 @@ def control_api_mixin(cls):
 
             buf = BytesIO()
             mimetype = self.robot.fetch_log(logname, buf, report)
+            if mimetype:
+                self.send_json(status="binary", mimetype=mimetype,
+                               size=buf.truncate())
+                self.send_binary(buf.getvalue())
+                self.send_ok()
+
+        def fetch_laser_records(self):
+            flag = []
+
+            def report(left, size):
+                if not flag:
+                    flag.append(1)
+                    self.send_json(status="transfer", completed=0, size=size)
+                self.send_json(status="transfer",
+                               completed=(size - left), size=size)
+
+            buf = BytesIO()
+            mimetype = self.robot.fetch_laser_records(buf, report)
             if mimetype:
                 self.send_json(status="binary", mimetype=mimetype,
                                size=buf.truncate())

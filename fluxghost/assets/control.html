@@ -571,6 +571,20 @@
       a.click();
       window.URL.revokeObjectURL(url);
     },
+    "fetch_laser_records": function(controller, cmd, payload) {
+      var splited_cmd = cmd.split(" ");
+      var filename = "laser_records"
+
+      var url = window.URL.createObjectURL(payload.binaries[0]);
+      var a = document.createElement("a");
+      document.body.appendChild(a);
+      a.style = "display: none";
+
+      a.href = url;
+      a.download = filename;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
     task: function(controller, cmd, payload) {
       $("[data-cmd-group]").hide()
       if(payload.task === "") {
@@ -859,6 +873,8 @@
         mimetype = "binary/firmware";
       } else if (fileext == "fxfw") {
         mimetype = "binary/flux-firmware";
+      } else if (fileext == "json") {
+        mimetype = "application/json"; // For laser records
       } else {
         alert("Unknow file type");
         return
@@ -1267,6 +1283,22 @@
           </ul>
         </div>
 
+        <!-- Update Machine Metadata -->
+        <div class="btn-group btn-xs dropup" data-sg data-sg0>
+          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <span>Update Metadata</span>
+              <span class="caret"></span>
+              <span class="sr-only">Toggle Dropdown</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li style="cursor: pointer"><a class="fileinput-button">
+              <i class="glyphicon glyphicon-upload"></i>
+              <span>Laser Records</span>
+              <input type="file" class="fileinput-button" data-file-cmd="update_laser_records" name="file" />
+            </a></li>
+          </ul>
+        </div>
+
         <!-- Fetch log -->
         <div class="btn-group btn-xs dropup">
           <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -1291,9 +1323,10 @@
               <a>Player</a></li>
             <li style="cursor: pointer" data-cmd="fetch_log fluxrobotd.log">
               <a>Robot</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_laser_records">
+              <a>Laser Records</a></li>
           </ul>
         </div>
-
       </div>
     </div>
 
