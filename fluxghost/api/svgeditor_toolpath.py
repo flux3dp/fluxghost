@@ -136,8 +136,7 @@ def laser_svgeditor_api_mixin(cls):
                                             hardware=self.hardware_name,
                                             loop_compensation=self.loop_compensation,
                                             progress_callback=progress_callback,
-                                            check_interrupted=self.check_interrupted,
-                                            enable_mask=self.enable_mask)
+                                            check_interrupted=self.check_interrupted)
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
@@ -186,9 +185,9 @@ def laser_svgeditor_api_mixin(cls):
                 self.pixel_per_mm = 50
                 self.dict_kwargs['pixel_per_mm_x'] = 20
 
-            self.enable_mask = False
             if '-mask' in params:
-                self.enable_mask = True
+                self.dict_kwargs['enable_clip'] = True
+
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
                 helper = BinaryUploadHelper(
