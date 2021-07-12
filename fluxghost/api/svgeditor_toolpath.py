@@ -9,7 +9,7 @@ import urllib.parse
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
-from fluxclient.toolpath.laser import svgeditor2laser
+from fluxclient.toolpath.laser import svgeditor2laser, gcode2fcode
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
@@ -36,6 +36,7 @@ def laser_svgeditor_api_mixin(cls):
                 'divide_svg_by_layer': [self.divide_svg_by_layer],
                 'svgeditor_upload': [self.cmd_svgeditor_upload],
                 'go': [self.cmd_go],
+                'g2f': [self.cmd_g2f],
                 'set_params': [self.cmd_set_params],
                 'interrupt': [self.cmd_interrupt],
             }
@@ -223,6 +224,82 @@ def laser_svgeditor_api_mixin(cls):
             factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation, **self.dict_kwargs)
             factory.add_image(self.svg_image)
             return factory
+
+        def cmd_g2f(self, params_str):
+            def progress_callback(prog):
+                prog = math.floor(prog * 500) / 500
+                self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
+            def upload_callback(buf, name):
+                if self.has_binary_helper():
+                    self.set_binary_helper(None) 
+                #todo divide buf as svg
+                self.gcode_string = buf
+                self.send_ok()
+                send_fcode = True
+                output_fcode = True
+                try:
+                    self.send_progress('Initializing', 0.03)
+                    #factory = self.prepare_factory(hardware_name)
+
+                    self.fcode_metadata.update({
+                        "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                        "AUTHOR": urllib.parse.quote(getuser()),
+                        "SOFTWARE": "fluxclient-%s-FS" % __version__,
+                    })
+                    #thumbnail = factory.generate_thumbnail()
+                    writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata, (b'', ))
+                                              # (thumbnail, ))
+                    default_travel_speed = 7500
+
+                    gcode2fcode(writer, self.gcode_string,
+                                    travel_speed=default_travel_speed,
+                                    #engraving_strength=self.max_engraving_strength,
+                                    progress_callback=progress_callback,
+                                    check_interrupted=self.check_interrupted)
+                    
+                    writer.terminated
+
+                    if self.check_interrupted():
+                        logger.info('cmd go interrupted')
+                        return
+
+                    output_binary = writer.get_buffer()
+                    time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
+                        if output_fcode else 0
+                    
+                    traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
+                        if output_fcode else 0
+                    #print('time cost:', time_need, '\ntravel distance', traveled_dist)
+                    self.send_progress('Finishing', 1.0)
+
+                    if send_fcode:
+                        self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
+                        #print(len(output_binary), time_need, traveled_dist)
+                        output_file = open("/Users/kai/temp.fc", "wb")
+                        output_file.write(output_binary)
+                        output_file.close()
+                        self.send_binary(output_binary)
+                    else:
+                        output_file = open("/var/gcode/userspace/temp.fc", "wb")
+                        output_file.write(output_binary)
+                        output_file.close()
+                        self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
+                    logger.info("G2F Processed")
+                except Exception as e:
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    file_name = exc_tb.tb_frame.f_code.co_filename
+                    self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
+                    raise e
+
+            logger.info('task preview: gcode to fcode')
+
+            name, file_length = params_str.split()
+            file_length = int(file_length)
+            helper = BinaryUploadHelper(
+                    file_length, upload_callback, name)
+
+            self.set_binary_helper(helper)
+            self.send_json(status="continue")
 
         def cmd_go(self, params_str):
             def progress_callback(prog):
