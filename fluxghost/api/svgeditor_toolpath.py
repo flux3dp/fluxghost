@@ -1,11 +1,14 @@
-import math
-import re
-import sys
-from datetime import datetime
-from getpass import getuser
+import base64
+import io
 import logging
+import math
+import sys
 import threading
 import urllib.parse
+from datetime import datetime
+from getpass import getuser
+
+from PIL import Image
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
@@ -229,26 +232,31 @@ def laser_svgeditor_api_mixin(cls):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
                 self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
-            def upload_callback(buf, name):
+            def upload_callback(buf, thumbnail_length):
+                def process_thumbnail(base64_thumbnail: str):
+                    _, data = base64_thumbnail.split(b',')
+                    data = Image.open(io.BytesIO(base64.b64decode(data)))
+                    bytes = io.BytesIO()
+                    data.save(bytes, 'png')
+                    return bytes.getvalue()
+
                 if self.has_binary_helper():
                     self.set_binary_helper(None) 
                 #todo divide buf as svg
-                self.gcode_string = buf
+                thumbnail = process_thumbnail(buf[:thumbnail_length])
+                self.gcode_string = buf[thumbnail_length:]
                 self.send_ok()
                 send_fcode = True
-                output_fcode = True
                 try:
                     self.send_progress('Initializing', 0.03)
-                    #factory = self.prepare_factory(hardware_name)
 
                     self.fcode_metadata.update({
-                        "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                        "AUTHOR": urllib.parse.quote(getuser()),
-                        "SOFTWARE": "fluxclient-%s-FS" % __version__,
+                        'CREATED_AT': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                        'AUTHOR': urllib.parse.quote(getuser()),
+                        'SOFTWARE': 'fluxclient-%s-FS' % __version__,
                     })
-                    #thumbnail = factory.generate_thumbnail()
-                    writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata, (b'', ))
-                                              # (thumbnail, ))
+                    writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata,
+                                                 (thumbnail, ))
                     default_travel_speed = 7500
 
                     gcode2fcode(writer, self.gcode_string,
@@ -257,24 +265,21 @@ def laser_svgeditor_api_mixin(cls):
                                     progress_callback=progress_callback,
                                     check_interrupted=self.check_interrupted)
                     
-                    writer.terminated
+                    writer.terminated()
 
                     if self.check_interrupted():
-                        logger.info('cmd go interrupted')
+                        logger.info('cmd g2f interrupted')
                         return
 
                     output_binary = writer.get_buffer()
-                    time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
-                        if output_fcode else 0
+                    time_need = float(writer.get_metadata().get(b"TIME_COST", 0))
                     
-                    traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
-                        if output_fcode else 0
-                    #print('time cost:', time_need, '\ntravel distance', traveled_dist)
+                    traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0))
                     self.send_progress('Finishing', 1.0)
 
                     if send_fcode:
                         self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
-                        #print(len(output_binary), time_need, traveled_dist)
+                        # print(len(output_binary), time_need, traveled_dist)
                         output_file = open("/Users/kai/temp.fc", "wb")
                         output_file.write(output_binary)
                         output_file.close()
@@ -292,11 +297,10 @@ def laser_svgeditor_api_mixin(cls):
                     raise e
 
             logger.info('task preview: gcode to fcode')
+            file_length, thumbnail_length = map(int, params_str.split())
 
-            name, file_length = params_str.split()
-            file_length = int(file_length)
             helper = BinaryUploadHelper(
-                    file_length, upload_callback, name)
+                    file_length, upload_callback, thumbnail_length)
 
             self.set_binary_helper(helper)
             self.send_json(status="continue")
