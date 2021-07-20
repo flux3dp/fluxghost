@@ -264,7 +264,7 @@ def laser_svgeditor_api_mixin(cls):
                                     #engraving_strength=self.max_engraving_strength,
                                     progress_callback=progress_callback,
                                     check_interrupted=self.check_interrupted)
-                    
+
                     writer.terminated()
 
                     if self.check_interrupted():
@@ -279,10 +279,6 @@ def laser_svgeditor_api_mixin(cls):
 
                     if send_fcode:
                         self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
-                        # print(len(output_binary), time_need, traveled_dist)
-                        output_file = open("/Users/kai/temp.fc", "wb")
-                        output_file.write(output_binary)
-                        output_file.close()
                         self.send_binary(output_binary)
                     else:
                         output_file = open("/var/gcode/userspace/temp.fc", "wb")
