@@ -325,6 +325,10 @@ def laser_svgeditor_api_mixin(cls):
             has_vector_speed_constraint = False
 
             for i, param in enumerate(params):
+                if param == '-bb2':
+                    max_x = 736.9 
+                    hardware_name = 'beambox-2'
+                
                 if param == '-pro':
                     max_x = 600 
                     hardware_name = 'beambox-pro'
