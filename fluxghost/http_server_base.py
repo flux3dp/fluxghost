@@ -3,6 +3,7 @@ from threading import Lock
 from select import select
 import logging
 import socket
+import ssl
 from sys import stdout
 import platform
 from pathlib import Path
@@ -13,7 +14,8 @@ from fluxghost.http_handlers.file_handler import FileHandler
 
 logger = logging.getLogger("HTTPServer")
 
-
+context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+context.load_cert_chain(certfile='./cert.pem', keyfile='./key.pem')
 class HttpServerBase(object):
     runmode = None
     discover_mutex = None
@@ -34,6 +36,7 @@ class HttpServerBase(object):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(address)
         s.listen(backlog)
+        self.sock = s = context.wrap_socket(s, server_side=True)
 
         if address[1] == 0:
             address = s.getsockname()
