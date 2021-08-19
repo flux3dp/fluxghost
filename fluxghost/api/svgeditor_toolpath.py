@@ -168,12 +168,14 @@ def laser_svgeditor_api_mixin(cls):
             thumbnail_length = params[2]
             self.dict_kwargs = {}
             self.hardware_name = 'beambox'
+
+            if '-bb2' in params:
+                self.hardware_name = 'beambox-2'
+
             if '-pro' in params:
-                max_x = 600 
                 self.hardware_name = 'beambox-pro'
 
             if '-beamo' in params:
-                max_x = 300 
                 self.hardware_name = 'beamo'
 
             if '-ldpi' in params:
