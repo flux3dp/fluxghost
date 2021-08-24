@@ -87,7 +87,7 @@ def laser_svgeditor_api_mixin(cls):
                 file_name = exc_tb.tb_frame.f_code.co_filename
                 self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                 raise e
-        
+
         def divide_svg_by_layer(self, params):
             params = params.split()
             divide_params = {}
@@ -180,10 +180,10 @@ def laser_svgeditor_api_mixin(cls):
 
             if '-ldpi' in params:
                 self.pixel_per_mm = 5
-            
+
             if '-mdpi' in params:
                 self.pixel_per_mm = 10
-            
+
             if '-hdpi' in params:
                 self.pixel_per_mm = 20
 
@@ -206,7 +206,7 @@ def laser_svgeditor_api_mixin(cls):
                 file_name = exc_tb.tb_frame.f_code.co_filename
                 self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, exc_tb.tb_lineno))
                 raise e
-        
+
         def cmd_upload_plain_svg(self, params):
             def upload_callback(buf, name):
                 if self.has_binary_helper():
@@ -275,7 +275,7 @@ def laser_svgeditor_api_mixin(cls):
 
                     output_binary = writer.get_buffer()
                     time_need = float(writer.get_metadata().get(b"TIME_COST", 0))
-                    
+
                     traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0))
                     self.send_progress('Finishing', 1.0)
 
@@ -324,13 +324,14 @@ def laser_svgeditor_api_mixin(cls):
             diode_offset = None
             stripe_param = None
             support_fast_gradient = False
+            mock_fast_gradient = False
             has_vector_speed_constraint = False
 
             for i, param in enumerate(params):
                 if param == '-bb2':
                     max_x = 736.9 
                     hardware_name = 'beambox-2'
-                
+
                 if param == '-pro':
                     max_x = 600 
                     hardware_name = 'beambox-pro'
@@ -354,7 +355,7 @@ def laser_svgeditor_api_mixin(cls):
 
                 elif param == '-temp':
                     send_fcode = False
-                
+
                 elif param == '-gc':
                     output_fcode = False
 
@@ -363,7 +364,10 @@ def laser_svgeditor_api_mixin(cls):
 
                 elif param == '-fg':
                     support_fast_gradient = True
-                
+
+                elif param == '-mfg':
+                    mock_fast_gradient = True
+
                 elif param == '-vsc':
                     has_vector_speed_constraint = True
 
@@ -387,7 +391,7 @@ def laser_svgeditor_api_mixin(cls):
                     "AUTHOR": urllib.parse.quote(username),
                     "SOFTWARE": "fluxclient-%s-BS" % __version__,
                 })
-                
+
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
@@ -407,10 +411,11 @@ def laser_svgeditor_api_mixin(cls):
                                 support_diode=support_diode,
                                 diode_offset=diode_offset,
                                 support_fast_gradient=support_fast_gradient,
+                                mock_fast_gradient=mock_fast_gradient,
                                 stripe_param=stripe_param,
                                 has_vector_speed_constraint=has_vector_speed_constraint,
                                 check_interrupted=self.check_interrupted)
-                
+
                 writer.terminated()
 
                 if self.check_interrupted():
@@ -420,7 +425,7 @@ def laser_svgeditor_api_mixin(cls):
                 output_binary = writer.get_buffer()
                 time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
                     if output_fcode else 0
-                
+
                 traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
                     if output_fcode else 0
                 print('time cost:', time_need, '\ntravel distance', traveled_dist)
