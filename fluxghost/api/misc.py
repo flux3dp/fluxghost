@@ -65,6 +65,8 @@ class BinaryUploadHelper(object):
         self.buf = BytesIO()
         self.buffered = 0
 
+        self.progress_callback = kwargs.pop('progress_callback', None)
+
         self.args = args
         self.kwargs = kwargs
 
@@ -76,6 +78,8 @@ class BinaryUploadHelper(object):
         self.last_update = time()
 
         if self.buffered < self.length:
+            if self.progress_callback:
+                self.progress_callback(self.buffered / self.length)
             return False
         elif self.buffered == self.length:
             self.callback(self.buf.getvalue(), *self.args, **self.kwargs)
