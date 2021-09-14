@@ -136,7 +136,7 @@ def laser_svgeditor_api_mixin(cls):
             def generate_svgeditor_image(buf, name, thumbnail_length):
                 thumbnail = buf[:thumbnail_length]
                 svg_data = buf[thumbnail_length:]
-                svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm, 
+                svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm,
                                             hardware=self.hardware_name,
                                             loop_compensation=self.loop_compensation,
                                             progress_callback=progress_callback,
@@ -145,7 +145,7 @@ def laser_svgeditor_api_mixin(cls):
 
             def upload_callback(buf, name, thumbnail_length):
                 if self.has_binary_helper():
-                    self.set_binary_helper(None) 
+                    self.set_binary_helper(None)
                 try:
                     generate_svgeditor_image(buf, name, thumbnail_length)
                     if self.check_interrupted():
@@ -210,7 +210,7 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_upload_plain_svg(self, params):
             def upload_callback(buf, name):
                 if self.has_binary_helper():
-                    self.set_binary_helper(None) 
+                    self.set_binary_helper(None)
                 #todo divide buf as svg
                 self.plain_svg = buf
                 self.send_ok()
@@ -243,7 +243,7 @@ def laser_svgeditor_api_mixin(cls):
                     return bytes.getvalue()
 
                 if self.has_binary_helper():
-                    self.set_binary_helper(None) 
+                    self.set_binary_helper(None)
                 #todo divide buf as svg
                 thumbnail = process_thumbnail(buf[:thumbnail_length])
                 self.gcode_string = buf[thumbnail_length:]
@@ -329,15 +329,15 @@ def laser_svgeditor_api_mixin(cls):
 
             for i, param in enumerate(params):
                 if param == '-bb2':
-                    max_x = 736.9 
+                    max_x = 730
                     hardware_name = 'beambox-2'
 
                 if param == '-pro':
-                    max_x = 600 
+                    max_x = 600
                     hardware_name = 'beambox-pro'
 
                 elif param == '-beamo':
-                    max_x = 300 
+                    max_x = 300
                     hardware_name = 'beamo'
 
                 elif param == '-film':
@@ -448,10 +448,10 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_interrupt(self, params):
             self.is_task_interrupted = True
             self.send_ok()
-        
+
         def check_interrupted(self) :
             return self.is_task_interrupted
-        
+
         def _handle_message(self, opcode, message):
             msg_thread = threading.Thread(
                 target=super()._handle_message,
