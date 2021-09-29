@@ -1,5 +1,3 @@
-
-from getpass import getuser
 from shlex import split
 from uuid import UUID
 import logging
@@ -10,6 +8,7 @@ from fluxclient.device.manager import (DeviceManager, ManagerError,
                                        ManagerException)
 from fluxclient.encryptor import KeyObject
 from fluxghost import g
+from fluxghost.utils.username import get_username
 
 logger = logging.getLogger("API.CONTROL_BASE")
 
@@ -165,7 +164,7 @@ def manager_mixin(cls):
         def cmd_list_trust(self, *args):
             self.send_ok(acl=self.manager.list_trust())
 
-        def cmd_add_trust(self, pem, label=getuser(), *args):
+        def cmd_add_trust(self, pem, label=get_username(), *args):
             if pem == "self":
                 pem = self.client_key.public_key_pem
             self.manager.add_trust(label, pem)

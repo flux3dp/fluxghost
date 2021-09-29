@@ -1,13 +1,13 @@
 
 import logging
 import json
-import getpass
 from uuid import UUID
 
 from fluxclient.encryptor import KeyObject
 from fluxclient.upnp.task import UpnpTask
 from fluxclient.upnp import UpnpError
 
+from fluxghost.utils.username import get_username
 from .misc import BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger(__name__)
@@ -141,7 +141,7 @@ def upnp_api_mixin(cls):
             """
             label = params.strip()
             if not label:
-                label = getpass.getuser()
+                label = get_username()
             logger.debug('add_key ' + label + ' ' + self.client_key.get_access_id())
             self.upnp_task.add_trust(label, self.client_key.public_key_pem.decode())
             self.send_ok()
@@ -160,7 +160,7 @@ def upnp_api_mixin(cls):
             try:
                 self.upnp_task.modify_password(old, new)
                 self.upnp_task.add_trust(
-                    getpass.getuser(),
+                    get_username(),
                     self.client_key.public_key_pem.decode())
             except UpnpError:
                 self.send_error('password changing fail')

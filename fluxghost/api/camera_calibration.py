@@ -1,7 +1,5 @@
-from datetime import datetime
-from getpass import getuser
 import logging
-import io, sys
+import io
 import numpy as np
 from PIL import Image
 
@@ -55,7 +53,7 @@ def camera_calibration_api_mixin(cls):
 
             angle = _get_angle(lines)
             [width, height] = _get_size(lines)
-            [x, y] = _get_center(lines) 
+            [x, y] = _get_center(lines)
 
             # output_img = np.copy(img)
             # for rho, theta in lines:
@@ -86,7 +84,7 @@ def camera_calibration_api_mixin(cls):
         def _find_four_main_lines(img):
             img_blur = cv2.medianBlur(img, 5)
             img_threshold = 255 - cv2.adaptiveThreshold(img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-            
+
             # another technique to find edge
             # img_edge = cv2.Canny(img, 50, 150, apertureSize = 3)
 
@@ -112,7 +110,7 @@ def camera_calibration_api_mixin(cls):
             # use average as watershed to seperate top, bottom, left, right lines
             h_average_rho = np.mean([x[0] for x in h_lines])
             v_average_rho = np.mean([x[0] for x in v_lines])
-            
+
             # get four lines
             lines_top = [x for x in h_lines if (x[0] < h_average_rho)]
             lines_bottom = [x for x in h_lines if (x[0] > h_average_rho)]
@@ -124,8 +122,8 @@ def camera_calibration_api_mixin(cls):
                 return [rho, theta]
             return [
                 mean_line(lines_top),
-                mean_line(lines_bottom),    
-                mean_line(lines_left),    
+                mean_line(lines_bottom),
+                mean_line(lines_left),
                 mean_line(lines_right)
             ]
 
@@ -145,12 +143,12 @@ def camera_calibration_api_mixin(cls):
         # return [x, y] in pixel
         def _get_center(lines):
             [top, bottom, left, right] = lines
-            
+
             # this is magic
             def get_intersection(line1, line2):
                 r, a = line1
                 s, b = line2
-                t = (r*cos(a-b) - s)/sin(a-b) 
+                t = (r*cos(a-b) - s)/sin(a-b)
                 x = r*cos(a) - t*sin(a)
                 y = r*sin(a) + t*cos(a)
                 return [x, y]

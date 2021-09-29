@@ -6,7 +6,6 @@ import sys
 import threading
 import urllib.parse
 from datetime import datetime
-from getpass import getuser
 
 from PIL import Image
 
@@ -18,6 +17,7 @@ from fluxclient import __version__
 
 import fluxsvg
 
+from fluxghost.utils.username import get_username
 from .svg_toolpath import svg_base_api_mixin
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -254,7 +254,7 @@ def laser_svgeditor_api_mixin(cls):
 
                     self.fcode_metadata.update({
                         'CREATED_AT': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                        'AUTHOR': urllib.parse.quote(getuser()),
+                        'AUTHOR': urllib.parse.quote(get_username()),
                         'SOFTWARE': 'fluxclient-%s-FS' % __version__,
                     })
                     writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata,
@@ -381,14 +381,9 @@ def laser_svgeditor_api_mixin(cls):
             try:
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory(hardware_name)
-                username = 'user'
-                try:
-                    username = getuser()
-                except:
-                    logger.error('Unable to getuser')
                 self.fcode_metadata.update({
                     "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    "AUTHOR": urllib.parse.quote(username),
+                    "AUTHOR": urllib.parse.quote(get_username()),
                     "SOFTWARE": "fluxclient-%s-BS" % __version__,
                 })
 

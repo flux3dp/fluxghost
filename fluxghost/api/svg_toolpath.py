@@ -1,6 +1,5 @@
 
 from datetime import datetime
-from getpass import getuser
 import logging
 
 from fluxclient.toolpath.svg_factory import SvgImage, SvgFactory
@@ -9,6 +8,7 @@ from fluxclient.toolpath.laser import svg2laser, svgeditor2laser
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
+from fluxghost.utils.username import get_username
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVG")
@@ -176,7 +176,7 @@ def laser_svg_api_mixin(cls):
 
             self.fcode_metadata.update({
                 "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "AUTHOR": getuser(),
+                "AUTHOR": get_username(),
                 "SOFTWARE": "fluxclient-%s-FS" % __version__,
             })
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
@@ -251,7 +251,7 @@ def drawing_svg_api_mixin(cls):
 
             self.fcode_metadata.update({
                 "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "AUTHOR": getuser(),
+                "AUTHOR": get_username(),
                 "SOFTWARE": "fluxclient-%s-FS" % __version__,
             })
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)
@@ -357,7 +357,7 @@ def vinyl_svg_api_mixin(cls):
 
             self.fcode_metadata.update({
                 "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "AUTHOR": getuser(),
+                "AUTHOR": get_username(),
                 "SOFTWARE": "fluxclient-%s-FS" % __version__,
             })
             self.fcode_metadata["OBJECT_HEIGHT"] = str(self.object_height)

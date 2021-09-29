@@ -1,11 +1,11 @@
-
-from getpass import getuser
 from uuid import UUID
 import logging
 import json
 
 from fluxclient.encryptor import KeyObject
 from fluxclient.device.manager import DeviceManager, ManagerError
+
+from fluxghost.utils.username import get_username
 
 logger = logging.getLogger("API.TOUCH")
 
@@ -80,7 +80,7 @@ def touch_api_mixin(cls):
                             "reachable": True, "auth": False}))
                         return
                 try:
-                    task.add_trust(getuser(),
+                    task.add_trust(get_username(),
                                    client_key.public_key_pem.decode())
                 except ManagerError:
                     pass
