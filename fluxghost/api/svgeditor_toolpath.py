@@ -327,6 +327,7 @@ def laser_svgeditor_api_mixin(cls):
             mock_fast_gradient = False
             has_vector_speed_constraint = False
             acc = 4000
+            is_reverse_engraving = False
 
             for i, param in enumerate(params):
                 if param == '-bb2':
@@ -382,6 +383,10 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-acc':
                     acc = float(params[i+1])
 
+                elif param == '-rev':
+                    is_reverse_engraving = True
+
+
             try:
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory(hardware_name)
@@ -414,7 +419,8 @@ def laser_svgeditor_api_mixin(cls):
                                 stripe_param=stripe_param,
                                 has_vector_speed_constraint=has_vector_speed_constraint,
                                 check_interrupted=self.check_interrupted,
-                                acc=acc)
+                                acc=acc,
+                                is_reverse_engraving=is_reverse_engraving)
 
                 writer.terminated()
 
