@@ -324,13 +324,14 @@ def laser_svgeditor_api_mixin(cls):
             diode_offset = None
             stripe_param = None
             support_fast_gradient = False
+            diode_one_way_engraving = False
             mock_fast_gradient = False
             has_vector_speed_constraint = False
             acc = 4000
             is_reverse_engraving = False
 
             for i, param in enumerate(params):
-                if param == '-bb2':
+                if param == '-hexa':
                     max_x = 730
                     hardware_name = 'beambox-2'
 
@@ -377,6 +378,9 @@ def laser_svgeditor_api_mixin(cls):
                     support_diode = True
                     diode_offset = [float(j) for j in params[i+1].split(',')]
 
+                elif param == '-diode-owe':
+                    diode_one_way_engraving = True
+
                 elif param == '-strpcom':
                     stripe_param = [float(j) for j in params[i+1].split(',')]
 
@@ -414,6 +418,7 @@ def laser_svgeditor_api_mixin(cls):
                                 enable_autofocus=enable_autofocus,
                                 support_diode=support_diode,
                                 diode_offset=diode_offset,
+                                diode_one_way_engraving=diode_one_way_engraving,
                                 support_fast_gradient=support_fast_gradient,
                                 mock_fast_gradient=mock_fast_gradient,
                                 stripe_param=stripe_param,
