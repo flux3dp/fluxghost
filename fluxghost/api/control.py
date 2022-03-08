@@ -483,19 +483,19 @@ def control_api_mixin(cls):
         def restart_play(self):
             self.robot.restart_play()
             self.send_ok()
-        
+
         def set_laser_power(self, value):
             self.robot.set_laser_power(float(value))
             self.send_ok()
-        
+
         def set_laser_power_temp(self, value):
             self.robot.set_laser_power_temp(float(value))
             self.send_ok()
-        
+
         def set_laser_speed(self, value):
             self.robot.set_laser_speed(float(value))
             self.send_ok()
-        
+
         def set_laser_speed_temp(self, value):
             self.robot.set_laser_speed_temp(float(value))
             self.send_ok()
@@ -503,15 +503,15 @@ def control_api_mixin(cls):
         def set_fan(self, value):
             self.robot.set_fan(int(value))
             self.send_ok()
-        
+
         def set_fan_temp(self, value):
             self.robot.set_fan_temp(int(value))
             self.send_ok()
-        
+
         def set_origin_x(self, value):
             self.robot.set_origin_x(float(value))
             self.send_ok()
-        
+
         def set_origin_y(self, value):
             self.robot.set_origin_y(float(value))
             self.send_ok()
@@ -519,7 +519,7 @@ def control_api_mixin(cls):
         def get_laser_power(self):
             power = self.robot.get_laser_power()
             self.send_ok(value=power)
-        
+
         def get_laser_speed(self):
             speed = self.robot.get_laser_speed()
             self.send_ok(value=speed)
@@ -658,11 +658,11 @@ def control_api_mixin(cls):
         def maintain_move(self, *args):
             self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
             self.send_ok()
-        
+
         def maintain_force_default(self, *args):
             self.task.force_default()
             self.send_ok()
-        
+
         def close_fan(self, *args):
             self.task.close_fan()
             self.send_ok()
@@ -835,7 +835,7 @@ def control_api_mixin(cls):
         def config_del(self, key):
             del self.robot.config[key]
             self.send_ok(key=key)
-        
+
         def pipe_set(self, key, *value):
             self.robot.pipe[key] = " ".join(value)
             self.send_ok(key=key)
@@ -985,7 +985,7 @@ class RawSock(object):
 
     def fileno(self):
         return self.sock.fileno()
-    
+
     def home(self):
         self.sock.send('$H\n'.encode())
 
@@ -993,7 +993,7 @@ class RawSock(object):
         buf = self.sock.recv(128)
         if buf:
             logger.info('Raw: <= %s' % buf.decode("ascii", "replace"))
-            
+
             self.ws.send_json(status="raw",
                               text=buf.decode("ascii", "replace"))
         else:

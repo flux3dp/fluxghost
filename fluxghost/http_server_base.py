@@ -57,7 +57,7 @@ class HttpServerBase(object):
                 appdata = path.join(home, '.config')
 
             appdata = path.join(appdata, 'FluxStudioPort')
-            
+
             portFile = open(appdata, 'w')
             portFile.write(str(address[1]))
             portFile.close()
@@ -108,7 +108,7 @@ class HttpServerBase(object):
                         logger.info("Discover started")
                     except OSError:
                         pass
-                
+
                 try:
                     for device in disc.tcp_devices:
                         self.on_discover_device(disc, device.uuid, device)

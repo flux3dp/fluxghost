@@ -30,7 +30,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 logger.error("%s", e)
         except Exception:
             logger.exception("Unhandle Error")
-    
+
     def get_hostname(self):
         return os.environ.get("proxy_api_host", '').replace("back.52mozu", "back3.52mozu")
 
@@ -172,7 +172,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.debug("%s:%s connected" % (client, module))
             ws = ws_class(self.request, client, self.server, self.path,
                           **kwargs)
-            if self.path.find('push-studio') != -1: 
+            if self.path.find('push-studio') != -1:
                 self.server.set_push_studio_ws(ws)
             ws.serve_forever()
             logger.debug("%s:%s disconnected" % (client, module))
