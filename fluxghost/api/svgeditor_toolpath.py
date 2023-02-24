@@ -322,7 +322,6 @@ def laser_svgeditor_api_mixin(cls):
             enable_autofocus = False
             support_diode = False
             diode_offset = None
-            stripe_param = None
             support_fast_gradient = False
             diode_one_way_engraving = False
             mock_fast_gradient = False
@@ -381,9 +380,6 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-diode-owe':
                     diode_one_way_engraving = True
 
-                elif param == '-strpcom':
-                    stripe_param = [float(j) for j in params[i+1].split(',')]
-
                 elif param == '-acc':
                     acc = float(params[i+1])
 
@@ -421,7 +417,6 @@ def laser_svgeditor_api_mixin(cls):
                                 diode_one_way_engraving=diode_one_way_engraving,
                                 support_fast_gradient=support_fast_gradient,
                                 mock_fast_gradient=mock_fast_gradient,
-                                stripe_param=stripe_param,
                                 has_vector_speed_constraint=has_vector_speed_constraint,
                                 check_interrupted=self.check_interrupted,
                                 acc=acc,
