@@ -108,9 +108,9 @@ def laser_svgeditor_api_mixin(cls):
                     self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
                     self.send_binary(result['bitmap'].getbuffer())
                 for key, item in result.items():
-                    if key is 'bitmap_offset':
+                    if key == 'bitmap_offset':
                         continue
-                    if key is 'bitmap':
+                    if key == 'bitmap':
                         if item is None:
                             self.send_json(name='bitmap', length=0)
                             self.send_binary(b"")
