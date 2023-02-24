@@ -169,8 +169,8 @@ def laser_svgeditor_api_mixin(cls):
             self.dict_kwargs = {}
             self.hardware_name = 'beambox'
 
-            if '-bb2' in params:
-                self.hardware_name = 'beambox-2'
+            if '-bb2' in params or '-hexa' in params:
+                self.hardware_name = 'hexa'
 
             if '-pro' in params:
                 self.hardware_name = 'beambox-pro'
@@ -332,7 +332,7 @@ def laser_svgeditor_api_mixin(cls):
             for i, param in enumerate(params):
                 if param == '-hexa':
                     max_x = 730
-                    hardware_name = 'beambox-2'
+                    hardware_name = 'hexa'
 
                 if param == '-pro':
                     max_x = 600
