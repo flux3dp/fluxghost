@@ -178,6 +178,9 @@ def laser_svgeditor_api_mixin(cls):
             if '-beamo' in params:
                 self.hardware_name = 'beamo'
 
+            if '-ador' in params:
+                self.hardware_name = 'ador'
+
             if '-ldpi' in params:
                 self.pixel_per_mm = 5
 
@@ -341,6 +344,10 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-beamo':
                     max_x = 300
                     hardware_name = 'beamo'
+
+                elif param == '-ador':
+                    max_x = 430
+                    hardware_name = 'ador'
 
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
