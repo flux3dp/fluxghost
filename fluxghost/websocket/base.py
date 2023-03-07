@@ -18,8 +18,21 @@ class WebSocketBase(WebSocketHandler, ApiBase):
     def __init__(self, request, client, server, path):
         WebSocketHandler.__init__(self, request, client, server)
         self.path = path
+        self.query = self.parse_query()
         self.rlist = [self]
         self.timer = time()
+
+    def parse_query(self):
+        query = {}
+        split_res = self.path.rsplit('?', 1)
+        if len(split_res) == 1:
+            return query
+        query_string = split_res[1]
+        for s in query_string.split('&'):
+            split_res = s.split('=')
+            if len(split_res) == 2:
+                query[split_res[0]] = split_res[1]
+        return query
 
     def serve_forever(self):
         try:
