@@ -11,6 +11,22 @@ from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger("API.CAMERA_CALIBBRATION")
 
+K = np.array([
+    [1169.519379099067, 0.0, 2155.115809255523],
+    [0.0, 1174.893580736115, 1673.000171716229],
+    [0.0, 0.0, 1],
+])
+D = np.array([[0.163689, -0.0548959, 0.211075, -0.122763]])
+vert_pad = 408
+hori_pad = 544
+
+def apply_ador_camera_matrix(img):
+    img = cv2.copyMakeBorder(img, vert_pad, vert_pad, hori_pad, hori_pad, cv2.BORDER_REPLICATE)
+    h,  w = img.shape[:2]
+    mapx, mapy = cv2.fisheye.initUndistortRectifyMap(K, D, np.eye(3), K, (w, h), cv2.CV_32FC1)
+    out = cv2.remap(img, mapx, mapy, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
+    return out
+
 def camera_calibration_api_mixin(cls):
     class CameraCalibrationApi(OnTextMessageMixin, BinaryHelperMixin, cls):
 
