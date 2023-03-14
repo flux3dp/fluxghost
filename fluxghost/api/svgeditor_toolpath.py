@@ -323,6 +323,7 @@ def laser_svgeditor_api_mixin(cls):
             blade_radius = 0
             precut = None
             enable_autofocus = False
+            z_offset = 0
             support_diode = False
             diode_offset = None
             support_fast_gradient = False
@@ -333,53 +334,43 @@ def laser_svgeditor_api_mixin(cls):
             is_reverse_engraving = False
 
             for i, param in enumerate(params):
-                if param == '-hexa':
+                if param == '-hexa' or param == '-bb2':
                     max_x = 730
                     hardware_name = 'hexa'
-
-                if param == '-pro':
+                elif param == '-pro':
                     max_x = 600
                     hardware_name = 'beambox-pro'
-
                 elif param == '-beamo':
                     max_x = 300
                     hardware_name = 'beamo'
-
                 elif param == '-ador':
                     max_x = 430
                     hardware_name = 'ador'
-
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
-
                 elif param == '-spin':
                     travel_speed = 4000
                     spinning_axis_coord = float(params[i+1])
-
                 elif param == '-blade':
                     blade_radius = float(params[i+1])
-
                 elif param == '-precut':
                     precut = [float(j) for j in params[i+1].split(',')]
-
                 elif param == '-temp':
                     send_fcode = False
-
                 elif param == '-gc':
                     output_fcode = False
-
                 elif param == '-af':
                     enable_autofocus = True
-
+                    try:
+                        z_offset = float(params[i+1])
+                    except Exception:
+                        pass
                 elif param == '-fg':
                     support_fast_gradient = True
-
                 elif param == '-mfg':
                     mock_fast_gradient = True
-
                 elif param == '-vsc':
                     has_vector_speed_constraint = True
-
                 elif param == '-diode':
                     support_diode = True
                     diode_offset = [float(j) for j in params[i+1].split(',')]
@@ -419,6 +410,7 @@ def laser_svgeditor_api_mixin(cls):
                                 blade_radius=blade_radius,
                                 precut_at=precut,
                                 enable_autofocus=enable_autofocus,
+                                z_offset=z_offset,
                                 support_diode=support_diode,
                                 diode_offset=diode_offset,
                                 diode_one_way_engraving=diode_one_way_engraving,
