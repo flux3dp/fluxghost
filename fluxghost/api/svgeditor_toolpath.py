@@ -166,7 +166,7 @@ def laser_svgeditor_api_mixin(cls):
             name = params[0]
             file_length = params[1]
             thumbnail_length = params[2]
-            self.kwargs = {}
+            self.factory_kwargs = {}
             self.hardware_name = 'beambox'
 
             if '-bb2' in params or '-hexa' in params:
@@ -192,10 +192,12 @@ def laser_svgeditor_api_mixin(cls):
 
             if '-udpi' in params:
                 self.pixel_per_mm = 50
-                self.kwargs['pixel_per_mm_x'] = 20
+                self.factory_kwargs['pixel_per_mm_x'] = 20
 
+            # deprecated this after 1.9 stable is built, set mask only in cmd go
             if '-mask' in params:
-                self.kwargs['enable_clip'] = True
+                logger.warning('Deprecation Warning: set mask in cmd go instead of upload svg')
+                self.factory_kwargs['enable_clip'] = True
 
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
@@ -228,8 +230,8 @@ def laser_svgeditor_api_mixin(cls):
             self.set_binary_helper(helper)
             self.send_json(status="continue")
 
-        def prepare_factory(self, hardware_name):
-            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation, **self.kwargs)
+        def prepare_factory(self):
+            factory = SvgeditorFactory(self.pixel_per_mm, loop_compensation=self.loop_compensation, **self.factory_kwargs)
             factory.add_image(self.svg_image)
             return factory
 
@@ -319,6 +321,7 @@ def laser_svgeditor_api_mixin(cls):
             send_fcode = True
 
             svgeditor2laser_kwargs = {'max_x': 400, 'travel_speed': 7500, 'acc': 4000}
+            clip_rect = None
 
             for i, param in enumerate(params):
                 if param == '-hexa' or param == '-bb2':
@@ -366,11 +369,19 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor2laser_kwargs['acc'] = float(params[i+1])
                 elif param == '-rev':
                     svgeditor2laser_kwargs['is_reverse_engraving'] = True
-
+                elif param == '-mask':
+                    clip_rect = [0, 0, 0, 0] # top right bottom left
+                    try:
+                        clip_rect = [float(j) for j in params[i+1].split(',')]
+                    except Exception:
+                        pass
+                    svgeditor2laser_kwargs['clip'] = clip_rect
+                    self.factory_kwargs['clip'] = clip_rect
+            self.factory_kwargs['hardware_name'] = hardware_name
 
             try:
                 self.send_progress('Initializing', 0.03)
-                factory = self.prepare_factory(hardware_name)
+                factory = self.prepare_factory()
                 self.fcode_metadata.update({
                     "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
                     "AUTHOR": urllib.parse.quote(get_username()),
