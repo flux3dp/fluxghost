@@ -166,7 +166,7 @@ def laser_svgeditor_api_mixin(cls):
             name = params[0]
             file_length = params[1]
             thumbnail_length = params[2]
-            self.dict_kwargs = {}
+            self.kwargs = {}
             self.hardware_name = 'beambox'
 
             if '-bb2' in params or '-hexa' in params:
@@ -192,10 +192,10 @@ def laser_svgeditor_api_mixin(cls):
 
             if '-udpi' in params:
                 self.pixel_per_mm = 50
-                self.dict_kwargs['pixel_per_mm_x'] = 20
+                self.kwargs['pixel_per_mm_x'] = 20
 
             if '-mask' in params:
-                self.dict_kwargs['enable_clip'] = True
+                self.kwargs['enable_clip'] = True
 
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
@@ -229,7 +229,7 @@ def laser_svgeditor_api_mixin(cls):
             self.send_json(status="continue")
 
         def prepare_factory(self, hardware_name):
-            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation, **self.dict_kwargs)
+            factory = SvgeditorFactory(self.pixel_per_mm, hardware_name=hardware_name, loop_compensation=self.loop_compensation, **self.kwargs)
             factory.add_image(self.svg_image)
             return factory
 
@@ -258,7 +258,7 @@ def laser_svgeditor_api_mixin(cls):
                     self.fcode_metadata.update({
                         'CREATED_AT': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
                         'AUTHOR': urllib.parse.quote(get_username()),
-                        'SOFTWARE': 'fluxclient-%s-FS' % __version__,
+                        'SOFTWARE': 'fluxclient-%s-BS' % __version__,
                     })
                     writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata,
                                                  (thumbnail, ))
@@ -315,74 +315,57 @@ def laser_svgeditor_api_mixin(cls):
             self.is_task_interrupted = False
             output_fcode = True
             params = params_str.split()
-            default_travel_speed = 7500
-            max_x = 400
             hardware_name = 'beambox'
-            spinning_axis_coord = -1
             send_fcode = True
-            blade_radius = 0
-            precut = None
-            enable_autofocus = False
-            z_offset = 0
-            support_diode = False
-            diode_offset = None
-            support_fast_gradient = False
-            diode_one_way_engraving = False
-            mock_fast_gradient = False
-            has_vector_speed_constraint = False
-            acc = 4000
-            is_reverse_engraving = False
+
+            svgeditor2laser_kwargs = {'max_x': 400, 'travel_speed': 7500, 'acc': 4000}
 
             for i, param in enumerate(params):
                 if param == '-hexa' or param == '-bb2':
-                    max_x = 730
+                    svgeditor2laser_kwargs['max_x'] = 750
                     hardware_name = 'hexa'
                 elif param == '-pro':
-                    max_x = 600
+                    svgeditor2laser_kwargs['max_x'] = 600
                     hardware_name = 'beambox-pro'
                 elif param == '-beamo':
-                    max_x = 300
+                    svgeditor2laser_kwargs['max_x'] = 300
                     hardware_name = 'beamo'
                 elif param == '-ador':
-                    max_x = 430
+                    svgeditor2laser_kwargs['max_x'] = 430
                     hardware_name = 'ador'
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
-                    travel_speed = 4000
-                    spinning_axis_coord = float(params[i+1])
+                    svgeditor2laser_kwargs['spinning_axis_coord'] = float(params[i+1])
                 elif param == '-blade':
-                    blade_radius = float(params[i+1])
+                    svgeditor2laser_kwargs['blade_radius'] = float(params[i+1])
                 elif param == '-precut':
-                    precut = [float(j) for j in params[i+1].split(',')]
+                    svgeditor2laser_kwargs['precut_at'] = [float(j) for j in params[i+1].split(',')]
                 elif param == '-temp':
                     send_fcode = False
                 elif param == '-gc':
                     output_fcode = False
                 elif param == '-af':
-                    enable_autofocus = True
+                    svgeditor2laser_kwargs['enable_autofocus'] = True
                     try:
-                        z_offset = float(params[i+1])
+                        svgeditor2laser_kwargs['z_offset'] = float(params[i+1])
                     except Exception:
                         pass
                 elif param == '-fg':
-                    support_fast_gradient = True
+                    svgeditor2laser_kwargs['support_fast_gradient'] = True
                 elif param == '-mfg':
-                    mock_fast_gradient = True
+                    svgeditor2laser_kwargs['mock_fast_gradient'] = True
                 elif param == '-vsc':
-                    has_vector_speed_constraint = True
+                    svgeditor2laser_kwargs['has_vector_speed_constraint'] = True
                 elif param == '-diode':
-                    support_diode = True
-                    diode_offset = [float(j) for j in params[i+1].split(',')]
-
+                    svgeditor2laser_kwargs['support_diode'] = True
+                    svgeditor2laser_kwargs['diode_offset'] = [float(j) for j in params[i+1].split(',')]
                 elif param == '-diode-owe':
-                    diode_one_way_engraving = True
-
+                    svgeditor2laser_kwargs['diode_one_way_engraving'] = True
                 elif param == '-acc':
-                    acc = float(params[i+1])
-
+                    svgeditor2laser_kwargs['acc'] = float(params[i+1])
                 elif param == '-rev':
-                    is_reverse_engraving = True
+                    svgeditor2laser_kwargs['is_reverse_engraving'] = True
 
 
             try:
@@ -402,24 +385,9 @@ def laser_svgeditor_api_mixin(cls):
                     writer = GCodeMemoryWriter()
 
                 svgeditor2laser(writer, factory,
-                                travel_speed=default_travel_speed,
-                                engraving_strength=self.max_engraving_strength,
                                 progress_callback=progress_callback,
-                                max_x=max_x,
-                                spinning_axis_coord=spinning_axis_coord,
-                                blade_radius=blade_radius,
-                                precut_at=precut,
-                                enable_autofocus=enable_autofocus,
-                                z_offset=z_offset,
-                                support_diode=support_diode,
-                                diode_offset=diode_offset,
-                                diode_one_way_engraving=diode_one_way_engraving,
-                                support_fast_gradient=support_fast_gradient,
-                                mock_fast_gradient=mock_fast_gradient,
-                                has_vector_speed_constraint=has_vector_speed_constraint,
                                 check_interrupted=self.check_interrupted,
-                                acc=acc,
-                                is_reverse_engraving=is_reverse_engraving)
+                                **svgeditor2laser_kwargs)
 
                 writer.terminated()
 
