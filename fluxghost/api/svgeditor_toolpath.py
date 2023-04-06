@@ -367,6 +367,8 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor2laser_kwargs['diode_one_way_engraving'] = True
                 elif param == '-acc':
                     svgeditor2laser_kwargs['acc'] = float(params[i+1])
+                elif param == '-min-speed':
+                    svgeditor2laser_kwargs['min_speed'] = float(params[i+1])
                 elif param == '-rev':
                     svgeditor2laser_kwargs['is_reverse_engraving'] = True
                 elif param == '-mask':
