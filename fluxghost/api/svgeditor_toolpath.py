@@ -178,8 +178,8 @@ def laser_svgeditor_api_mixin(cls):
             if '-beamo' in params:
                 self.hardware_name = 'beamo'
 
-            if '-ador' in params:
-                self.hardware_name = 'ador'
+            if '-fad1' in params:
+                self.hardware_name = 'fad1'
 
             if '-ldpi' in params:
                 self.pixel_per_mm = 5
@@ -333,9 +333,9 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-beamo':
                     svgeditor2laser_kwargs['max_x'] = 300
                     hardware_name = 'beamo'
-                elif param == '-ador':
+                elif param == '-fad1':
                     svgeditor2laser_kwargs['max_x'] = 430
-                    hardware_name = 'ador'
+                    hardware_name = 'fad1'
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
