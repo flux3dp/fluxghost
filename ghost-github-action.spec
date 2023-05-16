@@ -36,7 +36,7 @@ def fetch_data(package, path):
                     data += fetch_data(package, np)
                 else:
                     data.append((os.path.join(package, np), fp, 'DATA'))
-                            
+
     return data
 
 
@@ -148,7 +148,7 @@ elif os_type.startswith('Darwin'):
     binaries.append( ('./lib/mac/libpixman-1.0.dylib', '.') )
     binaries.append( ('./lib/mac/libfontconfig.1.dylib', '.') )
     binaries.append( ('./lib/mac/libpng16.16.dylib', '.') )
-    binaries.append( ('/usr/lib/libz.1.dylib', '.') )
+    binaries.append( ('/usr/local/opt/zlib/lib/libz.1.dylib', '.') )
     if get_os_version().startswith('Darwin Kernel Version 17'):
         binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
         binaries.append( ('/opt/X11/lib/libxcb.1.dylib', '.') )
