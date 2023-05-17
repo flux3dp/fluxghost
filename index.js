@@ -27,8 +27,8 @@ const main = async () => {
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
             await exec.exec('sudo', ['cp', './lib/mac/libwebp.7.dylib', 'dist/flux_api'], options);
             // pyinstaller failed to hook tcl & tk for precomiled python so hard code copy when
-            await exec.exec('sudo', ['cp', '-R', `/Library/Frameworks/Python.framework/Versions/${pythonVersion}/lib/tcl8.6`, 'dist/flux_api/tcl/'], options);
-            await exec.exec('sudo', ['cp', '-R', `/Library/Frameworks/Python.framework/Versions/${pythonVersion}/lib/tk8.6`, 'dist/flux_api/tk'], options);
+            await exec.exec('sudo', ['cp', '-R', `/Library/Frameworks/Python.framework/Versions/Current/lib/tcl8.6`, 'dist/flux_api/tcl/'], options);
+            await exec.exec('sudo', ['cp', '-R', `/Library/Frameworks/Python.framework/Versions/Current/lib/tk8.6`, 'dist/flux_api/tk'], options);
         } else {
             throw `Unsupported OS: ${os.platform()}`
         }
