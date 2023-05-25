@@ -1,7 +1,7 @@
-
 import socket
 import struct
-import errno
+
+from fluxclient.utils._utils import Utils
 
 
 # Following is define in RFC 6455
@@ -191,7 +191,7 @@ class WebSocketHandler(object):
             body_offset = 10
 
         mask = memview[body_offset:body_offset + 4]
-        data = memview[body_offset + 4:]
+        data = bytearray(memview[body_offset + 4:])
 
         self._unmask_data(mask, data)
 
@@ -199,16 +199,16 @@ class WebSocketHandler(object):
 
         if flag_fin and (not has_fragement):
             try:
-                self._handle_message((flag_opcode >> 8), data.tobytes())
+                self._handle_message((flag_opcode >> 8), data)
             finally:
                 pass
         else:
             if not has_fragement:
-                self.fragments = [data.tobytes()]
+                self.fragments = [data]
                 self.fragments_opcode = (flag_opcode >> 8)
                 self.recv_flag |= HAS_FRAGMENT_FLAG
             else:
-                self.fragments.append(data.tobytes())
+                self.fragments.append(data)
 
                 if flag_fin:
                     try:
@@ -237,15 +237,7 @@ class WebSocketHandler(object):
             self.on_pong(message)
 
     def _unmask_data(self, mask, data):
-        # TODO: Fix performance, it is very slow now
-        length = len(data)
-        offset = 0
-        shift = 0
-
-        while offset < length:
-            data[offset] = data[offset] ^ mask[shift]
-            offset += 1
-            shift = ((shift < 3) and (shift + 1) or 0)
+        Utils.apply_mask(bytearray(mask), data)
 
     def _send(self, opcode, message):
         if self._is_closing and opcode != FRAME_CLOSE:
