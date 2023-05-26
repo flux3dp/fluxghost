@@ -340,6 +340,8 @@ def laser_svgeditor_api_mixin(cls):
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
                     svgeditor2laser_kwargs['spinning_axis_coord'] = float(params[i+1])
+                elif param == '-rotary-y-ratio':
+                    svgeditor2laser_kwargs['rotary_y_ratio'] = float(params[i+1])
                 elif param == '-blade':
                     svgeditor2laser_kwargs['blade_radius'] = float(params[i+1])
                 elif param == '-precut':
