@@ -1,42 +1,125 @@
 import logging
 import io
+from math import radians, cos, sin
+
+import cv2
 import numpy as np
 from PIL import Image
 
-import cv2
-from math import radians, degrees, cos, sin
-from pprint import pprint
+from fluxghost.utils.fisheye.calibration import calibrate_fisheye_camera
+from fluxghost.utils.fisheye.general import CHESSBORAD, PERSPECTIVE_SPLIT
+from fluxghost.utils.fisheye.perspective import get_perspective_points
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
-logger = logging.getLogger("API.CAMERA_CALIBBRATION")
+logger = logging.getLogger('API.CAMERA_CALIBBRATION')
+DPMM = 5
+
+DEFAULT_K = np.array([
+    [5255.04867495539, 0.0, 2963.751637600262],
+    [0.0, 5269.473334297982, 2391.7758940453123],
+    [0.0, 0.0, 1],
+])
+DEFAULT_D = np.array([[-3.311683345726436], [30.09764664115156], [-224.14855696925122], [705.2228739995612]])
+
+CX = 1321
+CY = 1100
+
+def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300):
+    cx = int(cx)
+    cy = int(cy)
+    width = int(width) * DPMM
+    height = int(height) * DPMM
+    left = cx - width // 2
+    top = cy - height // 2
+    img = img[top:top + height, left:left + width]
+    return img
+
 
 def camera_calibration_api_mixin(cls):
     class CameraCalibrationApi(OnTextMessageMixin, BinaryHelperMixin, cls):
-
         def __init__(self, *args, **kw):
             super(CameraCalibrationApi, self).__init__(*args, **kw)
+            # TODO: add all in one fisheye calibration
             self.cmd_mapping = {
-                'upload': [self.cmd_upload_image]
+                'upload': [self.cmd_upload_image],
+                'start_fisheye_calibration': [self.cmd_start_fisheye_calibration],
+                'add_fisheye_calibration_image': [self.cmd_add_fisheye_calibration_image],
+                'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
+                'find_perspective_points': [self.cmd_find_perspective_points],
+                # 'calibrate_fisheye': [self.cmd_fisheye_calibrate]
             }
+            self.fisheye_calibrate_imgs = []
+            self.k = None
+            self.d = None
 
         def cmd_upload_image(self, message):
-            message = message.split(" ")
+            message = message.split(' ')
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 result = calc_picture_shape(img_cv)
                 if result is None:
-                    self.send_json(status="none")
+                    self.send_json(status='none')
                 elif result is 'Fail':
-                    self.send_json(status="fail")
+                    self.send_json(status='fail')
                 else:
                     self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], width=result['width'], height=result['height'])
 
             file_length = int(message[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
-            self.send_json(status="continue")
+            self.send_json(status='continue')
+
+        def cmd_start_fisheye_calibration(self, message):
+            self.fisheye_calibrate_imgs = []
+            self.k = None
+            self.d = None
+            self.send_ok()
+
+        def cmd_add_fisheye_calibration_image(self, message):
+            message = message.split(' ')
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                self.fisheye_calibrate_imgs.append(img_cv)
+                self.send_ok()
+            file_length = int(message[0])
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def cmd_do_fisheye_calibration(self, message):
+            try:
+                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD)
+                self.k = k
+                self.d = d
+                self.send_ok(k=k.tolist(), d=d.tolist())
+            except Exception as e:
+                self.send_json(status='fail', reason=str(e))
+                raise(e)
+
+        def cmd_find_perspective_points(self, message):
+            if self.k is None or self.d is None:
+                self.send_json(status='fail', reason='calibrate fisheye camera first')
+
+            message = message.split(' ')
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                try:
+                    points = get_perspective_points(img_cv, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD)
+                    self.send_ok(points=points.tolist())
+                except Exception as e:
+                    self.send_json(status='fail', reason=str(e))
+                    raise(e)
+            file_length = int(message[0])
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
 
     def calc_picture_shape(img):
         PI = np.pi

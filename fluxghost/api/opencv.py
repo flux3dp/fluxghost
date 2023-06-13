@@ -1,7 +1,6 @@
 import collections
 import logging
 import io
-import random
 
 import cv2
 import numpy as np
