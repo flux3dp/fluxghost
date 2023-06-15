@@ -8,6 +8,8 @@ R_PAD = 1580
 CHESSBORAD = (48, 36)
 PERSPECTIVE_SPLIT = (15, 15)
 
+# Currently using fixed regression coefficients derived from 3rd-order polynomial regression with variables x, y, and z.
+# Assuming all cameras of the same model from Ador sharing the same coefficients.
 reg_coeff_x = np.array([
     6.93391204e+01, 9.63563189e-01, -1.91665489e-02, -1.24325863e+01,
     4.82931219e-06, 9.06580887e-06, 4.63075822e-03, 3.28563742e-06,
