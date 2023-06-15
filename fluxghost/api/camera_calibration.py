@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 
 from fluxghost.utils.fisheye.calibration import calibrate_fisheye_camera
-from fluxghost.utils.fisheye.general import CHESSBORAD, PERSPECTIVE_SPLIT
+from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.perspective import get_perspective_points
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin

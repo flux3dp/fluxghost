@@ -16,6 +16,15 @@ def find_corners(img, chessboard):
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     gray = clahe.apply(gray)
     ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
+    if ret:
+        return gray, ret, corners
+    denoised = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
+    gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
+    ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
+    if ret:
+        return gray, ret, corners
+    gray = clahe.apply(gray)
+    ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
     return gray, ret, corners
 
 

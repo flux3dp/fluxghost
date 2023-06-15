@@ -2,7 +2,8 @@ import cv2
 import numpy as np
 
 from .calibration import corner_sub_pix, find_corners, get_remap_img
-from .general import DPMM, pad_image
+from .constants import DPMM
+from .general import pad_image
 
 
 def get_split_indice(split, chessboard, i, j):
@@ -31,16 +32,15 @@ def get_perspective_points(img, k, d, split, chessboard):
     img = get_remap_img(img, k, d)
     gray, ret, corners = find_corners(img, chessboard)
     if not ret:
-        raise('Cannot find corners')
+        raise Exception('Cannot find corners')
     corners = corner_sub_pix(gray, corners)
     corners = np.reshape(corners, chessboard[::-1] + (2,))
     split_x, split_y = split
     table = get_all_split_indice(split, chessboard)
     for i in range(split_x + 1):
         for j in range(split_y + 1):
-            # use tolist to convert numpy array to json serializable list
-            table[i][j] = corners[table[i][j][1]][table[i][j][0]].tolist()
-    return table
+            table[i][j] = corners[table[i][j][1]][table[i][j][0]]
+    return np.array(table)
 
 
 def apply_perspective_points_transform(img, k, d, split, chessboard, points):
