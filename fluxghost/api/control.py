@@ -4,6 +4,7 @@ from time import time, sleep
 from io import BytesIO
 import itertools
 import logging
+import pipes
 import socket
 import shlex
 
@@ -107,6 +108,7 @@ def control_api_mixin(cls):
 
                 "config": {
                     "set": self.config_set,
+                    "set_json": self.config_set_json,
                     "get": self.config_get,
                     "del": self.config_del
                 },
@@ -826,7 +828,12 @@ def control_api_mixin(cls):
             self.send_ok(**metadata)
 
         def config_set(self, key, *value):
-            self.robot.config[key] = " ".join(value)
+            self.robot.config[key] = ' '.join(value)
+            self.send_ok(key=key)
+
+        def config_set_json(self, key, *value):
+            data = pipes.quote(' '.join(value))
+            self.robot.config[key] = data
             self.send_ok(key=key)
 
         def config_get(self, key):
