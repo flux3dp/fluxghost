@@ -48,11 +48,14 @@ def calibrate_fisheye_camera(imgs, chessboard):
         if ret:
             objpoints.append(objp)
             corners = corner_sub_pix(gray, corners)
+            logger.info('found corners for {}'.format(i))
             imgpoints.append(corners)
+        else:
+            logger.info('unable to find corners for {}'.format(i))
     if len(imgpoints) == 0:
         raise Exception('Unable to find chess board corners')
     ret, k, d, _, _ = cv2.fisheye.calibrate(objpoints, imgpoints, gray.shape[::-1], None, None, None, None, CALIBRATION_FLAGS, CALIBRATION_CRIT)
-    logger.info(f'\nret: {ret}\nK: {k}\nD: {d}')
+    logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
     return k, d
 
 

@@ -49,9 +49,14 @@ def camera_calibration_api_mixin(cls):
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 # 'calibrate_fisheye': [self.cmd_fisheye_calibrate]
             }
+            self.init_fisheye_params()
+
+        def init_fisheye_params(self):
+            self.fisheye_calibrate_heights = []
             self.fisheye_calibrate_imgs = []
             self.k = None
             self.d = None
+
 
         def cmd_upload_image(self, message):
             message = message.split(' ')
@@ -72,9 +77,7 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status='continue')
 
         def cmd_start_fisheye_calibration(self, message):
-            self.fisheye_calibrate_imgs = []
-            self.k = None
-            self.d = None
+            self.init_fisheye_params()
             self.send_ok()
 
         def cmd_add_fisheye_calibration_image(self, message):
@@ -83,6 +86,8 @@ def camera_calibration_api_mixin(cls):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                img_z = float(message[1])
+                self.fisheye_calibrate_heights.append(img_z)
                 self.fisheye_calibrate_imgs.append(img_cv)
                 self.send_ok()
             file_length = int(message[0])
@@ -103,23 +108,17 @@ def camera_calibration_api_mixin(cls):
         def cmd_find_perspective_points(self, message):
             if self.k is None or self.d is None:
                 self.send_json(status='fail', reason='calibrate fisheye camera first')
+            if len(self.fisheye_calibrate_imgs) == 0:
+                self.send_json(status='fail', reason='No Calibrate Images')
 
-            message = message.split(' ')
-            def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
-                img_cv = np.array(img)
-                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                try:
-                    points = get_perspective_points(img_cv, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD)
-                    self.send_ok(points=points.tolist())
-                except Exception as e:
-                    self.send_json(status='fail', reason=str(e))
-                    raise(e)
-            file_length = int(message[0])
-            helper = BinaryUploadHelper(int(file_length), upload_callback)
-            self.set_binary_helper(helper)
-            self.send_json(status='continue')
-
+            points = [] # list of list of points
+            try:
+                for img in self.fisheye_calibrate_imgs:
+                    points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD).tolist())
+                self.send_ok(points=points)
+            except Exception as e:
+                self.send_json(status='fail', reason=str(e))
+                raise(e)
 
     def calc_picture_shape(img):
         PI = np.pi

@@ -39,7 +39,7 @@ def get_perspective_points(img, k, d, split, chessboard):
     table = get_all_split_indice(split, chessboard)
     for i in range(split_x + 1):
         for j in range(split_y + 1):
-            table[i][j] = corners[table[i][j][1]][table[i][j][0]]
+            table[i][j] = corners[table[i][j][1]][table[i][j][0]].tolist()
     return np.array(table)
 
 
