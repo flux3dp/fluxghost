@@ -8,9 +8,8 @@ from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
-from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT, reg_coeff_x, reg_coeff_y
+from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
-from fluxghost.utils.fisheye.regression import apply_reg_coeff
 
 from .camera_calibration import crop_transformed_img
 from .control_base import control_base_mixin
@@ -68,13 +67,7 @@ def camera_api_mixin(cls):
 
         def set_fisheye_matrix(self, data):
             data = json.loads(data)
-            z = data.get('z', 3.2)
-            perspective_points = data['corners']
-            if abs(z - 3.2) > 0.3:
-                for i in range(len(perspective_points)):
-                    for j in range(len(perspective_points[0])):
-                        x, y = perspective_points[i][j]
-                        perspective_points[i][j] = apply_reg_coeff((x, y, z), reg_coeff_x, reg_coeff_y)
+            perspective_points = data['points']
 
             self.fisheye_param = {
                 'k': np.array(data['k']),

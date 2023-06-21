@@ -15,13 +15,6 @@ from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 logger = logging.getLogger('API.CAMERA_CALIBBRATION')
 DPMM = 5
 
-DEFAULT_K = np.array([
-    [5255.04867495539, 0.0, 2963.751637600262],
-    [0.0, 5269.473334297982, 2391.7758940453123],
-    [0.0, 0.0, 1],
-])
-DEFAULT_D = np.array([[-3.311683345726436], [30.09764664115156], [-224.14855696925122], [705.2228739995612]])
-
 CX = 1321
 CY = 1100
 
