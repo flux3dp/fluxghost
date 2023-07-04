@@ -11,7 +11,7 @@ from PIL import Image
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
-from fluxclient.toolpath.laser import svgeditor2laser, gcode2fcode
+from fluxclient.toolpath.toolpath import svgeditor2taskcode, gcode2fcode
 from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
@@ -320,66 +320,66 @@ def laser_svgeditor_api_mixin(cls):
             hardware_name = 'beambox'
             send_fcode = True
 
-            svgeditor2laser_kwargs = {'max_x': 400, 'travel_speed': 7500, 'acc': 4000}
+            svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'acc': 4000}
             clip_rect = None
 
             for i, param in enumerate(params):
                 if param == '-hexa' or param == '-bb2':
-                    svgeditor2laser_kwargs['max_x'] = 750
+                    svgeditor2taskcode_kwargs['max_x'] = 750
                     hardware_name = 'hexa'
                 elif param == '-pro':
-                    svgeditor2laser_kwargs['max_x'] = 600
+                    svgeditor2taskcode_kwargs['max_x'] = 600
                     hardware_name = 'beambox-pro'
                 elif param == '-beamo':
-                    svgeditor2laser_kwargs['max_x'] = 300
+                    svgeditor2taskcode_kwargs['max_x'] = 300
                     hardware_name = 'beamo'
                 elif param == '-fad1':
-                    svgeditor2laser_kwargs['max_x'] = 430
+                    svgeditor2taskcode_kwargs['max_x'] = 430
                     hardware_name = 'fad1'
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
-                    svgeditor2laser_kwargs['spinning_axis_coord'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['spinning_axis_coord'] = float(params[i+1])
                 elif param == '-rotary-y-ratio':
-                    svgeditor2laser_kwargs['rotary_y_ratio'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i+1])
                 elif param == '-blade':
-                    svgeditor2laser_kwargs['blade_radius'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['blade_radius'] = float(params[i+1])
                 elif param == '-precut':
-                    svgeditor2laser_kwargs['precut_at'] = [float(j) for j in params[i+1].split(',')]
+                    svgeditor2taskcode_kwargs['precut_at'] = [float(j) for j in params[i+1].split(',')]
                 elif param == '-temp':
                     send_fcode = False
                 elif param == '-gc':
                     output_fcode = False
                 elif param == '-af':
-                    svgeditor2laser_kwargs['enable_autofocus'] = True
+                    svgeditor2taskcode_kwargs['enable_autofocus'] = True
                     try:
-                        svgeditor2laser_kwargs['z_offset'] = float(params[i+1])
+                        svgeditor2taskcode_kwargs['z_offset'] = float(params[i+1])
                     except Exception:
                         pass
                 elif param == '-fg':
-                    svgeditor2laser_kwargs['support_fast_gradient'] = True
+                    svgeditor2taskcode_kwargs['support_fast_gradient'] = True
                 elif param == '-mfg':
-                    svgeditor2laser_kwargs['mock_fast_gradient'] = True
+                    svgeditor2taskcode_kwargs['mock_fast_gradient'] = True
                 elif param == '-vsc':
-                    svgeditor2laser_kwargs['has_vector_speed_constraint'] = True
+                    svgeditor2taskcode_kwargs['has_vector_speed_constraint'] = True
                 elif param == '-diode':
-                    svgeditor2laser_kwargs['support_diode'] = True
-                    svgeditor2laser_kwargs['diode_offset'] = [float(j) for j in params[i+1].split(',')]
+                    svgeditor2taskcode_kwargs['support_diode'] = True
+                    svgeditor2taskcode_kwargs['diode_offset'] = [float(j) for j in params[i+1].split(',')]
                 elif param == '-diode-owe':
-                    svgeditor2laser_kwargs['diode_one_way_engraving'] = True
+                    svgeditor2taskcode_kwargs['diode_one_way_engraving'] = True
                 elif param == '-acc':
-                    svgeditor2laser_kwargs['acc'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['acc'] = float(params[i+1])
                 elif param == '-min-speed':
-                    svgeditor2laser_kwargs['min_speed'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['min_speed'] = float(params[i+1])
                 elif param == '-rev':
-                    svgeditor2laser_kwargs['is_reverse_engraving'] = True
+                    svgeditor2taskcode_kwargs['is_reverse_engraving'] = True
                 elif param == '-mask':
                     clip_rect = [0, 0, 0, 0] # top right bottom left
                     try:
                         clip_rect = [float(j) for j in params[i+1].split(',')]
                     except Exception:
                         pass
-                    svgeditor2laser_kwargs['clip'] = clip_rect
+                    svgeditor2taskcode_kwargs['clip'] = clip_rect
                     self.factory_kwargs['clip'] = clip_rect
             self.factory_kwargs['hardware_name'] = hardware_name
 
@@ -399,10 +399,10 @@ def laser_svgeditor_api_mixin(cls):
                 else:
                     writer = GCodeMemoryWriter()
 
-                svgeditor2laser(writer, factory,
+                svgeditor2taskcode(writer, factory,
                                 progress_callback=progress_callback,
                                 check_interrupted=self.check_interrupted,
-                                **svgeditor2laser_kwargs)
+                                **svgeditor2taskcode_kwargs)
 
                 writer.terminated()
 
