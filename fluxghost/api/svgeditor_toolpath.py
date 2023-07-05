@@ -383,6 +383,16 @@ def laser_svgeditor_api_mixin(cls):
                     self.factory_kwargs['clip'] = clip_rect
                 elif param == '-cbl':
                     svgeditor2taskcode_kwargs['enable_backlash'] = True
+                elif param == '-mep':
+                    try:
+                        svgeditor2taskcode_kwargs['min_engraving_padding'] = int(params[i+1])
+                    except Exception:
+                        pass
+                elif param == '-mpp':
+                    try:
+                        svgeditor2taskcode_kwargs['min_printing_padding'] = int(params[i+1])
+                    except Exception:
+                        pass
             self.factory_kwargs['hardware_name'] = hardware_name
 
             try:
