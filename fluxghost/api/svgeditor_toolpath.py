@@ -19,7 +19,7 @@ import fluxsvg
 
 from fluxghost.utils.username import get_username
 from .svg_toolpath import svg_base_api_mixin
-from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
+from .misc import BinaryUploadHelper, OnTextMessageMixin
 
 logger = logging.getLogger("API.SVGEDITOR")
 
@@ -381,6 +381,8 @@ def laser_svgeditor_api_mixin(cls):
                         pass
                     svgeditor2taskcode_kwargs['clip'] = clip_rect
                     self.factory_kwargs['clip'] = clip_rect
+                elif param == '-cbl':
+                    svgeditor2taskcode_kwargs['enable_backlash'] = True
             self.factory_kwargs['hardware_name'] = hardware_name
 
             try:
