@@ -75,7 +75,7 @@ def calibrate_fisheye_camera(imgs, chessboard):
     for i in range(len(imgpoints)):
         try:
             ret, k, d, = calibrate_fisheye(objpoints[i: i+1], imgpoints[i: i+1], gray.shape[::-1])
-            logger.info(i, ret)
+            logger.info('Calibrate {}: {}'.format(i, ret))
             if not best_result:
                 best_result = (ret, k, d)
             else:
