@@ -317,7 +317,7 @@
           key.push("temp" + i);
           data["temp" + i] = payload.device_status.rt[i] + "/" + payload.device_status.tt[i];
           status_bar_temp_text.push(
-            Math.round(payload.device_status.rt[i] * 10) / 10 + "/" + 
+            Math.round(payload.device_status.rt[i] * 10) / 10 + "/" +
             Math.round(payload.device_status.tt[i] * 10) / 10);
         }
 
@@ -722,7 +722,7 @@
         if(errors[0] === "AUTH_ERROR") {
             var $label = $("#device_label");
             appendLog("✗ Error: Auth failed", "red");
-            appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") + 
+            appendHtmlLog('<a href="touch.html#' + $label.attr("data-uuid") +
                           ';' + $label.attr("data-name") + '">Go to auth page</a>');
           } else {
             appendLog("✗ Error: "+ errors + " 😭", "red");
@@ -882,7 +882,7 @@
 
       if($(this).attr("data-file-cmd") == "upload2sd"){
         var target = prompt("Give SD location (like 'myfcode.fc'");
-        var cmd = "upload " + " " + mimetype + " " + 
+        var cmd = "upload " + " " + mimetype + " " +
                     f.size + " SD/" + target;
       }
       else{
@@ -1325,6 +1325,9 @@
               <a>Robot</a></li>
             <li style="cursor: pointer" data-cmd="fetch_laser_records">
               <a>Laser Records</a></li>
+            <li style="cursor: pointer" data-cmd="fetch_fisheye_params">
+              <a>Fisheye Params</a>
+            </li>
           </ul>
         </div>
       </div>
