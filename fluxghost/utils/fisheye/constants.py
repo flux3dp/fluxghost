@@ -1,10 +1,10 @@
 import numpy as np
 
 DPMM = 5
-T_PAD = 1000
-B_PAD = 1000
-L_PAD = 1300
-R_PAD = 1580
+T_PAD = 876
+B_PAD = 876
+L_PAD = 1168
+R_PAD = 1168
 CHESSBORAD = (48, 36)
 PERSPECTIVE_SPLIT = (15, 15)
 

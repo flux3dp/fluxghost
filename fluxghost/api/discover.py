@@ -40,7 +40,7 @@ def get_online_message(source, device):
         "st_id": st.get("st_id"),
         "st_prog": st.get("st_prog"),
         "head_module": st.get("st_head", st.get("head_module")),
-        "error_label": st.get("st_err", st.get("error_label"))
+        "error_label": st.get("st_err", st.get("error_label")),
     })
     return doc
 
