@@ -55,12 +55,13 @@ def calibrate_fisheye(objpoints, imgpoints, size):
         raise e
 
 # Calibrate using cv2.fisheye.calibrate
-def calibrate_fisheye_camera(imgs, chessboard):
+def calibrate_fisheye_camera(imgs, chessboard, progress_callback):
     objp = np.zeros((chessboard[0] * chessboard[1], 1, 3), np.float64)
     objp[:, :, :2] = np.mgrid[0:chessboard[0], 0:chessboard[1]].T.reshape(-1, 1, 2)
     objpoints = [] # 3d point in real world space
     imgpoints = [] # 2d points in image plane.
     for i in range(len(imgs)):
+        progress_callback(i / len(imgs))
         img = imgs[i]
         img = pad_image(img)
         gray, ret, corners = find_corners(img, chessboard)

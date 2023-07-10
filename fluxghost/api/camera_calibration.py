@@ -89,8 +89,11 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status='continue')
 
         def cmd_do_fisheye_calibration(self, message):
+            def progress_callback(progress):
+                self.send_json(status='progress', progress=progress)
+
             try:
-                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD)
+                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, progress_callback)
                 self.k = k
                 self.d = d
                 self.send_ok(k=k.tolist(), d=d.tolist())
