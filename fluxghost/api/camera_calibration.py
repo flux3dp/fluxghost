@@ -114,9 +114,9 @@ def camera_calibration_api_mixin(cls):
                 for i in range(len(self.fisheye_calibrate_imgs)):
                     img = self.fisheye_calibrate_imgs[i]
                     height = self.fisheye_calibrate_heights[i]
-                    heights.append(height)
                     try:
                         points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD).tolist())
+                        heights.append(height)
                     except Exception as e:
                         errors.append({ 'height': height, 'err': str(e) })
                         logger.error('find perspective points error: %s %s', str(height), str(e))
