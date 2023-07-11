@@ -107,13 +107,18 @@ def camera_calibration_api_mixin(cls):
             if len(self.fisheye_calibrate_imgs) == 0:
                 self.send_json(status='fail', reason='No Calibrate Images')
 
+            def progress_callback(progress):
+                self.send_json(status='progress', progress=progress)
+
             points = [] # list of list of points
             heights = []
             errors = []
             try:
                 for i in range(len(self.fisheye_calibrate_imgs)):
+                    progress_callback(i / len(self.fisheye_calibrate_imgs))
                     img = self.fisheye_calibrate_imgs[i]
                     height = self.fisheye_calibrate_heights[i]
+                    logger.info('Finding perspective points for height: {}'.format(height))
                     try:
                         points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD).tolist())
                         heights.append(height)
