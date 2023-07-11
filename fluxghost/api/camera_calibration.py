@@ -1,6 +1,7 @@
 import logging
 import io
 from math import radians, cos, sin
+from time import time
 
 import cv2
 import numpy as np
@@ -50,6 +51,9 @@ def camera_calibration_api_mixin(cls):
             self.k = None
             self.d = None
 
+        def on_progress(self, progress):
+            self.timer = time()
+            self.send_json(status='progress', progress=progress)
 
         def cmd_upload_image(self, message):
             message = message.split(' ')
@@ -89,11 +93,8 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status='continue')
 
         def cmd_do_fisheye_calibration(self, message):
-            def progress_callback(progress):
-                self.send_json(status='progress', progress=progress)
-
             try:
-                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, progress_callback)
+                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, self.on_progress)
                 self.k = k
                 self.d = d
                 self.send_ok(k=k.tolist(), d=d.tolist())
@@ -107,15 +108,12 @@ def camera_calibration_api_mixin(cls):
             if len(self.fisheye_calibrate_imgs) == 0:
                 self.send_json(status='fail', reason='No Calibrate Images')
 
-            def progress_callback(progress):
-                self.send_json(status='progress', progress=progress)
-
             points = [] # list of list of points
             heights = []
             errors = []
             try:
                 for i in range(len(self.fisheye_calibrate_imgs)):
-                    progress_callback(i / len(self.fisheye_calibrate_imgs))
+                    self.on_progress(i / len(self.fisheye_calibrate_imgs))
                     img = self.fisheye_calibrate_imgs[i]
                     height = self.fisheye_calibrate_heights[i]
                     logger.info('Finding perspective points for height: {}'.format(height))
