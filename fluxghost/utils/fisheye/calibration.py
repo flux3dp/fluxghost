@@ -8,6 +8,19 @@ from .general import pad_image
 
 logger = logging.getLogger('utils.fisheye.calibration')
 
+INIT_K = np.array([
+    [6.40004499e+03, 0, 2.81798089e+03],
+    [0, 6.40710065e+03, 2.23585732e+03],
+    [0, 0, 1],
+])
+
+INIT_D = np.array([
+    [-5.22543279],
+    [72.596491],
+    [-792.55764606],
+    [3614.92299842],
+])
+
 FIND_CHESSBOARD_FLAGS = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
 def find_corners(img, chessboard):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -73,6 +86,12 @@ def calibrate_fisheye_camera(imgs, chessboard, progress_callback):
         else:
             logger.info('unable to find corners for {}'.format(i))
     best_result = None
+    try:
+        ret, k, d, = calibrate_fisheye(objpoints, imgpoints, gray.shape[::-1])
+        logger.info('Calibrate All imgs:'.format(i, ret))
+        best_result = (ret, k, d)
+    except Exception:
+        logger.info('Calibrate All imgs failed')
     for i in range(len(imgpoints)):
         try:
             ret, k, d, = calibrate_fisheye(objpoints[i: i+1], imgpoints[i: i+1], gray.shape[::-1])
@@ -83,11 +102,16 @@ def calibrate_fisheye_camera(imgs, chessboard, progress_callback):
                 if ret < best_result[0]:
                     best_result = (ret, k, d)
         except Exception:
+            logger.info('Failed to find matrix for img {}'.format(i))
             pass
     if not best_result:
         raise Exception('Failed to calibrate camera, no img points left behind')
     ret, k, d = best_result
     logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
+    if ret > 5:
+        k = INIT_K.copy()
+        d = INIT_D.copy()
+        logger.warning('Calibration ret to big, using default K: {}, D: {}'.format(k, d))
     return k, d
 
 
