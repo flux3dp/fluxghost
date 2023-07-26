@@ -31,6 +31,7 @@ ws.onclose = function(v) { console.log('CONNECTION CLOSED, code=' + v.code +
 // After recive connected...
 ws.send('ls')
 '''
+fisheye_models = ['fad1', 'ado1']
 
 def camera_api_mixin(cls):
     class CameraAPI(control_base_mixin(cls)):
@@ -87,7 +88,7 @@ def camera_api_mixin(cls):
             self.send_ok()
 
         def on_image(self, camera, image):
-            if self.remote_model == 'fad1' and self.fisheye_param is not None:
+            if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
                     img = Image.open(io.BytesIO(image))
                     open_cv_img = np.array(img)
