@@ -1,5 +1,6 @@
 import base64
 import io
+import json
 import logging
 import math
 import sys
@@ -32,6 +33,7 @@ def laser_svgeditor_api_mixin(cls):
             self.hardware_name = "beambox"
             self.loop_compensation = 0.0
             self.is_task_interrupted = False
+            self.module_offsets = {}
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
@@ -54,6 +56,8 @@ def laser_svgeditor_api_mixin(cls):
                     self.max_engraving_strength = min(1, float(value))
                 elif key == 'loop_compensation':
                     self.loop_compensation = max(0, float(value))
+                elif key == 'module_offsets':
+                    self.module_offsets = json.loads(value)
                 elif key in ('shading', 'one_way', 'calibration'):
                     pass
                 else:
@@ -395,6 +399,7 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['min_printing_padding'] = int(params[i+1])
                     except Exception:
                         pass
+                svgeditor2taskcode_kwargs['module_offsets'] = self.module_offsets
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
 
