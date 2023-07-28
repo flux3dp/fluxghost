@@ -198,11 +198,6 @@ def laser_svgeditor_api_mixin(cls):
                 self.pixel_per_mm = 50
                 self.factory_kwargs['pixel_per_mm_x'] = 20
 
-            # deprecated this after 1.9 stable is built, set mask only in cmd go
-            if '-mask' in params:
-                logger.warning('Deprecation Warning: set mask in cmd go instead of upload svg')
-                self.factory_kwargs['enable_clip'] = True
-
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
                 helper = BinaryUploadHelper(
@@ -386,7 +381,6 @@ def laser_svgeditor_api_mixin(cls):
                     except Exception:
                         pass
                     svgeditor2taskcode_kwargs['clip'] = clip_rect
-                    self.factory_kwargs['clip'] = clip_rect
                 elif param == '-cbl':
                     svgeditor2taskcode_kwargs['custom_backlash'] = True
                 elif param == '-mep':
