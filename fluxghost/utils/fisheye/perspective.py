@@ -6,7 +6,7 @@ from .constants import DPMM
 from .general import pad_image
 
 
-def get_split_indice(split, chessboard, i, j):
+def get_split_indices(split, chessboard, i, j):
     split_x, split_y = split
     l = (i * chessboard[0]) // split_x
     r = min(((i + 1) * chessboard[0]) // split_x, chessboard[0] - 1)
@@ -15,7 +15,7 @@ def get_split_indice(split, chessboard, i, j):
     return l, r, t, b
 
 
-def get_all_split_indice(split, chessboard):
+def get_all_split_indices(split, chessboard):
     split_x, split_y = split
     table = np.array([[None for _ in range(split_y + 1)] for _ in range(split_x + 1)])
     for i in range(split_x + 1):
@@ -36,7 +36,7 @@ def get_perspective_points(img, k, d, split, chessboard):
     corners = corner_sub_pix(gray, corners)
     corners = np.reshape(corners, chessboard[::-1] + (2,))
     split_x, split_y = split
-    table = get_all_split_indice(split, chessboard)
+    table = get_all_split_indices(split, chessboard)
     for i in range(split_x + 1):
         for j in range(split_y + 1):
             table[i][j] = corners[table[i][j][1]][table[i][j][0]].tolist()
@@ -55,7 +55,7 @@ def apply_perspective_points_transform(img, k, d, split, chessboard, points):
     img_w = (chessboard[0] - 1) * unit_length + padding * 2
     img_h = (chessboard[1] - 1) * unit_length + padding * 2
     base_img = np.zeros((img_h, img_w, 3), np.uint8)
-    split_indice = get_all_split_indice(split, chessboard)
+    split_indice = get_all_split_indices(split, chessboard)
     for i in range(split_x):
         for j in range(split_y):
             lt = points[i][j]
