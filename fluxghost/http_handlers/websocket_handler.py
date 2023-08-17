@@ -39,7 +39,7 @@ class WebSocketHandler(object):
 
     def handshake(self, handler, ws_key, **kw):
         handshake_key = ('%s%s' % (ws_key, MAGIC_STRING)).encode()
-        accept_key = base64.encodestring(sha1(handshake_key).digest())[:-1]
+        accept_key = base64.encodebytes(sha1(handshake_key).digest())[:-1]
 
         handler.send_response(101, 'Switching Protocols')
         handler.send_header('Upgrade', 'websocket')
