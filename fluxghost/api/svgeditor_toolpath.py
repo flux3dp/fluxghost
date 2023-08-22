@@ -13,7 +13,7 @@ from PIL import Image
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
 from fluxclient.toolpath.toolpath import svgeditor2taskcode, gcode2fcode
-from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
+from fluxclient.toolpath import FCodeV1MemoryWriter, FCodeV2MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
 
 import fluxsvg
@@ -321,6 +321,7 @@ def laser_svgeditor_api_mixin(cls):
 
             svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'acc': 4000}
             clip_rect = None
+            fcode_version = 1
 
             for i, param in enumerate(params):
                 if param == '-hexa' or param == '-bb2':
@@ -335,6 +336,7 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-ado1':
                     svgeditor2taskcode_kwargs['max_x'] = 430
                     hardware_name = 'ador'
+                    fcode_version = 2
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
@@ -405,11 +407,15 @@ def laser_svgeditor_api_mixin(cls):
                     "AUTHOR": urllib.parse.quote(get_username()),
                     "SOFTWARE": "fluxclient-%s-BS" % __version__,
                 })
-
+                logger.info('FCode Version: %d', fcode_version)
+                time_need = 0
+                traveled_dist = 0
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
-                    writer = FCodeV1MemoryWriter("LASER", self.fcode_metadata,
-                                                (thumbnail, ))
+                    if fcode_version == 2:
+                        writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail, ))
+                    else:
+                        writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail, ))
                 else:
                     writer = GCodeMemoryWriter()
 
@@ -418,6 +424,9 @@ def laser_svgeditor_api_mixin(cls):
                                 check_interrupted=self.check_interrupted,
                                 **svgeditor2taskcode_kwargs)
 
+                if output_fcode:
+                    time_need = writer.get_time_cost()
+                    traveled_dist = writer.get_traveled()
                 writer.terminated()
 
                 if self.check_interrupted():
@@ -425,11 +434,6 @@ def laser_svgeditor_api_mixin(cls):
                     return
 
                 output_binary = writer.get_buffer()
-                time_need = float(writer.get_metadata().get(b"TIME_COST", 0)) \
-                    if output_fcode else 0
-
-                traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0)) \
-                    if output_fcode else 0
                 print('time cost:', time_need, '\ntravel distance', traveled_dist)
                 self.send_progress('Finishing', 1.0)
                 if send_fcode:
