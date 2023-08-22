@@ -22,35 +22,44 @@ INIT_D = np.array([
 ])
 
 FIND_CHESSBOARD_FLAGS = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
-def find_corners(img, chessboard):
+def find_corners(img, chessboard, downsize_ratio = 1, try_denoise = True):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
+    if downsize_ratio > 1:
+        height, width = img.shape[:2]
+        downsized_img = cv2.resize(img, (width // downsize_ratio, height // downsize_ratio))
+        downsized_gray = cv2.cvtColor(downsized_img, cv2.COLOR_BGR2GRAY)
+    else:
+        downsized_img = img
+        downsized_gray = gray
+
+    ret, corners = cv2.findChessboardCorners(downsized_gray, chessboard, FIND_CHESSBOARD_FLAGS)
     if ret:
-        return gray, ret, corners
+        return gray, ret, corners * downsize_ratio
+
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    gray = clahe.apply(gray)
-    ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
+    downsized_gray = clahe.apply(downsized_gray)
+    ret, corners = cv2.findChessboardCorners(downsized_gray, chessboard, FIND_CHESSBOARD_FLAGS)
+    if not try_denoise:
+        return gray, ret, (corners * downsize_ratio if ret else corners)
     if ret:
-        return gray, ret, corners
-    denoised = cv2.fastNlMeansDenoisingColored(img, None, 10, 10, 7, 21)
-    gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
-    ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
+        return gray, ret, corners * downsize_ratio
+
+    denoised = cv2.fastNlMeansDenoisingColored(downsized_img, None, 10, 10, 7, 21)
+    downsized_gray = cv2.cvtColor(denoised, cv2.COLOR_BGR2GRAY)
+    ret, corners = cv2.findChessboardCorners(downsized_gray, chessboard, FIND_CHESSBOARD_FLAGS)
     if ret:
-        return gray, ret, corners
-    gray = clahe.apply(gray)
-    ret, corners = cv2.findChessboardCorners(gray, chessboard, FIND_CHESSBOARD_FLAGS)
-    return gray, ret, corners
+        return gray, ret, corners * downsize_ratio
 
+    downsized_gray = clahe.apply(downsized_gray)
+    ret, corners = cv2.findChessboardCorners(downsized_gray, chessboard, FIND_CHESSBOARD_FLAGS)
+    return gray, ret, (corners * downsize_ratio if ret else corners)
 
+CORNER_SUBPIX_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
 def corner_sub_pix(gray_image, corners):
     return cv2.cornerSubPix(gray_image, corners, (11, 11), (-1, -1), CORNER_SUBPIX_CRIT)
 
-
-CORNER_SUBPIX_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
-CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW
+CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_SKEW + cv2.fisheye.CALIB_FIX_K1
 CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-5)
-
-
 def calibrate_fisheye(objpoints, imgpoints, size):
     if len(imgpoints) == 0:
         raise Exception('Failed to calibrate camera, no img points left behind')
@@ -77,11 +86,11 @@ def calibrate_fisheye_camera(imgs, chessboard, progress_callback):
         progress_callback(i / len(imgs))
         img = imgs[i]
         img = pad_image(img)
-        gray, ret, corners = find_corners(img, chessboard)
+        gray, ret, corners = find_corners(img, chessboard, 2, False)
         if ret:
+            logger.info('found corners for {}'.format(i))
             objpoints.append(objp)
             corners = corner_sub_pix(gray, corners)
-            logger.info('found corners for {}'.format(i))
             imgpoints.append(corners)
         else:
             logger.info('unable to find corners for {}'.format(i))
