@@ -30,7 +30,7 @@ def get_all_split_indices(split, chessboard):
 def get_perspective_points(img, k, d, split, chessboard):
     img = pad_image(img)
     img = get_remap_img(img, k, d)
-    gray, ret, corners = find_corners(img, chessboard)
+    gray, ret, corners = find_corners(img, chessboard, 2)
     if not ret:
         raise Exception('Cannot find corners')
     corners = corner_sub_pix(gray, corners)
