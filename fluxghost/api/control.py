@@ -175,6 +175,7 @@ def control_api_mixin(cls):
                 "fetch_laser_records": self.fetch_laser_records,
                 "fetch_camera_calib_pictures": self.fetch_camera_calib_pictures,
                 "fetch_fisheye_params": self.fetch_fisheye_params,
+                "fetch_auto_leveling_data": self.fetch_auto_leveling_data,
             }
 
         @property
@@ -937,6 +938,24 @@ def control_api_mixin(cls):
 
             buf = BytesIO()
             mimetype = self.robot.fetch_fisheye_params(buf, report)
+            if mimetype:
+                self.send_json(status="binary", mimetype=mimetype,
+                               size=buf.truncate())
+                self.send_binary(buf.getvalue())
+                self.send_ok()
+
+        def fetch_auto_leveling_data(self, data_type):
+            flag = []
+
+            def report(left, size):
+                if not flag:
+                    flag.append(1)
+                    self.send_json(status="transfer", completed=0, size=size)
+                self.send_json(status="transfer",
+                               completed=(size - left), size=size)
+
+            buf = BytesIO()
+            mimetype = self.robot.fetch_auto_leveling_data(data_type, buf, report)
             if mimetype:
                 self.send_json(status="binary", mimetype=mimetype,
                                size=buf.truncate())
