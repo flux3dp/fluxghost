@@ -65,7 +65,7 @@ def calibrate_fisheye(objpoints, imgpoints, size):
         raise Exception('Failed to calibrate camera, no img points left behind')
     try:
         ret, k, d, _, _ = cv2.fisheye.calibrate(objpoints, imgpoints, size, None, None, None, None, CALIBRATION_FLAGS, CALIBRATION_CRIT)
-        return ret, k, d
+        return ret, k, d, len(imgpoints)
     except cv2.error as e:
         pattern = r'CALIB_CHECK_COND - Ill-conditioned matrix for input array (\d+)'
         match = re.search(pattern, e.err)
@@ -96,14 +96,16 @@ def calibrate_fisheye_camera(imgs, chessboard, progress_callback):
             logger.info('unable to find corners for {}'.format(i))
     best_result = None
     try:
-        ret, k, d, = calibrate_fisheye(objpoints, imgpoints, gray.shape[::-1])
-        logger.info('Calibrate All imgs:'.format(i, ret))
+        ret, k, d, points_left = calibrate_fisheye(objpoints, imgpoints, gray.shape[::-1])
+        logger.info('Calibrate All imgs: {}, {} sets of points left'.format(ret, points_left))
+        if ret < 1 and points_left > 10:
+            return k, d
         best_result = (ret, k, d)
     except Exception:
         logger.info('Calibrate All imgs failed')
     for i in range(len(imgpoints)):
         try:
-            ret, k, d, = calibrate_fisheye(objpoints[i: i+1], imgpoints[i: i+1], gray.shape[::-1])
+            ret, k, d, _ = calibrate_fisheye(objpoints[i: i+1], imgpoints[i: i+1], gray.shape[::-1])
             logger.info('Calibrate {}: {}'.format(i, ret))
             if not best_result:
                 best_result = (ret, k, d)
