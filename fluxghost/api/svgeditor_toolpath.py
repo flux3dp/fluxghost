@@ -173,30 +173,32 @@ def laser_svgeditor_api_mixin(cls):
             self.factory_kwargs = {}
             self.hardware_name = 'beambox'
 
-            if '-bb2' in params or '-hexa' in params:
-                self.hardware_name = 'hexa'
-
-            if '-pro' in params:
-                self.hardware_name = 'beambox-pro'
-
-            if '-beamo' in params:
-                self.hardware_name = 'beamo'
-
-            if '-ado1' in params:
-                self.hardware_name = 'ador'
-
-            if '-ldpi' in params:
-                self.pixel_per_mm = 5
-
-            if '-mdpi' in params:
-                self.pixel_per_mm = 10
-
-            if '-hdpi' in params:
-                self.pixel_per_mm = 20
-
-            if '-udpi' in params:
-                self.pixel_per_mm = 50
-                self.factory_kwargs['pixel_per_mm_x'] = 20
+            for i, param in enumerate(params):
+                if param == '-bb2' or param == '-hexa':
+                    self.hardware_name = 'hexa'
+                elif param == '-pro':
+                    self.hardware_name = 'beambox-pro'
+                elif param == '-beamo':
+                    self.hardware_name = 'beamo'
+                elif param == '-ado1':
+                    self.hardware_name = 'ador'
+                elif param == '-ldpi':
+                    self.pixel_per_mm = 5
+                elif param == '-mdpi':
+                    self.pixel_per_mm = 10
+                elif param == '-hdpi':
+                    self.pixel_per_mm = 20
+                elif param == '-udpi':
+                    self.pixel_per_mm = 50
+                    self.factory_kwargs['pixel_per_mm_x'] = 20
+                elif param == '-dpi':
+                    try:
+                        dpi = int(params[i+1])
+                        self.pixel_per_mm = round(dpi / 25.4)
+                        if self.pixel_per_mm > 20:
+                            self.factory_kwargs['pixel_per_mm_x'] = 20
+                    except Exception:
+                        pass
 
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
