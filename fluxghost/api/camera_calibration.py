@@ -10,6 +10,7 @@ from PIL import Image
 from fluxghost.utils.fisheye.calibration import calibrate_fisheye_camera
 from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.perspective import get_perspective_points
+from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -41,7 +42,7 @@ def camera_calibration_api_mixin(cls):
                 'add_fisheye_calibration_image': [self.cmd_add_fisheye_calibration_image],
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
                 'find_perspective_points': [self.cmd_find_perspective_points],
-                # 'calibrate_fisheye': [self.cmd_fisheye_calibrate]
+                'cal_regression_param': [self.cmd_calculate_regression_param],
             }
             self.init_fisheye_params()
 
@@ -127,6 +128,37 @@ def camera_calibration_api_mixin(cls):
                     self.send_json(status='fail', reason='No perspect point found', errors=errors)
                 heights, points = zip(*sorted(zip(heights, points)))
                 self.send_ok(points=points, heights=heights, errors=errors)
+            except Exception as e:
+                self.send_json(status='fail', reason=str(e))
+                raise(e)
+
+        def cmd_calculate_regression_param(self, message):
+            if self.k is None or self.d is None:
+                self.send_json(status='fail', reason='calibrate fisheye camera first')
+            if len(self.fisheye_calibrate_imgs) == 0:
+                self.send_json(status='fail', reason='No Calibrate Images')
+
+            try:
+                points = [] # list of list of points
+                heights = []
+                errors = []
+                for i in range(len(self.fisheye_calibrate_imgs)):
+                    if self.check_interrupted():
+                        return
+                    self.on_progress(0.9 * i / len(self.fisheye_calibrate_imgs))
+                    img = self.fisheye_calibrate_imgs[i]
+                    height = self.fisheye_calibrate_heights[i]
+                    logger.info('Finding perspective points for height: {}'.format(height))
+                    try:
+                        points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD))
+                        heights.append(height)
+                    except Exception as e:
+                        errors.append({ 'height': height, 'err': str(e) })
+                        logger.error('find perspective points error: %s %s', str(height), str(e))
+                if len(points) < 4:
+                    self.send_json(status='fail', reason='No enough points to perform regression', errors=errors)
+                data = cal_z_3_regression_param(points, heights)
+                self.send_ok(data=data.tolist(), errors=errors)
             except Exception as e:
                 self.send_json(status='fail', reason=str(e))
                 raise(e)
