@@ -43,6 +43,7 @@ def camera_calibration_api_mixin(cls):
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 'cal_regression_param': [self.cmd_calculate_regression_param],
+                'interrupt': [self.cmd_interrupt],
             }
             self.init_fisheye_params()
 
@@ -51,6 +52,14 @@ def camera_calibration_api_mixin(cls):
             self.fisheye_calibrate_imgs = []
             self.k = None
             self.d = None
+            self.interrupted = False
+
+        def cmd_interrupt(self, message):
+            self.interrupted = True
+            self.send_ok()
+
+        def check_interrupted(self):
+            return self.interrupted
 
         def on_progress(self, progress):
             self.timer = time()
@@ -96,10 +105,14 @@ def camera_calibration_api_mixin(cls):
         def cmd_do_fisheye_calibration(self, message):
             try:
                 k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, self.on_progress)
+                if self.check_interrupted():
+                    return
                 self.k = k
                 self.d = d
                 self.send_ok(k=k.tolist(), d=d.tolist())
             except Exception as e:
+                if self.check_interrupted():
+                    return
                 self.send_json(status='fail', reason=str(e))
                 raise(e)
 
@@ -114,6 +127,8 @@ def camera_calibration_api_mixin(cls):
             errors = []
             try:
                 for i in range(len(self.fisheye_calibrate_imgs)):
+                    if self.check_interrupted():
+                        return
                     self.on_progress(i / len(self.fisheye_calibrate_imgs))
                     img = self.fisheye_calibrate_imgs[i]
                     height = self.fisheye_calibrate_heights[i]
