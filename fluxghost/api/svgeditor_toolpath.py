@@ -397,6 +397,8 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['min_printing_padding'] = int(params[i+1])
                     except Exception:
                         pass
+                elif param == '-mpc':
+                    svgeditor2taskcode_kwargs['multipass_compensation'] = True
                 svgeditor2taskcode_kwargs['module_offsets'] = self.module_offsets
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
