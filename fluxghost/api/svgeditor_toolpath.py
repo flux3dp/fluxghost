@@ -399,6 +399,17 @@ def laser_svgeditor_api_mixin(cls):
                         pass
                 elif param == '-mpc':
                     svgeditor2taskcode_kwargs['multipass_compensation'] = True
+                elif param == '-ptp':
+                    try:
+                        svgeditor2taskcode_kwargs['printing_top_padding'] = int(params[i+1])
+                    except Exception:
+                        pass
+                elif param == '-pbp':
+                    try:
+                        svgeditor2taskcode_kwargs['printing_bot_padding'] = int(params[i+1])
+                    except Exception:
+                        pass
+
                 svgeditor2taskcode_kwargs['module_offsets'] = self.module_offsets
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
