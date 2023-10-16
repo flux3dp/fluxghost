@@ -88,6 +88,7 @@ def camera_api_mixin(cls):
             self.send_ok()
 
         def on_image(self, camera, image):
+            logger.debug('on_image')
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
                     img = Image.open(io.BytesIO(image))
