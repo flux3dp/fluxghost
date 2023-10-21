@@ -409,6 +409,16 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['printing_bot_padding'] = int(params[i+1])
                     except Exception:
                         pass
+                elif param == '-nv':
+                    try:
+                        svgeditor2taskcode_kwargs['nozzle_votage'] = float(params[i+1])
+                    except Exception:
+                        pass
+                elif param == '-npw':
+                    try:
+                        svgeditor2taskcode_kwargs['nozzle_pulse_width'] = float(params[i+1])
+                    except Exception:
+                        pass
 
                 svgeditor2taskcode_kwargs['module_offsets'] = self.module_offsets
             self.factory_kwargs['hardware_name'] = hardware_name
