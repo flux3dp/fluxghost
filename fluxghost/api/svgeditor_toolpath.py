@@ -399,6 +399,8 @@ def laser_svgeditor_api_mixin(cls):
                         pass
                 elif param == '-mpc':
                     svgeditor2taskcode_kwargs['multipass_compensation'] = True
+                elif param == '-owp':
+                    svgeditor2taskcode_kwargs['one_way_printing'] = True
                 elif param == '-ptp':
                     try:
                         svgeditor2taskcode_kwargs['printing_top_padding'] = int(params[i+1])
