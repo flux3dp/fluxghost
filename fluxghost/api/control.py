@@ -3,6 +3,7 @@ from errno import EPIPE
 from time import time, sleep
 from io import BytesIO
 import itertools
+import json
 import logging
 import pipes
 import socket
@@ -165,6 +166,7 @@ def control_api_mixin(cls):
                     "scan": self.task_begin_scan,
                     "raw": self.task_begin_raw,
                     "quit": self.task_quit,
+                    "cartridge_io": self.task_begin_cartridge_io,
                 },
 
                 "laser": {
@@ -176,6 +178,7 @@ def control_api_mixin(cls):
                 "fetch_camera_calib_pictures": self.fetch_camera_calib_pictures,
                 "fetch_fisheye_params": self.fetch_fisheye_params,
                 "fetch_auto_leveling_data": self.fetch_auto_leveling_data,
+                "jsonrpc_req": self.jsonrpc_req,
             }
 
         @property
@@ -625,6 +628,10 @@ def control_api_mixin(cls):
             self.rlist.append(self.raw_sock)
             self.send_ok(task="raw")
 
+        def task_begin_cartridge_io(self):
+            self.task = self.robot.cartridge_io()
+            self.send_ok(task="cartridge_io")
+
         def task_quit(self):
             self.task.quit()
             self.task = None
@@ -961,6 +968,11 @@ def control_api_mixin(cls):
                                size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
+
+        def jsonrpc_req(self, data):
+            resp = self.task.jsonrpc_req(data)
+            data = json.loads(resp)
+            self.send_ok(data=data)
 
         def on_raw_message(self, message):
             if message == "quit" or message == "task quit":
