@@ -8,6 +8,7 @@ import logging
 import pipes
 import socket
 import shlex
+import string
 
 from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
@@ -971,6 +972,8 @@ def control_api_mixin(cls):
 
         def jsonrpc_req(self, data):
             resp = self.task.jsonrpc_req(data)
+            printable = set(string.printable)
+            resp = ''.join(filter(lambda x: x in printable, resp))
             data = json.loads(resp)
             self.send_ok(data=data)
 
