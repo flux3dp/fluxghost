@@ -138,6 +138,7 @@ elif is_linux:
 
 
 a = Analysis(['ghost.py'],
+             datas=[('static/Coated_Fogra39L_VIGC_300.icc', 'static')],
              hiddenimports=hiddenimports,
              excludes=excludes,
              hookspath=None,

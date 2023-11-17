@@ -168,6 +168,7 @@ else:
     raise ValueError('Unknown Os Type {}'.format(os_type) )
 
 a = Analysis(['ghost.py'],
+             datas=[('static/Coated_Fogra39L_VIGC_300.icc', 'static')],
              hiddenimports=hiddenimports,
              excludes=excludes,
              hookspath=None,
