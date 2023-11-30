@@ -63,6 +63,7 @@ def control_api_mixin(cls):
                 "update_fw": self.update_fw,
                 "update_laser_records": self.update_laser_records,
                 "update_fisheye_params": self.update_fisheye_params,
+                'update_fisheye_3d_rotation': self.update_fisheye_3d_rotation,
                 "update_mbfw": self.update_mbfw,
 
                 "deviceinfo": self.deviceinfo,
@@ -178,6 +179,7 @@ def control_api_mixin(cls):
                 "fetch_laser_records": self.fetch_laser_records,
                 "fetch_camera_calib_pictures": self.fetch_camera_calib_pictures,
                 "fetch_fisheye_params": self.fetch_fisheye_params,
+                'fetch_fisheye_3d_rotation': self.fetch_fisheye_3d_rotation,
                 "fetch_auto_leveling_data": self.fetch_auto_leveling_data,
                 "jsonrpc_req": self.jsonrpc_req,
             }
@@ -465,6 +467,21 @@ def control_api_mixin(cls):
                 stream.seek(0)
                 try:
                     self.robot.update_fisheye_params(stream, int(size),
+                                                    self.cb_upload_callback)
+                    self.send_ok()
+                    self.close()
+                except RobotError as e:
+                    logger.debug("RobotError%s [error_symbol=%s]",
+                                 repr(e.args), e.error_symbol)
+                    self.send_error(e.error_symbol)
+            self.simple_binary_receiver(size, on_recived)
+
+        def update_fisheye_3d_rotation(self, mimetype, ssize):
+            size = int(ssize)
+            def on_recived(stream):
+                stream.seek(0)
+                try:
+                    self.robot.update_fisheye_3d_rotation(stream, int(size),
                                                     self.cb_upload_callback)
                     self.send_ok()
                     self.close()
@@ -946,6 +963,24 @@ def control_api_mixin(cls):
 
             buf = BytesIO()
             mimetype = self.robot.fetch_fisheye_params(buf, report)
+            if mimetype:
+                self.send_json(status="binary", mimetype=mimetype,
+                               size=buf.truncate())
+                self.send_binary(buf.getvalue())
+                self.send_ok()
+
+        def fetch_fisheye_3d_rotation(self):
+            flag = []
+
+            def report(left, size):
+                if not flag:
+                    flag.append(1)
+                    self.send_json(status="transfer", completed=0, size=size)
+                self.send_json(status="transfer",
+                               completed=(size - left), size=size)
+
+            buf = BytesIO()
+            mimetype = self.robot.fetch_fisheye_3d_rotation(buf, report)
             if mimetype:
                 self.send_json(status="binary", mimetype=mimetype,
                                size=buf.truncate())
