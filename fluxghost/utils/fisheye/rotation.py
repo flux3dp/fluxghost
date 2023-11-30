@@ -18,8 +18,6 @@ def calculate_3d_rotation_matrix(rx: float, ry: float, rz: float):
         [np.sin(rz), np.cos(rz), 0],
         [0, 0, 1],
     ])
-    res = Rz @ Ry @ Rx
-    print(res)
     return Rz @ Ry @ Rx
 
 def apply_matrix_to_perspective_points(points, matrix, height):
