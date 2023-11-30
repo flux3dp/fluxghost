@@ -1,5 +1,8 @@
 import numpy as np
 
+IMAGE_W = 3264
+IMAGE_H = 2448
+
 DPMM = 5
 T_PAD = 876
 B_PAD = 876

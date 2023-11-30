@@ -8,6 +8,7 @@ from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
+from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
 
@@ -40,6 +41,8 @@ def camera_api_mixin(cls):
             self.remote_model = getattr(device, 'model_id', '')
             self.fisheye_param = None
             self.crop_param = None
+            self.camera_3d_rotation = None
+            self.rotated_perspective_points = None
             return device.connect_camera(
                 self.client_key, conn_callback=self._conn_callback)
 
@@ -64,7 +67,9 @@ def camera_api_mixin(cls):
                 elif cmd == 'set_crop_param':
                     data = msgs[1]
                     self.set_crop_param(data)
-
+                elif cmd == 'set_3d_rotation':
+                    data = msgs[1]
+                    self.set_3d_rotation(data)
 
         def set_fisheye_matrix(self, data):
             data = json.loads(data)
@@ -75,6 +80,8 @@ def camera_api_mixin(cls):
                 'd': np.array(data['d']),
                 'perspective_points': np.array(perspective_points),
             }
+            if self.camera_3d_rotation:
+                self.apply_3d_rotaion_to_perspective_points()
             self.send_ok()
 
         def set_crop_param(self, data):
@@ -87,6 +94,26 @@ def camera_api_mixin(cls):
             }
             self.send_ok()
 
+        def set_3d_rotation(self, data):
+            data = json.loads(data)
+            self.camera_3d_rotation = data
+            if self.fisheye_param:
+                self.apply_3d_rotaion_to_perspective_points()
+            self.send_ok()
+
+        def apply_3d_rotaion_to_perspective_points(self):
+            if self.camera_3d_rotation is None or self.fisheye_param is None:
+                return
+            rx = self.camera_3d_rotation['rx']
+            ry = self.camera_3d_rotation['ry']
+            rz = self.camera_3d_rotation['rz']
+            h = self.camera_3d_rotation['h']
+            self.rotated_perspective_points = apply_matrix_to_perspective_points(
+                self.fisheye_param['perspective_points'],
+                calculate_3d_rotation_matrix(rx, ry, rz),
+                h
+            )
+
         def on_image(self, camera, image):
             logger.debug('on_image')
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
@@ -97,13 +124,14 @@ def camera_api_mixin(cls):
                 except Exception:
                     self.send_binary(image)
                     return
+                perspective_points = self.rotated_perspective_points if self.rotated_perspective_points is not None else self.fisheye_param['perspective_points']
                 img = apply_perspective_points_transform(
                     open_cv_img,
                     self.fisheye_param['k'],
                     self.fisheye_param['d'],
                     PERSPECTIVE_SPLIT,
                     CHESSBORAD,
-                    self.fisheye_param['perspective_points']
+                    perspective_points
                 )
                 if self.crop_param is not None:
                     img = crop_transformed_img(img, self.crop_param['cx'], self.crop_param['cy'], self.crop_param['width'], self.crop_param['height'])
