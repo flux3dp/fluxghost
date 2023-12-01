@@ -134,7 +134,12 @@ def camera_api_mixin(cls):
                     perspective_points
                 )
                 if self.crop_param is not None:
-                    img = crop_transformed_img(img, self.crop_param['cx'], self.crop_param['cy'], self.crop_param['width'], self.crop_param['height'])
+                    cx = self.crop_param['cx']
+                    cy = self.crop_param['cy']
+                    if self.camera_3d_rotation is not None:
+                        cx += self.camera_3d_rotation['tx']
+                        cy += self.camera_3d_rotation['ty']
+                    img = crop_transformed_img(img, cx, cy, self.crop_param['width'], self.crop_param['height'])
                 _, array_buffer = cv2.imencode('.png', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
