@@ -1,1 +1,1 @@
-__version__ = "2.0.6" # add fisheye 3d rotation
+__version__ = "2.0.7" # add fisheye camera crop parameter
