@@ -34,6 +34,7 @@ ws.send('ls')
 '''
 fisheye_models = ['fad1', 'ado1']
 
+
 def camera_api_mixin(cls):
     class CameraAPI(control_base_mixin(cls)):
         def get_robot_from_device(self, device):
@@ -43,8 +44,7 @@ def camera_api_mixin(cls):
             self.crop_param = None
             self.camera_3d_rotation = None
             self.rotated_perspective_points = None
-            return device.connect_camera(
-                self.client_key, conn_callback=self._conn_callback)
+            return device.connect_camera(self.client_key, conn_callback=self._conn_callback)
 
         def get_robot_from_h2h(self, usbprotocol):
             return FluxCamera.from_usb(self.client_key, usbprotocol)
@@ -91,6 +91,8 @@ def camera_api_mixin(cls):
                 'height': data['height'],
                 'cx': data['cx'],
                 'cy': data['cy'],
+                'top': data.get('top', None),
+                'left': data.get('left', None),
             }
             self.send_ok()
 
@@ -109,9 +111,7 @@ def camera_api_mixin(cls):
             rz = self.camera_3d_rotation['rz']
             h = self.camera_3d_rotation['h']
             self.rotated_perspective_points = apply_matrix_to_perspective_points(
-                self.fisheye_param['perspective_points'],
-                calculate_3d_rotation_matrix(rx, ry, rz),
-                h
+                self.fisheye_param['perspective_points'], calculate_3d_rotation_matrix(rx, ry, rz), h
             )
 
         def on_image(self, camera, image):
@@ -131,7 +131,7 @@ def camera_api_mixin(cls):
                     self.fisheye_param['d'],
                     PERSPECTIVE_SPLIT,
                     CHESSBORAD,
-                    perspective_points
+                    perspective_points,
                 )
                 if self.crop_param is not None:
                     cx = self.crop_param['cx']
@@ -139,12 +139,21 @@ def camera_api_mixin(cls):
                     if self.camera_3d_rotation is not None:
                         cx += self.camera_3d_rotation['tx']
                         cy += self.camera_3d_rotation['ty']
-                    img = crop_transformed_img(img, cx, cy, self.crop_param['width'], self.crop_param['height'])
+                    img = crop_transformed_img(
+                        img,
+                        cx,
+                        cy,
+                        width=self.crop_param['width'],
+                        height=self.crop_param['height'],
+                        top=self.crop_param['top'],
+                        left=self.crop_param['left'],
+                    )
                 _, array_buffer = cv2.imencode('.png', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
             else:
                 self.send_binary(image)
+
     return CameraAPI
 
 
