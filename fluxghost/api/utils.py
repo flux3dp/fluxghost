@@ -97,11 +97,11 @@ def utils_api_mixin(cls):
                 if image.mode == 'RGBA':
                     white_image = Image.new('RGBA', image.size, 'white')
                     image = Image.alpha_composite(white_image, image)
-
-                srgb_profile = ImageCms.createProfile('sRGB')
-                cmyk_profile = ImageCms.getOpenProfile('static/Coated_Fogra39L_VIGC_300.icc')
-                transform = ImageCms.buildTransform(srgb_profile, cmyk_profile, 'RGB', 'CMYK')
-                image = ImageCms.applyTransform(image, transform)
+                if image.mode != 'CMYK':
+                    srgb_profile = ImageCms.createProfile('sRGB')
+                    cmyk_profile = ImageCms.getOpenProfile('static/Coated_Fogra39L_VIGC_300.icc')
+                    transform = ImageCms.buildTransform(srgb_profile, cmyk_profile, 'RGB', 'CMYK')
+                    image = ImageCms.applyTransform(image, transform)
                 image = image.convert('RGB')
                 out_byte = io.BytesIO()
                 image.save(out_byte, format='JPEG', quality=100, subsampling=0)
