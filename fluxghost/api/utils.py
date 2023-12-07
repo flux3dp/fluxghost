@@ -94,10 +94,13 @@ def utils_api_mixin(cls):
             def upload_callback(buf):
                 image = Image.open(io.BytesIO(buf))
                 self.send_json(status='uploaded')
-                if image.mode == 'RGBA':
-                    white_image = Image.new('RGBA', image.size, 'white')
-                    image = Image.alpha_composite(white_image, image)
                 if image.mode != 'CMYK':
+                    if image.info.get("transparency", None) is not None:
+                        image = image.convert('RGBA')
+                    if image.mode == 'RGBA':
+                        white_image = Image.new('RGBA', image.size, 'white')
+                        image = Image.alpha_composite(white_image, image)
+                    image = image.convert('RGB')
                     srgb_profile = ImageCms.createProfile('sRGB')
                     cmyk_profile = ImageCms.getOpenProfile('static/Coated_Fogra39L_VIGC_300.icc')
                     transform = ImageCms.buildTransform(srgb_profile, cmyk_profile, 'RGB', 'CMYK')
