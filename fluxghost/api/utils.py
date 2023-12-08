@@ -95,7 +95,7 @@ def utils_api_mixin(cls):
                 image = Image.open(io.BytesIO(buf))
                 self.send_json(status='uploaded')
                 if image.mode != 'CMYK':
-                    if image.info.get("transparency", None) is not None:
+                    if image.info.get('transparency', None) is not None:
                         image = image.convert('RGBA')
                     if image.mode == 'RGBA':
                         white_image = Image.new('RGBA', image.size, 'white')
@@ -114,7 +114,7 @@ def utils_api_mixin(cls):
                     base64_data = base64.b64encode(image_binary).decode('utf-8')
                     self.send_ok(data=base64_data)
                 else:
-                    self.send_json(status="complete", length=len(image_binary))
+                    self.send_json(status='complete', length=len(image_binary))
                     self.send_binary(out_byte.getvalue())
 
             file_length = int(params[0])
