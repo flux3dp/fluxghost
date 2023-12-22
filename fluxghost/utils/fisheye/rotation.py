@@ -1,6 +1,5 @@
 import numpy as np
 
-from .constants import IMAGE_W, IMAGE_H, L_PAD, R_PAD, T_PAD, B_PAD
 
 def calculate_3d_rotation_matrix(rx: float, ry: float, rz: float):
     Rx = np.array([
@@ -18,7 +17,7 @@ def calculate_3d_rotation_matrix(rx: float, ry: float, rz: float):
         [np.sin(rz), np.cos(rz), 0],
         [0, 0, 1],
     ])
-    return Rz @ Ry @ Rx
+    return np.matmul(Rz, np.matmul(Ry, Rx))
 
 def apply_matrix_to_perspective_points(points, matrix, height):
     # Calculated from average of 10 machines
