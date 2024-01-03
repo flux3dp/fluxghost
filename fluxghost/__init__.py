@@ -1,1 +1,1 @@
-__version__ = "2.0.7" # add fisheye camera crop parameter
+__version__ = "2.0.8" # Update error message
