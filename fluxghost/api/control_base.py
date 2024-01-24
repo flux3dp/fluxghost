@@ -144,20 +144,19 @@ def control_base_mixin(cls):
 
         def simple_binary_transfer(self, method, mimetype, size,
                                    upload_to=None, cb=None):
-            ref = method(mimetype, size, upload_to)
-
+            feed, finish = method(mimetype, size, upload_to)
+            last_reported = 0
             def binary_handler(buf):
-                try:
-                    feeder = ref.__next__()
-                    sent = feeder(buf)
+                nonlocal last_reported
+                sent = feed(buf)
+                translated_ratio = int(sent / size * 100)
+                if translated_ratio > last_reported:
                     self.send_json(status="uploading", sent=sent)
-                    if sent == size:
-                        ref.__next__()
-                except StopIteration:
+                    last_reported = translated_ratio
+                if sent == size:
                     self.binary_handler = None
+                    finish()
                     cb()
-
-            ref.__next__()
             self.binary_handler = binary_handler
             self.send_continue()
 

@@ -423,7 +423,7 @@ def control_api_mixin(cls):
                  mimetype == "application/fcode_collection" or \
                  mimetype == "application/encrypted_fcode":
                 self.simple_binary_transfer(
-                    self.robot.yihniwimda_upload_stream, mimetype, size,
+                    self.robot.transfer_upload_stream, mimetype, size,
                     upload_to=upload_to, cb=self.send_ok)
 
             else:
