@@ -1,1 +1,1 @@
-__version__ = "2.0.8" # Update error message
+__version__ = "2.0.9" # Update binary transfer
