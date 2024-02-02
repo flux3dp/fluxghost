@@ -7,10 +7,18 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from fluxghost.utils.fisheye.calibration import calibrate_fisheye_camera
+
+from fluxghost.utils.fisheye.calibration import (
+    calibrate_fisheye,
+    calibrate_fisheye_camera,
+    get_remap_img,
+    remap_corners,
+)
 from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
+from fluxghost.utils.fisheye.general import pad_image, L_PAD, T_PAD
 from fluxghost.utils.fisheye.perspective import get_perspective_points
 from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
+from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid, get_grid
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -20,6 +28,7 @@ DPMM = 5
 CX = 1321
 CY = 1100
 
+
 def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, left=None):
     cx = int(cx)
     cy = int(cy)
@@ -27,7 +36,7 @@ def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, lef
     height = int(height) * DPMM
     left = cx - width // 2 if left is None else cx - int(left) * DPMM
     top = cy - height // 2 if top is None else cy - int(top) * DPMM
-    img = img[top:top + height, left:left + width]
+    img = img[top : top + height, left : left + width]
     return img
 
 
@@ -43,6 +52,7 @@ def camera_calibration_api_mixin(cls):
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 'cal_regression_param': [self.cmd_calculate_regression_param],
+                'corner_detection': [self.cmd_corner_detection],
                 'interrupt': [self.cmd_interrupt],
             }
             self.init_fisheye_params()
@@ -67,16 +77,23 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_upload_image(self, message):
             message = message.split(' ')
+
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 result = calc_picture_shape(img_cv)
                 if result is None:
                     self.send_json(status='none')
-                elif result is 'Fail':
+                elif result == 'Fail':
                     self.send_json(status='fail')
                 else:
-                    self.send_ok(x=result['x'], y=result['y'], angle=result['angle'], width=result['width'], height=result['height'])
+                    self.send_ok(
+                        x=result['x'],
+                        y=result['y'],
+                        angle=result['angle'],
+                        width=result['width'],
+                        height=result['height'],
+                    )
 
             file_length = int(message[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
@@ -89,6 +106,7 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_add_fisheye_calibration_image(self, message):
             message = message.split(' ')
+
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
@@ -97,6 +115,7 @@ def camera_calibration_api_mixin(cls):
                 self.fisheye_calibrate_heights.append(img_z)
                 self.fisheye_calibrate_imgs.append(img_cv)
                 self.send_ok()
+
             file_length = int(message[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
@@ -114,7 +133,7 @@ def camera_calibration_api_mixin(cls):
                 if self.check_interrupted():
                     return
                 self.send_json(status='fail', reason=str(e))
-                raise(e)
+                raise (e)
 
         def cmd_find_perspective_points(self, message):
             if self.k is None or self.d is None:
@@ -122,7 +141,7 @@ def camera_calibration_api_mixin(cls):
             if len(self.fisheye_calibrate_imgs) == 0:
                 self.send_json(status='fail', reason='No Calibrate Images')
 
-            points = [] # list of list of points
+            points = []  # list of list of points
             heights = []
             errors = []
             try:
@@ -134,10 +153,12 @@ def camera_calibration_api_mixin(cls):
                     height = self.fisheye_calibrate_heights[i]
                     logger.info('Finding perspective points for height: {}'.format(height))
                     try:
-                        points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD).tolist())
+                        points.append(
+                            get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD).tolist()
+                        )
                         heights.append(height)
                     except Exception as e:
-                        errors.append({ 'height': height, 'err': str(e) })
+                        errors.append({'height': height, 'err': str(e)})
                         logger.error('find perspective points error: %s %s', str(height), str(e))
                 if len(points) == 0:
                     self.send_json(status='fail', reason='No perspect point found', errors=errors)
@@ -145,7 +166,7 @@ def camera_calibration_api_mixin(cls):
                 self.send_ok(points=points, heights=heights, errors=errors)
             except Exception as e:
                 self.send_json(status='fail', reason=str(e))
-                raise(e)
+                raise (e)
 
         def cmd_calculate_regression_param(self, message):
             if self.k is None or self.d is None:
@@ -154,7 +175,7 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', reason='No Calibrate Images')
 
             try:
-                points = [] # list of list of points
+                points = []  # list of list of points
                 heights = []
                 errors = []
                 for i in range(len(self.fisheye_calibrate_imgs)):
@@ -168,7 +189,7 @@ def camera_calibration_api_mixin(cls):
                         points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD))
                         heights.append(height)
                     except Exception as e:
-                        errors.append({ 'height': height, 'err': str(e) })
+                        errors.append({'height': height, 'err': str(e)})
                         logger.error('find perspective points error: %s %s', str(height), str(e))
                 if len(points) < 4:
                     self.send_json(status='fail', reason='No enough points to perform regression', errors=errors)
@@ -176,7 +197,64 @@ def camera_calibration_api_mixin(cls):
                 self.send_ok(data=data.tolist(), errors=errors)
             except Exception as e:
                 self.send_json(status='fail', reason=str(e))
-                raise(e)
+                raise (e)
+
+        def cmd_corner_detection(self, message):
+            message = message.split(' ')
+            camera_pitch = int(message[0])
+            with_pitch = camera_pitch != 0
+            file_length = int(message[1])
+            version = message[2]
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                orig_img = img_cv.copy()
+                corners = find_corners(img_cv, 2000, min_distance=30, quality_level=0.007, draw=True)
+                logger.info('len corners', len(corners))
+                x_grid, y_grid = get_grid(version)
+                grid_map, has_duplicate_points = find_grid(
+                    img_cv, corners, 0, x_grid, y_grid, draw=True, with_pitch=with_pitch
+                )
+                # cv2.imwrite('corner_detection.png', img_cv)
+                if has_duplicate_points:
+                    self.send_json(status='fail', reason='Duplicate points found')
+                    _, array_buffer = cv2.imencode('.jpg', img_cv)
+                    img_bytes = array_buffer.tobytes()
+                    self.send_binary(img_bytes)
+                    return
+                objp = np.zeros((len(x_grid) * len(y_grid), 1, 3), np.float64)
+                for i in range(len(y_grid)):
+                    for j in range(len(x_grid)):
+                        objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], 0]
+                imgpoints = [np.array(grid_map).reshape(-1, 1, 2).astype(np.float64) + np.array([L_PAD, T_PAD])]
+                objpoints = [objp]
+
+                remap = pad_image(orig_img)
+                ret, k, d, rvec, tvec, _ = calibrate_fisheye(objpoints, imgpoints, remap.shape[:2][::-1])
+                logger.info('Successfully Calibrated: {}, K: {}, D: {}'.format(ret, k, d))
+                remap = get_remap_img(remap, k, d)
+                grid_map = remap_corners(imgpoints[0], k, d).reshape(-1, 2)
+                grid_map = grid_map.reshape(len(y_grid), len(x_grid), 2)
+                for i in range(len(y_grid)):
+                    for j in range(len(x_grid)):
+                        p = grid_map[i][j].astype(int)
+                        cv2.circle(remap, p, 0, (0, 0, 255), -1)
+                        cv2.circle(remap, p, 3, (0, 0, 255), 1)
+                        if i > 0:
+                            cv2.line(remap, p, grid_map[i - 1][j].astype(int), (0, 0, 255))
+                        if j > 0:
+                            cv2.line(remap, p, grid_map[i - 1][j].astype(int), (0, 0, 255))
+                remap = apply_points(remap, grid_map, x_grid, y_grid)
+                _, array_buffer = cv2.imencode('.jpg', remap)
+                img_bytes = array_buffer.tobytes()
+                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), points=grid_map.tolist(), status='ok')
+                self.send_binary(img_bytes)
+
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
 
     def calc_picture_shape(img):
         PI = np.pi
@@ -188,7 +266,7 @@ def camera_calibration_api_mixin(cls):
 
             if lines is None:
                 return None
-            elif lines is 'Fail':
+            elif lines == 'Fail':
                 return 'Fail'
 
             angle = _get_angle(lines)
@@ -209,13 +287,7 @@ def camera_calibration_api_mixin(cls):
             #     cv2.line(output_img,(x1,y1),(x2,y2),255,1)
 
             # cv2.imwrite('houghlines.jpg',output_img)
-            ret = {
-                'x': x,
-                'y': y,
-                'angle': angle,
-                'width': float(width),
-                'height': float(height)
-            }
+            ret = {'x': x, 'y': y, 'angle': angle, 'width': float(width), 'height': float(height)}
 
             return ret
 
@@ -223,12 +295,14 @@ def camera_calibration_api_mixin(cls):
         # return four lines, each contains [rho, theta]. see HoughLine to know what is rho and theta
         def _find_four_main_lines(img):
             img_blur = cv2.medianBlur(img, 5)
-            img_threshold = 255 - cv2.adaptiveThreshold(img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+            img_threshold = 255 - cv2.adaptiveThreshold(
+                img_blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
+            )
 
             # another technique to find edge
             # img_edge = cv2.Canny(img, 50, 150, apertureSize = 3)
 
-            image_to_use = img_threshold #img_edge
+            image_to_use = img_threshold  # img_edge
             raw_lines = cv2.HoughLines(image_to_use, 1, radians(1), 100)
 
             if raw_lines is None:
@@ -236,14 +310,14 @@ def camera_calibration_api_mixin(cls):
             elif np.isnan(raw_lines).tolist().count([True, True]) > 0:
                 return 'Fail'
 
-            #make lines = [ [rho, theta], ... ]
-            lines = [ x[0] for x in raw_lines ]
+            # make lines = [ [rho, theta], ... ]
+            lines = [x[0] for x in raw_lines]
             # make (rho >= 0), and (-PI < theta < PI)
-            lines = [ [x[0], x[1]] if (x[0] >= 0) else [-x[0], x[1]-PI] for x in lines ]
+            lines = [[x[0], x[1]] if (x[0] >= 0) else [-x[0], x[1] - PI] for x in lines]
 
             # group lines
             deviation = radians(15)
-            h_lines = [x for x in lines if (abs(x[1] - PI/2) < deviation)]
+            h_lines = [x for x in lines if (abs(x[1] - PI / 2) < deviation)]
             v_lines = [x for x in lines if (abs(x[1] - 0) < deviation)]
 
             # np.mean() is average()
@@ -256,21 +330,18 @@ def camera_calibration_api_mixin(cls):
             lines_bottom = [x for x in h_lines if (x[0] > h_average_rho)]
             lines_left = [x for x in v_lines if (x[0] < v_average_rho)]
             lines_right = [x for x in v_lines if (x[0] > v_average_rho)]
+
             def mean_line(line):
                 rho = np.mean([x[0] for x in line])
                 theta = np.mean([x[1] for x in line])
                 return [rho, theta]
-            return [
-                mean_line(lines_top),
-                mean_line(lines_bottom),
-                mean_line(lines_left),
-                mean_line(lines_right)
-            ]
+
+            return [mean_line(lines_top), mean_line(lines_bottom), mean_line(lines_left), mean_line(lines_right)]
 
         # return angle in radian
         def _get_angle(lines):
             [top, bottom, left, right] = lines
-            average_angle = (left[1] + right[1] + (top[1] - PI/2) + (bottom[1] - PI/2))/4
+            average_angle = (left[1] + right[1] + (top[1] - PI / 2) + (bottom[1] - PI / 2)) / 4
             return average_angle
 
         # return size in pixel
@@ -288,9 +359,9 @@ def camera_calibration_api_mixin(cls):
             def get_intersection(line1, line2):
                 r, a = line1
                 s, b = line2
-                t = (r*cos(a-b) - s)/sin(a-b)
-                x = r*cos(a) - t*sin(a)
-                y = r*sin(a) + t*cos(a)
+                t = (r * cos(a - b) - s) / sin(a - b)
+                x = r * cos(a) - t * sin(a)
+                y = r * sin(a) + t * cos(a)
                 return [x, y]
 
             i1 = get_intersection(top, left)
@@ -298,8 +369,8 @@ def camera_calibration_api_mixin(cls):
             i3 = get_intersection(bottom, left)
             i4 = get_intersection(bottom, right)
 
-            center_x = np.mean([ii[0] for ii in [i1, i2, i3, i4] ])
-            center_y = np.mean([ii[1] for ii in [i1, i2, i3, i4] ])
+            center_x = np.mean([ii[0] for ii in [i1, i2, i3, i4]])
+            center_y = np.mean([ii[1] for ii in [i1, i2, i3, i4]])
 
             return (center_x, center_y)
 

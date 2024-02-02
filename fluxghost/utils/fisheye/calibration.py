@@ -130,4 +130,9 @@ def get_remap_img(img, k, d):
     h, w = img.shape[:2]
     mapx, mapy = cv2.fisheye.initUndistortRectifyMap(k, d, np.eye(3), k, (w, h), cv2.CV_32FC1)
     img = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
+    # img = cv2.fisheye.undistortImage(img, k, d, np.eye(3), k)
     return img
+
+def remap_corners(corners, k, d):
+    res = cv2.fisheye.undistortPoints(corners, k, d, np.eye(3), k)
+    return res
