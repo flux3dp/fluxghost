@@ -6,6 +6,7 @@ from time import time
 import cv2
 import numpy as np
 from PIL import Image
+from scipy import spatial
 
 
 from fluxghost.utils.fisheye.calibration import (
@@ -18,7 +19,10 @@ from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.general import pad_image, L_PAD, T_PAD
 from fluxghost.utils.fisheye.perspective import get_perspective_points
 from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
-from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid, get_grid
+from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid
+from fluxghost.utils.fisheye.corner_detection.calculate_camera_position import calculate_camera_position
+from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_point_indices
+from fluxghost.utils.fisheye.corner_detection.estimate_point import estimate_point
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -53,9 +57,11 @@ def camera_calibration_api_mixin(cls):
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 'cal_regression_param': [self.cmd_calculate_regression_param],
                 'corner_detection': [self.cmd_corner_detection],
+                'calculate_camera_position': [self.cmd_calculate_camera_position],
                 'interrupt': [self.cmd_interrupt],
             }
             self.init_fisheye_params()
+            self.init_calibration_v2_params()
 
         def init_fisheye_params(self):
             self.fisheye_calibrate_heights = []
@@ -63,6 +69,9 @@ def camera_calibration_api_mixin(cls):
             self.k = None
             self.d = None
             self.interrupted = False
+
+        def init_calibration_v2_params(self):
+            self.calibration_v2_params = {}
 
         def cmd_interrupt(self, message):
             self.interrupted = True
@@ -199,12 +208,13 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', reason=str(e))
                 raise (e)
 
+        # Step 1 for fishey calibration v2: find corners and grid, calculate k, d, rvec, tvec
         def cmd_corner_detection(self, message):
             message = message.split(' ')
             camera_pitch = int(message[0])
             with_pitch = camera_pitch != 0
             file_length = int(message[1])
-            version = message[2]
+            version = int(message[2])
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
@@ -212,7 +222,7 @@ def camera_calibration_api_mixin(cls):
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 orig_img = img_cv.copy()
                 corners = find_corners(img_cv, 2000, min_distance=30, quality_level=0.007, draw=True)
-                logger.info('len corners', len(corners))
+                logger.info('len corners: {}'.format(len(corners)))
                 x_grid, y_grid = get_grid(version)
                 grid_map, has_duplicate_points = find_grid(
                     img_cv, corners, 0, x_grid, y_grid, draw=True, with_pitch=with_pitch
@@ -245,13 +255,71 @@ def camera_calibration_api_mixin(cls):
                         if i > 0:
                             cv2.line(remap, p, grid_map[i - 1][j].astype(int), (0, 0, 255))
                         if j > 0:
-                            cv2.line(remap, p, grid_map[i - 1][j].astype(int), (0, 0, 255))
+                            cv2.line(remap, p, grid_map[i][j - 1].astype(int), (0, 0, 255))
                 remap = apply_points(remap, grid_map, x_grid, y_grid)
+                self.calibration_v2_params['k'] = k
+                self.calibration_v2_params['d'] = d
+                self.calibration_v2_params['rvec'] = rvec
+                self.calibration_v2_params['tvec'] = tvec
+                self.calibration_v2_params['points'] = grid_map
+                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), points=grid_map.tolist(), status='ok')
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
-                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), points=grid_map.tolist(), status='ok')
                 self.send_binary(img_bytes)
 
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        # Step 2 for fishey calibration v2: calculate elevated img and get camera position
+        def cmd_calculate_camera_position(self, message):
+            if self.calibration_v2_params.get('k', None) is None:
+                self.send_json(status='fail', reason='Corner not detected first')
+            k = self.calibration_v2_params['k']
+            d = self.calibration_v2_params['d']
+            points = self.calibration_v2_params['points']
+            rvec = self.calibration_v2_params['rvec']
+            message = message.split(' ')
+            camera_pitch = int(message[0])
+            with_pitch = camera_pitch != 0
+            dh = round(float(message[1]), 2)
+            file_length = int(message[2])
+            version = int(message[3])
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                ref_point_indices = get_ref_point_indices(version)
+                ref_points = [points[i][j] for i, j in ref_point_indices]
+                remap = pad_image(img_cv)
+                remap = get_remap_img(remap, k, d)
+                corners = find_corners(remap, 200, min_distance=30, quality_level=0.05, draw=False)
+                corner_tree = spatial.KDTree(corners)
+                reg_data = []
+                for p in ref_points:
+                    new_point = estimate_point(p, dh)
+                    cv2.circle(remap, new_point.astype(int), 0, (0, 255, 255), -1)
+                    cv2.circle(remap, new_point.astype(int), 3, (0, 255, 255), 1)
+                    _, index = corner_tree.query(new_point)
+                    point = corners[index]
+                    found = (int(point[0]), int(point[1]))
+                    cv2.circle(remap, found, 0, (0, 0, 255), -1)
+                    cv2.circle(remap, found, 5, (0, 0, 255), 1)
+                    reg_data.append((dh, found, 0, p))
+                min_x = min([p[1][0] for p in reg_data])
+                max_x = max([p[1][0] for p in reg_data])
+                min_y = min([p[1][1] for p in reg_data])
+                max_y = max([p[1][1] for p in reg_data])
+                remap = remap[min_y - 100:max_y + 100, min_x - 100:max_x + 100]
+                rotation_matrix = cv2.Rodrigues(rvec)[0]
+                x_center, y_center, h_x, h_y, s_x, s_y = calculate_camera_position(reg_data, rotation_matrix)
+                logger.info('x_center, y_center, h_x, h_y, s_x, s_y: %s %s %s %s %s %s', x_center, y_center, h_x, h_y, s_x, s_y)
+                self.send_ok(center=[x_center, y_center], h=[h_x, h_y], s=[s_x, s_y])
+                cv2.imwrite('elevated_img.png', remap)
+                _, array_buffer = cv2.imencode('.jpg', remap)
+                img_bytes = array_buffer.tobytes()
+                self.send_binary(img_bytes)
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')

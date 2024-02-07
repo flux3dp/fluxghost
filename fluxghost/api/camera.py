@@ -8,9 +8,14 @@ from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
-from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
+from fluxghost.utils.fisheye.calibration import get_remap_img
 from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
+from fluxghost.utils.fisheye.corner_detection import apply_points
+from fluxghost.utils.fisheye.corner_detection.constants import get_grid
+from fluxghost.utils.fisheye.corner_detection.estimate_point import estimate_point
+from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
+from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 from .camera_calibration import crop_transformed_img
 from .control_base import control_base_mixin
@@ -70,18 +75,61 @@ def camera_api_mixin(cls):
                 elif cmd == 'set_3d_rotation':
                     data = msgs[1]
                     self.set_3d_rotation(data)
+                elif cmd == 'set_fisheye_height':
+                    height = float(msgs[1])
+                    self.set_fisheye_height(height)
 
         def set_fisheye_matrix(self, data):
             data = json.loads(data)
-            perspective_points = data['points']
+            version = data.get('v', 1)
+            if version == 2:
+                rvec = np.array(data['rvec'])
+                print(rvec)
+                rotation_matrix = cv2.Rodrigues(rvec)[0]
+                x_grid, y_grid = get_grid(version)
+                self.fisheye_param = {
+                    'v': version,
+                    'k': np.array(data['k']),
+                    'd': np.array(data['d']),
+                    'ref_height': data['refHeight'],
+                    'points': np.array(data['points']),
+                    'cam_height': data['camHeight'],
+                    'image_center': data['imageCenter'],
+                    'image_scale': data['imageScale'],
+                    'rotation_matrix': rotation_matrix,
+                    'x_grid': x_grid,
+                    'y_grid': y_grid,
+                }
+            else:
+                perspective_points = data['points']
+                self.fisheye_param = {
+                    'k': np.array(data['k']),
+                    'd': np.array(data['d']),
+                    'perspective_points': np.array(perspective_points),
+                }
+                if self.camera_3d_rotation:
+                    self.apply_3d_rotaion_to_perspective_points()
+            self.send_ok()
 
-            self.fisheye_param = {
-                'k': np.array(data['k']),
-                'd': np.array(data['d']),
-                'perspective_points': np.array(perspective_points),
-            }
-            if self.camera_3d_rotation:
-                self.apply_3d_rotaion_to_perspective_points()
+        def set_fisheye_height(self, h):
+            if not self.fisheye_param or self.fisheye_param.get('v', 1) != 2:
+                raise Exception('Version Mismatch')
+            points = self.fisheye_param['points']
+            dh = h - self.fisheye_param['ref_height']
+            perspective_points = points.copy()
+            w, h, _ = perspective_points.shape
+            rotation_matrix = self.fisheye_param['rotation_matrix']
+            x_center, y_center = self.fisheye_param['image_center']
+            h_x, h_y = self.fisheye_param['cam_height']
+            s_x, s_y = self.fisheye_param['image_scale']
+            for i in range(w):
+                for j in range(h):
+                    p = perspective_points[i][j]
+                    print(p)
+                    p = estimate_point(p, dh, rotation_matrix, x_center, y_center, h_x, h_y, s_x, s_y)
+                    print(p)
+                    perspective_points[i][j] = p
+            self.fisheye_param['perspective_points'] = perspective_points
             self.send_ok()
 
         def set_crop_param(self, data):
@@ -124,31 +172,47 @@ def camera_api_mixin(cls):
                 except Exception:
                     self.send_binary(image)
                     return
-                perspective_points = self.rotated_perspective_points if self.rotated_perspective_points is not None else self.fisheye_param['perspective_points']
-                img = apply_perspective_points_transform(
-                    open_cv_img,
-                    self.fisheye_param['k'],
-                    self.fisheye_param['d'],
-                    PERSPECTIVE_SPLIT,
-                    CHESSBORAD,
-                    perspective_points,
-                )
-                if self.crop_param is not None:
-                    cx = self.crop_param['cx']
-                    cy = self.crop_param['cy']
-                    if self.camera_3d_rotation is not None:
-                        cx += self.camera_3d_rotation['tx']
-                        cy += self.camera_3d_rotation['ty']
-                    img = crop_transformed_img(
-                        img,
-                        cx,
-                        cy,
-                        width=self.crop_param['width'],
-                        height=self.crop_param['height'],
-                        top=self.crop_param['top'],
-                        left=self.crop_param['left'],
+                version = self.fisheye_param.get('v', 1)
+                if version == 1:
+                    perspective_points = (
+                        self.rotated_perspective_points
+                        if self.rotated_perspective_points is not None
+                        else self.fisheye_param['perspective_points']
                     )
-                _, array_buffer = cv2.imencode('.png', img)
+                    img = apply_perspective_points_transform(
+                        open_cv_img,
+                        self.fisheye_param['k'],
+                        self.fisheye_param['d'],
+                        PERSPECTIVE_SPLIT,
+                        CHESSBORAD,
+                        perspective_points,
+                    )
+                    if self.crop_param is not None:
+                        cx = self.crop_param['cx']
+                        cy = self.crop_param['cy']
+                        if self.camera_3d_rotation is not None:
+                            cx += self.camera_3d_rotation['tx']
+                            cy += self.camera_3d_rotation['ty']
+                        img = crop_transformed_img(
+                            img,
+                            cx,
+                            cy,
+                            width=self.crop_param['width'],
+                            height=self.crop_param['height'],
+                            top=self.crop_param['top'],
+                            left=self.crop_param['left'],
+                        )
+                elif version == 2:
+                    k = self.fisheye_param['k']
+                    d = self.fisheye_param['d']
+                    x_grid = self.fisheye_param['x_grid']
+                    y_grid = self.fisheye_param['y_grid']
+                    img = pad_image(open_cv_img)
+                    img = get_remap_img(img, k, d)
+                    padding = 100
+                    img = apply_points(img, self.fisheye_param['perspective_points'], x_grid, y_grid, padding=padding)
+                    img = img[padding:, padding:]
+                _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
             else:
