@@ -125,9 +125,7 @@ def camera_api_mixin(cls):
             for i in range(w):
                 for j in range(h):
                     p = perspective_points[i][j]
-                    print(p)
                     p = estimate_point(p, dh, rotation_matrix, x_center, y_center, h_x, h_y, s_x, s_y)
-                    print(p)
                     perspective_points[i][j] = p
             self.fisheye_param['perspective_points'] = perspective_points
             self.send_ok()
