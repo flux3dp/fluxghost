@@ -9,7 +9,7 @@ def get_origin_point_pitch_20(h, remapped=False):
     raise NotImplementedError
 
 # Guessing origin point for images
-@functools.lru_cache
+@functools.lru_cache(maxsize=20)
 def get_origin(h, remapped=False, with_pitch=False):
     if with_pitch:
         return get_origin_point_pitch_20(h, remapped)
@@ -28,7 +28,7 @@ def get_pixel_ratio_pitch_20(h, x, y, remapped=False):
     raise NotImplementedError
 
 # Guessing pixel ration for images
-@functools.lru_cache
+@functools.lru_cache(maxsize=20)
 def get_pixel_ratio(h, x, y, remapped=False, with_pitch=False):
     if with_pitch:
         return get_pixel_ratio_pitch_20(h, x, y, remapped)
