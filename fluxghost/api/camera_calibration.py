@@ -316,7 +316,7 @@ def camera_calibration_api_mixin(cls):
                 x_center, y_center, h_x, h_y, s_x, s_y = calculate_camera_position(reg_data, rotation_matrix)
                 logger.info('x_center, y_center, h_x, h_y, s_x, s_y: %s %s %s %s %s %s', x_center, y_center, h_x, h_y, s_x, s_y)
                 self.send_ok(center=[x_center, y_center], h=[h_x, h_y], s=[s_x, s_y])
-                cv2.imwrite('elevated_img.png', remap)
+                # cv2.imwrite('elevated_img.png', remap)
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
