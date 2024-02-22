@@ -249,7 +249,7 @@ def camera_calibration_api_mixin(cls):
                 grid_map = grid_map.reshape(len(y_grid), len(x_grid), 2)
                 for i in range(len(y_grid)):
                     for j in range(len(x_grid)):
-                        p = grid_map[i][j].astype(int)
+                        p = tuple(grid_map[i][j].astype(int))
                         cv2.circle(remap, p, 0, (0, 0, 255), -1)
                         cv2.circle(remap, p, 3, (0, 0, 255), 1)
                         if i > 0:
@@ -298,7 +298,7 @@ def camera_calibration_api_mixin(cls):
                 corner_tree = spatial.KDTree(corners)
                 reg_data = []
                 for p in ref_points:
-                    new_point = estimate_point(p, dh)
+                    new_point = tuple(estimate_point(p, dh))
                     cv2.circle(remap, new_point.astype(int), 0, (0, 255, 255), -1)
                     cv2.circle(remap, new_point.astype(int), 3, (0, 255, 255), 1)
                     _, index = corner_tree.query(new_point)
