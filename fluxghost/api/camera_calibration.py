@@ -249,13 +249,13 @@ def camera_calibration_api_mixin(cls):
                 grid_map = grid_map.reshape(len(y_grid), len(x_grid), 2)
                 for i in range(len(y_grid)):
                     for j in range(len(x_grid)):
-                        p = grid_map[i][j].astype(int)
+                        p = tuple(grid_map[i][j].astype(int))
                         cv2.circle(remap, p, 0, (0, 0, 255), -1)
                         cv2.circle(remap, p, 3, (0, 0, 255), 1)
                         if i > 0:
-                            cv2.line(remap, p, grid_map[i - 1][j].astype(int), (0, 0, 255))
+                            cv2.line(remap, p, tuple(grid_map[i - 1][j].astype(int)), (0, 0, 255))
                         if j > 0:
-                            cv2.line(remap, p, grid_map[i][j - 1].astype(int), (0, 0, 255))
+                            cv2.line(remap, p, tuple(grid_map[i][j - 1].astype(int)), (0, 0, 255))
                 remap = apply_points(remap, grid_map, x_grid, y_grid)
                 self.calibration_v2_params['k'] = k
                 self.calibration_v2_params['d'] = d
@@ -299,8 +299,8 @@ def camera_calibration_api_mixin(cls):
                 reg_data = []
                 for p in ref_points:
                     new_point = estimate_point(p, dh)
-                    cv2.circle(remap, new_point.astype(int), 0, (0, 255, 255), -1)
-                    cv2.circle(remap, new_point.astype(int), 3, (0, 255, 255), 1)
+                    cv2.circle(remap, tuple(new_point.astype(int)), 0, (0, 255, 255), -1)
+                    cv2.circle(remap, tuple(new_point.astype(int)), 3, (0, 255, 255), 1)
                     _, index = corner_tree.query(new_point)
                     point = corners[index]
                     found = (int(point[0]), int(point[1]))
@@ -316,7 +316,7 @@ def camera_calibration_api_mixin(cls):
                 x_center, y_center, h_x, h_y, s_x, s_y = calculate_camera_position(reg_data, rotation_matrix)
                 logger.info('x_center, y_center, h_x, h_y, s_x, s_y: %s %s %s %s %s %s', x_center, y_center, h_x, h_y, s_x, s_y)
                 self.send_ok(center=[x_center, y_center], h=[h_x, h_y], s=[s_x, s_y])
-                cv2.imwrite('elevated_img.png', remap)
+                # cv2.imwrite('elevated_img.png', remap)
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
