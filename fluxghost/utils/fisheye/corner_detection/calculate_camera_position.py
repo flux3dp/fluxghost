@@ -1,6 +1,7 @@
 import numpy as np
 
 from .constants import S
+from ..utils import linear_regression
 
 def calculate_camera_position(data, rotation_matrix=np.eye(3)):
     Ax = []
@@ -22,16 +23,10 @@ def calculate_camera_position(data, rotation_matrix=np.eye(3)):
     Bx = np.array(Bx)
     Ay = np.array(Ay)
     By = np.array(By)
-    X = np.linalg.inv(Ax.T.dot(Ax)).dot(Ax.T).dot(Bx)
-    Y = np.linalg.inv(Ay.T.dot(Ay)).dot(Ay.T).dot(By)
-    sst = np.sum((Bx - np.mean(Bx)) ** 2)
-    sse = np.sum((Bx - Ax.dot(X)) ** 2)
-    r2 = 1 - sse / sst
-    print('r2x', r2)
-    sst = np.sum((By - np.mean(By)) ** 2)
-    sse = np.sum((By - Ay.dot(Y)) ** 2)
-    r2 = 1 - sse / sst
-    print('r2y', r2)
+    X, r2x, _ = linear_regression(Ax, Bx)
+    Y, r2y, _ = linear_regression(Ay, By)
+    # print('r2x', r2x)
+    # print('r2y', r2y)
     x_center, h_x, s_x = X[0][0], X[1][0], S
     y_center, h_y, s_y = Y[0][0], Y[1][0], S
     return x_center, y_center, h_x, h_y, s_x, s_y

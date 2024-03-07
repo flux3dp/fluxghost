@@ -8,7 +8,9 @@ def get_grid(version):
 
 def get_ref_point_indices(version):
     if version == 2:
-        return (5, 7), (5, 10), (9, 7), (9, 10), (6, 8), (6, 9), (8, 8), (8, 9)
+        ref_x_indices = [7, 8, 9, 10]
+        ref_y_indices = [0, 3, 4, 5 ,6, 7, 8, 9, 10, 11]
+        return ref_x_indices, ref_y_indices
     raise ValueError('Invalid version')
 
 # init parameters for pitch 0
