@@ -1,9 +1,9 @@
 import numpy as np
 
-from .constants import S
+from .constants import S, H
 from ..utils import linear_regression
 
-def calculate_camera_position(data, rotation_matrix=np.eye(3)):
+def calculate_camera_position(data, rotation_matrix=np.eye(3), fix_hy=False):
     Ax = []
     Bx = []
     Ay = []
@@ -17,8 +17,12 @@ def calculate_camera_position(data, rotation_matrix=np.eye(3)):
         dy = position[1] - ref_y
         Ax.append([dz_h, dx - S * dx_h])
         Bx.append([ref_x * dz_h + dx * dz_h])
-        Ay.append([dz_h, dy - S * dy_h])
-        By.append([ref_y * dz_h + dy * dz_h])
+        if fix_hy:
+            Ay.append([dz_h])
+            By.append([ref_y * dz_h + dy * dz_h - H * (dy - S * dy_h)])
+        else:
+            Ay.append([dz_h, dy - S * dy_h])
+            By.append([ref_y * dz_h + dy * dz_h])
     Ax = np.array(Ax)
     Bx = np.array(Bx)
     Ay = np.array(Ay)
@@ -28,5 +32,5 @@ def calculate_camera_position(data, rotation_matrix=np.eye(3)):
     # print('r2x', r2x)
     # print('r2y', r2y)
     x_center, h_x, s_x = X[0][0], X[1][0], S
-    y_center, h_y, s_y = Y[0][0], Y[1][0], S
+    y_center, h_y, s_y = Y[0][0], Y[1][0] if not fix_hy else H, S
     return x_center, y_center, h_x, h_y, s_x, s_y
