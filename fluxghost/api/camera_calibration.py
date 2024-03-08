@@ -226,7 +226,7 @@ def camera_calibration_api_mixin(cls):
                 logger.info('len corners: {}'.format(len(corners)))
                 x_grid, y_grid = get_grid(version)
                 grid_map, has_duplicate_points = find_grid(
-                    img_cv, corners, 0, x_grid, y_grid, draw=True, with_pitch=with_pitch
+                    img_cv, corners, x_grid, y_grid, draw=True, with_pitch=with_pitch
                 )
                 # cv2.imwrite('corner_detection.png', img_cv)
                 if has_duplicate_points:

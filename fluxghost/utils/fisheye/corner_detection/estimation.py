@@ -1,24 +1,24 @@
 import functools
 
 
-def get_origin_p0(h, remapped=False):
+def get_origin_p0():
     return 590, 550  # h = 0
 
 
-def get_origin_point_pitch_20(h, remapped=False):
+def get_origin_point_pitch_20():
     return 850, 330
 
 
 # Guessing origin point for images
 @functools.lru_cache(maxsize=20)
-def get_origin(h, remapped=False, with_pitch=False):
+def get_origin(with_pitch=False):
     if with_pitch:
-        return get_origin_point_pitch_20(h, remapped)
+        return get_origin_point_pitch_20()
     else:
-        return get_origin_p0(h, remapped)
+        return get_origin_p0()
 
 
-def get_pixel_ratio_p0(h, x, y, remapped=False):
+def get_pixel_ratio_p0(x, y):
     # data from h = 0
     x_ratio = (215 - x) / 215
     xr = -1.8 * abs(x_ratio) + 6
@@ -26,7 +26,7 @@ def get_pixel_ratio_p0(h, x, y, remapped=False):
     return xr, 4.8, 0, xyr
 
 
-def get_pixel_ratio_pitch_20(h, x, y, remapped=False):
+def get_pixel_ratio_pitch_20(x, y):
     x_ratio = ((215 - x) / 215)
     abs_x_ratio = abs(x_ratio)
     y_ratio = y / 300
@@ -38,8 +38,8 @@ def get_pixel_ratio_pitch_20(h, x, y, remapped=False):
 
 # Guessing pixel ration for images
 @functools.lru_cache(maxsize=20)
-def get_pixel_ratio(h, x, y, remapped=False, with_pitch=False):
+def get_pixel_ratio(x, y, with_pitch=False):
     if with_pitch:
-        return get_pixel_ratio_pitch_20(h, x, y, remapped)
+        return get_pixel_ratio_pitch_20(x, y)
     else:
-        return get_pixel_ratio_p0(h, x, y, remapped)
+        return get_pixel_ratio_p0(x, y)

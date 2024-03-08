@@ -12,10 +12,8 @@ logger = logging.getLogger('utils.fisheye.corner_detection.find_grid')
 def find_grid(
     img,
     corners,
-    height,
     x_grid: List[int],
     y_grid: List[int],
-    remapped=False,
     with_pitch=False,
     draw=False,
     origin_k=25,
@@ -35,13 +33,7 @@ def find_grid(
         point = corners[indices[0]]
         return (int(point[0]), int(point[1])), dists[0]
 
-    grids = []
-    for j in y_grid:
-        grids.append([])
-        for i in x_grid:
-            grids[-1].append((i, j))
-
-    x0, y0 = get_origin(height, remapped, with_pitch=with_pitch)
+    x0, y0 = get_origin(with_pitch=with_pitch)
     _, indices = corner_tree.query([x0, y0], k=origin_k)
     res = None
     for index in indices:
@@ -60,19 +52,19 @@ def find_grid(
 
         for j in range(len(y_grid)):
             for i in range(len(x_grid)):
-                xr, yr, yxr, xyr = get_pixel_ratio(height, x_grid[i], y_grid[j], remapped, with_pitch)
+                xr, yr, yxr, xyr = get_pixel_ratio(x_grid[i], y_grid[j], with_pitch)
                 if i == 0:
                     if j == 0:
                         continue
                     elif grid_points[j - 1][i] is not None:
-                        dist = grids[j][i][1] - grids[j - 1][i][1]
+                        dist = y_grid[j] - y_grid[j - 1]
                         desire_point = grid_points[j - 1][i][0] + dist * yxr, grid_points[j - 1][i][1] + dist * yr
                         new_point, d = findPoint(desire_point, used_points)
                         if d > large_dist_threshold:
                             large_dist_points.add((i, j))
                         total_err += d
                 elif grid_points[j][i - 1] is not None:
-                    dist = grids[j][i][0] - grids[j][i - 1][0]
+                    dist = x_grid[i] - x_grid[i - 1]
                     desire_point = grid_points[j][i - 1][0] + dist * xr, grid_points[j][i - 1][1] + dist * xyr
                     new_point, d = findPoint(desire_point, used_points)
                     if d > large_dist_threshold:
