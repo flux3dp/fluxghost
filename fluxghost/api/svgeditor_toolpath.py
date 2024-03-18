@@ -3,7 +3,6 @@ import io
 import json
 import logging
 import math
-import sys
 import threading
 import urllib.parse
 import traceback
@@ -28,10 +27,8 @@ logger = logging.getLogger("API.SVGEDITOR")
 def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
         def __init__(self, *args):
-            self.max_engraving_strength = 1.0
             self.pixel_per_mm = 10
             self.svg_image = None
-            self.hardware_name = "beambox"
             self.loop_compensation = 0.0
             self.is_task_interrupted = False
             super().__init__(*args)
@@ -50,11 +47,7 @@ def laser_svgeditor_api_mixin(cls):
             key, value = params.split()
             logger.info('setting parameter %r  = %r', key, value)
             if not self.set_param(key, value):
-                if key == 'laser_speed':
-                    self.working_speed = float(value) * 60  # mm/s -> mm/min
-                elif key == 'power':
-                    self.max_engraving_strength = min(1, float(value))
-                elif key == 'loop_compensation':
+                if key == 'loop_compensation':
                     self.loop_compensation = max(0, float(value))
                 elif key in ('shading', 'one_way', 'calibration'):
                     pass
@@ -131,6 +124,11 @@ def laser_svgeditor_api_mixin(cls):
 
 
         def cmd_svgeditor_upload(self, params):
+            svgeditor_image_params = {
+                'loop_compensation': self.loop_compensation,
+                'hardware': 'beambox',
+                'rotary_enabled': False,
+            }
 
             def progress_callback(prog):
                 self.send_progress("Analyzing SVG - " + str(round(prog * 100, 2)) + "%", prog)
@@ -139,10 +137,9 @@ def laser_svgeditor_api_mixin(cls):
                 thumbnail = buf[:thumbnail_length]
                 svg_data = buf[thumbnail_length:]
                 svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm,
-                                            hardware=self.hardware_name,
-                                            loop_compensation=self.loop_compensation,
                                             progress_callback=progress_callback,
-                                            check_interrupted=self.check_interrupted)
+                                            check_interrupted=self.check_interrupted,
+                                            **svgeditor_image_params)
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
@@ -169,17 +166,16 @@ def laser_svgeditor_api_mixin(cls):
             file_length = params[1]
             thumbnail_length = params[2]
             self.factory_kwargs = {}
-            self.hardware_name = 'beambox'
 
             for i, param in enumerate(params):
                 if param == '-bb2' or param == '-hexa':
-                    self.hardware_name = 'hexa'
+                    svgeditor_image_params['hardware'] = 'hexa'
                 elif param == '-pro':
-                    self.hardware_name = 'beambox-pro'
+                    svgeditor_image_params['hardware'] = 'beambox-pro'
                 elif param == '-beamo':
-                    self.hardware_name = 'beamo'
+                    svgeditor_image_params['hardware'] = 'beamo'
                 elif param == '-ado1':
-                    self.hardware_name = 'ador'
+                    svgeditor_image_params['hardware'] = 'ador'
                 elif param == '-ldpi':
                     self.pixel_per_mm = 5
                 elif param == '-mdpi':
@@ -197,6 +193,9 @@ def laser_svgeditor_api_mixin(cls):
                             self.factory_kwargs['pixel_per_mm_x'] = 20
                     except Exception:
                         pass
+                elif param == '-spin':
+                    svgeditor_image_params['rotary_enabled'] = True
+                    self.factory_kwargs['rotary_enabled'] = True
 
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
@@ -267,7 +266,6 @@ def laser_svgeditor_api_mixin(cls):
 
                     gcode2fcode(writer, self.gcode_string,
                                     travel_speed=default_travel_speed,
-                                    #engraving_strength=self.max_engraving_strength,
                                     progress_callback=progress_callback,
                                     check_interrupted=self.check_interrupted)
 
@@ -423,6 +421,11 @@ def laser_svgeditor_api_mixin(cls):
                     # module offset
                     value = json.loads(params[i+1])
                     svgeditor2taskcode_kwargs['module_offsets'] = value
+                elif param == '-ts':
+                    try:
+                        svgeditor2taskcode_kwargs['travel_speed'] = int(params[i+1])
+                    except Exception:
+                        pass
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
 
