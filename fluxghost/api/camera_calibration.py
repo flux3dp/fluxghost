@@ -257,7 +257,7 @@ def camera_calibration_api_mixin(cls):
                             cv2.line(remap, p, tuple(grid_map[i - 1][j].astype(int)), (0, 0, 255))
                         if j > 0:
                             cv2.line(remap, p, tuple(grid_map[i][j - 1].astype(int)), (0, 0, 255))
-                remap = apply_points(remap, grid_map, x_grid, y_grid)
+                remap = apply_points(remap, grid_map, x_grid, y_grid, padding=150)
                 self.calibration_v2_params['k'] = k
                 self.calibration_v2_params['d'] = d
                 self.calibration_v2_params['rvec'] = rvec
@@ -286,7 +286,6 @@ def camera_calibration_api_mixin(cls):
             dh = round(float(message[1]), 2)
             file_length = int(message[2])
             version = int(message[3])
-
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)

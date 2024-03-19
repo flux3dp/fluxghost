@@ -84,7 +84,6 @@ def camera_api_mixin(cls):
             version = data.get('v', 1)
             if version == 2:
                 rvec = np.array(data['rvec'])
-                print(rvec)
                 rotation_matrix = cv2.Rodrigues(rvec)[0]
                 x_grid, y_grid = get_grid(version)
                 self.fisheye_param = {
@@ -218,7 +217,7 @@ def camera_api_mixin(cls):
                     img = cv2.resize(img, (img.shape[1] * downsample, img.shape[0] * downsample))
                 else:
                     img = get_remap_img(img, k, d)
-                padding = 100
+                padding = 150
                 img = apply_points(img, self.fisheye_param['perspective_points'], x_grid, y_grid, padding=padding)
                 img = img[padding:, padding:]
             return img
