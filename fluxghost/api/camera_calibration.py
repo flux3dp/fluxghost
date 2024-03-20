@@ -263,7 +263,7 @@ def camera_calibration_api_mixin(cls):
                 self.calibration_v2_params['rvec'] = rvec
                 self.calibration_v2_params['tvec'] = tvec
                 self.calibration_v2_params['points'] = grid_map
-                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), points=grid_map.tolist(), status='ok')
+                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), points=grid_map.tolist(), status='ok')
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
