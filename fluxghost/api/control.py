@@ -418,17 +418,9 @@ def control_api_mixin(cls):
                     self.send_ok()
 
                 self.simple_binary_receiver(size, upload_callback)
-
-            elif mimetype == "application/fcode" or \
-                 mimetype == "application/fcode_collection" or \
-                 mimetype == "application/encrypted_fcode":
-                self.simple_binary_transfer(
-                    self.robot.transfer_upload_stream, mimetype, size,
-                    upload_to=upload_to, cb=self.send_ok)
-
             else:
-                self.send_text('{"status":"error", "error": "FCODE_ONLY"}')
-                return
+                self.simple_binary_transfer(self.robot.transfer_upload_stream, mimetype, size, upload_to=upload_to, cb=self.send_ok)
+            return
 
         def update_fw(self, mimetype, ssize):
             size = int(ssize)
