@@ -19,9 +19,10 @@ from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.general import pad_image, L_PAD, T_PAD
 from fluxghost.utils.fisheye.perspective import get_perspective_points
 from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
+from fluxghost.utils.fisheye.utils import linear_regression
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid
 from fluxghost.utils.fisheye.corner_detection.calculate_camera_position import calculate_camera_position
-from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_point_indices
+from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_point_indices, S
 from fluxghost.utils.fisheye.corner_detection.estimate_point import estimate_point
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
@@ -221,11 +222,11 @@ def camera_calibration_api_mixin(cls):
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 orig_img = img_cv.copy()
-                corners = find_corners(img_cv, 2000, min_distance=30, quality_level=0.007, draw=True)
+                corners = find_corners(img_cv, 2000, min_distance=15 if with_pitch else 20, quality_level=0.003, draw=True)
                 logger.info('len corners: {}'.format(len(corners)))
                 x_grid, y_grid = get_grid(version)
                 grid_map, has_duplicate_points = find_grid(
-                    img_cv, corners, 0, x_grid, y_grid, draw=True, with_pitch=with_pitch
+                    img_cv, corners, x_grid, y_grid, draw=True, with_pitch=with_pitch
                 )
                 # cv2.imwrite('corner_detection.png', img_cv)
                 if has_duplicate_points:
@@ -256,13 +257,13 @@ def camera_calibration_api_mixin(cls):
                             cv2.line(remap, p, tuple(grid_map[i - 1][j].astype(int)), (0, 0, 255))
                         if j > 0:
                             cv2.line(remap, p, tuple(grid_map[i][j - 1].astype(int)), (0, 0, 255))
-                remap = apply_points(remap, grid_map, x_grid, y_grid)
+                remap = apply_points(remap, grid_map, x_grid, y_grid, padding=150)
                 self.calibration_v2_params['k'] = k
                 self.calibration_v2_params['d'] = d
                 self.calibration_v2_params['rvec'] = rvec
                 self.calibration_v2_params['tvec'] = tvec
                 self.calibration_v2_params['points'] = grid_map
-                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), points=grid_map.tolist(), status='ok')
+                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), points=grid_map.tolist(), status='ok')
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
@@ -285,38 +286,68 @@ def camera_calibration_api_mixin(cls):
             dh = round(float(message[1]), 2)
             file_length = int(message[2])
             version = int(message[3])
-
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                ref_point_indices = get_ref_point_indices(version)
-                ref_points = [points[i][j] for i, j in ref_point_indices]
                 remap = pad_image(img_cv)
                 remap = get_remap_img(remap, k, d)
-                corners = find_corners(remap, 200, min_distance=30, quality_level=0.05, draw=False)
-                corner_tree = spatial.KDTree(corners)
-                reg_data = []
-                for p in ref_points:
-                    new_point = estimate_point(p, dh)
-                    cv2.circle(remap, tuple(new_point.astype(int)), 0, (0, 255, 255), -1)
-                    cv2.circle(remap, tuple(new_point.astype(int)), 3, (0, 255, 255), 1)
-                    _, index = corner_tree.query(new_point)
-                    point = corners[index]
-                    found = (int(point[0]), int(point[1]))
-                    cv2.circle(remap, found, 0, (0, 0, 255), -1)
-                    cv2.circle(remap, found, 5, (0, 0, 255), 1)
-                    reg_data.append((dh, found, 0, p))
-                min_x = min([p[1][0] for p in reg_data])
-                max_x = max([p[1][0] for p in reg_data])
-                min_y = min([p[1][1] for p in reg_data])
-                max_y = max([p[1][1] for p in reg_data])
-                remap = remap[min_y - 100:max_y + 100, min_x - 100:max_x + 100]
                 rotation_matrix = cv2.Rodrigues(rvec)[0]
-                x_center, y_center, h_x, h_y, s_x, s_y = calculate_camera_position(reg_data, rotation_matrix)
-                logger.info('x_center, y_center, h_x, h_y, s_x, s_y: %s %s %s %s %s %s', x_center, y_center, h_x, h_y, s_x, s_y)
-                self.send_ok(center=[x_center, y_center], h=[h_x, h_y], s=[s_x, s_y])
-                # cv2.imwrite('elevated_img.png', remap)
+                corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=True)
+                corner_tree = spatial.KDTree(corners)
+                _, y_grid = get_grid(version)
+                ref_x_indice, ref_y_indice = get_ref_point_indices(version)
+                reg_data = {}
+                for y in ref_y_indice:
+                    reg_data[y] = {}
+                    real_y = y_grid[y]
+                    y_ratio = real_y / 300
+                    y_center = 2500 + 500 * y_ratio
+                    for x in ref_x_indice:
+                        ref_point = points[y][x]
+                        cv2.circle(remap, tuple(ref_point.astype(int)), 0, (255, 255, 0), -1)
+                        cv2.circle(remap, tuple(ref_point.astype(int)), 3, (255, 255, 0), 1)
+                        if with_pitch:
+                            new_point = estimate_point(ref_point, dh, rotation_matrix=rotation_matrix, y_center=y_center)
+                        else:
+                            new_point = estimate_point(ref_point, dh, rotation_matrix=rotation_matrix)
+                        cv2.circle(remap, tuple(new_point.astype(int)), 0, (0, 255, 255), -1)
+                        cv2.circle(remap, tuple(new_point.astype(int)), 3, (0, 255, 255), 1)
+                        _, index = corner_tree.query(new_point)
+                        point = corners[index]
+                        found = (int(point[0]), int(point[1]))
+                        cv2.circle(remap, found, 0, (0, 0, 255), -1)
+                        cv2.circle(remap, found, 20, (0, 0, 255), 3)
+                        reg_data[y][x] = [(dh, found, 0, ref_point)]
+
+                Y, XC, YC, HX, HY = [], [], [], [], []
+                for i in range(len(ref_y_indice)):
+                    r = min(min(i, len(ref_y_indice) - 1 - i), 2)
+                    if i == 0:
+                        continue
+                    y = y_grid[ref_y_indice[i]]
+                    Y.append(y)
+                    data = []
+                    for j in range(-r, r + 1):
+                        ref_y = ref_y_indice[i + j]
+                        for x in ref_x_indice:
+                            data += reg_data[ref_y][x]
+                    x_center, y_center, h_x, h_y, _, _ = calculate_camera_position(data, rotation_matrix, fix_hy=with_pitch)
+                    XC.append(x_center)
+                    YC.append(y_center)
+                    HX.append(h_x)
+                    HY.append(h_y)
+                A = np.array([[1, y, y ** 2] for y in Y]).reshape(-1, 3)
+                XC, YC, HX, HY = np.array(XC), np.array(YC), np.array(HX), np.array(HY)
+                res_xcs, r2, std = linear_regression(A, XC)
+                logger.info('XC, r2: {}, std: {}'.format(r2, std))
+                res_ycs, r2, std = linear_regression(A, YC)
+                logger.info('YC, r2: {}, std: {}'.format(r2, std))
+                res_hxs, r2, std = linear_regression(A, HX)
+                logger.info('HX, r2: {}, std: {}'.format(r2, std))
+                res_hys, r2, std = linear_regression(A, HY)
+                logger.info('HY, r2: {}, std: {}'.format(r2, std))
+                self.send_ok(xc=res_xcs.tolist(), yc=res_ycs.tolist(), hx=res_hxs.tolist(), hy=res_hys.tolist(), s=[S, S])
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)

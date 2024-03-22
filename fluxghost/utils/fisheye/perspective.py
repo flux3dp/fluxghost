@@ -43,9 +43,20 @@ def get_perspective_points(img, k, d, split, chessboard):
     return np.array(table)
 
 
-def apply_perspective_points_transform(img, k, d, split, chessboard, points):
+def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1):
+    s = time.time()
     img = pad_image(img)
-    img = get_remap_img(img, k, d)
+    if downsample > 1:
+        img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
+        k = k.copy()
+        k[0][0] /= downsample
+        k[1][1] /= downsample
+        k[0][2] /= downsample
+        k[1][2] /= downsample
+        img = get_remap_img(img, k, d)
+        img = cv2.resize(img, (img.shape[1] * downsample, img.shape[0] * downsample))
+    else:
+        img = get_remap_img(img, k, d)
 
     padding = 100
     split_x, split_y = split
