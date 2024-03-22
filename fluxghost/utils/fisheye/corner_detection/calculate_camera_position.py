@@ -29,8 +29,6 @@ def calculate_camera_position(data, rotation_matrix=np.eye(3), fix_hy=False):
     By = np.array(By)
     X, r2x, _ = linear_regression(Ax, Bx)
     Y, r2y, _ = linear_regression(Ay, By)
-    # print('r2x', r2x)
-    # print('r2y', r2y)
     x_center, h_x, s_x = X[0][0], X[1][0], S
     y_center, h_y, s_y = Y[0][0], Y[1][0] if not fix_hy else H, S
     return x_center, y_center, h_x, h_y, s_x, s_y
