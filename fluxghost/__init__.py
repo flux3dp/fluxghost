@@ -1,1 +1,1 @@
-__version__ = "2.1.0" # Fisheye calibration v2
+__version__ = "2.1.1" # Fisheye calibration v2
