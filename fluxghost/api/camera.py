@@ -8,7 +8,7 @@ from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
-from fluxghost.utils.fisheye.calibration import get_remap_img
+from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
 from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.corner_detection import apply_points
 from fluxghost.utils.fisheye.corner_detection.constants import get_grid
@@ -83,7 +83,6 @@ def camera_api_mixin(cls):
             data = json.loads(data)
             version = data.get('v', 1)
             if version == 2:
-                rvec = np.array(data['rvec'])
                 rotation_matrix = cv2.Rodrigues(rvec)[0]
                 x_grid, y_grid = get_grid(version)
                 self.fisheye_param = {
@@ -91,13 +90,8 @@ def camera_api_mixin(cls):
                     'k': np.array(data['k']),
                     'd': np.array(data['d']),
                     'ref_height': data['refHeight'],
-                    'points': np.array(data['points']),
-                    'xc': np.array(data['xc']),
-                    'yc': np.array(data['yc']),
-                    'hx': np.array(data['hx']),
-                    'hy': np.array(data['hy']),
-                    'image_scale': data['imageScale'],
-                    'rotation_matrix': rotation_matrix,
+                    'rvec_polyfit': np.array(data['rvec_polyfit']),
+                    'tvec_polyfit': np.array(data['tvec_polyfit']),
                     'x_grid': x_grid,
                     'y_grid': y_grid,
                 }
@@ -115,26 +109,23 @@ def camera_api_mixin(cls):
         def set_fisheye_height(self, h):
             if not self.fisheye_param or self.fisheye_param.get('v', 1) != 2:
                 raise Exception('Version Mismatch')
-            points = self.fisheye_param['points']
+            k = self.fisheye_param['k']
+            d = self.fisheye_param['d']
+            rvec_polyfit = self.fisheye_param['rvec_polyfit']
+            tvec_polyfit = self.fisheye_param['tvec_polyfit']
             dh = h - self.fisheye_param['ref_height']
-            perspective_points = points.copy()
-            w, h, _ = perspective_points.shape
-            rotation_matrix = self.fisheye_param['rotation_matrix']
+            X = np.array([dh, 1])
+            rvec = np.dot(X, rvec_polyfit)
+            tvec = np.dot(X, tvec_polyfit)
+            x_grid = self.fisheye_param['x_grid']
             y_grid = self.fisheye_param['y_grid']
-            xc = self.fisheye_param['xc']
-            yc = self.fisheye_param['yc']
-            hx = self.fisheye_param['hx']
-            hy = self.fisheye_param['hy']
-            s_x, s_y = self.fisheye_param['image_scale']
-            for i in range(w):
-                for j in range(h):
-                    y = y_grid[i]
-                    Y = [1, y, y ** 2]
-                    x_center, y_center = np.dot(Y, xc), np.dot(Y, yc)
-                    h_x, h_y = np.dot(Y, hx), np.dot(Y, hy)
-                    p = perspective_points[i][j]
-                    p = estimate_point(p, dh, rotation_matrix, x_center, y_center, h_x, h_y, s_x, s_y)
-                    perspective_points[i][j] = p
+            print(rvec, tvec)
+            objp = np.zeros((len(x_grid) * len(y_grid), 1, 3), np.float64)
+            for i in range(len(y_grid)):
+                for j in range(len(x_grid)):
+                    objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], -dh]
+            projected_points, _ = cv2.fisheye.projectPoints(objp, rvec, tvec, k, d)
+            perspective_points = remap_corners(projected_points, k, d).reshape(len(y_grid), len(x_grid), 2)
             self.fisheye_param['perspective_points'] = perspective_points
             self.send_ok()
 

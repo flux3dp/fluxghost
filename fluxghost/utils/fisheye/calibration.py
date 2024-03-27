@@ -8,21 +8,57 @@ from .general import pad_image
 
 logger = logging.getLogger('utils.fisheye.calibration')
 
-INIT_K = np.array([
-    [6.40004499e+03, 0, 2.81798089e+03],
-    [0, 6.40710065e+03, 2.23585732e+03],
-    [0, 0, 1],
-])
+INIT_K = np.array(
+    [
+        [1.54510482e03, 0, 2.76446858e03],
+        [0, 1.54360221e03, 2.18888949e03],
+        [0, 0, 1],
+    ]
+)
 
-INIT_D = np.array([
-    [-5.22543279],
-    [72.596491],
-    [-792.55764606],
-    [3614.92299842],
-])
+INIT_D = np.array(
+    [
+        [0],
+        [0.10819493],
+        [0.06230879],
+        [-0.13045471],
+    ]
+)
+
+
+def get_remap_img(img, k, d):
+    h, w = img.shape[:2]
+    mapx, mapy = cv2.fisheye.initUndistortRectifyMap(k, d, np.eye(3), k, (w, h), cv2.CV_32FC1)
+    img = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
+    # img = cv2.fisheye.undistortImage(img, k, d, np.eye(3), k)
+    return img
+
+
+def remap_corners(corners, k, d):
+    res = cv2.fisheye.undistortPoints(corners, k, d, np.eye(3), k)
+    return res
+
+
+def distort_points(corners, k, d):
+    q = np.linalg.inv(k)
+    corners = cv2.convertPointsToHomogeneous(corners).reshape(-1, 3)
+    corners = np.matmul(q, corners.T).T
+    corners = cv2.convertPointsFromHomogeneous(corners).reshape(-1, 1, 2)
+    res = cv2.fisheye.distortPoints(corners, k, d)
+    return res
+
+
+CORNER_SUBPIX_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
+
+
+def corner_sub_pix(gray_image, corners):
+    return cv2.cornerSubPix(gray_image, corners, (11, 11), (-1, -1), CORNER_SUBPIX_CRIT)
+
 
 FIND_CHESSBOARD_FLAGS = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
-def find_corners(img, chessboard, downsize_ratio = 1, try_denoise = True):
+
+
+def do_find_corner(img, chessboard, downsize_ratio=1, try_denoise=True):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if downsize_ratio > 1:
         height, width = img.shape[:2]
@@ -54,85 +90,90 @@ def find_corners(img, chessboard, downsize_ratio = 1, try_denoise = True):
     ret, corners = cv2.findChessboardCorners(downsized_gray, chessboard, FIND_CHESSBOARD_FLAGS)
     return gray, ret, (corners * downsize_ratio if ret else corners)
 
-CORNER_SUBPIX_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 1e-3)
-def corner_sub_pix(gray_image, corners):
-    return cv2.cornerSubPix(gray_image, corners, (11, 11), (-1, -1), CORNER_SUBPIX_CRIT)
+
+def find_corners(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoise=True, try_remap=True, k=None, d=None):
+    gray, ret, corners = do_find_corner(img, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
+    if ret:
+        if do_subpix:
+            corners = corner_sub_pix(gray, corners)
+        return gray, ret, corners
+    if not try_remap or k is None or d is None:
+        return gray, ret, corners
+    remap = get_remap_img(img, k, d)
+    gray, ret, corners = do_find_corner(remap, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
+    if ret:
+        if do_subpix:
+            corners = corner_sub_pix(gray, corners)
+        corners = distort_points(corners, k, d)
+        return gray, ret, corners
+    return gray, False, None
+
 
 CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K1
 CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-5)
-def calibrate_fisheye(objpoints, imgpoints, size):
+
+
+def calibrate_fisheye(objpoints, imgpoints, heights, size):
     if len(imgpoints) == 0:
         raise Exception('Failed to calibrate camera, no img points left behind')
     try:
-        ret, k, d, rvec, tvec = cv2.fisheye.calibrate(objpoints, imgpoints, size, None, None, None, None, CALIBRATION_FLAGS, CALIBRATION_CRIT)
-        return ret, k, d, rvec[0], tvec[0], len(imgpoints)
+        ret, k, d, rvecs, tvecs = cv2.fisheye.calibrate(
+            objpoints, imgpoints, size, None, None, None, None, CALIBRATION_FLAGS, CALIBRATION_CRIT
+        )
+        return ret, k, d, rvecs, tvecs, heights
     except cv2.error as e:
         pattern = r'CALIB_CHECK_COND - Ill-conditioned matrix for input array (\d+)'
         match = re.search(pattern, e.err)
         if match:
             error_array_number = int(match.group(1))
-            new_objpoints = objpoints[:error_array_number] + objpoints[error_array_number + 1:]
-            new_imgpoints = imgpoints[:error_array_number] + imgpoints[error_array_number + 1:]
-            return calibrate_fisheye(new_objpoints, new_imgpoints, size)
+            new_objpoints = objpoints[:error_array_number] + objpoints[error_array_number + 1 :]
+            new_imgpoints = imgpoints[:error_array_number] + imgpoints[error_array_number + 1 :]
+            heights = heights[:error_array_number] + heights[error_array_number + 1 :]
+            return calibrate_fisheye(new_objpoints, new_imgpoints, heights, size)
         raise e
 
 # Calibrate using cv2.fisheye.calibrate
-def calibrate_fisheye_camera(imgs, chessboard, progress_callback):
+def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
     objp = np.zeros((chessboard[0] * chessboard[1], 1, 3), np.float64)
-    objp[:, :, :2] = np.mgrid[0:chessboard[0], 0:chessboard[1]].T.reshape(-1, 1, 2)
-    objpoints = [] # 3d point in real world space
-    imgpoints = [] # 2d points in image plane.
+    objp[:, :, :2] = np.mgrid[0 : chessboard[0], 0 : chessboard[1]].T.reshape(-1, 1, 2) * 10
+    objpoints = {}  # 3d point in real world space
+    imgpoints = {}  # 2d points in image plane.
     for i in range(len(imgs)):
         progress_callback(i / len(imgs))
+        h = img_heights[i]
         img = imgs[i]
         img = pad_image(img)
-        gray, ret, corners = find_corners(img, chessboard, 2, False)
+        gray, ret, corners = find_corners(img, chessboard, 2, do_subpix=True, try_denoise=False, k=INIT_K, d=INIT_D)
         if ret:
             logger.info('found corners for {}'.format(i))
-            objpoints.append(objp)
-            corners = corner_sub_pix(gray, corners)
-            imgpoints.append(corners)
+            objp = objp.copy()
+            objp[:, :, 2] = -h
+            objpoints[h] = objp
+            imgpoints[h] = corners
         else:
             logger.info('unable to find corners for {}'.format(i))
     best_result = None
     try:
-        ret, k, d, _, _, points_left = calibrate_fisheye(objpoints, imgpoints, gray.shape[::-1])
-        logger.info('Calibrate All imgs: {}, {} sets of points left'.format(ret, points_left))
-        if ret < 1 and points_left > 10:
-            return k, d
-        best_result = (ret, k, d)
+        all_objpoints = list(objpoints.values())
+        all_imgpoints = list(imgpoints.values())
+        ret, k, d, rvecs, tvecs, heights = calibrate_fisheye(all_objpoints, all_imgpoints, list(objpoints.keys()), gray.shape[::-1])
+        logger.info('Calibrate All imgs: {}'.format(ret))
+        if ret < 5:
+            return k, d, rvecs, tvecs, heights
+        best_result = (ret, k, d, rvecs, tvecs)
     except Exception:
         logger.info('Calibrate All imgs failed')
-    for i in range(len(imgpoints)):
+    for h in imgpoints.keys():
         try:
-            ret, k, d, _, _, _ = calibrate_fisheye(objpoints[i: i+1], imgpoints[i: i+1], gray.shape[::-1])
-            logger.info('Calibrate {}: {}'.format(i, ret))
-            if not best_result:
-                best_result = (ret, k, d)
-            else:
-                if ret < best_result[0]:
-                    best_result = (ret, k, d)
+            ret, k, d, rvecs, tvecs, _ = calibrate_fisheye([objpoints[h]], [imgpoints[h]], [h], gray.shape[::-1])
+            logger.info('Calibrate {}: {}'.format(h, ret))
+            if not best_result or ret < best_result[0]:
+                best_result = (ret, k, d, rvecs, tvecs, [h])
         except Exception:
             logger.info('Failed to find matrix for img {}'.format(i))
             pass
     if not best_result:
         raise Exception('Failed to calibrate camera, no img points left behind')
-    ret, k, d = best_result
+    ret, k, d, rvecs, tvecs, heights = best_result
     logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
-    if ret > 5:
-        k = INIT_K.copy()
-        d = INIT_D.copy()
-        logger.warning('Calibration ret to big, using default K: {}, D: {}'.format(k, d))
-    return k, d
-
-
-def get_remap_img(img, k, d):
-    h, w = img.shape[:2]
-    mapx, mapy = cv2.fisheye.initUndistortRectifyMap(k, d, np.eye(3), k, (w, h), cv2.CV_32FC1)
-    img = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
-    # img = cv2.fisheye.undistortImage(img, k, d, np.eye(3), k)
-    return img
-
-def remap_corners(corners, k, d):
-    res = cv2.fisheye.undistortPoints(corners, k, d, np.eye(3), k)
-    return res
+    return k, d, rvecs, tvecs, heights

@@ -12,6 +12,7 @@ from scipy import spatial
 from fluxghost.utils.fisheye.calibration import (
     calibrate_fisheye,
     calibrate_fisheye_camera,
+    distort_points,
     get_remap_img,
     remap_corners,
 )
@@ -19,7 +20,7 @@ from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.general import pad_image, L_PAD, T_PAD
 from fluxghost.utils.fisheye.perspective import get_perspective_points
 from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
-from fluxghost.utils.fisheye.utils import linear_regression
+from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid
 from fluxghost.utils.fisheye.corner_detection.calculate_camera_position import calculate_camera_position
 from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_point_indices, S
@@ -133,7 +134,7 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_do_fisheye_calibration(self, message):
             try:
-                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, self.on_progress)
+                k, d, _, _, _ = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, self.on_progress)
                 if self.check_interrupted():
                     return
                 self.k = k
@@ -243,7 +244,9 @@ def camera_calibration_api_mixin(cls):
                 objpoints = [objp]
 
                 remap = pad_image(orig_img)
-                ret, k, d, rvec, tvec, _ = calibrate_fisheye(objpoints, imgpoints, remap.shape[:2][::-1])
+                ret, k, d, rvecs, tvecs, _ = calibrate_fisheye(objpoints, imgpoints, [0], remap.shape[:2][::-1])
+                rvec = rvecs[0]
+                tvec = tvecs[0]
                 logger.info('Successfully Calibrated: {}, K: {}, D: {}'.format(ret, k, d))
                 remap = get_remap_img(remap, k, d)
                 grid_map = remap_corners(imgpoints[0], k, d).reshape(-1, 2)
@@ -263,7 +266,7 @@ def camera_calibration_api_mixin(cls):
                 self.calibration_v2_params['rvec'] = rvec
                 self.calibration_v2_params['tvec'] = tvec
                 self.calibration_v2_params['points'] = grid_map
-                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), points=grid_map.tolist(), status='ok')
+                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), status='ok')
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
@@ -280,6 +283,7 @@ def camera_calibration_api_mixin(cls):
             d = self.calibration_v2_params['d']
             points = self.calibration_v2_params['points']
             rvec = self.calibration_v2_params['rvec']
+            tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
             camera_pitch = int(message[0])
             with_pitch = camera_pitch != 0
@@ -295,11 +299,11 @@ def camera_calibration_api_mixin(cls):
                 rotation_matrix = cv2.Rodrigues(rvec)[0]
                 corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=True)
                 corner_tree = spatial.KDTree(corners)
-                _, y_grid = get_grid(version)
+                x_grid, y_grid = get_grid(version)
                 ref_x_indice, ref_y_indice = get_ref_point_indices(version)
-                reg_data = {}
+                new_objpoints = []
+                new_imgpoints = []
                 for y in ref_y_indice:
-                    reg_data[y] = {}
                     real_y = y_grid[y]
                     y_ratio = real_y / 300
                     y_center = 2500 + 500 * y_ratio
@@ -318,36 +322,18 @@ def camera_calibration_api_mixin(cls):
                         found = (int(point[0]), int(point[1]))
                         cv2.circle(remap, found, 0, (0, 0, 255), -1)
                         cv2.circle(remap, found, 20, (0, 0, 255), 3)
-                        reg_data[y][x] = [(dh, found, 0, ref_point)]
-
-                Y, XC, YC, HX, HY = [], [], [], [], []
-                for i in range(len(ref_y_indice)):
-                    r = min(min(i, len(ref_y_indice) - 1 - i), 2)
-                    if i == 0:
-                        continue
-                    y = y_grid[ref_y_indice[i]]
-                    Y.append(y)
-                    data = []
-                    for j in range(-r, r + 1):
-                        ref_y = ref_y_indice[i + j]
-                        for x in ref_x_indice:
-                            data += reg_data[ref_y][x]
-                    x_center, y_center, h_x, h_y, _, _ = calculate_camera_position(data, rotation_matrix, fix_hy=with_pitch)
-                    XC.append(x_center)
-                    YC.append(y_center)
-                    HX.append(h_x)
-                    HY.append(h_y)
-                A = np.array([[1, y, y ** 2] for y in Y]).reshape(-1, 3)
-                XC, YC, HX, HY = np.array(XC), np.array(YC), np.array(HX), np.array(HY)
-                res_xcs, r2, std = linear_regression(A, XC)
-                logger.info('XC, r2: {}, std: {}'.format(r2, std))
-                res_ycs, r2, std = linear_regression(A, YC)
-                logger.info('YC, r2: {}, std: {}'.format(r2, std))
-                res_hxs, r2, std = linear_regression(A, HX)
-                logger.info('HX, r2: {}, std: {}'.format(r2, std))
-                res_hys, r2, std = linear_regression(A, HY)
-                logger.info('HY, r2: {}, std: {}'.format(r2, std))
-                self.send_ok(xc=res_xcs.tolist(), yc=res_ycs.tolist(), hx=res_hxs.tolist(), hy=res_hys.tolist(), s=[S, S])
+                        new_objpoints.append((x_grid[x], y_grid[y], -dh))
+                        new_imgpoints.append(found)
+                new_imgpoints = distort_points(np.array(new_imgpoints), k, d)
+                ret, new_rvec, new_tvec = solve_pnp(np.array(new_objpoints).reshape(-1, 1, 3), new_imgpoints.reshape(-1, 1, 2), k, d)
+                if not ret:
+                    self.send_json(status='fail', reason='solve pnp failed')
+                    return
+                rvecs = np.array([rvec, new_rvec])
+                tvecs = np.array([tvec, new_tvec])
+                rvec_polyfit = np.polyfit([0, dh], rvecs.reshape(-1, 3), 1)
+                tvec_polyfit = np.polyfit([0, dh], tvecs.reshape(-1, 3), 1)
+                self.send_ok(rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
