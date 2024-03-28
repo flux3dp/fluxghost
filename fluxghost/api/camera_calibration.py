@@ -281,7 +281,6 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', reason='Corner not detected first')
             k = self.calibration_v2_params['k']
             d = self.calibration_v2_params['d']
-            points = self.calibration_v2_params['points']
             rvec = self.calibration_v2_params['rvec']
             tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
@@ -302,23 +301,20 @@ def camera_calibration_api_mixin(cls):
                 new_imgpoints = []
                 for y in ref_y_indice:
                     for x in ref_x_indice:
-                        ref_point = points[y][x]
-                        cv2.circle(remap, tuple(ref_point.astype(int)), 0, (255, 255, 0), -1)
-                        cv2.circle(remap, tuple(ref_point.astype(int)), 3, (255, 255, 0), 1)
                         new_points, _ = cv2.fisheye.projectPoints(np.array([x_grid[x], y_grid[y], -dh]).reshape(1, 1, 3), rvec, tvec, k, d)
                         new_points = remap_corners(new_points, k, d).reshape(-1, 2)
                         new_point = new_points[0]
-                        cv2.circle(remap, tuple(new_point.astype(int)), 0, (0, 255, 255), -1)
-                        cv2.circle(remap, tuple(new_point.astype(int)), 3, (0, 255, 255), 1)
                         _, index = corner_tree.query(new_point)
                         point = corners[index]
                         found = (int(point[0]), int(point[1]))
                         cv2.circle(remap, found, 0, (0, 0, 255), -1)
-                        cv2.circle(remap, found, 20, (0, 0, 255), 3)
+                        cv2.circle(remap, found, 10, (0, 0, 255), 1)
                         new_objpoints.append((x_grid[x], y_grid[y], -dh))
                         new_imgpoints.append(found)
-                new_imgpoints = distort_points(np.array(new_imgpoints), k, d)
-                ret, new_rvec, new_tvec = solve_pnp(np.array(new_objpoints).reshape(-1, 1, 3), new_imgpoints.reshape(-1, 1, 2), k, d)
+                new_imgpoints = np.array(new_imgpoints)
+                min_x, min_y, max_x, max_y = np.min(new_imgpoints[:, 0]), np.min(new_imgpoints[:, 1]), np.max(new_imgpoints[:, 0]), np.max(new_imgpoints[:, 1])
+                distorted = distort_points(new_imgpoints, k, d)
+                ret, new_rvec, new_tvec = solve_pnp(np.array(new_objpoints).reshape(-1, 1, 3), distorted.reshape(-1, 1, 2), k, d)
                 if not ret:
                     self.send_json(status='fail', reason='solve pnp failed')
                     return
@@ -327,7 +323,7 @@ def camera_calibration_api_mixin(cls):
                 rvec_polyfit = np.polyfit([0, dh], rvecs.reshape(-1, 3), 1)
                 tvec_polyfit = np.polyfit([0, dh], tvecs.reshape(-1, 3), 1)
                 self.send_ok(rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
-                _, array_buffer = cv2.imencode('.jpg', remap)
+                _, array_buffer = cv2.imencode('.jpg', remap[min_y - 100:max_y + 100, min_x - 100:max_x + 100])
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
             helper = BinaryUploadHelper(int(file_length), upload_callback)

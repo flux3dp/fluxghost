@@ -1,5 +1,3 @@
-import numpy as np
-
 IMAGE_W = 3264
 IMAGE_H = 2448
 
