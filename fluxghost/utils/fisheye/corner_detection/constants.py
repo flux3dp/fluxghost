@@ -9,7 +9,7 @@ def get_grid(version):
 def get_ref_point_indices(version):
     if version == 2:
         ref_x_indices = [7, 8, 9, 10]
-        ref_y_indices = [0, 3, 4, 5 ,6, 7, 8, 9, 10, 11]
+        ref_y_indices = [5 ,6, 7, 8]
         return ref_x_indices, ref_y_indices
     raise ValueError('Invalid version')
 

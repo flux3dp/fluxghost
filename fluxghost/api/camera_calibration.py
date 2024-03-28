@@ -285,8 +285,6 @@ def camera_calibration_api_mixin(cls):
             rvec = self.calibration_v2_params['rvec']
             tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
-            camera_pitch = int(message[0])
-            with_pitch = camera_pitch != 0
             dh = round(float(message[1]), 2)
             file_length = int(message[2])
             version = int(message[3])
@@ -296,7 +294,6 @@ def camera_calibration_api_mixin(cls):
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 remap = pad_image(img_cv)
                 remap = get_remap_img(remap, k, d)
-                rotation_matrix = cv2.Rodrigues(rvec)[0]
                 corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=True)
                 corner_tree = spatial.KDTree(corners)
                 x_grid, y_grid = get_grid(version)
@@ -304,17 +301,13 @@ def camera_calibration_api_mixin(cls):
                 new_objpoints = []
                 new_imgpoints = []
                 for y in ref_y_indice:
-                    real_y = y_grid[y]
-                    y_ratio = real_y / 300
-                    y_center = 2500 + 500 * y_ratio
                     for x in ref_x_indice:
                         ref_point = points[y][x]
                         cv2.circle(remap, tuple(ref_point.astype(int)), 0, (255, 255, 0), -1)
                         cv2.circle(remap, tuple(ref_point.astype(int)), 3, (255, 255, 0), 1)
-                        if with_pitch:
-                            new_point = estimate_point(ref_point, dh, rotation_matrix=rotation_matrix, y_center=y_center)
-                        else:
-                            new_point = estimate_point(ref_point, dh, rotation_matrix=rotation_matrix)
+                        new_points, _ = cv2.fisheye.projectPoints(np.array([x_grid[x], y_grid[y], -dh]).reshape(1, 1, 3), rvec, tvec, k, d)
+                        new_points = remap_corners(new_points, k, d).reshape(-1, 2)
+                        new_point = new_points[0]
                         cv2.circle(remap, tuple(new_point.astype(int)), 0, (0, 255, 255), -1)
                         cv2.circle(remap, tuple(new_point.astype(int)), 3, (0, 255, 255), 1)
                         _, index = corner_tree.query(new_point)
