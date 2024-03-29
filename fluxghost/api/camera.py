@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from fluxclient.hw_profile import HW_PROFILE
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
 from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
@@ -46,6 +47,7 @@ def camera_api_mixin(cls):
             self.remote_version = device.version
             self.remote_model = getattr(device, 'model_id', '')
             self.fisheye_param = None
+            self.leveling_data = None
             self.crop_param = None
             self.camera_3d_rotation = None
             self.rotated_perspective_points = None
@@ -72,6 +74,9 @@ def camera_api_mixin(cls):
                 elif cmd == 'set_crop_param':
                     data = msgs[1]
                     self.set_crop_param(data)
+                elif cmd == 'set_leveling_data':
+                    data = msgs[1]
+                    self.set_leveling_data(data)
                 elif cmd == 'set_3d_rotation':
                     data = msgs[1]
                     self.set_3d_rotation(data)
@@ -83,8 +88,6 @@ def camera_api_mixin(cls):
             data = json.loads(data)
             version = data.get('v', 1)
             if version == 2:
-                rotation_matrix = cv2.Rodrigues(rvec)[0]
-                x_grid, y_grid = get_grid(version)
                 self.fisheye_param = {
                     'v': version,
                     'k': np.array(data['k']),
@@ -92,8 +95,6 @@ def camera_api_mixin(cls):
                     'ref_height': data['refHeight'],
                     'rvec_polyfit': np.array(data['rvec_polyfit']),
                     'tvec_polyfit': np.array(data['tvec_polyfit']),
-                    'x_grid': x_grid,
-                    'y_grid': y_grid,
                 }
             else:
                 perspective_points = data['points']
@@ -104,6 +105,11 @@ def camera_api_mixin(cls):
                 }
                 if self.camera_3d_rotation:
                     self.apply_3d_rotaion_to_perspective_points()
+            self.send_ok()
+
+        def set_leveling_data(self, data):
+            data = json.loads(data)
+            self.leveling_data = data
             self.send_ok()
 
         def set_fisheye_height(self, h):
@@ -117,16 +123,23 @@ def camera_api_mixin(cls):
             X = np.array([dh, 1])
             rvec = np.dot(X, rvec_polyfit)
             tvec = np.dot(X, tvec_polyfit)
-            x_grid = self.fisheye_param['x_grid']
-            y_grid = self.fisheye_param['y_grid']
-            print(rvec, tvec)
+            hw_profile = HW_PROFILE.get(self.remote_model, {'width': 430, 'length': 320})
+            width, height = hw_profile['width'], hw_profile['length']
+            x_grid, y_grid = range(0, width + 1, 10), range(0, height + 1, 10)
             objp = np.zeros((len(x_grid) * len(y_grid), 1, 3), np.float64)
+            keyMap = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
             for i in range(len(y_grid)):
                 for j in range(len(x_grid)):
-                    objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], -dh]
+                    h = dh
+                    if self.leveling_data is not None:
+                        x = min(int((x_grid[j] / width) * 3), 2)
+                        y = min(int((y_grid[i] / height) * 3), 2)
+                        key = keyMap[y * 3 + x]
+                        h -= self.leveling_data[key]
+                    objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], -h]
             projected_points, _ = cv2.fisheye.projectPoints(objp, rvec, tvec, k, d)
             perspective_points = remap_corners(projected_points, k, d).reshape(len(y_grid), len(x_grid), 2)
-            self.fisheye_param['perspective_points'] = perspective_points
+            self.fisheye_param.update({'x_grid': x_grid, 'y_grid': y_grid, 'perspective_points': perspective_points})
             self.send_ok()
 
         def set_crop_param(self, data):
