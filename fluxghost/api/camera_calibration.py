@@ -1,5 +1,6 @@
 import logging
 import io
+import json
 from math import radians, cos, sin
 from time import time
 
@@ -22,7 +23,7 @@ from fluxghost.utils.fisheye.perspective import get_perspective_points
 from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
 from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid
-from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_point_indices
+from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_points
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -58,6 +59,8 @@ def camera_calibration_api_mixin(cls):
                 'cal_regression_param': [self.cmd_calculate_regression_param],
                 'corner_detection': [self.cmd_corner_detection],
                 'calculate_camera_position': [self.cmd_calculate_camera_position],
+                'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
+                'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
                 'interrupt': [self.cmd_interrupt],
             }
             self.init_fisheye_params()
@@ -273,8 +276,8 @@ def camera_calibration_api_mixin(cls):
             self.set_binary_helper(helper)
             self.send_json(status='continue')
 
-        # Step 2 for fishey calibration v2: calculate elevated img and get camera position
-        def cmd_calculate_camera_position(self, message):
+        # solve pnp step 2: given img and dh, find corners, return corners for user to check
+        def cmd_solve_pnp_find_corners(self, message):
             if self.calibration_v2_params.get('k', None) is None:
                 self.send_json(status='fail', reason='Corner not detected first')
             k = self.calibration_v2_params['k']
@@ -282,51 +285,61 @@ def camera_calibration_api_mixin(cls):
             rvec = self.calibration_v2_params['rvec']
             tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
+            version = int(message[0])
             dh = round(float(message[1]), 2)
             file_length = int(message[2])
-            version = int(message[3])
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 remap = pad_image(img_cv)
                 remap = get_remap_img(remap, k, d)
-                corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=True)
+                corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
-                x_grid, y_grid = get_grid(version)
-                ref_x_indice, ref_y_indice = get_ref_point_indices(version)
+                ref_points = get_ref_points(version)
                 new_objpoints = []
                 new_imgpoints = []
-                for y in ref_y_indice:
-                    for x in ref_x_indice:
-                        new_points, _ = cv2.fisheye.projectPoints(np.array([x_grid[x], y_grid[y], -dh]).reshape(1, 1, 3), rvec, tvec, k, d)
-                        new_points = remap_corners(new_points, k, d).reshape(-1, 2)
-                        new_point = new_points[0]
-                        _, index = corner_tree.query(new_point)
-                        point = corners[index]
-                        found = (int(point[0]), int(point[1]))
-                        cv2.circle(remap, found, 0, (0, 0, 255), -1)
-                        cv2.circle(remap, found, 10, (0, 0, 255), 1)
-                        new_objpoints.append((x_grid[x], y_grid[y], -dh))
-                        new_imgpoints.append(found)
+                for ref_point in ref_points:
+                    x, y = ref_point
+                    new_points, _ = cv2.fisheye.projectPoints(np.array([x, y, -dh]).reshape(1, 1, 3), rvec, tvec, k, d)
+                    new_points = remap_corners(new_points, k, d).reshape(-1, 2)
+                    new_point = new_points[0]
+                    _, index = corner_tree.query(new_point)
+                    point = corners[index]
+                    found = (int(point[0]), int(point[1]))
+                    new_objpoints.append((x, y, -dh))
+                    new_imgpoints.append(found)
                 new_imgpoints = np.array(new_imgpoints)
-                min_x, min_y, max_x, max_y = np.min(new_imgpoints[:, 0]), np.min(new_imgpoints[:, 1]), np.max(new_imgpoints[:, 0]), np.max(new_imgpoints[:, 1])
-                distorted = distort_points(new_imgpoints, k, d)
-                ret, new_rvec, new_tvec = solve_pnp(np.array(new_objpoints).reshape(-1, 1, 3), distorted.reshape(-1, 1, 2), k, d)
-                if not ret:
-                    self.send_json(status='fail', reason='solve pnp failed')
-                    return
-                rvecs = np.array([rvec, new_rvec])
-                tvecs = np.array([tvec, new_tvec])
-                rvec_polyfit = np.polyfit([0, dh], rvecs.reshape(-1, 3), 1)
-                tvec_polyfit = np.polyfit([0, dh], tvecs.reshape(-1, 3), 1)
-                self.send_ok(rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
-                _, array_buffer = cv2.imencode('.jpg', remap[min_y - 100:max_y + 100, min_x - 100:max_x + 100])
+                self.send_ok(points=new_imgpoints.tolist())
+                _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')
+
+        def cmd_solve_pnp_calculate(self, message):
+            if self.calibration_v2_params.get('k', None) is None:
+                self.send_json(status='fail', reason='Corner not detected first')
+            k = self.calibration_v2_params['k']
+            d = self.calibration_v2_params['d']
+            rvec = self.calibration_v2_params['rvec']
+            tvec = self.calibration_v2_params['tvec']
+            message = message.split(' ')
+            version = int(message[0])
+            dh = round(float(message[1]), 2)
+            imgpoints = np.array(json.loads(message[2]))
+            distorted = distort_points(imgpoints, k, d)
+            objpoints = np.array([p + (-dh,) for p in get_ref_points(version)])
+            ret, new_rvec, new_tvec = solve_pnp(np.array(objpoints).reshape(-1, 1, 3), distorted.reshape(-1, 1, 2), k, d)
+            if not ret:
+                self.send_json(status='fail', reason='solve pnp failed')
+                return
+            rvecs = np.array([rvec, new_rvec])
+            tvecs = np.array([tvec, new_tvec])
+            rvec_polyfit = np.polyfit([0, dh], rvecs.reshape(-1, 3), 1)
+            tvec_polyfit = np.polyfit([0, dh], tvecs.reshape(-1, 3), 1)
+            self.send_ok(rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
 
     def calc_picture_shape(img):
         PI = np.pi
