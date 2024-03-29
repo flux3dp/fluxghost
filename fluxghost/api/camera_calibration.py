@@ -58,7 +58,6 @@ def camera_calibration_api_mixin(cls):
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 'cal_regression_param': [self.cmd_calculate_regression_param],
                 'corner_detection': [self.cmd_corner_detection],
-                'calculate_camera_position': [self.cmd_calculate_camera_position],
                 'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
                 'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
                 'interrupt': [self.cmd_interrupt],
