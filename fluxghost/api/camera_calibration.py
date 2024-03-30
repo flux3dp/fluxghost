@@ -134,7 +134,7 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_do_fisheye_calibration(self, message):
             try:
-                k, d, _, _, _ = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, self.on_progress)
+                k, d, rvecs, tvecs, height = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, self.fisheye_calibrate_heights, CHESSBORAD, self.on_progress)
                 if self.check_interrupted():
                     return
                 self.k = k
