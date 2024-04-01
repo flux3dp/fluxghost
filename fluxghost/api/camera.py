@@ -231,12 +231,12 @@ def camera_api_mixin(cls):
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
                     img = Image.open(io.BytesIO(image))
-                    open_cv_img = np.array(img)
-                    open_cv_img = cv2.cvtColor(open_cv_img, cv2.COLOR_RGBA2BGR)
+                    cv_img = np.array(img)
+                    cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGBA2BGR)
                 except Exception:
                     self.send_binary(image)
                     return
-                img = self.handle_fisheye_image(open_cv_img, downsample=1)
+                img = self.handle_fisheye_image(cv_img, downsample=1)
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)

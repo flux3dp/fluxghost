@@ -80,12 +80,14 @@ def apply_perspective_points_transform(img, k, d, split, chessboard, points, dow
             dst_h = (b - t) * unit_length
             dst_l = padding if i == 0 else 0
             dst_t = padding if j == 0 else 0
-            dst_points = np.float32([
-                [dst_l, dst_t],
-                [dst_l + dst_w, dst_t],
-                [dst_l, dst_t + dst_h],
-                [dst_l + dst_w, dst_t + dst_h],
-            ])
+            dst_points = np.float32(
+                [
+                    [dst_l, dst_t],
+                    [dst_l + dst_w, dst_t],
+                    [dst_l, dst_t + dst_h],
+                    [dst_l + dst_w, dst_t + dst_h],
+                ]
+            )
             perspective_matrix = cv2.getPerspectiveTransform(src_points, dst_points)
 
             # draw the perspective transformation to the input image, padding img at edges
@@ -98,5 +100,5 @@ def apply_perspective_points_transform(img, k, d, split, chessboard, points, dow
 
             img_l = 0 if l == 0 else l * unit_length + padding
             img_t = 0 if t == 0 else t * unit_length + padding
-            base_img[img_t:img_t + draw_h, img_l:img_l + draw_w] = out
+            base_img[img_t : img_t + draw_h, img_l : img_l + draw_w] = out
     return base_img

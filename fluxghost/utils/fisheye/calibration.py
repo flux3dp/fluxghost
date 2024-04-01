@@ -132,6 +132,7 @@ def calibrate_fisheye(objpoints, imgpoints, heights, size):
             return calibrate_fisheye(new_objpoints, new_imgpoints, heights, size)
         raise e
 
+
 # Calibrate using cv2.fisheye.calibrate
 def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
     objp = np.zeros((chessboard[0] * chessboard[1], 1, 3), np.float64)
@@ -156,7 +157,9 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
     try:
         all_objpoints = list(objpoints.values())
         all_imgpoints = list(imgpoints.values())
-        ret, k, d, rvecs, tvecs, heights = calibrate_fisheye(all_objpoints, all_imgpoints, list(objpoints.keys()), gray.shape[::-1])
+        ret, k, d, rvecs, tvecs, heights = calibrate_fisheye(
+            all_objpoints, all_imgpoints, list(objpoints.keys()), gray.shape[::-1]
+        )
         logger.info('Calibrate All imgs: {}'.format(ret))
         if ret < 5:
             return k, d, rvecs, tvecs, heights
