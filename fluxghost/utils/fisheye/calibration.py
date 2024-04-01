@@ -146,13 +146,13 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
         img = pad_image(img)
         gray, ret, corners = find_corners(img, chessboard, 2, do_subpix=True, try_denoise=False, k=INIT_K, d=INIT_D)
         if ret:
-            logger.info('found corners for {}'.format(i))
+            logger.info('found corners for height {}'.format(h))
             objp = objp.copy()
             objp[:, :, 2] = -h
             objpoints[h] = objp
             imgpoints[h] = corners
         else:
-            logger.info('unable to find corners for {}'.format(i))
+            logger.info('unable to find corners for height {}'.format(h))
     best_result = None
     try:
         all_objpoints = list(objpoints.values())
