@@ -44,7 +44,6 @@ def get_perspective_points(img, k, d, split, chessboard):
 
 
 def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1):
-    s = time.time()
     img = pad_image(img)
     if downsample > 1:
         img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
