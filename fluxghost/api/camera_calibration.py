@@ -150,6 +150,8 @@ def camera_calibration_api_mixin(cls):
                 self.d = d
                 rvecs = np.array(rvecs)
                 tvecs = np.array(tvecs)
+                # difference between chessboard origin and laser origin
+                tvecs = tvecs + np.array(([35], [55], [0]))
                 rvec_polyfit = np.polyfit(heights, rvecs.reshape(-1, 3), 1)
                 tvec_polyfit = np.polyfit(heights, tvecs.reshape(-1, 3), 1)
                 rvec_0 = np.dot([0, 1], rvec_polyfit)
@@ -313,22 +315,27 @@ def camera_calibration_api_mixin(cls):
                 corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
                 ref_points = get_ref_points(version)
-                new_imgpoints = []
-                used_indices = set()
-                for ref_point in ref_points:
-                    x, y = ref_point
-                    new_points, _ = cv2.fisheye.projectPoints(np.array([x, y, -dh]).reshape(1, 1, 3), rvec, tvec, k, d)
-                    new_points = remap_corners(new_points, k, d).reshape(-1, 2)
-                    new_point = new_points[0]
-                    _, indices = corner_tree.query(new_point, k=len(ref_points))
-                    for index in indices:
-                        if index not in used_indices:
-                            point = corners[index]
-                            used_indices.add(index)
-                            break
-                    found = (int(point[0]), int(point[1]))
-                    new_imgpoints.append(found)
-                new_imgpoints = np.array(new_imgpoints)
+                projected_points, _ = cv2.fisheye.projectPoints(np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3), rvec, tvec, k, d)
+                projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
+                _, candidates_indice = corner_tree.query(projected_points[0], k=25)
+                best_res = None
+                for index in candidates_indice:
+                    res = [corners[index]]
+                    used_indices = set()
+                    total_dist = 0
+                    delta = corners[index] - projected_points[0]
+                    for i in range(1, len(projected_points)):
+                        desire_point = projected_points[i] + delta
+                        dists, indices = corner_tree.query(desire_point, k=len(projected_points))
+                        for j in range(len(indices)):
+                            if indices[j] not in used_indices:
+                                used_indices.add(indices[j])
+                                res.append(corners[indices[j]])
+                                total_dist += dists[j]
+                                break
+                    if best_res is None or total_dist < best_res[1]:
+                        best_res = (res, total_dist)
+                new_imgpoints = np.array(best_res[0])
                 self.send_ok(points=new_imgpoints.tolist())
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
@@ -345,14 +352,12 @@ def camera_calibration_api_mixin(cls):
             message = message.split(' ')
             version = int(message[0])
             dh = round(float(message[1]), 2)
+            objpoints = np.array([p + (-dh,) for p in get_ref_points(version)])
             imgpoints = np.array(json.loads(message[2]))
-            # sorted_indices = np.lexsort((imgpoints[:, 0], imgpoints[:, 1], imgpoints[:, 0] + imgpoints[:, 1]))
+            # sorted_indices = np.lexsort((imgpoints[:, 0] + imgpoints[:, 1]))
             # imgpoints = imgpoints[sorted_indices]
             # TODO: sort points
             distorted = distort_points(imgpoints, k, d)
-            objpoints = np.array([p + (-dh,) for p in get_ref_points(version)])
-            # sorted_indices = np.lexsort((objpoints[:, 0], objpoints[:, 1], objpoints[:, 0] + objpoints[:, 1]))
-            # objpoints = objpoints[sorted_indices]
             ret, new_rvec, new_tvec = solve_pnp(np.array(objpoints).reshape(-1, 1, 3), distorted.reshape(-1, 1, 2), k, d)
             if not ret:
                 self.send_json(status='fail', reason='solve pnp failed')
