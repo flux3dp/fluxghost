@@ -6,11 +6,10 @@ def get_grid(version):
         )
     raise ValueError('Invalid version')
 
-def get_ref_point_indices(version):
+def get_ref_points(version):
     if version == 2:
-        ref_x_indices = [7, 8, 9, 10]
-        ref_y_indices = [0, 3, 4, 5 ,6, 7, 8, 9, 10, 11]
-        return ref_x_indices, ref_y_indices
+        ref_points = [(170, 90), (260, 90), (170, 180), (260, 180), (200, 120),(230, 120), (200, 150), (230, 150)]
+        return ref_points
     raise ValueError('Invalid version')
 
 # init parameters for pitch 0

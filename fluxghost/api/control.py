@@ -1,7 +1,7 @@
 
 from errno import EPIPE
-from time import time, sleep
 from io import BytesIO
+from time import time, sleep
 import itertools
 import json
 import logging
@@ -143,6 +143,8 @@ def control_api_mixin(cls):
                     "get_fan": self.get_fan,
                     'set_origin_x': self.set_origin_x,
                     'set_origin_y': self.set_origin_y,
+                    "get_door_open": self.get_door_open,
+                    "get": self.player_get,
                     "toolhead": {
                         "operation": self.set_toolhead_operating,
                         "standby": self.set_toolhead_standby,
@@ -560,6 +562,14 @@ def control_api_mixin(cls):
         def get_fan(self):
             fan = self.robot.get_fan()
             self.send_ok(value=fan)
+
+        def get_door_open(self):
+            val = self.robot.get_door_open()
+            self.send_ok(value=val)
+
+        def player_get(self, key):
+            val = self.robot.player_get(key)
+            self.send_ok(value=val)
 
         def set_toolhead_operating(self):
             self.robot.set_toolhead_operating_in_play()

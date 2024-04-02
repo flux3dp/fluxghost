@@ -6,13 +6,12 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from fluxclient.hw_profile import HW_PROFILE
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
-from fluxghost.utils.fisheye.calibration import get_remap_img
+from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
 from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.corner_detection.constants import get_grid
-from fluxghost.utils.fisheye.corner_detection.estimate_point import estimate_point
 from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
 from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
@@ -46,6 +45,7 @@ def camera_api_mixin(cls):
             self.remote_version = device.version
             self.remote_model = getattr(device, 'model_id', '')
             self.fisheye_param = None
+            self.leveling_data = None
             self.crop_param = None
             self.camera_3d_rotation = None
             self.rotated_perspective_points = None
@@ -72,6 +72,9 @@ def camera_api_mixin(cls):
                 elif cmd == 'set_crop_param':
                     data = msgs[1]
                     self.set_crop_param(data)
+                elif cmd == 'set_leveling_data':
+                    data = msgs[1]
+                    self.set_leveling_data(data)
                 elif cmd == 'set_3d_rotation':
                     data = msgs[1]
                     self.set_3d_rotation(data)
@@ -83,23 +86,13 @@ def camera_api_mixin(cls):
             data = json.loads(data)
             version = data.get('v', 1)
             if version == 2:
-                rvec = np.array(data['rvec'])
-                rotation_matrix = cv2.Rodrigues(rvec)[0]
-                x_grid, y_grid = get_grid(version)
                 self.fisheye_param = {
                     'v': version,
                     'k': np.array(data['k']),
                     'd': np.array(data['d']),
                     'ref_height': data['refHeight'],
-                    'points': np.array(data['points']),
-                    'xc': np.array(data['xc']),
-                    'yc': np.array(data['yc']),
-                    'hx': np.array(data['hx']),
-                    'hy': np.array(data['hy']),
-                    'image_scale': data['imageScale'],
-                    'rotation_matrix': rotation_matrix,
-                    'x_grid': x_grid,
-                    'y_grid': y_grid,
+                    'rvec_polyfit': np.array(data['rvec_polyfit']),
+                    'tvec_polyfit': np.array(data['tvec_polyfit']),
                 }
             else:
                 perspective_points = data['points']
@@ -112,30 +105,39 @@ def camera_api_mixin(cls):
                     self.apply_3d_rotaion_to_perspective_points()
             self.send_ok()
 
+        def set_leveling_data(self, data):
+            data = json.loads(data)
+            self.leveling_data = data
+            self.send_ok()
+
         def set_fisheye_height(self, h):
             if not self.fisheye_param or self.fisheye_param.get('v', 1) != 2:
                 raise Exception('Version Mismatch')
-            points = self.fisheye_param['points']
+            k = self.fisheye_param['k']
+            d = self.fisheye_param['d']
+            rvec_polyfit = self.fisheye_param['rvec_polyfit']
+            tvec_polyfit = self.fisheye_param['tvec_polyfit']
             dh = h - self.fisheye_param['ref_height']
-            perspective_points = points.copy()
-            w, h, _ = perspective_points.shape
-            rotation_matrix = self.fisheye_param['rotation_matrix']
-            y_grid = self.fisheye_param['y_grid']
-            xc = self.fisheye_param['xc']
-            yc = self.fisheye_param['yc']
-            hx = self.fisheye_param['hx']
-            hy = self.fisheye_param['hy']
-            s_x, s_y = self.fisheye_param['image_scale']
-            for i in range(w):
-                for j in range(h):
-                    y = y_grid[i]
-                    Y = [1, y, y ** 2]
-                    x_center, y_center = np.dot(Y, xc), np.dot(Y, yc)
-                    h_x, h_y = np.dot(Y, hx), np.dot(Y, hy)
-                    p = perspective_points[i][j]
-                    p = estimate_point(p, dh, rotation_matrix, x_center, y_center, h_x, h_y, s_x, s_y)
-                    perspective_points[i][j] = p
-            self.fisheye_param['perspective_points'] = perspective_points
+            X = np.array([dh, 1])
+            rvec = np.dot(X, rvec_polyfit)
+            tvec = np.dot(X, tvec_polyfit)
+            hw_profile = HW_PROFILE.get(self.remote_model, {'width': 430, 'length': 320})
+            width, height = hw_profile['width'], hw_profile['length']
+            x_grid, y_grid = range(0, width + 1, 10), range(0, height + 1, 10)
+            objp = np.zeros((len(x_grid) * len(y_grid), 1, 3), np.float64)
+            keyMap = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+            for i in range(len(y_grid)):
+                for j in range(len(x_grid)):
+                    h = dh
+                    if self.leveling_data is not None:
+                        x = min(int((x_grid[j] / width) * 3), 2)
+                        y = min(int((y_grid[i] / height) * 3), 2)
+                        key = keyMap[y * 3 + x]
+                        h -= self.leveling_data[key]
+                    objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], -h]
+            projected_points, _ = cv2.fisheye.projectPoints(objp, rvec, tvec, k, d)
+            perspective_points = remap_corners(projected_points, k, d).reshape(len(y_grid), len(x_grid), 2)
+            self.fisheye_param.update({'x_grid': x_grid, 'y_grid': y_grid, 'perspective_points': perspective_points})
             self.send_ok()
 
         def set_crop_param(self, data):
@@ -227,12 +229,12 @@ def camera_api_mixin(cls):
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
                     img = Image.open(io.BytesIO(image))
-                    open_cv_img = np.array(img)
-                    open_cv_img = cv2.cvtColor(open_cv_img, cv2.COLOR_RGBA2BGR)
+                    cv_img = np.array(img)
+                    cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGBA2BGR)
                 except Exception:
                     self.send_binary(image)
                     return
-                img = self.handle_fisheye_image(open_cv_img, downsample=1)
+                img = self.handle_fisheye_image(cv_img, downsample=1)
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)

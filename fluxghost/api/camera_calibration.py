@@ -1,5 +1,6 @@
 import logging
 import io
+import json
 from math import radians, cos, sin
 from time import time
 
@@ -12,6 +13,7 @@ from scipy import spatial
 from fluxghost.utils.fisheye.calibration import (
     calibrate_fisheye,
     calibrate_fisheye_camera,
+    distort_points,
     get_remap_img,
     remap_corners,
 )
@@ -19,11 +21,9 @@ from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.general import pad_image, L_PAD, T_PAD
 from fluxghost.utils.fisheye.perspective import get_perspective_points
 from fluxghost.utils.fisheye.regression import cal_z_3_regression_param
-from fluxghost.utils.fisheye.utils import linear_regression
+from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid
-from fluxghost.utils.fisheye.corner_detection.calculate_camera_position import calculate_camera_position
-from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_point_indices, S
-from fluxghost.utils.fisheye.corner_detection.estimate_point import estimate_point
+from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_points
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -58,7 +58,10 @@ def camera_calibration_api_mixin(cls):
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 'cal_regression_param': [self.cmd_calculate_regression_param],
                 'corner_detection': [self.cmd_corner_detection],
-                'calculate_camera_position': [self.cmd_calculate_camera_position],
+                'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
+                'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
+                'update_data': [self.cmd_update_data],
+                'extrinsic_regression': [self.cmd_extrinsic_regression],
                 'interrupt': [self.cmd_interrupt],
             }
             self.init_fisheye_params()
@@ -114,6 +117,13 @@ def camera_calibration_api_mixin(cls):
             self.init_fisheye_params()
             self.send_ok()
 
+        def cmd_update_data(self, message):
+            data = json.loads(message)
+            for key in ['k', 'd', 'rvec', 'tvec', 'rvec_polyfit', 'tvec_polyfit', 'levelingData']:
+                if key in data:
+                    self.calibration_v2_params[key] = np.array(data[key])
+            self.send_ok()
+
         def cmd_add_fisheye_calibration_image(self, message):
             message = message.split(' ')
 
@@ -133,12 +143,21 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_do_fisheye_calibration(self, message):
             try:
-                k, d = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, CHESSBORAD, self.on_progress)
+                k, d, rvecs, tvecs, heights = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, self.fisheye_calibrate_heights, CHESSBORAD, self.on_progress)
                 if self.check_interrupted():
                     return
                 self.k = k
                 self.d = d
-                self.send_ok(k=k.tolist(), d=d.tolist())
+                rvecs = np.array(rvecs)
+                tvecs = np.array(tvecs)
+                # difference between chessboard origin and laser origin
+                tvecs = tvecs + np.array(([35], [55], [0]))
+                rvec_polyfit = np.polyfit(heights, rvecs.reshape(-1, 3), 1)
+                tvec_polyfit = np.polyfit(heights, tvecs.reshape(-1, 3), 1)
+                rvec_0 = np.dot([0, 1], rvec_polyfit)
+                tvec_0 = np.dot([0, 1], tvec_polyfit)
+                self.send_ok(k=k.tolist(), d=d.tolist(), rvec=rvec_0.tolist(), tvec=tvec_0.tolist(), rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
+
             except Exception as e:
                 if self.check_interrupted():
                     return
@@ -243,7 +262,9 @@ def camera_calibration_api_mixin(cls):
                 objpoints = [objp]
 
                 remap = pad_image(orig_img)
-                ret, k, d, rvec, tvec, _ = calibrate_fisheye(objpoints, imgpoints, remap.shape[:2][::-1])
+                ret, k, d, rvecs, tvecs, _ = calibrate_fisheye(objpoints, imgpoints, [0], remap.shape[:2][::-1])
+                rvec = rvecs[0]
+                tvec = tvecs[0]
                 logger.info('Successfully Calibrated: {}, K: {}, D: {}'.format(ret, k, d))
                 remap = get_remap_img(remap, k, d)
                 grid_map = remap_corners(imgpoints[0], k, d).reshape(-1, 2)
@@ -263,7 +284,7 @@ def camera_calibration_api_mixin(cls):
                 self.calibration_v2_params['rvec'] = rvec
                 self.calibration_v2_params['tvec'] = tvec
                 self.calibration_v2_params['points'] = grid_map
-                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), points=grid_map.tolist(), status='ok')
+                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), status='ok')
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
@@ -272,88 +293,89 @@ def camera_calibration_api_mixin(cls):
             self.set_binary_helper(helper)
             self.send_json(status='continue')
 
-        # Step 2 for fishey calibration v2: calculate elevated img and get camera position
-        def cmd_calculate_camera_position(self, message):
+        # solve pnp step 2: given img and dh, find corners, return corners for user to check
+        def cmd_solve_pnp_find_corners(self, message):
             if self.calibration_v2_params.get('k', None) is None:
-                self.send_json(status='fail', reason='Corner not detected first')
+                self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
+                return
             k = self.calibration_v2_params['k']
             d = self.calibration_v2_params['d']
-            points = self.calibration_v2_params['points']
             rvec = self.calibration_v2_params['rvec']
+            tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
-            camera_pitch = int(message[0])
-            with_pitch = camera_pitch != 0
+            version = int(message[0])
             dh = round(float(message[1]), 2)
             file_length = int(message[2])
-            version = int(message[3])
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 remap = pad_image(img_cv)
                 remap = get_remap_img(remap, k, d)
-                rotation_matrix = cv2.Rodrigues(rvec)[0]
-                corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=True)
+                corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
-                _, y_grid = get_grid(version)
-                ref_x_indice, ref_y_indice = get_ref_point_indices(version)
-                reg_data = {}
-                for y in ref_y_indice:
-                    reg_data[y] = {}
-                    real_y = y_grid[y]
-                    y_ratio = real_y / 300
-                    y_center = 2500 + 500 * y_ratio
-                    for x in ref_x_indice:
-                        ref_point = points[y][x]
-                        cv2.circle(remap, tuple(ref_point.astype(int)), 0, (255, 255, 0), -1)
-                        cv2.circle(remap, tuple(ref_point.astype(int)), 3, (255, 255, 0), 1)
-                        if with_pitch:
-                            new_point = estimate_point(ref_point, dh, rotation_matrix=rotation_matrix, y_center=y_center)
-                        else:
-                            new_point = estimate_point(ref_point, dh, rotation_matrix=rotation_matrix)
-                        cv2.circle(remap, tuple(new_point.astype(int)), 0, (0, 255, 255), -1)
-                        cv2.circle(remap, tuple(new_point.astype(int)), 3, (0, 255, 255), 1)
-                        _, index = corner_tree.query(new_point)
-                        point = corners[index]
-                        found = (int(point[0]), int(point[1]))
-                        cv2.circle(remap, found, 0, (0, 0, 255), -1)
-                        cv2.circle(remap, found, 20, (0, 0, 255), 3)
-                        reg_data[y][x] = [(dh, found, 0, ref_point)]
-
-                Y, XC, YC, HX, HY = [], [], [], [], []
-                for i in range(len(ref_y_indice)):
-                    r = min(min(i, len(ref_y_indice) - 1 - i), 2)
-                    if i == 0:
-                        continue
-                    y = y_grid[ref_y_indice[i]]
-                    Y.append(y)
-                    data = []
-                    for j in range(-r, r + 1):
-                        ref_y = ref_y_indice[i + j]
-                        for x in ref_x_indice:
-                            data += reg_data[ref_y][x]
-                    x_center, y_center, h_x, h_y, _, _ = calculate_camera_position(data, rotation_matrix, fix_hy=with_pitch)
-                    XC.append(x_center)
-                    YC.append(y_center)
-                    HX.append(h_x)
-                    HY.append(h_y)
-                A = np.array([[1, y, y ** 2] for y in Y]).reshape(-1, 3)
-                XC, YC, HX, HY = np.array(XC), np.array(YC), np.array(HX), np.array(HY)
-                res_xcs, r2, std = linear_regression(A, XC)
-                logger.info('XC, r2: {}, std: {}'.format(r2, std))
-                res_ycs, r2, std = linear_regression(A, YC)
-                logger.info('YC, r2: {}, std: {}'.format(r2, std))
-                res_hxs, r2, std = linear_regression(A, HX)
-                logger.info('HX, r2: {}, std: {}'.format(r2, std))
-                res_hys, r2, std = linear_regression(A, HY)
-                logger.info('HY, r2: {}, std: {}'.format(r2, std))
-                self.send_ok(xc=res_xcs.tolist(), yc=res_ycs.tolist(), hx=res_hxs.tolist(), hy=res_hys.tolist(), s=[S, S])
+                ref_points = get_ref_points(version)
+                projected_points, _ = cv2.fisheye.projectPoints(np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3), rvec, tvec, k, d)
+                projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
+                _, candidates_indice = corner_tree.query(projected_points[0], k=25)
+                best_res = None
+                for index in candidates_indice:
+                    res = [corners[index]]
+                    used_indices = set()
+                    total_dist = 0
+                    delta = corners[index] - projected_points[0]
+                    for i in range(1, len(projected_points)):
+                        desire_point = projected_points[i] + delta
+                        dists, indices = corner_tree.query(desire_point, k=len(projected_points))
+                        for j in range(len(indices)):
+                            if indices[j] not in used_indices:
+                                used_indices.add(indices[j])
+                                res.append(corners[indices[j]])
+                                total_dist += dists[j]
+                                break
+                    if best_res is None or total_dist < best_res[1]:
+                        best_res = (res, total_dist)
+                new_imgpoints = np.array(best_res[0])
+                self.send_ok(points=new_imgpoints.tolist())
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')
+
+        def cmd_solve_pnp_calculate(self, message):
+            if self.calibration_v2_params.get('k', None) is None:
+                self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
+            k = self.calibration_v2_params['k']
+            d = self.calibration_v2_params['d']
+            message = message.split(' ')
+            version = int(message[0])
+            dh = round(float(message[1]), 2)
+            objpoints = np.array([p + (-dh,) for p in get_ref_points(version)])
+            imgpoints = np.array(json.loads(message[2]))
+            # sorted_indices = np.lexsort((imgpoints[:, 0] + imgpoints[:, 1]))
+            # imgpoints = imgpoints[sorted_indices]
+            # TODO: sort points
+            distorted = distort_points(imgpoints, k, d)
+            ret, new_rvec, new_tvec = solve_pnp(np.array(objpoints).reshape(-1, 1, 3), distorted.reshape(-1, 1, 2), k, d)
+            if not ret:
+                self.send_json(status='fail', reason='solve pnp failed')
+                return
+            self.send_ok(rvec=new_rvec.tolist(), tvec=new_tvec.tolist())
+
+        def cmd_extrinsic_regression(self, message):
+            message = message.split(' ')
+            rvecs = np.array(json.loads(message[0]))
+            tvecs = np.array(json.loads(message[1]))
+            heights = np.array(json.loads(message[2]))
+            rvec_polyfit = np.polyfit(heights, rvecs.reshape(-1, 3), 1)
+            tvec_polyfit = np.polyfit(heights, tvecs.reshape(-1, 3), 1)
+
+            for h in heights:
+                X = np.array([h, 1])
+                print('rvec', np.dot(X, rvec_polyfit), 'tvec', np.dot(X, tvec_polyfit), sep='\n')
+            self.send_ok(rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
 
     def calc_picture_shape(img):
         PI = np.pi
