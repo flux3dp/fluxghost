@@ -255,8 +255,6 @@ def camera_calibration_api_mixin(cls):
                     calibrate_ret, k, d, rvecs, tvecs, _ = calibrate_fisheye_camera(
                         [img_cv], [height], [chess_w, chess_h], self.on_progress
                     )
-                    if self.check_interrupted():
-                        return
                     rvecs = np.array(rvecs)
                     tvecs = np.array(tvecs)
                     remap = pad_image(img_cv)
@@ -264,11 +262,11 @@ def camera_calibration_api_mixin(cls):
                     objp = np.zeros((chess_w * chess_h, 1, 3), np.float64)
                     objp[:, :, :2] = np.mgrid[0:chess_w, 0:chess_h].T.reshape(-1, 1, 2) * 10
                     objp[:, :, 2] = -height
-                    projected, _ = cv2.fisheye.projectPoints(objp, rvecs[0], tvecs[0], k, d)
-                    projected = remap_corners(projected, k, d).reshape(chess_h, chess_w, 2)
                     _, ret, corners = find_chessboard(
                         remap, [chess_w, chess_h], 2, do_subpix=True, try_denoise=False, k=k, d=d
                     )
+                    projected, _ = cv2.fisheye.projectPoints(objp, rvecs[0], tvecs[0], k, d)
+                    projected = remap_corners(projected, k, d).reshape(chess_h, chess_w, 2)
                     corners = np.array(corners).reshape(chess_h, chess_w, 2) if ret else None
                     for i in range(chess_h):
                         for j in range(chess_w):
@@ -330,7 +328,9 @@ def camera_calibration_api_mixin(cls):
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 orig_img = img_cv.copy()
-                corners = find_corners(img_cv, 2000, min_distance=15 if with_pitch else 20, quality_level=0.003, draw=True)
+                corners = find_corners(
+                    img_cv, 2000, min_distance=15 if with_pitch else 20, quality_level=0.003, draw=True
+                )
                 logger.info('len corners: {}'.format(len(corners)))
                 x_grid, y_grid = get_grid(version)
                 grid_map, has_duplicate_points = find_grid(
@@ -372,8 +372,7 @@ def camera_calibration_api_mixin(cls):
                 self.calibration_v2_params['d'] = d
                 self.calibration_v2_params['rvec'] = rvec
                 self.calibration_v2_params['tvec'] = tvec
-                self.calibration_v2_params['points'] = grid_map
-                self.send_json(k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), status='ok')
+                self.send_json(ret=ret, k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), status='ok')
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
@@ -404,7 +403,9 @@ def camera_calibration_api_mixin(cls):
                 corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
                 ref_points = get_ref_points(version)
-                projected_points, _ = cv2.fisheye.projectPoints(np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3), rvec, tvec, k, d)
+                projected_points, _ = cv2.fisheye.projectPoints(
+                    np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3), rvec, tvec, k, d
+                )
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
                 _, candidates_indice = corner_tree.query(projected_points[0], k=25)
                 best_res = None
