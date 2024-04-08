@@ -14,6 +14,7 @@ from fluxghost.utils.fisheye.calibration import (
     calibrate_fisheye,
     calibrate_fisheye_camera,
     distort_points,
+    find_chessboard,
     get_remap_img,
     remap_corners,
 )
@@ -57,6 +58,7 @@ def camera_calibration_api_mixin(cls):
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
                 'find_perspective_points': [self.cmd_find_perspective_points],
                 'cal_regression_param': [self.cmd_calculate_regression_param],
+                'calibrate_chessboard': [self.cmd_calibrate_chessboard],
                 'corner_detection': [self.cmd_corner_detection],
                 'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
                 'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
@@ -143,7 +145,9 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_do_fisheye_calibration(self, message):
             try:
-                k, d, rvecs, tvecs, heights = calibrate_fisheye_camera(self.fisheye_calibrate_imgs, self.fisheye_calibrate_heights, CHESSBORAD, self.on_progress)
+                ret, k, d, rvecs, tvecs, heights = calibrate_fisheye_camera(
+                    self.fisheye_calibrate_imgs, self.fisheye_calibrate_heights, CHESSBORAD, self.on_progress
+                )
                 if self.check_interrupted():
                     return
                 self.k = k
@@ -156,7 +160,14 @@ def camera_calibration_api_mixin(cls):
                 tvec_polyfit = np.polyfit(heights, tvecs.reshape(-1, 3), 1)
                 rvec_0 = np.dot([0, 1], rvec_polyfit)
                 tvec_0 = np.dot([0, 1], tvec_polyfit)
-                self.send_ok(k=k.tolist(), d=d.tolist(), rvec=rvec_0.tolist(), tvec=tvec_0.tolist(), rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
+                self.send_ok(
+                    k=k.tolist(),
+                    d=d.tolist(),
+                    rvec=rvec_0.tolist(),
+                    tvec=tvec_0.tolist(),
+                    rvec_polyfit=rvec_polyfit.tolist(),
+                    tvec_polyfit=tvec_polyfit.tolist(),
+                )
 
             except Exception as e:
                 if self.check_interrupted():
@@ -164,12 +175,12 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', reason=str(e))
                 raise (e)
 
+        # Deprecated in favor of cmd_solve_pnp_find_corners, remove in future
         def cmd_find_perspective_points(self, message):
             if self.k is None or self.d is None:
                 self.send_json(status='fail', reason='calibrate fisheye camera first')
             if len(self.fisheye_calibrate_imgs) == 0:
                 self.send_json(status='fail', reason='No Calibrate Images')
-
             points = []  # list of list of points
             heights = []
             errors = []
@@ -197,6 +208,7 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', reason=str(e))
                 raise (e)
 
+        # Deprecated in favor of cmd_solve_pnp_find_corners, remove in future
         def cmd_calculate_regression_param(self, message):
             if self.k is None or self.d is None:
                 self.send_json(status='fail', reason='calibrate fisheye camera first')
@@ -228,7 +240,84 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', reason=str(e))
                 raise (e)
 
-        # Step 1 for fishey calibration v2: find corners and grid, calculate k, d, rvec, tvec
+        def cmd_calibrate_chessboard(self, message):
+            message = message.split(' ')
+            file_length = int(message[0])
+            height = float(message[1])
+            chess_w = int(message[2])
+            chess_h = int(message[3])
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                try:
+                    calibrate_ret, k, d, rvecs, tvecs, _ = calibrate_fisheye_camera(
+                        [img_cv], [height], [chess_w, chess_h], self.on_progress
+                    )
+                    if self.check_interrupted():
+                        return
+                    rvecs = np.array(rvecs)
+                    tvecs = np.array(tvecs)
+                    remap = pad_image(img_cv)
+                    remap = get_remap_img(remap, k, d)
+                    objp = np.zeros((chess_w * chess_h, 1, 3), np.float64)
+                    objp[:, :, :2] = np.mgrid[0:chess_w, 0:chess_h].T.reshape(-1, 1, 2) * 10
+                    objp[:, :, 2] = -height
+                    projected, _ = cv2.fisheye.projectPoints(objp, rvecs[0], tvecs[0], k, d)
+                    projected = remap_corners(projected, k, d).reshape(chess_h, chess_w, 2)
+                    _, ret, corners = find_chessboard(
+                        remap, [chess_w, chess_h], 2, do_subpix=True, try_denoise=False, k=k, d=d
+                    )
+                    corners = np.array(corners).reshape(chess_h, chess_w, 2) if ret else None
+                    for i in range(chess_h):
+                        for j in range(chess_w):
+                            if corners is not None:
+                                p = tuple(corners[i][j].astype(int))
+                                cv2.circle(remap, p, 0, (0, 0, 255), -1)
+                                cv2.circle(remap, p, 3, (0, 0, 255), 1)
+                                if i > 0:
+                                    cv2.line(remap, p, tuple(corners[i - 1][j].astype(int)), (0, 0, 255))
+                                if j > 0:
+                                    cv2.line(remap, p, tuple(corners[i][j - 1].astype(int)), (0, 0, 255))
+                            p = tuple(projected[i][j].astype(int))
+                            cv2.circle(remap, p, 0, (255, 0, 0), -1)
+                            cv2.circle(remap, p, 3, (255, 0, 0), 1)
+                            if i > 0:
+                                cv2.line(remap, p, tuple(projected[i - 1][j].astype(int)), (255, 0, 0))
+                            if j > 0:
+                                cv2.line(remap, p, tuple(projected[i][j - 1].astype(int)), (255, 0, 0))
+                    remap = apply_points(
+                        remap,
+                        projected,
+                        [i * 10 for i in range(chess_w)],
+                        [i * 10 for i in range(chess_h)],
+                        padding=150,
+                    )
+
+                    # difference between chessboard origin and laser origin
+                    tvecs = tvecs + np.array(([35], [55], [0]))
+                    self.calibration_v2_params['k'] = k
+                    self.calibration_v2_params['d'] = d
+                    self.calibration_v2_params['rvec'] = rvecs[0]
+                    self.calibration_v2_params['tvec'] = tvecs[0]
+                    _, array_buffer = cv2.imencode('.jpg', remap)
+                    img_bytes = array_buffer.tobytes()
+                    self.send_binary(img_bytes)
+                    self.send_ok(
+                        ret=calibrate_ret, k=k.tolist(), d=d.tolist(), rvec=rvecs[0].tolist(), tvec=tvecs[0].tolist()
+                    )
+                except Exception as e:
+                    if self.check_interrupted():
+                        return
+                    self.send_json(status='fail', reason=str(e))
+                    raise (e)
+
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        # Step 1 for fisheye calibration v2: find corners and grid, calculate k, d, rvec, tvec
         def cmd_corner_detection(self, message):
             message = message.split(' ')
             camera_pitch = int(message[0])
