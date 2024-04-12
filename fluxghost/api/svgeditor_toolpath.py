@@ -93,9 +93,9 @@ def laser_svgeditor_api_mixin(cls):
             self.plain_svg = self.plain_svg.replace(b'encoding="utf-16"', b'encoding="utf-8"')
             try:
                 result = fluxsvg.divide_by_layer(self.plain_svg, params=divide_params, loop_compensation=self.loop_compensation)
-
-                self.send_json(name="nolayer", length=result['nolayer'].getbuffer().nbytes)
-                self.send_binary(result['nolayer'].getbuffer())
+                if 'nolayer' in result:
+                    self.send_json(name="nolayer", length=result['nolayer'].getbuffer().nbytes)
+                    self.send_binary(result['nolayer'].getbuffer())
                 if result['bitmap'] is None:
                     self.send_json(name="bitmap", length=0)
                     self.send_binary(b"")
