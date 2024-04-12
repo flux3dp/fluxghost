@@ -317,7 +317,7 @@ def laser_svgeditor_api_mixin(cls):
             hardware_name = 'beambox'
             send_fcode = True
 
-            svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'acc': 4000}
+            svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'path_travel_speed': 7500, 'acc': 4000}
             clip_rect = None
             fcode_version = 1
 
@@ -334,6 +334,7 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-ado1':
                     svgeditor2taskcode_kwargs['max_x'] = 430
                     hardware_name = 'ador'
+                    svgeditor2taskcode_kwargs['path_travel_speed'] = 3600
                     fcode_version = 2
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
