@@ -58,7 +58,7 @@ def corner_sub_pix(gray_image, corners):
 FIND_CHESSBOARD_FLAGS = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK
 
 
-def do_find_corner(img, chessboard, downsize_ratio=1, try_denoise=True):
+def do_find_chessboard(img, chessboard, downsize_ratio=1, try_denoise=True):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if downsize_ratio > 1:
         height, width = img.shape[:2]
@@ -91,8 +91,8 @@ def do_find_corner(img, chessboard, downsize_ratio=1, try_denoise=True):
     return gray, ret, (corners * downsize_ratio if ret else corners)
 
 
-def find_corners(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoise=True, try_remap=True, k=None, d=None):
-    gray, ret, corners = do_find_corner(img, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
+def find_chessboard(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoise=True, try_remap=True, k=None, d=None):
+    gray, ret, corners = do_find_chessboard(img, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
     if ret:
         if do_subpix:
             corners = corner_sub_pix(gray, corners)
@@ -100,7 +100,7 @@ def find_corners(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoise=
     if not try_remap or k is None or d is None:
         return gray, ret, corners
     remap = get_remap_img(img, k, d)
-    gray, ret, corners = do_find_corner(remap, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
+    gray, ret, corners = do_find_chessboard(remap, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
     if ret:
         if do_subpix:
             corners = corner_sub_pix(gray, corners)
@@ -144,7 +144,7 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
         h = img_heights[i]
         img = imgs[i]
         img = pad_image(img)
-        gray, ret, corners = find_corners(img, chessboard, 2, do_subpix=True, try_denoise=False, k=INIT_K, d=INIT_D)
+        gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=True, try_denoise=False, k=INIT_K, d=INIT_D)
         if ret:
             logger.info('found corners for height {}'.format(h))
             objp = objp.copy()
@@ -162,8 +162,8 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
         )
         logger.info('Calibrate All imgs: {}'.format(ret))
         if ret < 5:
-            return k, d, rvecs, tvecs, heights
-        best_result = (ret, k, d, rvecs, tvecs)
+            return ret, k, d, rvecs, tvecs, heights
+        best_result = (ret, k, d, rvecs, tvecs, heights)
     except Exception:
         logger.info('Calibrate All imgs failed')
     for h in imgpoints.keys():
@@ -179,4 +179,4 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
         raise Exception('Failed to calibrate camera, no img points left behind')
     ret, k, d, rvecs, tvecs, heights = best_result
     logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
-    return k, d, rvecs, tvecs, heights
+    return ret, k, d, rvecs, tvecs, heights

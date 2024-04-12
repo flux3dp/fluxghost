@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from .calibration import corner_sub_pix, find_corners, get_remap_img
+from .calibration import corner_sub_pix, find_chessboard, get_remap_img
 from .constants import DPMM
 from .general import pad_image
 
@@ -30,7 +30,7 @@ def get_all_split_indices(split, chessboard):
 def get_perspective_points(img, k, d, split, chessboard):
     img = pad_image(img)
     img = get_remap_img(img, k, d)
-    gray, ret, corners = find_corners(img, chessboard, 2, do_subpix=False, try_remap=False)
+    gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=False, try_remap=False)
     if not ret:
         raise Exception('Cannot find corners')
     corners = corner_sub_pix(gray, corners)

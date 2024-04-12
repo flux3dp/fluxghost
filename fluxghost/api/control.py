@@ -348,11 +348,8 @@ def control_api_mixin(cls):
 
         def rmfile(self, file):
             path = file if file.startswith("/") else "/" + file
-            if path.startswith("/SD/"):
-                self.robot.rmfile(path)
-                self.send_json(status="ok", path=path)
-            else:
-                self.send_error("NOT_SUPPORT")
+            self.robot.rmfile(path)
+            self.send_json(status="ok", path=path)
 
         def download(self, file):
             def report(left, size):
