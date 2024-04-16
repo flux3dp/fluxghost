@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import tempfile
 
+
 from PIL import Image, ImageCms
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
@@ -24,6 +25,7 @@ def utils_api_mixin(cls):
                 'select_font': [self.cmd_select_font],
                 'check_exist': [self.cmd_check_exist],
                 'rgb_to_cmyk': [self.rgb_to_cmyk],
+                'split_color': [self.split_color],
             }
 
         def cmd_pdf2svg(self, params):
@@ -116,6 +118,49 @@ def utils_api_mixin(cls):
                 else:
                     self.send_json(status='complete', length=len(image_binary))
                     self.send_binary(out_byte.getvalue())
+
+            file_length = int(params[0])
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def split_color(self, params):
+            params = params.split(' ')
+            color_type = params[1]
+
+            def upload_callback(buf):
+                image = Image.open(io.BytesIO(buf))
+                self.send_json(status='uploaded')
+                if image.mode != 'CMYK':
+                    if image.info.get('transparency', None) is not None:
+                        image = image.convert('RGBA')
+                    if image.mode == 'RGBA':
+                        white_image = Image.new('RGBA', image.size, 'white')
+                        image = Image.alpha_composite(white_image, image)
+                    image = image.convert('RGB')
+                    if color_type == 'cmyk':
+                        image = image.convert('CMYK')
+                    else:
+                        srgb_profile = ImageCms.createProfile('sRGB')
+                        cmyk_profile = ImageCms.getOpenProfile('static/Coated_Fogra39L_VIGC_300.icc')
+                        transform = ImageCms.buildTransform(srgb_profile, cmyk_profile, 'RGB', 'CMYK')
+                        image = ImageCms.applyTransform(image, transform)
+                # TODO: currently k will be empty when mode is cmyk
+                c, m, y, k = image.split()
+                c = Image.eval(c, lambda x: 255 - x)
+                m = Image.eval(m, lambda x: 255 - x)
+                y = Image.eval(y, lambda x: 255 - x)
+                k = Image.eval(k, lambda x: 255 - x)
+                def get_base64(image: Image):
+                    out_byte = io.BytesIO()
+                    image.save(out_byte, format='JPEG', quality=100, subsampling=0)
+                    image_binary = out_byte.getvalue()
+                    return base64.b64encode(image_binary).decode('utf-8')
+                c = get_base64(c)
+                m = get_base64(m)
+                y = get_base64(y)
+                k = get_base64(k)
+                self.send_ok(c=c, m=m, y=y, k=k)
 
             file_length = int(params[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
