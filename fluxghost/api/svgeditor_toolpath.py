@@ -427,6 +427,17 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['travel_speed'] = int(params[i+1])
                     except Exception:
                         pass
+                elif param == '-pts':
+                    try:
+                        svgeditor2taskcode_kwargs['path_travel_speed'] = int(params[i+1])
+                    except Exception:
+                        pass
+                elif param == '-ats':
+                    try:
+                        svgeditor2taskcode_kwargs['a_travel_speed'] = int(params[i+1])
+                    except Exception:
+                        pass
+
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
 
