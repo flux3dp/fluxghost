@@ -89,9 +89,11 @@ class WebSocketHandler(object):
         return self.request.fileno()
 
     def do_recv(self):
-        buf = (self.recv_flag & WAIT_LARGE_DATA == 0) and \
-            self.buf_view[self.recv_offset:] or \
-            self.ext_buf_view[self.ext_recv_offset:]
+        buf = (
+            (self.recv_flag & WAIT_LARGE_DATA == 0)
+            and self.buf_view[self.recv_offset :]
+            or self.ext_buf_view[self.ext_recv_offset :]
+        )
 
         try:
             length = self.request.recv_into(buf)
@@ -144,15 +146,13 @@ class WebSocketHandler(object):
             if fullsize < BUFFER_SIZE:
                 if self.recv_offset >= fullsize:
                     self._handle_message_frame(self.buf_view[:fullsize])
-                    self.buf_view[:(self.recv_offset - fullsize)] = \
-                        self.buf_view[fullsize:self.recv_offset]
+                    self.buf_view[:(self.recv_offset - fullsize)] = self.buf_view[fullsize:self.recv_offset]
                     self.recv_offset -= fullsize
                     return (self.recv_offset > 0)
             else:
                 self.recv_flag |= WAIT_LARGE_DATA
                 self.ext_buffer = bytearray(fullsize)
-                self.ext_buffer[:self.recv_offset] = \
-                    self.buffer[:self.recv_offset]
+                self.ext_buffer[:self.recv_offset] = self.buffer[:self.recv_offset]
                 self.ext_recv_offset = self.recv_offset
                 self.ext_buf_view = memoryview(self.ext_buffer)
         else:
