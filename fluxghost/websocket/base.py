@@ -3,8 +3,7 @@ from time import time
 import logging
 
 from fluxghost.api import ApiBase
-from fluxghost.utils.websocket import WebSocketHandler, WebsocketError, \
-    ST_UNEXPECTED_CONDITION
+from fluxghost.utils.websocket import WebSocketHandler, WebsocketError, ST_UNEXPECTED_CONDITION
 
 logger = logging.getLogger("WS.BASE")
 
