@@ -440,39 +440,11 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
             k = self.calibration_v2_params['k']
             d = self.calibration_v2_params['d']
-            rvec = self.calibration_v2_params['rvec']
-            tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
             version = int(message[0])
             dh = round(float(message[1]), 2)
             ref_points = get_ref_points(version)
             imgpoints = np.array(json.loads(message[2]))
-
-            # sort imgpoints
-            kd_tree = spatial.KDTree(imgpoints)
-            projected_points, _ = cv2.fisheye.projectPoints(
-                np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3), rvec, tvec, k, d
-            )
-            projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
-            _, candidates_indice = kd_tree.query(projected_points[0], k=8)
-            best_res = None
-            for index in candidates_indice:
-                res = [imgpoints[index]]
-                used_indices = set([index])
-                total_dist = 0
-                delta = imgpoints[index] - projected_points[0]
-                for i in range(1, len(projected_points)):
-                    desire_point = projected_points[i] + delta
-                    dists, indices = kd_tree.query(desire_point, k=len(projected_points))
-                    for j in range(len(indices)):
-                        if indices[j] not in used_indices:
-                            used_indices.add(indices[j])
-                            res.append(imgpoints[indices[j]])
-                            total_dist += dists[j]
-                            break
-                if best_res is None or total_dist < best_res[1]:
-                    best_res = (res, total_dist)
-            imgpoints = np.array(best_res[0])
             objpoints = np.array([p + (-dh,) for p in ref_points])
             distorted = distort_points(imgpoints, k, d)
 
