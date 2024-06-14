@@ -31,6 +31,7 @@ def laser_svgeditor_api_mixin(cls):
             self.svg_image = None
             self.loop_compensation = 0.0
             self.is_task_interrupted = False
+            self.curve_engraving_detail = None
             super().__init__(*args)
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
@@ -45,14 +46,21 @@ def laser_svgeditor_api_mixin(cls):
 
         def cmd_set_params(self, params):
             key, value = params.split()
-            logger.info('setting parameter %r  = %r', key, value)
+            logger.info('setting parameter %r = %r', key, value)
             if not self.set_param(key, value):
                 if key == 'loop_compensation':
                     self.loop_compensation = max(0, float(value))
+                elif key == 'curve_engraving':
+                    try:
+                        curve_engraving_detail = json.loads(value)
+                        self.curve_engraving_detail = curve_engraving_detail
+                    except Exception:
+                        logger.exception('Invalid curve_engraving value')
+                        self.send_json(status='error', message='Invalid curve_engraving value')
                 elif key in ('shading', 'one_way', 'calibration'):
                     pass
                 else:
-                    raise KeyError('Bad key: %r' % key)
+                    self.send_json(status='error', message='Unknown parameter %s' % key)
             self.send_ok()
 
         def divide_svg(self, params):
@@ -124,6 +132,8 @@ def laser_svgeditor_api_mixin(cls):
 
 
         def cmd_svgeditor_upload(self, params):
+            # clear previous data
+            self.curve_engraving_detail = None
             svgeditor_image_params = {
                 'loop_compensation': self.loop_compensation,
                 'hardware': 'beambox',
@@ -318,6 +328,7 @@ def laser_svgeditor_api_mixin(cls):
             send_fcode = True
 
             svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'path_travel_speed': 7500, 'acc': 4000}
+            svgeditor2taskcode_kwargs['curve_engraving'] = self.curve_engraving_detail
             clip_rect = None
             fcode_version = 1
 
