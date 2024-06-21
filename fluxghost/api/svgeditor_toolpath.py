@@ -350,7 +350,10 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
-                    svgeditor2taskcode_kwargs['spinning_axis_coord'] = float(params[i+1])
+                    val = float(params[i+1])
+                    svgeditor2taskcode_kwargs['spinning_axis_coord'] = val
+                    if val > 0:
+                        self.fcode_metadata['ROTARY'] = '1'
                 elif param == '-rotary-y-ratio':
                     svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i+1])
                 elif param == '-blade':
