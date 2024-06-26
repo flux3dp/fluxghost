@@ -1,1 +1,1 @@
-__version__ = "2.1.3" # Minor fix
+__version__ = "2.2.0" # Add rotary and curve engraving data
