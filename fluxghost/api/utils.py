@@ -145,7 +145,6 @@ def utils_api_mixin(cls):
                         cmyk_profile = ImageCms.getOpenProfile('static/Coated_Fogra39L_VIGC_300.icc')
                         transform = ImageCms.buildTransform(srgb_profile, cmyk_profile, 'RGB', 'CMYK')
                         image = ImageCms.applyTransform(image, transform)
-                # TODO: currently k will be empty when mode is cmyk
                 c, m, y, k = image.split()
                 c = Image.eval(c, lambda x: 255 - x)
                 m = Image.eval(m, lambda x: 255 - x)
