@@ -5,8 +5,7 @@ import logging
 import socket
 from sys import stdout
 import platform
-from pathlib import Path
-from os import path
+from os import getenv, path
 
 from fluxghost.http_handlers.websocket_handler import WebSocketHandler
 from fluxghost.http_handlers.file_handler import FileHandler
@@ -34,7 +33,6 @@ class HttpServerBase(object):
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(address)
         s.listen(backlog)
-
         if address[1] == 0:
             address = s.getsockname()
             home = str(path.expanduser("~"))
@@ -45,12 +43,11 @@ class HttpServerBase(object):
                 appdata = path.join(home, 'Library', 'Application Support')
             elif sys == 'Windows':
                 try:
-                    from win32com.shell import shell,shellcon
-                    home = shell.SHGetFolderPath(0, shellcon.CSIDL_PROFILE, None, 0)
-                except Exception as e:
-                    print('Can not get home by shell.SHGetFolderPath', e)
-                    pass
-                appdata = path.join(home, 'AppData', 'Roaming')
+                    appdata = getenv('APPDATA')
+                except Exception:
+                    appdata = None
+                if not appdata:
+                    appdata = path.join(home, 'AppData', 'Roaming')
             elif sys == 'Linux':
                 appdata = path.join(home, '.config')
             else:
