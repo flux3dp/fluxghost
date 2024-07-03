@@ -141,10 +141,9 @@ elif os_type.startswith('Darwin'):
     binaries.append( ('./lib/mac/libfontconfig.1.dylib', '.') )
     binaries.append( ('./lib/mac/libpng16.16.dylib', '.') )
     binaries.append( ('./lib/mac/libwebp.7.dylib', '.') )
-    excludes.append('win32com')
 elif os_type.startswith('Linux'):
     # binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
-    excludes.append('win32com')
+    pass
 else:
     raise ValueError('Unknown Os Type {}'.format(os_type) )
 
