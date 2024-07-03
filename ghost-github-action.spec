@@ -199,6 +199,5 @@ coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
-               strip=None,
                upx=True,
                name='flux_api')
