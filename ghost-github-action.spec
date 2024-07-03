@@ -144,22 +144,11 @@ elif os_type.startswith('Darwin'):
     binaries.append( ('/usr/local/Cellar/cairo/1.18.0/lib/libcairo.2.dylib', '.') )
     binaries.append( ('/usr/local/Cellar/cairo/1.18.0/lib/libcairo-gobject.dylib', '.') )
     binaries.append( ('/usr/local/Cellar/cairo/1.18.0/lib/libcairo-gobject.2.dylib', '.') )
+    binaries.append( ('/usr/local/Cellar/zlib/1.3.1/lib/libz.1.dylib', '.') )
     binaries.append( ('./lib/mac/libfreetype.6.dylib', '.') )
     binaries.append( ('./lib/mac/libpixman-1.0.dylib', '.') )
     binaries.append( ('./lib/mac/libfontconfig.1.dylib', '.') )
     binaries.append( ('./lib/mac/libpng16.16.dylib', '.') )
-    binaries.append( ('/usr/local/opt/zlib/lib/libz.1.dylib', '.') )
-    if get_os_version().startswith('Darwin Kernel Version 17'):
-        binaries.append( ('/opt/X11/lib/libXrender.1.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libxcb.1.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libXau.6.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libXdmcp.6.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libSM.6.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libICE.6.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libX11.6.dylib', '.') )
-        binaries.append( ('/opt/X11/lib/libXext.6.dylib', '.') )
-    else:
-        pass
     excludes.append('win32com')
 elif os_type.startswith('Linux'):
     # binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
