@@ -22,10 +22,8 @@ const main = async () => {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
         } else if( os.platform() === 'darwin' ) {
-            const pythonVersion = process.env.PYTHON_VERSION || '3.6';
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
-            await exec.exec('sudo', ['cp', './lib/mac/libwebp.7.dylib', 'dist/flux_api'], options);
             // pyinstaller failed to hook tcl & tk for precomiled python so hard code copy when
             await exec.exec('sudo', ['cp', '-R', `/Library/Frameworks/Python.framework/Versions/Current/lib/tcl8.6`, 'dist/flux_api/tcl/'], options);
             await exec.exec('sudo', ['cp', '-R', `/Library/Frameworks/Python.framework/Versions/Current/lib/tk8.6`, 'dist/flux_api/tk'], options);
