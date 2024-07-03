@@ -1,16 +1,10 @@
 # -*- mode: python -*-
+import os
+import platform
+import site
 
-from pkg_resources import resource_listdir, resource_isdir, resource_filename, parse_version
+from PyInstaller.utils.hooks import collect_submodules
 
-from PyInstaller import __version__ as PyInstallerVersion
-from platform import version as get_os_version
-
-if parse_version(PyInstallerVersion) >= parse_version('3.1'):
-    from PyInstaller.utils.hooks import collect_submodules
-else:
-    from PyInstaller.utils.hooks.hookutils import collect_submodules
-
-import os, platform, sys, site
 os_type = platform.system()
 sitepackages = site.getsitepackages()
 
@@ -144,11 +138,13 @@ elif os_type.startswith('Darwin'):
     binaries.append( ('/usr/local/Cellar/cairo/1.18.0/lib/libcairo.2.dylib', '.') )
     binaries.append( ('/usr/local/Cellar/cairo/1.18.0/lib/libcairo-gobject.dylib', '.') )
     binaries.append( ('/usr/local/Cellar/cairo/1.18.0/lib/libcairo-gobject.2.dylib', '.') )
+    binaries.append( ('/usr/local/Cellar/zlib/1.3.1/lib/libz.1.3.1.dylib', '.') )
     binaries.append( ('/usr/local/Cellar/zlib/1.3.1/lib/libz.1.dylib', '.') )
     binaries.append( ('./lib/mac/libfreetype.6.dylib', '.') )
     binaries.append( ('./lib/mac/libpixman-1.0.dylib', '.') )
     binaries.append( ('./lib/mac/libfontconfig.1.dylib', '.') )
     binaries.append( ('./lib/mac/libpng16.16.dylib', '.') )
+    binaries.append( ('./lib/mac/libwebp.7.dylib', '.') )
     excludes.append('win32com')
 elif os_type.startswith('Linux'):
     # binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
@@ -201,3 +197,23 @@ coll = COLLECT(exe,
                a.datas,
                upx=True,
                name='flux_api')
+
+# Post-processing step to create symbolic links
+def create_symlinks():
+    build_path = os.path.join(os.getcwd(), 'dist', 'flux_api')
+    internal_path = os.path.join(build_path, '_internal')
+
+    libraries = [
+        'libcairo.2.dylib',
+    ]
+
+    for lib in libraries:
+        lib_path = os.path.join(internal_path, lib)
+        link_path = os.path.join(build_path, lib)
+        target_path = os.path.relpath(lib_path, os.path.dirname(link_path))
+
+        if not os.path.exists(link_path):
+            os.symlink(target_path, link_path)
+
+if os_type.startswith('Darwin'):
+    create_symlinks()
