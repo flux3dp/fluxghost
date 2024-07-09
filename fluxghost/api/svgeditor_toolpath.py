@@ -330,6 +330,7 @@ def laser_svgeditor_api_mixin(cls):
             svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'path_travel_speed': 7500, 'acc': 4000}
             svgeditor2taskcode_kwargs['curve_engraving'] = self.curve_engraving_detail
             clip_rect = None
+            is_rotary_task = False
             fcode_version = 1
 
             for i, param in enumerate(params):
@@ -354,6 +355,7 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor2taskcode_kwargs['spinning_axis_coord'] = val
                     if val > 0:
                         self.fcode_metadata['ROTARY'] = '1'
+                        is_rotary_task = True
                 elif param == '-rotary-y-ratio':
                     svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i+1])
                 elif param == '-blade':
@@ -469,7 +471,8 @@ def laser_svgeditor_api_mixin(cls):
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     if fcode_version == 2:
-                        writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail, ))
+                        magic_number = 4 if is_rotary_task else 3
+                        writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail, ), magic_number)
                     else:
                         writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail, ))
                 else:
