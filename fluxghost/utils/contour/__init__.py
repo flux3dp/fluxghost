@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 def find_similar_contours(img):
     contours = []
-    contours += get_contour_by_canny(img.copy())
+    # contours += get_contour_by_canny(img.copy())
     contours += get_contour_by_hsv_gradient(img.copy())
 
     if len(contours) == 0:
