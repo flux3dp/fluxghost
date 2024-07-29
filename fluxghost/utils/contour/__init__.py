@@ -8,10 +8,11 @@ from .contour_info import get_contour_info
 logger = logging.getLogger(__name__)
 
 
-def find_similar_contours(img):
+def find_similar_contours(img, splicing_img=False):
     contours = []
-    # contours += get_contour_by_canny(img.copy())
-    contours += get_contour_by_hsv_gradient(img.copy())
+    contours += get_contour_by_hsv_gradient(img, splicing_img=splicing_img)
+    if splicing_img:
+        contours += get_contour_by_canny(img)
 
     if len(contours) == 0:
         return []
@@ -25,10 +26,7 @@ def find_similar_contours(img):
     contours = group[0]
     logger.info('Most commen group contours: %d' % len(contours))
 
-    group_img = img.copy()
     data = []
     for contour in contours:
-        import cv2
-        cv2.drawContours(group_img, [contour], -1, (0, 255, 0), thickness=2)
         data.append(get_contour_info(contour))
     return data

@@ -176,7 +176,11 @@ def utils_api_mixin(cls):
                 try:
                     image = Image.open(io.BytesIO(buf))
                     cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-                    data = find_similar_contours(cv_img)
+                    cv2.imwrite('smart-fill-input.png', cv_img)
+                    splicing_img = False
+                    if len(params) > 1 and params[1] == '1':
+                        splicing_img = True
+                    data = find_similar_contours(cv_img, splicing_img)
                     self.send_ok(data=data)
                 except Exception as e:
                     self.send_json(status='error', info=str(e))
