@@ -6,6 +6,7 @@ def find_contours(
     img,
     dilate_k=3,
     erode_k=3,
+    parent_erode_k=8,
     post_fill_dilate_k=3,
     kernel_type=cv2.MORPH_ELLIPSE,
     size_threshold=10000,
@@ -18,19 +19,27 @@ def find_contours(
     res = cv2.findContours(img, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     contours, hierarchy = res[0], res[1][0]
     img = np.zeros_like(img)
+    parent_contour_img = np.zeros_like(img)
     for i in range(len(contours)):
         hierarchy_data = hierarchy[i]
         if hierarchy_data[3] > 0:
             cv2.drawContours(img, [contours[i]], -1, 255, thickness=cv2.FILLED)
+        else:
+            cv2.drawContours(parent_contour_img, [contours[i]], -1, 255, thickness=cv2.FILLED)
     # Step 3: After fill, we can erode to denoise
     kernel = cv2.getStructuringElement(kernel_type, (erode_k, erode_k))
     img = cv2.erode(img, kernel, iterations=1)
+    kernel = cv2.getStructuringElement(kernel_type, (parent_erode_k, parent_erode_k))
+    parent_contour_img = cv2.erode(parent_contour_img, kernel, iterations=1)
     # Step 4: Do a final dilate to compensate the erosion and merge some seperated parts
     kernel = cv2.getStructuringElement(kernel_type, (post_fill_dilate_k, post_fill_dilate_k))
     img = cv2.dilate(img, kernel, iterations=1)
+    parent_contour_img = cv2.dilate(parent_contour_img, kernel, iterations=1)
 
     res = cv2.findContours(img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     contours = res[0]
+    res = cv2.findContours(parent_contour_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours += res[0]
     if size_threshold is not None:
         contours = [contour for contour in contours if cv2.contourArea(contour) > size_threshold]
     return contours
@@ -61,5 +70,10 @@ def get_contour_by_hsv_gradient(img, prefix: str = "", size_threshold=10000):
     img = np.uint8(np.sqrt(gradient_magnitude))
     img = cv2.GaussianBlur(img, (15, 15), 0)
 
-    _, img = cv2.threshold(img, np.quantile(img, 0.90), 255, cv2.THRESH_BINARY)
-    return find_contours(img, 5, 30, 30, size_threshold=size_threshold)
+    # Exclude black pixels because bb-series would contain a lot of transparent (black) pixels
+    flat_image = img.flatten()
+    non_black_pixels = flat_image[flat_image > 0]
+    threshold = np.quantile(non_black_pixels, 0.85)
+
+    _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+    return find_contours(img, dilate_k=5, erode_k=30, parent_erode_k=40, post_fill_dilate_k=30, size_threshold=size_threshold)

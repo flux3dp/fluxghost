@@ -81,6 +81,28 @@ def group_similar_contours(contours, hu_threshold=0.015, area_threshold=0.25):
         if group_idx == -1:
             groups.append(([contour], [hu_moment], hu_moment, area))
 
+    for i in range(len(groups)):
+        if len(groups[i][0]) == 0:
+            continue
+        for j in range(i + 1, len(groups)):
+            group1 = groups[i]
+            group2 = groups[j]
+            if calculate_hu_moments_dist(group1[2], group2[2]) < hu_threshold and check_area_difference(
+                group1[3], group2[3], area_threshold
+            ):
+                print(f"Group {i} and {j} are similar")
+                group1_contours, group1_hu_moments, _, _ = group1
+                group2_contours, group2_hu_moments, _, _ = group2
+                groups[i] = (
+                    group1_contours + group2_contours,
+                    group1_hu_moments + group2_hu_moments,
+                    (group1[2] * len(group1_contours) + group2[2] * len(group2_contours))
+                    / (len(group1_contours) + len(group2_contours)),
+                    (group1[3] * len(group1_contours) + group2[3] * len(group2_contours))
+                    / (len(group1_contours) + len(group2_contours)),
+                )
+                groups[j] = ([], [], 0, 0)
+
     for group_idx, group in enumerate(groups):
         group_contours, group_hu_moments, avg_hu_moment, avg_area = group
         idx_to_remove = []
