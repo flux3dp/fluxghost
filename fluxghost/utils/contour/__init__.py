@@ -27,6 +27,10 @@ def find_similar_contours(img, splicing_img=False):
     logger.info('Most commen group contours: %d' % len(contours))
 
     data = []
+    base_flip_info = None
     for contour in contours:
-        data.append(get_contour_info(contour))
+        info, flip_info = get_contour_info(contour, base_flip_info)
+        if base_flip_info is None:
+            base_flip_info = flip_info
+        data.append(info)
     return data
