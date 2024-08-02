@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 def find_similar_contours(img, splicing_img=False):
     contours = []
     contours += get_contour_by_hsv_gradient(img, splicing_img=splicing_img)
-    if splicing_img:
-        contours += get_contour_by_canny(img)
+    contours += get_contour_by_canny(img, splicing_img=splicing_img)
 
     if len(contours) == 0:
         return []
