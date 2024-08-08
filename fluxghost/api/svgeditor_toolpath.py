@@ -186,6 +186,8 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor_image_params['hardware'] = 'beamo'
                 elif param == '-ado1':
                     svgeditor_image_params['hardware'] = 'ador'
+                elif param == '-fbb2':
+                    svgeditor_image_params['hardware'] = 'fbb2'
                 elif param == '-ldpi':
                     self.pixel_per_mm = 5
                 elif param == '-mdpi':
@@ -327,7 +329,7 @@ def laser_svgeditor_api_mixin(cls):
             hardware_name = 'beambox'
             send_fcode = True
 
-            svgeditor2taskcode_kwargs = {'max_x': 400, 'travel_speed': 7500, 'path_travel_speed': 7500, 'acc': 4000}
+            svgeditor2taskcode_kwargs = {'travel_speed': 7500, 'path_travel_speed': 7500, 'acc': 4000}
             svgeditor2taskcode_kwargs['curve_engraving'] = self.curve_engraving_detail
             clip_rect = None
             is_rotary_task = False
@@ -335,19 +337,17 @@ def laser_svgeditor_api_mixin(cls):
 
             for i, param in enumerate(params):
                 if param == '-hexa' or param == '-bb2':
-                    svgeditor2taskcode_kwargs['max_x'] = 750
                     hardware_name = 'hexa'
                 elif param == '-pro':
-                    svgeditor2taskcode_kwargs['max_x'] = 600
                     hardware_name = 'beambox-pro'
                 elif param == '-beamo':
-                    svgeditor2taskcode_kwargs['max_x'] = 300
                     hardware_name = 'beamo'
                 elif param == '-ado1':
-                    svgeditor2taskcode_kwargs['max_x'] = 430
                     hardware_name = 'ador'
                     svgeditor2taskcode_kwargs['path_travel_speed'] = 3600
                     fcode_version = 2
+                elif param == '-fbb2':
+                    hardware_name = 'fbb2'
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
