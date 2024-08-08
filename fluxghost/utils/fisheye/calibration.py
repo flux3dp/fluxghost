@@ -134,13 +134,14 @@ def calibrate_fisheye(objpoints, imgpoints, heights, size):
 
 
 # Calibrate using cv2.fisheye.calibrate
-def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback):
+def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback = None):
     objp = np.zeros((chessboard[0] * chessboard[1], 1, 3), np.float64)
     objp[:, :, :2] = np.mgrid[0 : chessboard[0], 0 : chessboard[1]].T.reshape(-1, 1, 2) * 10
     objpoints = {}  # 3d point in real world space
     imgpoints = {}  # 2d points in image plane.
     for i in range(len(imgs)):
-        progress_callback(i / len(imgs))
+        if progress_callback:
+            progress_callback(i / len(imgs))
         h = img_heights[i]
         img = imgs[i]
         img = pad_image(img)

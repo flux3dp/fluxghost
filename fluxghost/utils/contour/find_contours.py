@@ -59,9 +59,13 @@ def find_contours(
     return contours
 
 
-def get_contour_by_canny(img, size_threshold=10000):
+def get_contour_by_canny(img, splicing_img=False, size_threshold=10000):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    img = cv2.Canny(img, 30, 200, 5)
+    if splicing_img:
+        img = cv2.GaussianBlur(img, (17, 17), 0)
+        img = cv2.Canny(img, 30, 90)
+    else:
+        img = cv2.Canny(img, 30, 200, 5)
     return find_contours(
         img,
         dilate_k=25,
