@@ -348,6 +348,7 @@ def laser_svgeditor_api_mixin(cls):
                     fcode_version = 2
                 elif param == '-fbb2':
                     hardware_name = 'fbb2'
+                    fcode_version = 2
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
