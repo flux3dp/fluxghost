@@ -454,6 +454,8 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['a_travel_speed'] = int(params[i+1])
                     except Exception:
                         pass
+                elif param == '-no-pwm':
+                    svgeditor2taskcode_kwargs['no_pwm'] = True
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
