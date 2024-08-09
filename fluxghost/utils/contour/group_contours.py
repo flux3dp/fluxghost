@@ -43,6 +43,13 @@ def check_area_intersect(contour1, contour2, w, h):
     return cv2.countNonZero(cv2.bitwise_and(mask1, mask2)) > 0
 
 
+def calculate_smoothness(contour):
+    perimeter = cv2.arcLength(contour, True)
+    area = cv2.contourArea(contour)
+    # the higher the smoother
+    return np.sqrt(area) / perimeter
+
+
 def check_contour_intersection(contour1, contour2):
     bbox1 = cv2.boundingRect(contour1)
     bbox2 = cv2.boundingRect(contour2)
@@ -71,8 +78,9 @@ def group_similar_contours(contours, hu_threshold=0.015, area_threshold=0.25):
             if calculate_hu_moments_dist(hu_moment, avg_hu_moment) < hu_threshold and check_area_difference(
                 area, avg_area, area_threshold
             ):
-                avg_hu_moment = (avg_hu_moment * len(group_contours) + hu_moment) / (len(group_contours) + 1)
-                avg_area = (avg_area * len(group_contours) + area) / (len(group_contours) + 1)
+                count = len(group_contours)
+                avg_hu_moment = (avg_hu_moment * count + hu_moment) / (count + 1)
+                avg_area = (avg_area * count + area) / (count + 1)
                 group_contours.append(contour)
                 group_hu_moments.append(hu_moment)
                 groups[j] = (group_contours, group_hu_moments, avg_hu_moment, avg_area)
@@ -109,9 +117,12 @@ def group_similar_contours(contours, hu_threshold=0.015, area_threshold=0.25):
         for i in range(len(group_contours)):
             for j in range(i + 1, len(group_contours)):
                 if check_contour_intersection(group_contours[i], group_contours[j]):
-                    hu_score_i = -calculate_hu_moments_dist(group_hu_moments[i], avg_hu_moment)
-                    hu_score_j = -calculate_hu_moments_dist(group_hu_moments[j], avg_hu_moment)
-                    if hu_score_i > hu_score_j:
+                    # hu_score_i = -calculate_hu_moments_dist(group_hu_moments[i], avg_hu_moment)
+                    # hu_score_j = -calculate_hu_moments_dist(group_hu_moments[j], avg_hu_moment)
+                    # Try to use smoothness as a criteria, if it works, we can remove the hu_score
+                    smoothness_i = calculate_smoothness(group_contours[i])
+                    smoothness_j = calculate_smoothness(group_contours[j])
+                    if smoothness_i > smoothness_j:
                         idx_to_remove.append(j)
                     else:
                         idx_to_remove.append(i)
