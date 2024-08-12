@@ -176,7 +176,6 @@ def utils_api_mixin(cls):
                 try:
                     image = Image.open(io.BytesIO(buf))
                     cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-                    cv2.imwrite('smart-fill-input.png', cv_img)
                     splicing_img = False
                     if len(params) > 1 and params[1] == '1':
                         splicing_img = True

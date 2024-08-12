@@ -66,68 +66,84 @@ def check_contour_intersection(contour1, contour2):
     return check_area_intersect(contour1, contour2, w, h)
 
 
-def group_similar_contours(contours, hu_threshold=0.015, area_threshold=0.25):
+def group_similar_contours(contours, hu_threshold=0.010, area_threshold=0.25):
     groups = []
     hu_moments = calculate_hu_moments(contours)
+    areas = [abs(cv2.contourArea(contour)) for contour in contours]
+    pairs = []
 
-    for i, (hu_moment, contour) in enumerate(zip(hu_moments, contours)):
-        group_idx = -1
-        area = abs(cv2.contourArea(contour))
-        for j in range(len(groups)):
-            group_contours, group_hu_moments, avg_hu_moment, avg_area = groups[j]
-            if calculate_hu_moments_dist(hu_moment, avg_hu_moment) < hu_threshold and check_area_difference(
-                area, avg_area, area_threshold
-            ):
-                count = len(group_contours)
-                avg_hu_moment = (avg_hu_moment * count + hu_moment) / (count + 1)
-                avg_area = (avg_area * count + area) / (count + 1)
-                group_contours.append(contour)
-                group_hu_moments.append(hu_moment)
-                groups[j] = (group_contours, group_hu_moments, avg_hu_moment, avg_area)
-                group_idx = j
-                break
-        if group_idx == -1:
-            groups.append(([contour], [hu_moment], hu_moment, area))
-
-    for i in range(len(groups)):
-        if len(groups[i][0]) == 0:
-            continue
-        for j in range(i + 1, len(groups)):
-            group1 = groups[i]
-            group2 = groups[j]
-            if calculate_hu_moments_dist(group1[2], group2[2]) < hu_threshold and check_area_difference(
-                group1[3], group2[3], area_threshold
-            ):
-                print(f"Group {i} and {j} are similar")
-                group1_contours, group1_hu_moments, _, _ = group1
-                group2_contours, group2_hu_moments, _, _ = group2
-                groups[i] = (
-                    group1_contours + group2_contours,
-                    group1_hu_moments + group2_hu_moments,
-                    (group1[2] * len(group1_contours) + group2[2] * len(group2_contours))
-                    / (len(group1_contours) + len(group2_contours)),
-                    (group1[3] * len(group1_contours) + group2[3] * len(group2_contours))
-                    / (len(group1_contours) + len(group2_contours)),
-                )
-                groups[j] = ([], [], 0, 0)
+    for i in range(len(contours)):
+        hu_moment = hu_moments[i]
+        area = areas[i]
+        for j in range(i + 1, len(contours)):
+            if not check_area_difference(area, areas[j], area_threshold):
+                continue
+            hu_score = calculate_hu_moments_dist(hu_moment, hu_moments[j])
+            if hu_score < hu_threshold:
+                pairs.append((i, j))
+    group_id_map = {}
+    group_count = 0
+    for i, j in pairs:
+        if i in group_id_map and j in group_id_map:
+            group_id_map[i] = min(group_id_map[i], group_id_map[j])
+            group_id_map[j] = min(group_id_map[i], group_id_map[j])
+        elif i in group_id_map:
+            group_id_map[j] = group_id_map[i]
+        elif j in group_id_map:
+            group_id_map[i] = group_id_map[j]
+        else:
+            group_id_map[i] = group_count
+            group_id_map[j] = group_count
+            group_count += 1
+    groups_map = {}
+    for i in group_id_map.keys():
+        group_idx = group_id_map[i]
+        if group_idx not in groups_map:
+            groups_map[group_idx] = ([], [], 0)
+        groups_map[group_idx][0].append(contours[i])
+        groups_map[group_idx][1].append(hu_moments[i])
+    groups = list(groups_map.values())
 
     for group_idx, group in enumerate(groups):
-        group_contours, group_hu_moments, avg_hu_moment, avg_area = group
+        group_contours, group_hu_moments, _ = group
         idx_to_remove = []
+        remaining = len(group_contours)
+        if remaining <= 1:
+            continue
+        smoothness_list = [calculate_smoothness(c) for c in group_contours]
+
         for i in range(len(group_contours)):
+            if i in idx_to_remove:
+                continue
             for j in range(i + 1, len(group_contours)):
+                if j in idx_to_remove:
+                    continue
                 if check_contour_intersection(group_contours[i], group_contours[j]):
-                    # hu_score_i = -calculate_hu_moments_dist(group_hu_moments[i], avg_hu_moment)
-                    # hu_score_j = -calculate_hu_moments_dist(group_hu_moments[j], avg_hu_moment)
-                    # Try to use smoothness as a criteria, if it works, we can remove the hu_score
-                    smoothness_i = calculate_smoothness(group_contours[i])
-                    smoothness_j = calculate_smoothness(group_contours[j])
+                    smoothness_i = smoothness_list[i]
+                    smoothness_j = smoothness_list[j]
                     if smoothness_i > smoothness_j:
                         idx_to_remove.append(j)
+                        remaining -= 1
                     else:
                         idx_to_remove.append(i)
+                        remaining -= 1
                         break
-        group_contours = [contour for idx, contour in enumerate(group_contours) if idx not in idx_to_remove]
-        group_hu_moments = [hu_moment for idx, hu_moment in enumerate(group_hu_moments) if idx not in idx_to_remove]
-        groups[group_idx] = (group_contours, group_hu_moments, avg_hu_moment, avg_area)
+        group_contours = [
+            contour
+            for idx, contour in enumerate(group_contours)
+            if idx not in idx_to_remove
+        ]
+        group_hu_moments = np.array([
+            hu_moment
+            for idx, hu_moment in enumerate(group_hu_moments)
+            if idx not in idx_to_remove
+        ])
+        smoothness_list = [
+            smoothness
+            for idx, smoothness in enumerate(smoothness_list)
+            if idx not in idx_to_remove
+        ]
+        group_similarity = np.std(smoothness_list) / np.mean(smoothness_list)
+        groups[group_idx] = (group_contours, group_hu_moments, group_similarity)
+
     return groups

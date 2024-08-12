@@ -17,7 +17,7 @@ def find_similar_contours(img, splicing_img=False):
         return []
 
     groups = group_similar_contours(contours)
-    groups = sorted(groups, key=lambda x: len(x[0]), reverse=True)
+    groups = sorted(groups, key=lambda x: (len(x[0]), -x[2]), reverse=True)
     logger.info('Result group number: %d' % len(groups))
     if len(groups) == 0:
         return []
