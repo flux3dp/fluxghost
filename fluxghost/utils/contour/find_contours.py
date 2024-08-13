@@ -51,19 +51,19 @@ def find_contours(
     parent_contour_img = cv2.dilate(parent_contour_img, kernel, iterations=1)
 
     res = cv2.findContours(child_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    contours = res[0]
+    child_contours = res[0]
     res = cv2.findContours(parent_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    contours += res[0]
+    parent_contours = res[0]
     if size_threshold is not None:
-        contours = [contour for contour in contours if cv2.contourArea(contour) > size_threshold]
-    return contours
+        child_contours = [contour for contour in child_contours if cv2.contourArea(contour) > size_threshold]
+        parent_contours = [contour for contour in parent_contours if cv2.contourArea(contour) > size_threshold]
+    return child_contours, parent_contours
 
 
 def get_contour_by_canny(img, splicing_img=False, size_threshold=10000):
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     if splicing_img:
         img = cv2.GaussianBlur(img, (17, 17), 0)
-        img = cv2.Canny(img, 30, 90)
+        img = cv2.Canny(img, 30, 85)
     else:
         img = cv2.Canny(img, 30, 200, 5)
     return find_contours(

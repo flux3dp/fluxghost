@@ -9,14 +9,11 @@ logger = logging.getLogger(__name__)
 
 
 def find_similar_contours(img, splicing_img=False):
-    contours = []
-    contours += get_contour_by_canny(img, splicing_img=splicing_img)
-    contours += get_contour_by_hsv_gradient(img, splicing_img=splicing_img)
+    canny_child_contours, canny_parent_contours = get_contour_by_canny(img, splicing_img=splicing_img)
+    hsv_child_contours, hsv_parent_contours = get_contour_by_hsv_gradient(img, splicing_img=splicing_img)
 
-    if len(contours) == 0:
-        return []
-
-    groups = group_similar_contours(contours)
+    groups = []
+    groups += group_similar_contours(canny_child_contours + hsv_child_contours + canny_parent_contours + hsv_parent_contours)
     groups = sorted(groups, key=lambda x: (len(x[0]), -x[2]), reverse=True)
     logger.info('Result group number: %d' % len(groups))
     if len(groups) == 0:
@@ -24,6 +21,8 @@ def find_similar_contours(img, splicing_img=False):
     group = groups[0]
     contours = group[0]
     logger.info('Most commen group contours: %d' % len(contours))
+    if len(contours) <= 1:
+        return []
 
     data = []
     base_kd_tree = get_rotation_kd_tree(contours[0])
