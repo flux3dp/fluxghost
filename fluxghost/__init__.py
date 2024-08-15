@@ -1,1 +1,1 @@
-__version__ = "2.3.0" # Support find_similar_contours
+__version__ = "2.3.1" # Update find_similar_contours algorithm, support bb2
