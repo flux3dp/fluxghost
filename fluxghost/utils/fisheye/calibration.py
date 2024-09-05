@@ -134,42 +134,43 @@ def calibrate_fisheye(objpoints, imgpoints, heights, size):
 
 
 # Calibrate using cv2.fisheye.calibrate
-def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback = None):
+def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback = None, init_k=INIT_K, init_d=INIT_D):
     objp = np.zeros((chessboard[0] * chessboard[1], 1, 3), np.float64)
     objp[:, :, :2] = np.mgrid[0 : chessboard[0], 0 : chessboard[1]].T.reshape(-1, 1, 2) * 10
-    objpoints = {}  # 3d point in real world space
-    imgpoints = {}  # 2d points in image plane.
+    objpoints = []  # 3d point in real world space
+    imgpoints = []  # 2d points in image plane.
+    heights = []
     for i in range(len(imgs)):
         if progress_callback:
             progress_callback(i / len(imgs))
         h = img_heights[i]
         img = imgs[i]
         img = pad_image(img)
-        gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=True, try_denoise=False, k=INIT_K, d=INIT_D)
+        gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=True, try_denoise=False, k=init_k, d=init_d)
         if ret:
-            logger.info('found corners for height {}'.format(h))
+            logger.info('found corners for idx {}, height {}'.format(i, h))
             objp = objp.copy()
             objp[:, :, 2] = -h
-            objpoints[h] = objp
-            imgpoints[h] = corners
+            objpoints.append(objp)
+            imgpoints.append(corners)
+            heights.append(h)
         else:
-            logger.info('unable to find corners for height {}'.format(h))
+            logger.info('unable to find corners for idx {}, height {}'.format(i, h))
     best_result = None
     try:
-        all_objpoints = list(objpoints.values())
-        all_imgpoints = list(imgpoints.values())
-        ret, k, d, rvecs, tvecs, heights = calibrate_fisheye(
-            all_objpoints, all_imgpoints, list(objpoints.keys()), gray.shape[::-1]
+        ret, k, d, rvecs, tvecs, res_heights = calibrate_fisheye(
+            objpoints, imgpoints, heights, gray.shape[::-1]
         )
         logger.info('Calibrate All imgs: {}'.format(ret))
         if ret < 5:
-            return ret, k, d, rvecs, tvecs, heights
-        best_result = (ret, k, d, rvecs, tvecs, heights)
+            return ret, k, d, rvecs, tvecs, res_heights
+        best_result = (ret, k, d, rvecs, tvecs, res_heights)
     except Exception:
         logger.info('Calibrate All imgs failed')
-    for h in imgpoints.keys():
+    for i in range(len(heights)):
         try:
-            ret, k, d, rvecs, tvecs, _ = calibrate_fisheye([objpoints[h]], [imgpoints[h]], [h], gray.shape[::-1])
+            h = heights[i]
+            ret, k, d, rvecs, tvecs, _ = calibrate_fisheye([objpoints[i]], [imgpoints[i]], [h], gray.shape[::-1])
             logger.info('Calibrate {}: {}'.format(h, ret))
             if not best_result or ret < best_result[0]:
                 best_result = (ret, k, d, rvecs, tvecs, [h])

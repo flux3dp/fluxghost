@@ -36,7 +36,7 @@ ws.onclose = function(v) { console.log('CONNECTION CLOSED, code=' + v.code +
 // After recive connected...
 ws.send('ls')
 '''
-fisheye_models = ['fad1', 'ado1']
+fisheye_models = ['fad1', 'ado1', 'fbb2']
 
 
 def camera_api_mixin(cls):
@@ -81,11 +81,22 @@ def camera_api_mixin(cls):
                 elif cmd == 'set_fisheye_height':
                     height = float(msgs[1])
                     self.set_fisheye_height(height)
+                elif cmd == 'set_fisheye_grid':
+                    data = msgs[1]
+                    self.set_fisheye_grid(data)
 
         def set_fisheye_matrix(self, data):
             data = json.loads(data)
             version = data.get('v', 1)
-            if version == 2:
+            if version == 3:
+                self.fisheye_param = {
+                    'v': version,
+                    'k': np.array(data['k']),
+                    'd': np.array(data['d']),
+                    'rvec': np.array(data['rvec']),
+                    'tvec': np.array(data['tvec']),
+                }
+            elif version == 2:
                 self.fisheye_param = {
                     'v': version,
                     'k': np.array(data['k']),
@@ -110,6 +121,27 @@ def camera_api_mixin(cls):
             self.leveling_data = data
             self.send_ok()
 
+        def set_fisheye_grid(self, data):
+            data = json.loads(data)
+            if not self.fisheye_param or self.fisheye_param.get('v', 1) != 3:
+                raise Exception('Version Mismatch')
+            x_start, x_end, x_step = data['x']
+            y_start, y_end, y_step = data['y']
+            xgrid = np.arange(x_start, x_end + 1, x_step)
+            ygrid = np.arange(y_start, y_end + 1, y_step)
+            xx, yy = np.meshgrid(xgrid, ygrid)
+            objp = np.dstack([xx, yy, np.zeros_like(xx)])
+            k = self.fisheye_param['k']
+            d = self.fisheye_param['d']
+            rvec = self.fisheye_param['rvec']
+            tvec = self.fisheye_param['tvec']
+            points, _ = cv2.fisheye.projectPoints(objp.reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d)
+            points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
+            self.fisheye_param.update(
+                {'xgrid': xgrid - xgrid[0], 'ygrid': ygrid - ygrid[0], 'perspective_points': points}
+            )
+            self.send_ok()
+
         def set_fisheye_height(self, h):
             if not self.fisheye_param or self.fisheye_param.get('v', 1) != 2:
                 raise Exception('Version Mismatch')
@@ -123,21 +155,21 @@ def camera_api_mixin(cls):
             tvec = np.dot(X, tvec_polyfit)
             hw_profile = HW_PROFILE.get(self.remote_model, {'width': 430, 'length': 320})
             width, height = hw_profile['width'], hw_profile['length']
-            x_grid, y_grid = range(0, width + 1, 10), range(0, height + 1, 10)
-            objp = np.zeros((len(x_grid) * len(y_grid), 1, 3), np.float64)
+            xgrid, ygrid = range(0, width + 1, 10), range(0, height + 1, 10)
+            objp = np.zeros((len(xgrid) * len(ygrid), 1, 3), np.float64)
             keyMap = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
-            for i in range(len(y_grid)):
-                for j in range(len(x_grid)):
+            for i in range(len(ygrid)):
+                for j in range(len(xgrid)):
                     h = dh
                     if self.leveling_data is not None:
-                        x = min(int((x_grid[j] / width) * 3), 2)
-                        y = min(int((y_grid[i] / height) * 3), 2)
+                        x = min(int((xgrid[j] / width) * 3), 2)
+                        y = min(int((ygrid[i] / height) * 3), 2)
                         key = keyMap[y * 3 + x]
                         h -= self.leveling_data[key]
-                    objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], -h]
+                    objp[i * len(xgrid) + j] = [xgrid[j], ygrid[i], -h]
             projected_points, _ = cv2.fisheye.projectPoints(objp, rvec, tvec, k, d)
-            perspective_points = remap_corners(projected_points, k, d).reshape(len(y_grid), len(x_grid), 2)
-            self.fisheye_param.update({'x_grid': x_grid, 'y_grid': y_grid, 'perspective_points': perspective_points})
+            perspective_points = remap_corners(projected_points, k, d).reshape(len(ygrid), len(xgrid), 2)
+            self.fisheye_param.update({'xgrid': xgrid, 'ygrid': ygrid, 'perspective_points': perspective_points})
             self.send_ok()
 
         def set_crop_param(self, data):
@@ -185,7 +217,7 @@ def camera_api_mixin(cls):
                     PERSPECTIVE_SPLIT,
                     CHESSBORAD,
                     perspective_points,
-                    downsample=downsample
+                    downsample=downsample,
                 )
                 if self.crop_param is not None:
                     cx = self.crop_param['cx']
@@ -202,11 +234,11 @@ def camera_api_mixin(cls):
                         top=self.crop_param['top'],
                         left=self.crop_param['left'],
                     )
-            elif version == 2:
+            elif version == 2 or version == 3:
                 k = self.fisheye_param['k']
                 d = self.fisheye_param['d']
-                x_grid = self.fisheye_param['x_grid']
-                y_grid = self.fisheye_param['y_grid']
+                xgrid = self.fisheye_param['xgrid']
+                ygrid = self.fisheye_param['ygrid']
                 img = pad_image(open_cv_img)
                 if downsample > 1:
                     img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
@@ -219,8 +251,8 @@ def camera_api_mixin(cls):
                     img = cv2.resize(img, (img.shape[1] * downsample, img.shape[0] * downsample))
                 else:
                     img = get_remap_img(img, k, d)
-                padding = 150
-                img = apply_points(img, self.fisheye_param['perspective_points'], x_grid, y_grid, padding=padding)
+                padding = 150 if version == 2 else 0
+                img = apply_points(img, self.fisheye_param['perspective_points'], xgrid, ygrid, padding=padding)
                 img = img[padding:, padding:]
             return img
 
