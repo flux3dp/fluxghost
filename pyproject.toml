@@ -1,0 +1,25 @@
+[tool.black]
+line-length = 120
+skip-string-normalization = true
+target-version = ['py38']
+include = '\.pyi?$'
+
+[tool.poetry]
+name = "fluxghost"
+version = "2.3.2"
+description = "FLUXGhost provides a websocket based API for FLUX-Studio frontend, which connects to fluxclient."
+authors = ["Simon Ko <simon@flux3dp.com>", "Dean Sung <dean@flux3dp.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "~3.8"
+numpy = "^1.19"
+scipy = "~1.10.0"
+cython = "^3.0.10"
+pillow = "^10.3.0"
+opencv-python = "^4.10.0.84"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

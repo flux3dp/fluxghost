@@ -1,0 +1,26 @@
+FROM python:3.8
+ENV PYTHONUNBUFFERED=1 \
+    # Poetry's configuration:
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    POETRY_CACHE_DIR='/var/cache/pypoetry' \
+    POETRY_HOME='/usr/local' \
+    POETRY_VERSION=1.7.1
+
+# System deps:
+RUN curl -sSL https://install.python-poetry.org | python3 -
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+RUN pip install --upgrade pip
+
+WORKDIR /code
+COPY ./fluxghost /code/build/fluxghost
+COPY ./fluxclient-dev /code/build/fluxclient-dev
+COPY ./fluxsvg /code/build/fluxsvg
+COPY ./beamify /code/build/beamify
+RUN cd /code/build/fluxghost && poetry install $(test "$YOUR_ENV" == production && echo "--only=main") --no-interaction --no-ansi
+RUN cd /code/build/beamify/python && python3 setup.py install
+RUN cd /code/build/fluxsvg && python3 setup.py install
+RUN cd /code/build/fluxclient-dev && python3 setup.py install
+RUN rm -rf /code/build
+
+EXPOSE 8000
