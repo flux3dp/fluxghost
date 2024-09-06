@@ -182,6 +182,7 @@ def utils_api_mixin(cls):
                     data = find_similar_contours(cv_img, splicing_img)
                     self.send_ok(data=data)
                 except Exception as e:
+                    logger.exception('Error in get_similar_contours')
                     self.send_json(status='error', info=str(e))
 
 

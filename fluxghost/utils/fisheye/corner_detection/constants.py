@@ -1,16 +1,25 @@
+# version 2: ado1
+# version 3: fbb2
+
 def get_grid(version):
     if version == 2:
         return (
             [0, 10] + [x for x in range(20, 411, 30)] + [420, 430],
             [0, 10, 20] + [y for y in range(30, 271, 30)] + [290],
         )
+    if version == 3:
+        return (
+            [x for x in range(-80, 81, 10)],
+            [y for y in range(0, 101, 10)],
+        )
     raise ValueError('Invalid version')
 
 
 def get_ref_points(version):
     if version == 2:
-        ref_points = [(155, 90), (275, 90), (155, 210), (275, 210), (185, 120), (245, 120), (185, 180), (245, 180)]
-        return ref_points
+        return [(155, 90), (275, 90), (155, 210), (275, 210), (185, 120), (245, 120), (185, 180), (245, 180)]
+    if version == 3:
+        return [(-60, 10), (60, 10), (-60, 90), (60, 90), (-30, 30), (30, 30), (-30, 70), (30, 70)]
     raise ValueError('Invalid version')
 
 
