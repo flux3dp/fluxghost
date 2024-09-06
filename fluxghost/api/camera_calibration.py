@@ -404,11 +404,10 @@ def camera_calibration_api_mixin(cls):
                 corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
                 ref_points = get_ref_points(version)
-                projected_points, _ = cv2.fisheye.projectPoints(
-                    np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3), rvec, tvec, k, d
-                )
+                ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
+                projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
-                _, candidates_indice = corner_tree.query(projected_points[0], k=25)
+                _, candidates_indice = corner_tree.query(projected_points[0], k=len(corners))
                 best_res = None
                 for index in candidates_indice:
                     res = [corners[index]]
@@ -424,6 +423,8 @@ def camera_calibration_api_mixin(cls):
                                 res.append(corners[indices[j]])
                                 total_dist += dists[j]
                                 break
+                            if best_res and total_dist > best_res[1]:
+                                break
                     if best_res is None or total_dist < best_res[1]:
                         best_res = (res, total_dist)
                 new_imgpoints = np.array(best_res[0])
@@ -431,6 +432,7 @@ def camera_calibration_api_mixin(cls):
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
+
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')
