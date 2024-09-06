@@ -7,11 +7,6 @@ def get_grid(version):
             [0, 10] + [x for x in range(20, 411, 30)] + [420, 430],
             [0, 10, 20] + [y for y in range(30, 271, 30)] + [290],
         )
-    if version == 3:
-        return (
-            [x for x in range(-80, 81, 10)],
-            [y for y in range(0, 101, 10)],
-        )
     raise ValueError('Invalid version')
 
 
