@@ -333,6 +333,7 @@ def laser_svgeditor_api_mixin(cls):
             svgeditor2taskcode_kwargs['curve_engraving'] = self.curve_engraving_detail
             clip_rect = None
             is_rotary_task = False
+            start_with_home = True
             fcode_version = 1
 
             for i, param in enumerate(params):
@@ -456,6 +457,16 @@ def laser_svgeditor_api_mixin(cls):
                         pass
                 elif param == '-no-pwm':
                     svgeditor2taskcode_kwargs['no_pwm'] = True
+                elif param == '-job-origin':
+                    try:
+                        origin = params[i + 1].split(',')
+                        x = float(origin[0])
+                        y = float(origin[1])
+                        svgeditor2taskcode_kwargs['job_origin'] = [x, y]
+                        start_with_home = False
+                    except Exception:
+                        logger.exception('Invalid job origin')
+                        pass
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
@@ -464,9 +475,10 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory()
                 self.fcode_metadata.update({
-                    "CREATED_AT": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    "AUTHOR": urllib.parse.quote(get_username()),
-                    "SOFTWARE": "fluxclient-%s-BS" % __version__,
+                    'CREATED_AT': datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                    'AUTHOR': urllib.parse.quote(get_username()),
+                    'SOFTWARE': 'fluxclient-%s-BS' % __version__,
+                    'START_WITH_HOME': '1' if start_with_home else '0',
                 })
                 logger.info('FCode Version: %d', fcode_version)
                 time_need = 0
@@ -474,7 +486,7 @@ def laser_svgeditor_api_mixin(cls):
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     if fcode_version == 2:
-                        magic_number = 4 if is_rotary_task else 3
+                        magic_number = 4 if (is_rotary_task or not start_with_home) else 3
                         writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail, ), magic_number)
                     else:
                         writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail, ))
