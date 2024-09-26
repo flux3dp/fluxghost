@@ -208,8 +208,10 @@ def utils_api_mixin(cls):
                         return
                     combined = np.vstack([c for c in contours])
                     convex_hull = cv2.convexHull(combined)
-                    convex_hull_points = convex_hull.reshape(-1, 2).tolist()
-                    self.send_ok(data=convex_hull_points)
+                    convex_hull_points = convex_hull.reshape(-1, 2)
+                    dists = np.linalg.norm(convex_hull_points, axis=1)
+                    convex_hull_points = np.roll(convex_hull_points, -np.argmin(dists), axis=0)
+                    self.send_ok(data=convex_hull_points.tolist())
                 except Exception as e:
                     logger.exception('Error in get_convex_hull')
                     self.send_json(status='error', info=str(e))
