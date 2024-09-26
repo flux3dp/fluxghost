@@ -29,6 +29,7 @@ def utils_api_mixin(cls):
                 'rgb_to_cmyk': [self.rgb_to_cmyk],
                 'split_color': [self.split_color],
                 'get_similar_contours': [self.get_similar_contours],
+                'get_convex_hull': [self.get_convex_hull],
             }
 
         def cmd_pdf2svg(self, params):
@@ -153,11 +154,13 @@ def utils_api_mixin(cls):
                 m = Image.eval(m, lambda x: 255 - x)
                 y = Image.eval(y, lambda x: 255 - x)
                 k = Image.eval(k, lambda x: 255 - x)
+
                 def get_base64(image: Image):
                     out_byte = io.BytesIO()
                     image.save(out_byte, format='JPEG', quality=100, subsampling=0)
                     image_binary = out_byte.getvalue()
                     return base64.b64encode(image_binary).decode('utf-8')
+
                 c = get_base64(c)
                 m = get_base64(m)
                 y = get_base64(y)
@@ -185,11 +188,35 @@ def utils_api_mixin(cls):
                     logger.exception('Error in get_similar_contours')
                     self.send_json(status='error', info=str(e))
 
-
             file_length = int(params[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')
 
+        def get_convex_hull(self, params):
+            params = params.split(' ')
+
+            def upload_callback(buf):
+                try:
+                    image = Image.open(io.BytesIO(buf))
+                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGBA2GRAY)
+                    cv_img = cv2.threshold(cv_img, 252, 255, cv2.THRESH_BINARY_INV)[1]
+                    res = cv2.findContours(cv_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    contours = res[0]
+                    if len(contours) == 0:
+                        self.send_ok(data=[])
+                        return
+                    combined = np.vstack([c for c in contours])
+                    convex_hull = cv2.convexHull(combined)
+                    convex_hull_points = convex_hull.reshape(-1, 2).tolist()
+                    self.send_ok(data=convex_hull_points)
+                except Exception as e:
+                    logger.exception('Error in get_convex_hull')
+                    self.send_json(status='error', info=str(e))
+
+            file_length = int(params[0])
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
 
     return UtilsApi
