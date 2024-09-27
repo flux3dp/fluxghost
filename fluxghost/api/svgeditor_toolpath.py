@@ -501,13 +501,14 @@ def laser_svgeditor_api_mixin(cls):
                 if output_fcode:
                     time_need = writer.get_time_cost()
                     traveled_dist = writer.get_traveled()
+                writer.terminated()
+                if output_fcode:
                     try:
                         metadata = writer.get_metadata()
                         metadata = {key.decode('utf-8'): value.decode('utf-8') for key, value in metadata.items()}
                     except Exception:
                         logger.exception('Failed to get metadata')
                         metadata = ''
-                writer.terminated()
 
                 if self.check_interrupted():
                     logger.info('cmd go interrupted')
