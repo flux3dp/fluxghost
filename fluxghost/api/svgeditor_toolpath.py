@@ -483,6 +483,7 @@ def laser_svgeditor_api_mixin(cls):
                 logger.info('FCode Version: %d', fcode_version)
                 time_need = 0
                 traveled_dist = 0
+                metadata = {}
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     if fcode_version == 2:
@@ -497,10 +498,15 @@ def laser_svgeditor_api_mixin(cls):
                                 progress_callback=progress_callback,
                                 check_interrupted=self.check_interrupted,
                                 **svgeditor2taskcode_kwargs)
-
                 if output_fcode:
                     time_need = writer.get_time_cost()
                     traveled_dist = writer.get_traveled()
+                    try:
+                        metadata = writer.get_metadata()
+                        metadata = {key.decode('utf-8'): value.decode('utf-8') for key, value in metadata.items()}
+                    except Exception:
+                        logger.exception('Failed to get metadata')
+                        metadata = ''
                 writer.terminated()
 
                 if self.check_interrupted():
@@ -511,7 +517,7 @@ def laser_svgeditor_api_mixin(cls):
                 print('time cost:', time_need, '\ntravel distance', traveled_dist)
                 self.send_progress('Finishing', 1.0)
                 if send_fcode:
-                    self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
+                    self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist, metadata=metadata)
                     self.send_binary(output_binary)
                 else:
                     output_file = open("/var/gcode/userspace/temp.fc", "wb")
