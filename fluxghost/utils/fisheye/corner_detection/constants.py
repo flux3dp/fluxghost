@@ -1,3 +1,4 @@
+import warnings
 # version 2: ado1
 # version 3: fbb2
 
@@ -11,6 +12,7 @@ def get_grid(version):
 
 
 def get_ref_points(version):
+    warnings.warn('get_ref_points is deprecated', DeprecationWarning)
     if version == 2:
         return [(155, 90), (275, 90), (155, 210), (275, 210), (185, 120), (245, 120), (185, 180), (245, 180)]
     if version == 3:

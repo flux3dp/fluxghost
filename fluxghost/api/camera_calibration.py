@@ -391,8 +391,12 @@ def camera_calibration_api_mixin(cls):
             rvec = self.calibration_v2_params['rvec']
             tvec = self.calibration_v2_params['tvec']
             message = message.split(' ')
-            version = int(message[0])
+            ref_points = json.loads(message[0])
+            if isinstance(ref_points, int):
+                ref_points = get_ref_points(ref_points)
+                logger.warning('Use version ref points is deprecated')
             dh = round(float(message[1]), 2)
+            ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             file_length = int(message[2])
 
             def upload_callback(buf):
@@ -443,9 +447,12 @@ def camera_calibration_api_mixin(cls):
             k = self.calibration_v2_params['k']
             d = self.calibration_v2_params['d']
             message = message.split(' ')
-            version = int(message[0])
+            ref_points = json.loads(message[0])
+            if isinstance(ref_points, int):
+                ref_points = get_ref_points(ref_points)
+                logger.warning('Use version ref points is deprecated')
             dh = round(float(message[1]), 2)
-            ref_points = get_ref_points(version)
+            ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             imgpoints = np.array(json.loads(message[2]))
             objpoints = np.array([p + (-dh,) for p in ref_points])
             distorted = distort_points(imgpoints, k, d)
