@@ -1,6 +1,7 @@
 const core = require('@actions/core');
 const exec = require('@actions/exec');
 const os = require('os');
+const childProcess = require('child_process');
 
 const main = async () => {
     try {
@@ -10,6 +11,8 @@ const main = async () => {
         console.log(os.platform());
         console.log(os.arch());
         console.log(process.env);
+        const hash = revision = require('child_process').execSync('git rev-parse HEAD').toString().trim();
+        console.log('Git hash:', hash);
         if (os.platform() === 'win32') {
             if (process.env.WIN_ARCH !== 'x86') {
                 await exec.exec('cp', ['./lib/x64/*', 'C:\\Windows\\system32'], options);
