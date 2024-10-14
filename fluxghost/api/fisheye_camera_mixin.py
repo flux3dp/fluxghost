@@ -15,6 +15,7 @@ from .camera_calibration import crop_transformed_img
 
 
 class FisheyeCameraMixin:
+    cmd_mapping = None
     fisheye_param = None
     leveling_data = None
     perspective_points = None
@@ -22,6 +23,14 @@ class FisheyeCameraMixin:
     crop_param = None
     camera_3d_rotation = None
     rotated_perspective_points = None
+
+    def __init__(self, *args, **kw):
+        super(FisheyeCameraMixin, self).__init__(*args, **kw)
+        self.cmd_mapping = {
+            'set_fisheye_matrix': [self.set_fisheye_matrix],
+            'set_leveling_data': [self.set_leveling_data],
+            'set_fisheye_grid': [self.set_fisheye_grid],
+        }
 
     def on_command(self, message):
         msgs = message.split(' ', 1)

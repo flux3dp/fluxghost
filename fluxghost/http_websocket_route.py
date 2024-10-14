@@ -42,6 +42,8 @@ ROUTES = [
      "fluxghost.websocket.fcode_reader.WebsocketFcodeReader"),
     (re.compile("camera-calibration"),
      "fluxghost.websocket.camera_calibration.WebsocketCameraCalibration"),
+    (re.compile("camera-transform"),
+     "fluxghost.websocket.camera_transform.WebsocketCameraTransform"),
     (re.compile("image-tracer"),
      "fluxghost.websocket.image_tracer.WebsocketImageTracer"),
     (re.compile("push-studio"),
