@@ -74,7 +74,7 @@ class FisheyeCameraMixin:
         }
         self.send_ok()
 
-
+    # deprecated v1 functions
     def set_3d_rotation(self, data):
         data = json.loads(data)
         self.camera_3d_rotation = data
@@ -82,6 +82,7 @@ class FisheyeCameraMixin:
             self.apply_3d_rotaion_to_perspective_points()
         self.send_ok()
 
+    # deprecated v1 functions
     def apply_3d_rotaion_to_perspective_points(self):
         if self.camera_3d_rotation is None or self.fisheye_param is None:
             return
