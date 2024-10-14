@@ -11,7 +11,7 @@ const main = async () => {
         console.log(os.platform());
         console.log(os.arch());
         console.log(process.env);
-        const hash = revision = require('child_process').execSync('git rev-parse HEAD').toString().trim();
+        const hash = exec.execSync('git rev-parse HEAD').toString().trim();
         console.log('Git hash:', hash);
         if (os.platform() === 'win32') {
             if (process.env.WIN_ARCH !== 'x86') {
