@@ -9,7 +9,7 @@ from .fisheye_camera_mixin import FisheyeCameraMixin
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger('API.CAMERA_TRANSFORM')
 
 
 def camera_transform_api_mixin(cls):
@@ -36,7 +36,9 @@ def camera_transform_api_mixin(cls):
                     except Exception:
                         self.send_binary(image)
                         return
+                    cv2.imwrite('camera-transform-0.png', cv_img)
                     img = self.handle_fisheye_image(cv_img, downsample=1)
+                    cv2.imwrite('camera-transform-1.png', img)
                     _, array_buffer = cv2.imencode('.jpg', img)
                     img_bytes = array_buffer.tobytes()
                     self.send_binary(img_bytes)
