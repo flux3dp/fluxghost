@@ -64,3 +64,4 @@ test.png
 !node_modules/**/lib
 
 .DS_Store
+.vscode/

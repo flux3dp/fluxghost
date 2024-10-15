@@ -1,7 +1,6 @@
 const core = require('@actions/core');
 const exec = require('@actions/exec');
 const os = require('os');
-const childProcess = require('child_process');
 
 const main = async () => {
     try {
@@ -11,8 +10,6 @@ const main = async () => {
         console.log(os.platform());
         console.log(os.arch());
         console.log(process.env);
-        const hash = revision = require('child_process').execSync('git rev-parse HEAD').toString().trim();
-        console.log('Git hash:', hash);
         if (os.platform() === 'win32') {
             if (process.env.WIN_ARCH !== 'x86') {
                 await exec.exec('cp', ['./lib/x64/*', 'C:\\Windows\\system32'], options);
@@ -21,10 +18,10 @@ const main = async () => {
             }
             // await exec.exec('python', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
-        } else if( os.platform() === 'linux' ) {
+        } else if (os.platform() === 'linux') {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
-        } else if( os.platform() === 'darwin' ) {
+        } else if (os.platform() === 'darwin') {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
             // pyinstaller failed to hook tcl & tk for precomiled python so hard code copy when
