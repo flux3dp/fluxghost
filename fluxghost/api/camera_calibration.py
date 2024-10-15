@@ -407,8 +407,6 @@ def camera_calibration_api_mixin(cls):
                 remap = get_remap_img(remap, k, d)
                 corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
-                ref_points = get_ref_points(version)
-                ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
                 projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
                 _, candidates_indice = corner_tree.query(projected_points[0], k=len(corners))
