@@ -98,6 +98,7 @@ hiddenimports += [
     'fluxghost.websocket.device_manager',
     'fluxghost.websocket.usb_interfaces',
     'fluxghost.websocket.camera_calibration',
+    'fluxghost.websocket.camera_transform',
     'fluxghost.websocket.image_tracer',
     'fluxghost.websocket.inter_process',
     'fluxghost.websocket.push_studio',

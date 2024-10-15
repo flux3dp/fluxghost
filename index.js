@@ -10,11 +10,6 @@ const main = async () => {
         console.log(os.platform());
         console.log(os.arch());
         console.log(process.env);
-        try {
-            await exec.exec('git', ['rev-parse', 'HEAD'], options);
-        } catch (error) {
-            console.log(error);
-        }
         if (os.platform() === 'win32') {
             if (process.env.WIN_ARCH !== 'x86') {
                 await exec.exec('cp', ['./lib/x64/*', 'C:\\Windows\\system32'], options);
@@ -23,10 +18,10 @@ const main = async () => {
             }
             // await exec.exec('python', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
-        } else if( os.platform() === 'linux' ) {
+        } else if (os.platform() === 'linux') {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
-        } else if( os.platform() === 'darwin' ) {
+        } else if (os.platform() === 'darwin') {
             await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
             // pyinstaller failed to hook tcl & tk for precomiled python so hard code copy when
