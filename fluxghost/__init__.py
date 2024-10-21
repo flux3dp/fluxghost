@@ -1,1 +1,1 @@
-__version__ = "2.3.2" # Support camera calibration & preview for bb2
+__version__ = "2.3.3" # Support Promark calibration & preview
