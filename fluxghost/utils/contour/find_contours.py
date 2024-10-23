@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 
+from fluxghost.utils.opencv import findContours
+
 
 def find_contours(
     img,
@@ -17,7 +19,7 @@ def find_contours(
     img = cv2.dilate(img, kernel, iterations=1)
 
     # Step 2: Find and fill closed contours
-    res = cv2.findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    res = findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours, hierarchy = res[0], res[1][0]
     hierarchy_map = {-1: 0}
     for i in range(len(hierarchy)):
@@ -50,9 +52,9 @@ def find_contours(
     kernel = cv2.getStructuringElement(kernel_type, (parent_dilate_k_2, parent_dilate_k_2))
     parent_contour_img = cv2.dilate(parent_contour_img, kernel, iterations=1)
 
-    res = cv2.findContours(child_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    res = findContours(child_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     child_contours = res[0]
-    res = cv2.findContours(parent_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    res = findContours(parent_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     parent_contours = res[0]
     if size_threshold is not None:
         child_contours = [contour for contour in child_contours if cv2.contourArea(contour) > size_threshold]

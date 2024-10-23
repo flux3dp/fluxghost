@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image, ImageCms
 
 from fluxghost.utils.contour import find_similar_contours
+from fluxghost.utils.opencv import findContours
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger('API.UTILS')
@@ -201,8 +202,7 @@ def utils_api_mixin(cls):
                     image = Image.open(io.BytesIO(buf))
                     cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGBA2GRAY)
                     cv_img = cv2.threshold(cv_img, 252, 255, cv2.THRESH_BINARY_INV)[1]
-                    res = cv2.findContours(cv_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    contours = res[0]
+                    contours = findContours(cv_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
                     if len(contours) == 0:
                         self.send_ok(data=[])
                         return
