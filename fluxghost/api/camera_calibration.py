@@ -56,8 +56,6 @@ def camera_calibration_api_mixin(cls):
                 'start_fisheye_calibration': [self.cmd_start_fisheye_calibration],
                 'add_fisheye_calibration_image': [self.cmd_add_fisheye_calibration_image],
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
-                'find_perspective_points': [self.cmd_find_perspective_points],
-                'cal_regression_param': [self.cmd_calculate_regression_param],
                 'calibrate_chessboard': [self.cmd_calibrate_chessboard],
                 'corner_detection': [self.cmd_corner_detection],
                 'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
@@ -172,71 +170,6 @@ def camera_calibration_api_mixin(cls):
             except Exception as e:
                 if self.check_interrupted():
                     return
-                self.send_json(status='fail', reason=str(e))
-                raise (e)
-
-        # Deprecated in favor of cmd_solve_pnp_find_corners, remove in future
-        def cmd_find_perspective_points(self, message):
-            if self.k is None or self.d is None:
-                self.send_json(status='fail', reason='calibrate fisheye camera first')
-            if len(self.fisheye_calibrate_imgs) == 0:
-                self.send_json(status='fail', reason='No Calibrate Images')
-            points = []  # list of list of points
-            heights = []
-            errors = []
-            try:
-                for i in range(len(self.fisheye_calibrate_imgs)):
-                    if self.check_interrupted():
-                        return
-                    self.on_progress(i / len(self.fisheye_calibrate_imgs))
-                    img = self.fisheye_calibrate_imgs[i]
-                    height = self.fisheye_calibrate_heights[i]
-                    logger.info('Finding perspective points for height: {}'.format(height))
-                    try:
-                        points.append(
-                            get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD).tolist()
-                        )
-                        heights.append(height)
-                    except Exception as e:
-                        errors.append({'height': height, 'err': str(e)})
-                        logger.error('find perspective points error: %s %s', str(height), str(e))
-                if len(points) == 0:
-                    self.send_json(status='fail', reason='No perspect point found', errors=errors)
-                heights, points = zip(*sorted(zip(heights, points)))
-                self.send_ok(points=points, heights=heights, errors=errors)
-            except Exception as e:
-                self.send_json(status='fail', reason=str(e))
-                raise (e)
-
-        # Deprecated in favor of cmd_solve_pnp_find_corners, remove in future
-        def cmd_calculate_regression_param(self, message):
-            if self.k is None or self.d is None:
-                self.send_json(status='fail', reason='calibrate fisheye camera first')
-            if len(self.fisheye_calibrate_imgs) == 0:
-                self.send_json(status='fail', reason='No Calibrate Images')
-
-            try:
-                points = []  # list of list of points
-                heights = []
-                errors = []
-                for i in range(len(self.fisheye_calibrate_imgs)):
-                    if self.check_interrupted():
-                        return
-                    self.on_progress(0.9 * i / len(self.fisheye_calibrate_imgs))
-                    img = self.fisheye_calibrate_imgs[i]
-                    height = self.fisheye_calibrate_heights[i]
-                    logger.info('Finding perspective points for height: {}'.format(height))
-                    try:
-                        points.append(get_perspective_points(img, self.k, self.d, PERSPECTIVE_SPLIT, CHESSBORAD))
-                        heights.append(height)
-                    except Exception as e:
-                        errors.append({'height': height, 'err': str(e)})
-                        logger.error('find perspective points error: %s %s', str(height), str(e))
-                if len(points) < 4:
-                    self.send_json(status='fail', reason='No enough points to perform regression', errors=errors)
-                data = cal_z_3_regression_param(points, heights)
-                self.send_ok(data=data.tolist(), errors=errors)
-            except Exception as e:
                 self.send_json(status='fail', reason=str(e))
                 raise (e)
 
@@ -405,7 +338,7 @@ def camera_calibration_api_mixin(cls):
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 remap = pad_image(img_cv)
                 remap = get_remap_img(remap, k, d)
-                corners = find_corners(remap, 2000, min_distance=50, quality_level=0.01, draw=False)
+                corners = find_corners(remap, 2000, min_distance=100, quality_level=0.01, draw=False)
                 corner_tree = spatial.KDTree(corners)
                 projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
