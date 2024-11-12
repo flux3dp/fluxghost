@@ -385,7 +385,7 @@ def camera_calibration_api_mixin(cls):
             dh = round(float(message[1]), 2)
             ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             imgpoints = np.array(json.loads(message[2]))
-            objpoints = np.array([p + (-dh,) for p in ref_points])
+            objpoints = np.array(ref_points)
             distorted = distort_points(imgpoints, k, d)
 
             try:
