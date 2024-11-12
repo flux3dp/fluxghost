@@ -1,1 +1,1 @@
-__version__ = "2.3.3" # Support Promark calibration & preview
+__version__ = "2.3.4" # Fix Camera calibration
