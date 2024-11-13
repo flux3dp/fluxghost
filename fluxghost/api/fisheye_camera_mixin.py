@@ -1,4 +1,5 @@
 import json
+import logging
 
 import cv2
 import numpy as np
@@ -12,6 +13,9 @@ from fluxghost.utils.fisheye.perspective import apply_perspective_points_transfo
 from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 from .camera_calibration import crop_transformed_img
+
+
+logger = logging.getLogger(__file__)
 
 
 class FisheyeCameraMixin:
@@ -98,9 +102,16 @@ class FisheyeCameraMixin:
         data = json.loads(data)
         version = data.get('v', 1)
         if version == 1:
-            self.send_error('Fisheye Camera Parameter Version 1 is not supported anymore')
-            return
-        if version == 3:
+            logger.warning('Deprecated fisheye parameter version: 1')
+            perspective_points = data['points']
+            self.fisheye_param = {
+                'k': np.array(data['k']),
+                'd': np.array(data['d']),
+                'perspective_points': np.array(perspective_points),
+            }
+            if self.camera_3d_rotation:
+                self.apply_3d_rotaion_to_perspective_points()
+        elif version == 3:
             self.fisheye_param = {
                 'v': version,
                 'k': np.array(data['k']),
