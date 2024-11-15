@@ -88,27 +88,6 @@ def control_api_mixin(cls):
                     "download2": self.download2,
                 },
 
-                "maintain": {
-                    "move": self.maintain_move,
-                    "force_default": self.maintain_force_default,
-                    "close_fan": self.close_fan,
-                    "calibrate_beambox_camera": self.maintain_calibrate_beambox_camera,
-                    "wait_head": self.maintain_wait_head,
-                    "load_filament": self.maintain_load_filament,
-                    "load_flexible_filament": self.maintain_flexible_load_filament,
-                    "unload_filament": self.maintain_unload_filament,
-                    "calibrating": self.maintain_calibrate,
-                    "calibrate": self.maintain_calibrate,
-                    "zprobe": self.maintain_zprobe,
-                    "headinfo": self.maintain_headinfo,
-                    "set_heater": self.maintain_set_heater,
-                    "diagnosis_sensor": self.maintain_diagnosis_sensor,
-                    "diagnosis": self.maintain_diagnosis,
-                    "headstatus": self.maintain_headstatus,
-                    "home": self.maintain_home,
-                    "update_hbfw": self.maintain_update_hbfw
-                },
-
                 "config": {
                     "set": self.config_set,
                     "set_json": self.config_set_json,
@@ -166,7 +145,6 @@ def control_api_mixin(cls):
                 },
 
                 "task": {
-                    "maintain": self.task_begin_maintain,
                     "scan": self.task_begin_scan,
                     "raw": self.task_begin_raw,
                     "quit": self.task_quit,
@@ -596,48 +574,9 @@ def control_api_mixin(cls):
             self.robot.quit_play()
             self.send_ok()
 
-        def maintain_update_hbfw(self, mimetype, ssize):
-            size = int(ssize)
-
-            def update_cb(swap):
-                def nav_cb(robot, *args):
-                    # >>>>
-                    if args[0] == "UPLOADING":
-                        self.send_json(status="uploading", sent=int(args[1]))
-                    elif args[0] == "WRITE":
-                        self.send_json(status="operating",
-                                       stage=["UPDATE_THFW", "WRITE"],
-                                       written=size - int(args[1]))
-
-                        self.send_json(status="update_hbfw", stage="WRITE",
-                                       written=size - int(args[1]))
-                    else:
-                        self.send_json(status="operating",
-                                       stage=["UPDATE_THFW", args[0]])
-
-                        self.send_json(status="update_hbfw", stage=args[0])
-                    # <<<<
-                size = swap.truncate()
-                swap.seek(0)
-
-                try:
-                    self.task.update_hbfw(swap, size, nav_cb)
-                    self.send_ok()
-                except RobotError as e:
-                    self.send_error(symbol=e.error_symbol)
-                except Exception as e:
-                    logger.exception("ERR")
-                    self.send_fatal("L_UNKNOWN_ERROR", e.args)
-
-            self.simple_binary_receiver(size, update_cb)
-
         def task_begin_scan(self):
             self.task = self.robot.scan()
             self.send_ok(task="scan")
-
-        def task_begin_maintain(self):
-            self.task = self.robot.maintain()
-            self.send_ok(task="maintain")
 
         def task_begin_raw(self):
             self.task = self.robot.raw()
@@ -653,146 +592,6 @@ def control_api_mixin(cls):
             self.task.quit()
             self.task = None
             self.send_ok(task="")
-
-        def maintain_home(self):
-            self.task.home()
-            self.send_ok()
-
-        def maintain_calibrate(self, *args):
-            def callback(robot, *args):
-                try:
-                    if args[0] == "POINT":
-                        self.send_json(status="operating",
-                                       stage=["CALIBRATING"], pos=int(args[1]))
-                    elif args[0] == "CTRL" and args[1] == "POINT":
-                        self.send_json(status="operating",
-                                       stage=["CALIBRATING"], pos=int(args[2]))
-                    elif args[0] == "DEBUG":
-                        self.send_json(status="debug", log=" ".join(args[1:]))
-                    else:
-                        self.send_json(status="debug", args=args)
-                except Exception:
-                    logger.exception("Error during calibration cb")
-
-            if "clean" in args:
-                ret = self.task.calibration(process_callback=callback,
-                                            clean=True)
-            else:
-                ret = self.task.calibration(process_callback=callback)
-            self.send_json(status="ok", data=ret,
-                           error=(max(*ret) - min(*ret)))
-
-        def maintain_zprobe(self, *args):
-            def callback(robot, *args):
-                if args[0] == "CTRL" and args[1] == "ZPROBE":
-                    self.send_json(status="operating",
-                                   stage=["ZPROBE"])
-                elif args[0] == "DEBUG":
-                    self.send_json(status="debug", log=" ".join(args[1:]))
-                else:
-                    self.send_json(status="debug", args=args)
-
-            if len(args) > 0:
-                ret = self.task.manual_level(float(args[0]))
-            else:
-                ret = self.task.zprobe(process_callback=callback)
-
-            self.send_json(status="ok", data=ret)
-
-        def maintain_move(self, *args):
-            self.task.move(**{k: float(v) for k, v in (arg.split(':', 1) for arg in args)})
-            self.send_ok()
-
-        def maintain_force_default(self, *args):
-            self.task.force_default()
-            self.send_ok()
-
-        def close_fan(self, *args):
-            self.task.close_fan()
-            self.send_ok()
-
-        def maintain_calibrate_beambox_camera(self, *args):
-            self.task.calibrate_beambox_camera()
-            self.send_ok()
-
-        def maintain_load_filament(self, index, temp, flexible_filament=False):
-            def nav(robot, *args):
-                try:
-                    stage = args[0]
-                    if stage == "HEATING":
-                        self.send_json(status="operating", stage=["HEATING"],
-                                       temperature=float(args[1]))
-                    elif stage == "LOADING":
-                        self.send_json(status="operating",
-                                       stage=["FILAMENT", "LOADING"])
-                    elif stage == "WAITING":
-                        self.send_json(status="operating",
-                                       stage=["FILAMENT", "WAITING"])
-                except Exception:
-                    logger.exception("Error during load filament cb")
-
-            if flexible_filament:
-                self.task.load_flexible_filament(int(index), float(temp), nav)
-            else:
-                self.task.load_filament(int(index), float(temp), nav)
-            self.send_ok()
-
-        def maintain_flexible_load_filament(self, index, temp):
-            self.maintain_load_filament(index, temp, flexible_filament=True)
-
-        def maintain_unload_filament(self, index, temp):
-            def nav(robot, *args):
-                try:
-                    stage = args[0]
-                    if stage == "HEATING":
-                        self.send_json(status="operating", stage=["HEATING"],
-                                       temperature=float(args[1]))
-                    else:
-                        self.send_json(status="operating",
-                                       stage=["FILAMENT", stage])
-                except Exception:
-                    logger.exception("Error during unload filament cb")
-            self.task.unload_filament(int(index), float(temp), nav)
-            self.send_ok()
-
-        def maintain_headinfo(self):
-            info = self.task.head_info()
-            if "head_module" not in info:
-                if "TYPE" in info:
-                    info["head_module"] = info.get("TYPE")
-                elif "module" in info:
-                    info["head_module"] = info.get("module")
-
-            if "version" not in info:
-                info["version"] = info["VERSION"]
-            self.send_ok(**info)
-
-        def maintain_set_heater(self, index, temperature):
-            self.task.set_heater(int(index), float(temperature))
-            self.send_ok()
-
-        def maintain_diagnosis_sensor(self):
-            result = self.task.diagnosis_sensor()
-            self.send_ok(sensor=result)
-
-        def maintain_diagnosis(self, option):
-            self.send_ok(ret=self.task.diagnosis(option))
-
-        def maintain_headstatus(self):
-            status = self.task.head_status()
-            self.send_ok(**status)
-
-        def maintain_wait_head(self, head_type, timeout=6.0):
-            ttl = time() + float(timeout)
-
-            while ttl > time():
-                st = self.task.head_status()
-                if st["module"] == head_type:
-                    self.send_ok()
-                else:
-                    sleep(0.2)
-
-            self.send_error("TIMEOUT")
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
