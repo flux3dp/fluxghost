@@ -2,7 +2,6 @@
 from errno import EPIPE
 from io import BytesIO
 from time import time, sleep
-import itertools
 import json
 import logging
 import pipes
@@ -14,9 +13,9 @@ from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.robot.robot import RawTasks, RedLaserMeasureTasks
 
 from .control_base import control_base_mixin
-from .laser_control import LaserShowOutline
 
 logger = logging.getLogger("API.CONTROL")
 
@@ -30,7 +29,7 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 def control_api_mixin(cls):
     class ControlApi(control_base_mixin(cls)):
         _task = None
-        raw_sock = None
+        task_sockets = {}
 
         def on_connected(self):
             self.set_hooks()
@@ -149,10 +148,7 @@ def control_api_mixin(cls):
                     "raw": self.task_begin_raw,
                     "quit": self.task_quit,
                     "cartridge_io": self.task_begin_cartridge_io,
-                },
-
-                "laser": {
-                    "show_outline": self.laser_show_outline
+                    "red_laser_measure": self.task_begin_red_laser_measure,
                 },
 
                 "fetch_log": self.fetch_log,
@@ -173,6 +169,19 @@ def control_api_mixin(cls):
         @task.setter
         def task(self, val):
             self._task = val
+
+        def get_task_socket(self, task_type):
+            return self.task_sockets.get(task_type, None)
+
+        def add_task_socket(self, task_type, socket):
+            self.task_sockets[task_type] = socket
+            self.rlist.append(socket)
+
+        def remove_task_socket(self, task_type):
+            socket = self.task_sockets.get(task_type, None)
+            if socket:
+                self.rlist.remove(socket)
+                del self.task_sockets[task_type]
 
         def invoke_command(self, ref, args, wrapper=None):
             if not args:
@@ -195,10 +204,13 @@ def control_api_mixin(cls):
             if message == "ping":
                 self.send_text('{"status": "pong"}')
                 return
-
-            if self.raw_sock:
+            if isinstance(self._task, RawTasks):
                 logger.info('Raw: => %s' % message)
                 self.on_raw_message(message)
+                return
+            if isinstance(self._task, RedLaserMeasureTasks):
+                logger.info('RedLaserMeasureTasks: => %s' % message)
+                self.on_red_laser_measure_message(message)
                 return
 
             args = shlex.split(message)
@@ -580,13 +592,17 @@ def control_api_mixin(cls):
 
         def task_begin_raw(self):
             self.task = self.robot.raw()
-            self.raw_sock = RawSock(self.task.sock, self)
-            self.rlist.append(self.raw_sock)
+            sock = PipeSocket(self.task.sock, self, 'raw')
+            self.add_task_socket('raw', sock)
             self.send_ok(task="raw")
 
         def task_begin_cartridge_io(self):
             self.task = self.robot.cartridge_io()
             self.send_ok(task="cartridge_io")
+
+        def task_begin_red_laser_measure(self):
+            self.task = self.robot.red_laser_measure()
+            self.send_ok(task='red_laser_measure')
 
         def task_quit(self):
             self.task.quit()
@@ -810,59 +826,33 @@ def control_api_mixin(cls):
             data = json.loads(resp)
             self.send_ok(data=data)
 
-        def on_raw_message(self, message):
-            if message == "quit" or message == "task quit":
-                self.rlist.remove(self.raw_sock)
-                self.raw_sock = None
+        def on_pipe_task_message(self, task_type, message):
+            if message == 'quit' or message == 'task quit':
+                self.remove_task_socket(task_type)
                 self.task_quit()
-            elif message == 'raw home':
-                self.raw_sock.home()
-            else:
-                self.raw_sock.sock.send(message.encode() + b"\n")
+                return
+            socket: PipeSocket = self.get_task_socket(task_type)
+            if not socket:
+                self.send_error('TASK_SOCKET_CLOSED')
+                self.task_quit()
+                return
+            return socket
 
-        def laser_show_outline(self, object_height, *positions):
-            object_height = float(object_height) + 10
+        def on_raw_message(self, message):
+            socket = self.on_pipe_task_message('raw', message)
+            if socket:
+                if message == 'raw home':
+                    socket.send('$H\n'.encode())
+                else:
+                    socket.send(message.encode() + b'\n')
 
-            def trace_to_command(trace):
-                fp = trace.pop(0)
-                idx = start_command.index('firstPoint')
-                start_command[idx] = 'G0 X{} Y{} Z{} F6000'.format(
-                    fp[0], fp[1], object_height)
-
-                for cmd in itertools.chain(start_command, trace, end_command):
-                    if isinstance(cmd, tuple):
-                        cmd = 'G1 X{} Y{} F3000'.format(cmd[0], cmd[1])
-                    yield cmd
-
-            start_command = ['G28',
-                             'G90',
-                             'firstPoint',
-                             '1 DEBUG',
-                             '1 PING *33',
-                             ]
-            end_command = ['G28']
-
-            laser = LaserShowOutline()
-            moveTraces = []
-            for frame in positions:
-                moveTrace = laser.get_move_trace(frame)
-                moveTrace.insert(1, 'X2O015')
-                moveTrace.append('X2O000')
-                moveTraces.extend(moveTrace)
-            logger.debug('moveTraces :{}'.format(moveTraces))
-
-            # into raw mode then send movetrace via socket.
-            self.task = self.robot.raw()
-            self.raw_sock = RawSock(self.task.sock, self)
-            self.rlist.append(self.raw_sock)
-
-            for command in trace_to_command(moveTraces):
-                self.on_raw_message(command)
-                logger.debug('{} :{}'.format(command,
-                                             self.raw_sock.sock.recv(128)))
-
-            self.on_raw_message('quit')
-            self.send_ok()
+        def on_red_laser_measure_message(self, message):
+            if message == 'quit' or message == 'task quit':
+                self.task_quit()
+                return
+            resp = self.robot._backend.make_cmd(message.encode())
+            logger.info('RedLaserMeasureTasks: <= %s', resp)
+            self.send_ok(data=resp)
 
     class DirtyLayer(ControlApi):
         __last_command = None
@@ -889,8 +879,6 @@ def control_api_mixin(cls):
                     kw["cmd"] = "rmdir"
                 elif self.__last_command.startswith("file cpfile"):
                     kw["cmd"] = "cpfile"
-                elif self.__last_command.startswith("maintain headinfo"):
-                    kw["cmd"] = "headinfo"
                 else:
                     kw["cmd"] = self.__last_command
 
@@ -905,23 +893,26 @@ def control_api_mixin(cls):
     return DirtyLayer
 
 
-class RawSock(object):
-    def __init__(self, sock, ws):
+class PipeSocket(object):
+    """This class pipe data from socket connected to device to websocket connected to frontend"""
+    _task_type = 'pipe'
+
+    def __init__(self, sock, ws, task = 'pipe'):
         self.sock = sock
         self.ws = ws
+        self._task_type = task
 
     def fileno(self):
         return self.sock.fileno()
 
-    def home(self):
-        self.sock.send('$H\n'.encode())
+    def send(self, data):
+        self.sock.send(data)
 
     def on_read(self):
         buf = self.sock.recv(128)
         if buf:
-            logger.info('Raw: <= %s' % buf.decode("ascii", "replace"))
-
-            self.ws.send_json(status="raw",
+            logger.info('%s: <= %s' % (self._task_type, buf.decode("ascii", "replace")))
+            self.ws.send_json(status=self._task_type,
                               text=buf.decode("ascii", "replace"))
         else:
             self.ws.rlist.remove(self)
