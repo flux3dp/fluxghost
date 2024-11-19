@@ -53,9 +53,6 @@ class SimulateRobot(object):
     def kick(self):
         pass
 
-    def maintain_home(self):
-        pass
-
     def scan_backward(self):
         pass
 

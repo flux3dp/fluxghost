@@ -640,19 +640,6 @@
     "scan scanimages": function(controller, cmd, payload, data) {
       callbacks["scan oneshot"](controller, cmd, payload, data);
     },
-    "maintain headstatus": function(controller, cmd, payload, data) {
-      delete payload.status;
-      delete payload.cmd;
-      appendKeyValueLog(payload, ["module"]);
-    },
-    "maintain headinfo": function(controller, cmd, payload, data) {
-      delete payload.status;
-      delete payload.cmd;
-      appendKeyValueLog(payload, ["module"]);
-    },
-    "maintain diagnosis_sensor": function(controller, cmd, payload, data) {
-      appendKeyValueLog(payload.sensor, ["FSR0", "FSR1", "FSR2", "RIO1", "RIO2", "MIO1", "F0_STOP", "F1_STOP"]);
-    },
     default: function(controller, cmd, payload) {
       if(payload.constructor === String) {
         var lines = payload.split("\n");
@@ -1067,53 +1054,6 @@
         <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
       </div>
 
-      <div style="margin: 0.5em 0; display: none" data-cmd-group="maintain">
-        <span data-cmd="maintain home" class="btn btn-xs btn-default">
-          Home
-        </span>
-
-        <div class="btn-group">
-          <span data-cmd="maintain load_filament 0 210" class="btn btn-xs btn-default">Load filament</span>
-          <span data-cmd="maintain unload_filament 0 210" class="btn btn-xs btn-default">Unload filament</span>
-        </div>
-
-        <!-- calibrating -->
-        <div class="btn-group btn-xs dropup">
-          <span data-cmd="maintain calibrating" class="btn btn-xs btn-default">Calibrating</span>
-          <button type="button" class="btn btn-xs btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              <span class="caret"></span>
-              <span class="sr-only">Toggle Dropdown</span>
-          </button>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li data-cmd="maintain calibrating clean" style="cursor: pointer"><a>From clean</a></li>
-          </ul>
-        </div>
-
-        <span data-cmd="maintain zprobe" class="btn btn-xs btn-default">
-          Z-probe
-        </span>
-
-        <span> | Head </span>
-        <div class="btn-group">
-          <span data-cmd="maintain headinfo" class="btn btn-xs btn-default">
-            Profile
-          </span>
-          <span data-cmd="maintain headstatus" class="btn btn-xs btn-default">
-            Status
-          </span>
-        </div>
-
-        <span class="btn btn-xs btn-default" data-cmd="maintain set_heater 0 {}"
-              data-cmd-require-param="1"data-cmd-param-help="Give temperature">
-          Heater
-        </span>
-
-        <span class="btn btn-xs btn-default fileinput-button">
-          <span>** Update Head FW **</span>
-          <input type="file" class="fileinput-button" data-file-cmd="maintain update_hbfw" name="file" />
-        </span>
-        <span data-cmd="task quit" class="btn btn-xs btn-warning">Quit</span>
-      </div>
       <div style="margin: 0.5em 0" data-cmd-group="root">
         <!-- List file -->
         <span data-cmd="file ls" class="btn btn-xs btn-default">
@@ -1156,7 +1096,6 @@
         <span data-sg data-sg0>
           <span> | Tasks </span>
           <div class="btn-group btn-xs">
-            <span data-cmd="task maintain" class="btn btn-xs btn-default">Maintain</span>
             <span data-cmd="task scan" class="btn btn-xs btn-default">Scan</span>
             <span data-cmd="task raw" class="btn btn-xs btn-info">Raw</span>
           </div>
