@@ -128,8 +128,6 @@ def control_api_mixin(cls):
                         "standby": self.set_toolhead_standby,
                         "heater": self.set_toolhead_heater,
                     },
-                    "load_filament": self.load_filamend_in_play,
-                    "unload_filament": self.unload_filamend_in_play,
                     "press_button": self.press_button_in_play,
                     "quit": self.quit_play
                 },
@@ -568,14 +566,6 @@ def control_api_mixin(cls):
 
         def set_toolhead_heater(self, index, temp):
             self.robot.set_toolhead_heater_in_play(float(temp), int(index))
-            self.send_ok()
-
-        def load_filamend_in_play(self, index):
-            self.robot.load_filament_in_play(int(index))
-            self.send_ok()
-
-        def unload_filamend_in_play(self, index):
-            self.robot.unload_filament_in_play(int(index))
             self.send_ok()
 
         def press_button_in_play(self):

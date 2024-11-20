@@ -1,1 +1,1 @@
-__version__ = "2.3.4" # Fix Camera calibration
+__version__ = "2.3.5" # Update for red laser measure
