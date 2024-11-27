@@ -27,22 +27,6 @@ def get_all_split_indices(split, chessboard):
     return table
 
 
-def get_perspective_points(img, k, d, split, chessboard):
-    img = pad_image(img)
-    img = get_remap_img(img, k, d)
-    gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=False, try_remap=False)
-    if not ret:
-        raise Exception('Cannot find corners')
-    corners = corner_sub_pix(gray, corners)
-    corners = np.reshape(corners, chessboard[::-1] + (2,))
-    split_x, split_y = split
-    table = get_all_split_indices(split, chessboard)
-    for i in range(split_x + 1):
-        for j in range(split_y + 1):
-            table[i][j] = corners[table[i][j][1]][table[i][j][0]].tolist()
-    return np.array(table)
-
-
 def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1):
     img = pad_image(img)
     if downsample > 1:
