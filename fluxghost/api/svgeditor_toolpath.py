@@ -537,6 +537,8 @@ def laser_svgeditor_api_mixin(cls):
             self.send_ok()
 
         def check_interrupted(self) :
+            if not getattr(self, 'running', False):
+                return True
             return self.is_task_interrupted
 
         def _handle_message(self, opcode, message):
