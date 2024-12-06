@@ -65,7 +65,7 @@ jobs:
           mv flux_api.zip artifacts
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.os}}
           path: artifacts
