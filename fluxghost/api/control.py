@@ -29,7 +29,13 @@ STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 def control_api_mixin(cls):
     class ControlApi(control_base_mixin(cls)):
         _task = None
-        task_sockets = {}
+        _task_sockets = None
+
+        @property
+        def task_sockets(self):
+            if not self._task_sockets:
+                self._task_sockets = {}
+            return self._task_sockets
 
         def on_connected(self):
             self.set_hooks()
