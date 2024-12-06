@@ -68,8 +68,6 @@ jobs:
         run: |
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; printenv; python3 ghost.py --test --without_pcl"
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; pyinstaller --clean ghost-github-action.spec"
-          sudo cp -R /Library/Frameworks/Python.framework/Versions/Current/lib/tcl8.6 dist/flux_api/tcl
-          sudo cp -R /Library/Frameworks/Python.framework/Versions/Current/lib/tk8.6 dist/flux_api/tk
           ./dist/flux_api/flux_api --test --without_pcl
 
       - name: Cleanup artifacts
@@ -77,7 +75,7 @@ jobs:
           mkdir artifacts
           mv dist/flux_api artifacts
       - name: Upload artifacts
-        uses: actions/upload-artifact@v1
+        uses: actions/upload-artifact@v4
         with:
           name: ${{matrix.os}}
           path: artifacts
