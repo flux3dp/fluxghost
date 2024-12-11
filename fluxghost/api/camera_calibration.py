@@ -27,21 +27,6 @@ from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger('API.CAMERA_CALIBBRATION')
-DPMM = 5
-
-CX = 1321
-CY = 1100
-
-
-def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, left=None):
-    cx = int(cx)
-    cy = int(cy)
-    width = int(width) * DPMM
-    height = int(height) * DPMM
-    left = cx - width // 2 if left is None else cx - int(left) * DPMM
-    top = cy - height // 2 if top is None else cy - int(top) * DPMM
-    img = img[top : top + height, left : left + width]
-    return img
 
 
 def camera_calibration_api_mixin(cls):

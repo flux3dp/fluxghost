@@ -12,11 +12,25 @@ from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
 from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
-from .camera_calibration import crop_transformed_img
 
 
 logger = logging.getLogger(__file__)
 
+
+CX = 1321
+CY = 1100
+DPMM = 5
+
+# deprecated v1 functions
+def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, left=None):
+    cx = int(cx)
+    cy = int(cy)
+    width = int(width) * DPMM
+    height = int(height) * DPMM
+    left = cx - width // 2 if left is None else cx - int(left) * DPMM
+    top = cy - height // 2 if top is None else cy - int(top) * DPMM
+    img = img[top : top + height, left : left + width]
+    return img
 
 class FisheyeCameraMixin:
     cmd_mapping = None
