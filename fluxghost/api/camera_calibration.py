@@ -27,6 +27,7 @@ from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger('API.CAMERA_CALIBBRATION')
+IS_DEBUGGING = False
 
 
 def camera_calibration_api_mixin(cls):
@@ -314,6 +315,9 @@ def camera_calibration_api_mixin(cls):
             dh = round(float(message[1]), 2)
             ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             file_length = int(message[2])
+            interest_area = message[3] if len(message) > 3 else None
+            if interest_area:
+                interest_area = json.loads(interest_area)
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
@@ -321,35 +325,64 @@ def camera_calibration_api_mixin(cls):
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 remap = pad_image(img_cv)
                 remap = get_remap_img(remap, k, d)
-                corners = find_corners(remap, 2000, min_distance=100, quality_level=0.01, draw=False)
-                corner_tree = spatial.KDTree(corners)
+                if interest_area:
+                    x, y = interest_area['x'], interest_area['y']
+                    width, height = interest_area['width'], interest_area['height']
+                    interested_img = remap[y : y + height, x : x + width]
+                    corners = find_corners(interested_img, 2000, min_distance=100, quality_level=0.01, draw=False)
+                    corners = corners + np.array([x, y])
+                else:
+                    corners = find_corners(remap, 2000, min_distance=100, quality_level=0.01, draw=False)
                 projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
-                _, candidates_indice = corner_tree.query(projected_points[0], k=len(corners))
-                best_res = None
-                for index in candidates_indice:
-                    res = [corners[index]]
-                    used_indices = set([index])
-                    total_dist = 0
-                    delta = corners[index] - projected_points[0]
-                    for i in range(1, len(projected_points)):
-                        desire_point = projected_points[i] + delta
-                        dists, indices = corner_tree.query(desire_point, k=len(projected_points))
-                        for j in range(len(indices)):
-                            if indices[j] not in used_indices:
-                                used_indices.add(indices[j])
-                                res.append(corners[indices[j]])
-                                total_dist += dists[j]
-                                break
-                            if best_res and total_dist > best_res[1]:
-                                break
-                    if best_res is None or total_dist < best_res[1]:
-                        best_res = (res, total_dist)
-                new_imgpoints = np.array(best_res[0])
-                self.send_ok(points=new_imgpoints.tolist())
+
+                if IS_DEBUGGING:
+                    remap_copy = remap.copy()
+                    if interest_area:
+                        cv2.rectangle(remap_copy, (x, y), (x + width, y + height), (0, 0, 255), 1)
+                    for c in corners:
+                        cv2.circle(remap_copy, tuple(c.astype(int)), 0, (0, 0, 255), -1)
+                        cv2.circle(remap_copy, tuple(c.astype(int)), 3, (0, 0, 255), 1)
+                    for p in projected_points:
+                        cv2.circle(remap_copy, tuple(p.astype(int)), 0, (255, 0, 0), -1)
+                        cv2.circle(remap_copy, tuple(p.astype(int)), 3, (255, 0, 0), 1)
+
+                if len(corners) > len(projected_points):
+                    corner_tree = spatial.KDTree(corners)
+                    _, candidates_indice = corner_tree.query(projected_points[0], k=len(corners))
+                    best_res = None
+                    for index in candidates_indice:
+                        res = [corners[index]]
+                        used_indices = set([index])
+                        total_dist = 0
+                        delta = corners[index] - projected_points[0]
+                        for i in range(1, len(projected_points)):
+                            desire_point = projected_points[i] + delta
+                            dists, indices = corner_tree.query(desire_point, k=len(projected_points))
+                            for j in range(len(indices)):
+                                if indices[j] not in used_indices:
+                                    used_indices.add(indices[j])
+                                    res.append(corners[indices[j]])
+                                    total_dist += dists[j]
+                                    break
+                                if best_res and total_dist > best_res[1]:
+                                    break
+                        if best_res is None or total_dist < best_res[1]:
+                            best_res = (res, total_dist)
+                    result_img_points = np.array(best_res[0])
+                else:
+                    logger.info('corners lens: {} is less than projected_points, use projected_points'.format(len(corners)))
+                    result_img_points = projected_points
+
+                self.send_ok(points=result_img_points.tolist())
                 _, array_buffer = cv2.imencode('.jpg', remap)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
+                if IS_DEBUGGING:
+                    for p in result_img_points:
+                        cv2.circle(remap_copy, tuple(p.astype(int)), 0, (255, 255, 0), -1)
+                        cv2.circle(remap_copy, tuple(p.astype(int)), 3, (255, 255, 0), 1)
+                    cv2.imwrite('solve-pnp-corner.png', remap_copy)
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
