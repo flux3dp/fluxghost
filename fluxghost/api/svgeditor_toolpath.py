@@ -484,6 +484,7 @@ def laser_svgeditor_api_mixin(cls):
                 time_need = 0
                 traveled_dist = 0
                 metadata = {}
+                magic_number = 1
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     if fcode_version == 2:
@@ -493,6 +494,7 @@ def laser_svgeditor_api_mixin(cls):
                         writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail, ))
                 else:
                     writer = GCodeMemoryWriter()
+                svgeditor2taskcode_kwargs['magic_number'] = magic_number
 
                 svgeditor2taskcode(writer, factory,
                                 progress_callback=progress_callback,
