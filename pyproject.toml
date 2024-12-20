@@ -6,7 +6,7 @@ include = '\.pyi?$'
 
 [tool.poetry]
 name = "fluxghost"
-version = "2.3.2"
+version = "2.3.6"
 description = "FLUXGhost provides a websocket based API for FLUX-Studio frontend, which connects to fluxclient."
 authors = ["Simon Ko <simon@flux3dp.com>", "Dean Sung <dean@flux3dp.com>"]
 readme = "README.md"
