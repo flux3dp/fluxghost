@@ -62,8 +62,8 @@ def find_contours(
     return child_contours, parent_contours
 
 
-def get_contour_by_canny(img, splicing_img=False, size_threshold=10000):
-    if splicing_img:
+def get_contour_by_canny(img, is_spliced_img=False, size_threshold=10000):
+    if is_spliced_img:
         img = cv2.GaussianBlur(img, (17, 17), 0)
         img = cv2.Canny(img, 30, 85)
     else:
@@ -79,7 +79,7 @@ def get_contour_by_canny(img, splicing_img=False, size_threshold=10000):
     )
 
 
-def get_contour_by_hsv_gradient(img, splicing_img=False, size_threshold=10000):
+def get_contour_by_hsv_gradient(img, is_spliced_img=False, size_threshold=10000):
     # Convert to HSV color space
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     # Apply Sobel operator to each channel
@@ -96,10 +96,10 @@ def get_contour_by_hsv_gradient(img, splicing_img=False, size_threshold=10000):
     # Exclude black pixels because bb-series would contain a lot of transparent (black) pixels
     flat_image = img.flatten()
     non_black_pixels = flat_image[flat_image > 0]
-    threshold = np.quantile(non_black_pixels, 0.7 if splicing_img else 0.9)
+    threshold = np.quantile(non_black_pixels, 0.7 if is_spliced_img else 0.9)
     _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
     # For b-series only, remove small noise of splicing
-    if splicing_img:
+    if is_spliced_img:
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
         img = cv2.erode(img, kernel, iterations=1)
         img = cv2.dilate(img, kernel, iterations=1)
