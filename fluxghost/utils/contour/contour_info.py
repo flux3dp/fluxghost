@@ -38,7 +38,7 @@ def find_rotation_angle(contour, kd_tree, angle_step=0.5):
     return res[1]
 
 
-def get_contour_info(contour, base_contour_kd_tree):
+def get_contour_info(contour, base_contour_kd_tree, include_contour=False):
     center = get_center(contour)
     if base_contour_kd_tree:
         angle = find_rotation_angle(contour.reshape(-1, 2) - center, base_contour_kd_tree)
@@ -46,4 +46,7 @@ def get_contour_info(contour, base_contour_kd_tree):
     else:
         angle = 0
     bbox = cv2.boundingRect(contour)
-    return {'center': center, 'angle': angle, 'bbox': bbox}
+    res = {'center': center, 'angle': angle, 'bbox': bbox}
+    if include_contour:
+        res['contour'] = contour.reshape(-1, 2).tolist()
+    return res

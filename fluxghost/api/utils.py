@@ -30,6 +30,7 @@ def utils_api_mixin(cls):
                 'rgb_to_cmyk': [self.rgb_to_cmyk],
                 'split_color': [self.split_color],
                 'get_similar_contours': [self.get_similar_contours],
+                'get_all_similar_contours': [self.get_all_similar_contours],
                 'get_convex_hull': [self.get_convex_hull],
             }
 
@@ -180,13 +181,34 @@ def utils_api_mixin(cls):
                 try:
                     image = Image.open(io.BytesIO(buf))
                     cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-                    splicing_img = False
+                    is_spliced_img = False
                     if len(params) > 1 and params[1] == '1':
-                        splicing_img = True
-                    data = find_similar_contours(cv_img, splicing_img)
+                        is_spliced_img = True
+                    data = find_similar_contours(cv_img, is_spliced_img)
                     self.send_ok(data=data)
                 except Exception as e:
                     logger.exception('Error in get_similar_contours')
+                    self.send_json(status='error', info=str(e))
+
+            file_length = int(params[0])
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def get_all_similar_contours(self, params):
+            params = params.split(' ')
+
+            def upload_callback(buf):
+                try:
+                    image = Image.open(io.BytesIO(buf))
+                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                    is_spliced_img = False
+                    if len(params) > 1 and params[1] == '1':
+                        is_spliced_img = True
+                    data = find_similar_contours(cv_img, is_spliced_img, all_groups=True)
+                    self.send_ok(data=data)
+                except Exception as e:
+                    logger.exception('Error in get_all_similar_contours')
                     self.send_json(status='error', info=str(e))
 
             file_length = int(params[0])
