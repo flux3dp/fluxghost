@@ -84,7 +84,7 @@ def check_contour_intersection(contour1, contour2):
     return check_area_intersect(contour1, contour2, w, h)
 
 
-def group_similar_contours(contours, hu_threshold=0.1, area_threshold=0.25):
+def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
     groups = []
     hu_moments = calculate_hu_moments(contours)
     areas = [abs(cv2.contourArea(contour)) for contour in contours]
