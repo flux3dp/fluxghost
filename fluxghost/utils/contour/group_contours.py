@@ -11,9 +11,27 @@ def calculate_hu_moments(contours):
 
 
 # https://docs.opencv.org/4.x/d3/dc0/group__imgproc__shape.html#gaf2b97a230b51856d09a2d934b78c015f
+def normalize_hu_moments(hu_moments):
+    '''
+    basically like openCV log transform
+    but hu[4], hu[5] may be very small with different sign,
+    so we use the absolute value to normalize
+    hu[6] is ignored cause it's so different for the same shapes
+    '''
+    return np.array([
+        -np.sign(hu_moments[0]) / np.log10(np.abs(hu_moments[0])),
+        -np.sign(hu_moments[1]) / np.log10(np.abs(hu_moments[1])),
+        -np.sign(hu_moments[2]) / np.log10(np.abs(hu_moments[2])),
+        -np.sign(hu_moments[3]) / np.log10(np.abs(hu_moments[3])),
+        -1 / np.log10(np.abs(hu_moments[4])),
+        -1 / np.log10(np.abs(hu_moments[5])),
+    ])
+
+
 def calculate_hu_moments_dist(hu_moments1, hu_moments2):
-    # tried log transformation, but not performing well
-    dist = np.linalg.norm(hu_moments1 - hu_moments2, ord=1)
+    normalized1 = normalize_hu_moments(hu_moments1)
+    normalized2 = normalize_hu_moments(hu_moments2)
+    dist = np.linalg.norm(normalized1 - normalized2, ord=1)
     return dist
 
 
@@ -66,7 +84,7 @@ def check_contour_intersection(contour1, contour2):
     return check_area_intersect(contour1, contour2, w, h)
 
 
-def group_similar_contours(contours, hu_threshold=0.010, area_threshold=0.25):
+def group_similar_contours(contours, hu_threshold=0.1, area_threshold=0.25):
     groups = []
     hu_moments = calculate_hu_moments(contours)
     areas = [abs(cv2.contourArea(contour)) for contour in contours]
@@ -76,11 +94,12 @@ def group_similar_contours(contours, hu_threshold=0.010, area_threshold=0.25):
         hu_moment = hu_moments[i]
         area = areas[i]
         for j in range(i + 1, len(contours)):
+            hu_dist = calculate_hu_moments_dist(hu_moment, hu_moments[j])
+            if hu_dist >= hu_threshold:
+                continue
             if not check_area_difference(area, areas[j], area_threshold):
                 continue
-            hu_score = calculate_hu_moments_dist(hu_moment, hu_moments[j])
-            if hu_score < hu_threshold:
-                pairs.append((i, j))
+            pairs.append((i, j))
     group_id_map = {}
     group_count = 0
     for i, j in pairs:
