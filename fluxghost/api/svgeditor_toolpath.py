@@ -382,6 +382,9 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor2taskcode_kwargs['mock_fast_gradient'] = True
                 elif param == '-vsl':
                     svgeditor2taskcode_kwargs['vector_speed_limit'] = float(params[i+1])
+                elif param == '-csl':
+                    # 3d engraving curve speed limit
+                    svgeditor2taskcode_kwargs['curve_speed_limit'] = float(params[i+1])
                 elif param == '-diode':
                     svgeditor2taskcode_kwargs['support_diode'] = True
                     svgeditor2taskcode_kwargs['diode_offset'] = [float(j) for j in params[i+1].split(',')]
