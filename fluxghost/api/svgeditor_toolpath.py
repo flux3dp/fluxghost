@@ -482,6 +482,7 @@ def laser_svgeditor_api_mixin(cls):
                     'AUTHOR': urllib.parse.quote(get_username()),
                     'SOFTWARE': 'fluxclient-%s-BS' % __version__,
                     'START_WITH_HOME': '1' if start_with_home else '0',
+                    '3D_CURVE_TASK': '1' if self.curve_engraving_detail else '0',
                 })
                 logger.info('FCode Version: %d', fcode_version)
                 time_need = 0
