@@ -95,8 +95,6 @@ def main():
                         help="Use sentry logger")
     parser.add_argument('--test', dest='test', action='store_const',
                         const=True, default=False, help='Run test')
-    parser.add_argument('--without_pcl', dest='without_pcl', action='store_const',
-                        const=True, default=False, help='Without Pcl')
     parser.add_argument('--version', dest='version', action='store_const',
                         const=True, default=False, help='Show version')
 
@@ -111,7 +109,7 @@ def main():
 
     if options.test:
         from tests.main import main
-        sys.exit(main(options.without_pcl))
+        sys.exit(main())
 
     if options.slic3r:
         os.environ["slic3r"] = options.slic3r
