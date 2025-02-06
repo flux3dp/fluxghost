@@ -54,9 +54,9 @@ jobs:
 
       - name: Build Flux Api
         run: |
-          bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; printenv; python ghost.py --test  --without_pcl"
+          bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; printenv; python ghost.py --test"
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; pyinstaller --clean ghost-github-action.spec"
-          ./dist/flux_api/flux_api --test --without_pcl
+          ./dist/flux_api/flux_api --test
 
       - name: Cleanup artifacts
         run: |

@@ -16,18 +16,18 @@ const main = async () => {
             } else {
                 await exec.exec('cp', ['./lib/x32/*', 'C:\\Windows\\system32'], options);
             }
-            // await exec.exec('python', ['ghost.py', '--test', '--without_pcl'], options);
+            // await exec.exec('python', ['ghost.py', '--test'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
         } else if (os.platform() === 'linux') {
-            await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
+            await exec.exec('python3', ['ghost.py', '--test'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
         } else if (os.platform() === 'darwin') {
-            await exec.exec('python3', ['ghost.py', '--test', '--without_pcl'], options);
+            await exec.exec('python3', ['ghost.py', '--test'], options);
             await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
         } else {
             throw `Unsupported OS: ${os.platform()}`
         }
-        await exec.exec('./dist/flux_api/flux_api', ['--test', '--without_pcl'], options);
+        await exec.exec('./dist/flux_api/flux_api', ['--test'], options);
 
         if (os.platform() === 'win32') {
             await exec.exec('mv', ['dist/flux_api', `${process.env.TMP}\\flux_api_swap`], options);
