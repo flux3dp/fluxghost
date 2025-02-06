@@ -19,7 +19,7 @@ def try_import(module_name, without_pcl):
     except ImportError as e:
         sys.stdout.write("ERROR: %s\n" % e)
         sys.stdout.flush()
-        if without_pcl and module_name in ['fluxclient.printer._printer', 'fluxclient.scanner._scanner', 'fluxghost.websocket.scan_modeling']:
+        if without_pcl and module_name in ['fluxclient.scanner._scanner', 'fluxghost.websocket.scan_modeling']:
             sys.stdout.write("Test without pcl, so it's OK\n")
             return True
         return False
@@ -38,12 +38,9 @@ TEST_MODULES = [
     "fluxclient.fcode",
     "fluxclient.hw_profile",
     "fluxclient.laser",
-    "fluxclient.printer",
-    "fluxclient.printer._printer",
     "fluxclient.robot",
     "fluxclient.scanner",
     "fluxclient.scanner._scanner",
-    "fluxclient.upnp",
 ] + [m.rsplit(".", 1)[0] for p, m in ROUTES]
 
 
