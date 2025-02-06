@@ -6,6 +6,7 @@ import math
 import threading
 import urllib.parse
 import traceback
+import warnings
 from datetime import datetime
 
 from PIL import Image
@@ -199,15 +200,24 @@ def laser_svgeditor_api_mixin(cls):
                     self.factory_kwargs['pixel_per_mm_x'] = 20
                 elif param == '-dpi':
                     try:
-                        dpi = int(params[i+1])
+                        dpi = int(params[i + 1])
                         self.pixel_per_mm = round(dpi / 25.4)
                         if self.pixel_per_mm > 20:
                             self.factory_kwargs['pixel_per_mm_x'] = 20
                     except Exception:
                         pass
                 elif param == '-spin':
+                    warnings.warn('arg -spin for cmd_svgeditor_upload is deprecated in favor of -workarea', DeprecationWarning)
                     svgeditor_image_params['rotary_enabled'] = True
                     self.factory_kwargs['rotary_enabled'] = True
+                elif param == '-workarea':
+                    try:
+                        val: str = params[i + 1]
+                        width, height = json.loads(val)
+                        svgeditor_image_params['workarea'] = [width, height]
+                        self.factory_kwargs['workarea'] = [width, height]
+                    except Exception:
+                        logger.exception('Invalid workarea')
 
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
