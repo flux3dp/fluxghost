@@ -7,8 +7,6 @@ ROUTES = [
     (re.compile("discover"),
      "fluxghost.websocket.discover.WebsocketDiscover"),
 
-    (re.compile("upnp-config"),
-     "fluxghost.websocket.upnp_ws.WebsocketUpnp"),
     (re.compile("touch"),
      "fluxghost.websocket.touch.WebsocketTouch"),
 
