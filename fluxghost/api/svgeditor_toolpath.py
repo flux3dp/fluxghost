@@ -480,6 +480,12 @@ def laser_svgeditor_api_mixin(cls):
                     except Exception:
                         logger.exception('Invalid job origin')
                         pass
+                elif param == '-acc-override':
+                    try:
+                        value = json.loads(params[i + 1])
+                        svgeditor2taskcode_kwargs['acc_override'] = value
+                    except Exception:
+                        pass
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
