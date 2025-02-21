@@ -138,17 +138,7 @@ def control_api_mixin(cls):
                     "quit": self.quit_play
                 },
 
-                "scan": {
-                    "oneshot": self.scan_oneshot,
-                    "scanimages": self.scanimages,
-                    "backward": self.scan_backward,
-                    "forward": self.scan_forward,
-                    "step": self.scan_step,
-                    "laser": self.scan_lasr,
-                },
-
                 "task": {
-                    "scan": self.task_begin_scan,
                     "raw": self.task_begin_raw,
                     "quit": self.task_quit,
                     "cartridge_io": self.task_begin_cartridge_io,
@@ -582,10 +572,6 @@ def control_api_mixin(cls):
             self.robot.quit_play()
             self.send_ok()
 
-        def task_begin_scan(self):
-            self.task = self.robot.scan()
-            self.send_ok(task="scan")
-
         def task_begin_raw(self):
             self.task = self.robot.raw()
             sock = PipeSocket(self.task.sock, self, 'raw')
@@ -639,38 +625,6 @@ def control_api_mixin(cls):
                     sleep(0.2)
 
             self.send_error("TIMEOUT")
-
-        def scan_oneshot(self):
-            images = self.task.oneshot()
-            for mimetype, buf in images:
-                self.send_binary_buffer(mimetype, buf)
-            self.send_ok()
-
-        def scanimages(self):
-            images = self.task.scanimages()
-            for mimetype, buf in images:
-                self.send_binary_buffer(mimetype, buf)
-            self.send_ok()
-
-        def scan_forward(self):
-            self.task.forward()
-            self.send_ok()
-
-        def scan_backward(self):
-            self.task.backward()
-            self.send_ok()
-
-        def scan_step(self, length):
-            self.task.step_length(float(length))
-            self.send_ok()
-
-        def scan_lasr(self, flag):
-            if flag.isdigit():
-                dflag = int(flag)
-                self.task.laser(dflag & 1, dflag & 2)
-            else:
-                self.task.laser(False, False)
-            self.send_ok()
 
         def play_info(self):
             metadata, images = self.robot.play_info()
