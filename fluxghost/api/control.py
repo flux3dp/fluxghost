@@ -13,7 +13,7 @@ from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
-from fluxclient.robot.robot import RawTasks, RedLaserMeasureTasks
+from fluxclient.robot.robot import RawTasks, RedLaserMeasureTasks, ZSpeedLimitTestTask
 
 from .control_base import control_base_mixin
 
@@ -138,12 +138,7 @@ def control_api_mixin(cls):
                     "quit": self.quit_play
                 },
 
-                "task": {
-                    "raw": self.task_begin_raw,
-                    "quit": self.task_quit,
-                    "cartridge_io": self.task_begin_cartridge_io,
-                    "red_laser_measure": self.task_begin_red_laser_measure,
-                },
+                'task': self.handle_task_command,
 
                 "fetch_log": self.fetch_log,
                 "fetch_laser_records": self.fetch_laser_records,
@@ -204,7 +199,11 @@ def control_api_mixin(cls):
                 return
             if isinstance(self._task, RedLaserMeasureTasks):
                 logger.info('RedLaserMeasureTasks: => %s' % message)
-                self.on_red_laser_measure_message(message)
+                self.on_sub_task_message(message)
+                return
+            if isinstance(self._task, ZSpeedLimitTestTask):
+                logger.info('ZSpeedLimitTestTask: => %s' % message)
+                self.on_sub_task_message(message)
                 return
 
             args = shlex.split(message)
@@ -572,19 +571,30 @@ def control_api_mixin(cls):
             self.robot.quit_play()
             self.send_ok()
 
+        def handle_task_command(self, task_type):
+            if task_type == 'quit':
+                self.task_quit()
+                return
+            if task_type == 'raw':
+                self.task_begin_raw()
+                return
+            method_map = {
+                'cartridge_io': self.robot.cartridge_io,
+                'red_laser_measure': self.robot.red_laser_measure,
+                'z_speed_limit_test': self.robot.z_speed_limit_test,
+            }
+            method = method_map.get(task_type, None)
+            if method is None:
+                self.send_error("Unknown task: {}".format(task_type))
+                return
+            self.task = method()
+            self.send_ok(task=task_type)
+
         def task_begin_raw(self):
             self.task = self.robot.raw()
             sock = PipeSocket(self.task.sock, self, 'raw')
             self.add_task_socket('raw', sock)
             self.send_ok(task="raw")
-
-        def task_begin_cartridge_io(self):
-            self.task = self.robot.cartridge_io()
-            self.send_ok(task="cartridge_io")
-
-        def task_begin_red_laser_measure(self):
-            self.task = self.robot.red_laser_measure()
-            self.send_ok(task='red_laser_measure')
 
         def task_quit(self):
             self.task.quit()
@@ -796,12 +806,12 @@ def control_api_mixin(cls):
                 else:
                     socket.send(message.encode() + b'\n')
 
-        def on_red_laser_measure_message(self, message):
+        def on_sub_task_message(self, message):
             if message == 'quit' or message == 'task quit':
                 self.task_quit()
                 return
             resp = self.robot._backend.make_cmd(message.encode())
-            logger.info('RedLaserMeasureTasks: <= %s', resp)
+            logger.info('%s: <= %s', self._task.__class__, resp)
             self.send_ok(data=resp)
 
     class DirtyLayer(ControlApi):
