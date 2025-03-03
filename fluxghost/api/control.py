@@ -13,7 +13,7 @@ from fluxclient.device.host2host_usb import FluxUSBError
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
-from fluxclient.robot.robot import RawTasks, RedLaserMeasureTasks, ZSpeedLimitTestTask
+from fluxclient.robot.robot import RawTasks
 
 from .control_base import control_base_mixin
 
@@ -197,12 +197,9 @@ def control_api_mixin(cls):
                 logger.info('Raw: => %s' % message)
                 self.on_raw_message(message)
                 return
-            if isinstance(self._task, RedLaserMeasureTasks):
-                logger.info('RedLaserMeasureTasks: => %s' % message)
-                self.on_sub_task_message(message)
-                return
-            if isinstance(self._task, ZSpeedLimitTestTask):
-                logger.info('ZSpeedLimitTestTask: => %s' % message)
+            elif self._task:
+                task_name = getattr(self._task, 'task_name', '')
+                logger.info('Task %s: => %s' % (task_name, message))
                 self.on_sub_task_message(message)
                 return
 
@@ -810,8 +807,14 @@ def control_api_mixin(cls):
             if message == 'quit' or message == 'task quit':
                 self.task_quit()
                 return
+            # TODO: add no shlex.split version?
+            if message.startswith('jsonrpc_req '):
+                args = shlex.split(message)
+                self.jsonrpc_req(args[1])
+                return
             resp = self.robot._backend.make_cmd(message.encode())
-            logger.info('%s: <= %s', self._task.__class__, resp)
+            task_name = getattr(self._task, 'task_name', self._task.__class__)
+            logger.info('%s: <= %s', task_name, resp)
             self.send_ok(data=resp)
 
     class DirtyLayer(ControlApi):
