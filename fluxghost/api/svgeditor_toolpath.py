@@ -189,6 +189,10 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor_image_params['hardware'] = 'ador'
                 elif param == '-fbb2':
                     svgeditor_image_params['hardware'] = 'fbb2'
+                elif param == '-fhx2rf3':
+                    svgeditor_image_params['hardware'] = 'fhx2rf3'
+                elif param == '-fhx2rf6':
+                    svgeditor_image_params['hardware'] = 'fhx2rf6'
                 elif param == '-ldpi':
                     self.pixel_per_mm = 5
                 elif param == '-mdpi':
@@ -359,6 +363,12 @@ def laser_svgeditor_api_mixin(cls):
                     fcode_version = 2
                 elif param == '-fbb2':
                     hardware_name = 'fbb2'
+                    fcode_version = 2
+                elif param == '-fhx2rf3':
+                    hardware_name = 'fhx2rf3'
+                    fcode_version = 2
+                elif param == '-fhx2rf6':
+                    hardware_name = 'fhx2rf6'
                     fcode_version = 2
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
