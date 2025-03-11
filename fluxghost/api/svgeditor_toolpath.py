@@ -398,6 +398,13 @@ def laser_svgeditor_api_mixin(cls):
                         is_rotary_task = True
                 elif param == '-rotary-y-ratio':
                     svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i+1])
+                elif param == '-rotary-z-motion':
+                    # default true in svgeditor2taskcode
+                    try:
+                        svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i+1])
+                    except Exception:
+                        logger.info('Bad rotary_z_motion {}'.format(params[i+1]))
+                        pass
                 elif param == '-blade':
                     svgeditor2taskcode_kwargs['blade_radius'] = float(params[i+1])
                 elif param == '-precut':
