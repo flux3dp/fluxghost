@@ -13,9 +13,9 @@ from PIL import Image
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
+from fluxclient.hw_profile import FCODE_VERSION_MAP
 from fluxclient.toolpath.toolpath import svgeditor2taskcode, gcode2fcode
 from fluxclient.toolpath import FCodeV1MemoryWriter, FCodeV2MemoryWriter, GCodeMemoryWriter
-from fluxclient.hw_profile import FCODE_VERSION_MAP
 from fluxclient import __version__
 
 import fluxsvg
