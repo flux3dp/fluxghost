@@ -13,6 +13,7 @@ from PIL import Image
 
 from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
 
+from fluxclient.hw_profile import FCODE_VERSION_MAP
 from fluxclient.toolpath.toolpath import svgeditor2taskcode, gcode2fcode
 from fluxclient.toolpath import FCodeV1MemoryWriter, FCodeV2MemoryWriter, GCodeMemoryWriter
 from fluxclient import __version__
@@ -137,7 +138,7 @@ def laser_svgeditor_api_mixin(cls):
             self.curve_engraving_detail = None
             svgeditor_image_params = {
                 'loop_compensation': self.loop_compensation,
-                'hardware': 'beambox',
+                'hardware': 'fbb1b',
                 'rotary_enabled': False,
             }
 
@@ -179,6 +180,8 @@ def laser_svgeditor_api_mixin(cls):
             self.factory_kwargs = {}
 
             for i, param in enumerate(params):
+                # -{model_name} is deprecated, use -model {model_name} instead
+                # can be removed after beam studio web update
                 if param == '-bb2' or param == '-hexa':
                     svgeditor_image_params['hardware'] = 'hexa'
                 elif param == '-pro':
@@ -193,6 +196,12 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor_image_params['hardware'] = 'fhx2rf3'
                 elif param == '-fhx2rf6':
                     svgeditor_image_params['hardware'] = 'fhx2rf6'
+                elif param == '-model':
+                    try:
+                        model = params[i + 1]
+                        svgeditor_image_params['hardware'] = model
+                    except Exception:
+                        pass
                 elif param == '-ldpi':
                     self.pixel_per_mm = 5
                 elif param == '-mdpi':
@@ -340,7 +349,7 @@ def laser_svgeditor_api_mixin(cls):
             self.is_task_interrupted = False
             output_fcode = True
             params = params_str.split()
-            hardware_name = 'beambox'
+            hardware_name = 'fbb1b'
             send_fcode = True
 
             svgeditor2taskcode_kwargs = {'travel_speed': 7500, 'path_travel_speed': 7500, 'acc': 4000}
@@ -351,6 +360,8 @@ def laser_svgeditor_api_mixin(cls):
             fcode_version = 1
 
             for i, param in enumerate(params):
+                # -{model_name} is deprecated, use -model {model_name} instead
+                # can be removed after beam studio web update
                 if param == '-hexa' or param == '-bb2':
                     hardware_name = 'hexa'
                 elif param == '-pro':
@@ -370,6 +381,13 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-fhx2rf6':
                     hardware_name = 'fhx2rf6'
                     fcode_version = 2
+                elif param == '-model':
+                    try:
+                        model = params[i + 1]
+                        hardware_name = model
+                        fcode_version = FCODE_VERSION_MAP.get(model, 1)
+                    except Exception:
+                        pass
                 elif param == '-film':
                     self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
                 elif param == '-spin':
@@ -380,6 +398,13 @@ def laser_svgeditor_api_mixin(cls):
                         is_rotary_task = True
                 elif param == '-rotary-y-ratio':
                     svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i+1])
+                elif param == '-rotary-z-motion':
+                    # default true in svgeditor2taskcode
+                    try:
+                        svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i+1])
+                    except Exception:
+                        logger.info('Bad rotary_z_motion {}'.format(params[i+1]))
+                        pass
                 elif param == '-blade':
                     svgeditor2taskcode_kwargs['blade_radius'] = float(params[i+1])
                 elif param == '-precut':
