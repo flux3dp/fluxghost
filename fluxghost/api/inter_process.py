@@ -1,8 +1,4 @@
 import logging
-import io
-import numpy as np
-import copy
-import os
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -31,5 +27,5 @@ def inter_process_api_mixin(cls):
             helper = BinaryUploadHelper(int(file_length), inter_process_callback)
             self.set_binary_helper(helper)
             self.send_json(status="continue")
-            
+
     return InterProcessApi
