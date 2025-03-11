@@ -145,7 +145,7 @@ class HttpHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         print(self.path + " end headers")
         self.end_headers()
-        data = resp.read();
+        data = resp.read()
         print(self.path + " response readed")
         self.wfile.write(data)
         self.wfile.flush()
@@ -172,8 +172,6 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.debug("%s:%s connected" % (client, module))
             ws = ws_class(self.request, client, self.server, self.path,
                           **kwargs)
-            if self.path.find('push-studio') != -1:
-                self.server.set_push_studio_ws(ws)
             ws.serve_forever()
             logger.debug("%s:%s disconnected" % (client, module))
 
