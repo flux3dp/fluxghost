@@ -25,8 +25,8 @@ from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
-logger = logging.getLogger('API.CAMERA_CALIBBRATION')
 IS_DEBUGGING = False
+logger = logging.getLogger('API.CAMERA_CALIBRATION')
 
 
 def camera_calibration_api_mixin(cls):
