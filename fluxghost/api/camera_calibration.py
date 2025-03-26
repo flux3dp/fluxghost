@@ -11,18 +11,17 @@ from scipy import spatial
 
 
 from fluxghost.utils.fisheye.calibration import (
-    calibrate_fisheye,
     calibrate_fisheye_camera,
     distort_points,
     find_chessboard,
     get_remap_img,
     remap_corners,
 )
-from fluxghost.utils.fisheye.constants import CHESSBORAD
-from fluxghost.utils.fisheye.general import pad_image, L_PAD, T_PAD
+from fluxghost.utils.fisheye.constants import CHESSBOARD
+from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.solve_pnp import solve_pnp
-from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners, find_grid
-from fluxghost.utils.fisheye.corner_detection.constants import get_grid, get_ref_points
+from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners
+from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -41,7 +40,6 @@ def camera_calibration_api_mixin(cls):
                 'add_fisheye_calibration_image': [self.cmd_add_fisheye_calibration_image],
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
                 'calibrate_chessboard': [self.cmd_calibrate_chessboard],
-                'corner_detection': [self.cmd_corner_detection],
                 'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
                 'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
                 'update_data': [self.cmd_update_data],
@@ -128,7 +126,7 @@ def camera_calibration_api_mixin(cls):
         def cmd_do_fisheye_calibration(self, message):
             try:
                 ret, k, d, rvecs, tvecs, heights = calibrate_fisheye_camera(
-                    self.fisheye_calibrate_imgs, self.fisheye_calibrate_heights, CHESSBORAD, self.on_progress
+                    self.fisheye_calibrate_imgs, self.fisheye_calibrate_heights, CHESSBOARD, self.on_progress
                 )
                 if self.check_interrupted():
                     return
@@ -143,6 +141,7 @@ def camera_calibration_api_mixin(cls):
                 rvec_0 = np.dot([0, 1], rvec_polyfit)
                 tvec_0 = np.dot([0, 1], tvec_polyfit)
                 self.send_ok(
+                    ret=ret,
                     k=k.tolist(),
                     d=d.tolist(),
                     rvec=rvec_0.tolist(),
@@ -232,73 +231,7 @@ def camera_calibration_api_mixin(cls):
             self.set_binary_helper(helper)
             self.send_json(status='continue')
 
-        # Step 1 for fisheye calibration v2: find corners and grid, calculate k, d, rvec, tvec
-        def cmd_corner_detection(self, message):
-            message = message.split(' ')
-            camera_pitch = int(message[0])
-            with_pitch = camera_pitch != 0
-            file_length = int(message[1])
-            version = int(message[2])
-
-            def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
-                img_cv = np.array(img)
-                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                orig_img = img_cv.copy()
-                corners = find_corners(
-                    img_cv, 2000, min_distance=15 if with_pitch else 20, quality_level=0.003, draw=True
-                )
-                logger.info('len corners: {}'.format(len(corners)))
-                x_grid, y_grid = get_grid(version)
-                grid_map, has_duplicate_points = find_grid(
-                    img_cv, corners, x_grid, y_grid, draw=True, with_pitch=with_pitch
-                )
-                # cv2.imwrite('corner_detection.png', img_cv)
-                if has_duplicate_points:
-                    self.send_json(status='fail', reason='Duplicate points found')
-                    _, array_buffer = cv2.imencode('.jpg', img_cv)
-                    img_bytes = array_buffer.tobytes()
-                    self.send_binary(img_bytes)
-                    return
-                objp = np.zeros((len(x_grid) * len(y_grid), 1, 3), np.float64)
-                for i in range(len(y_grid)):
-                    for j in range(len(x_grid)):
-                        objp[i * len(x_grid) + j] = [x_grid[j], y_grid[i], 0]
-                imgpoints = [np.array(grid_map).reshape(-1, 1, 2).astype(np.float64) + np.array([L_PAD, T_PAD])]
-                objpoints = [objp]
-
-                remap = pad_image(orig_img)
-                ret, k, d, rvecs, tvecs, _ = calibrate_fisheye(objpoints, imgpoints, [0], remap.shape[:2][::-1])
-                rvec = rvecs[0]
-                tvec = tvecs[0]
-                logger.info('Successfully Calibrated: {}, K: {}, D: {}'.format(ret, k, d))
-                remap = get_remap_img(remap, k, d)
-                grid_map = remap_corners(imgpoints[0], k, d).reshape(-1, 2)
-                grid_map = grid_map.reshape(len(y_grid), len(x_grid), 2)
-                for i in range(len(y_grid)):
-                    for j in range(len(x_grid)):
-                        p = tuple(grid_map[i][j].astype(int))
-                        cv2.circle(remap, p, 0, (0, 0, 255), -1)
-                        cv2.circle(remap, p, 3, (0, 0, 255), 1)
-                        if i > 0:
-                            cv2.line(remap, p, tuple(grid_map[i - 1][j].astype(int)), (0, 0, 255))
-                        if j > 0:
-                            cv2.line(remap, p, tuple(grid_map[i][j - 1].astype(int)), (0, 0, 255))
-                remap = apply_points(remap, grid_map, x_grid, y_grid, padding=150)
-                self.calibration_v2_params['k'] = k
-                self.calibration_v2_params['d'] = d
-                self.calibration_v2_params['rvec'] = rvec
-                self.calibration_v2_params['tvec'] = tvec
-                self.send_json(ret=ret, k=k.tolist(), d=d.tolist(), rvec=rvec.tolist(), tvec=tvec.tolist(), status='ok')
-                _, array_buffer = cv2.imencode('.jpg', remap)
-                img_bytes = array_buffer.tobytes()
-                self.send_binary(img_bytes)
-
-            helper = BinaryUploadHelper(int(file_length), upload_callback)
-            self.set_binary_helper(helper)
-            self.send_json(status='continue')
-
-        # solve pnp step 2: given img and dh, find corners, return corners for user to check
+        # solve pnp step 1: given img and dh, find corners, return corners for user to check
         def cmd_solve_pnp_find_corners(self, message):
             if self.calibration_v2_params.get('k', None) is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
