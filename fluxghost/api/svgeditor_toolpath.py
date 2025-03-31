@@ -521,6 +521,13 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['acc_override'] = value
                     except Exception:
                         pass
+                elif param == '-segment':
+                    # default true in svgeditor2taskcode
+                    try:
+                        svgeditor2taskcode_kwargs['segment'] = json.loads(params[i+1])
+                    except Exception:
+                        logger.info('Bad segment {}'.format(params[i+1]))
+                        pass
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
