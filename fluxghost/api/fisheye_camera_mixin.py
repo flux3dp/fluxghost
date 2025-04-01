@@ -152,7 +152,6 @@ class FisheyeCameraMixin:
         self.leveling_data = data
         self.send_ok()
 
-
     def set_fisheye_height(self, h, model_name):
         if not self.fisheye_param or self.fisheye_param.get('v', 1) != 2:
             raise Exception('Version Mismatch')
