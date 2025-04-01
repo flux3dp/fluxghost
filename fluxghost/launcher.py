@@ -7,7 +7,7 @@ def setup_logger(options = None):
     log_datefmt = "%Y-%m-%d %H:%M:%S"
     log_format = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
 
-    log_level = logging.DEBUG if options.debug else logging.INFO
+    log_level = logging.DEBUG if getattr(options, 'debug', False) else logging.INFO
 
     handlers = {}
     # if sys.stdout.isatty():
@@ -17,7 +17,7 @@ def setup_logger(options = None):
         'class': 'logging.StreamHandler',
     }
 
-    if options.logfile:
+    if getattr(options, 'logfile', False):
         handlers['file'] = {
             'level': log_level,
             'formatter': 'default',
@@ -27,7 +27,7 @@ def setup_logger(options = None):
             'backupCount': 1
         }
 
-    if options.sentry:
+    if getattr(options, 'sentry', False):
         handlers['sentry'] = {
             'level': 'ERROR',
             'class': 'raven.handlers.logging.SentryHandler',
