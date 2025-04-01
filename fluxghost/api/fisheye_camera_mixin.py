@@ -6,7 +6,7 @@ import numpy as np
 
 from fluxclient.hw_profile import HW_PROFILE
 from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
-from fluxghost.utils.fisheye.constants import CHESSBORAD, PERSPECTIVE_SPLIT
+from fluxghost.utils.fisheye.constants import CHESSBOARD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.corner_detection import apply_points
 from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
@@ -152,7 +152,6 @@ class FisheyeCameraMixin:
         self.leveling_data = data
         self.send_ok()
 
-
     def set_fisheye_height(self, h, model_name):
         if not self.fisheye_param or self.fisheye_param.get('v', 1) != 2:
             raise Exception('Version Mismatch')
@@ -215,7 +214,7 @@ class FisheyeCameraMixin:
                 self.fisheye_param['k'],
                 self.fisheye_param['d'],
                 PERSPECTIVE_SPLIT,
-                CHESSBORAD,
+                CHESSBOARD,
                 perspective_points,
                 downsample=downsample,
             )
