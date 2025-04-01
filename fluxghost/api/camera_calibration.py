@@ -332,15 +332,12 @@ def camera_calibration_api_mixin(cls):
                 ref_points = get_ref_points(ref_points)
                 logger.warning('Use version ref points is deprecated')
             dh = round(float(message[1]), 2)
-            ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
+            objpoints = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             imgpoints = np.array(json.loads(message[2]))
-            objpoints = np.array(ref_points)
             distorted = distort_points(imgpoints, k, d)
 
             try:
-                ret, new_rvec, new_tvec = solve_pnp(
-                    np.array(objpoints).reshape(-1, 1, 3), distorted.reshape(-1, 1, 2), k, d
-                )
+                ret, new_rvec, new_tvec = solve_pnp(objpoints, distorted.reshape(-1, 1, 2), k, d)
                 if not ret:
                     self.send_json(status='fail', reason='solve pnp failed')
                     return
