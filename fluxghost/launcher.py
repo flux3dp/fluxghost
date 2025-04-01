@@ -3,22 +3,7 @@ import logging.config
 import logging
 import sys
 
-from fluxclient.utils.version import StrictVersion
-
-
-def check_fluxclient():
-    from fluxclient import __version__ as v
-    sys.modules.pop("fluxclient")
-    lower_bound = '1.3.5'
-    upper_bound = '3.0.0'
-    if StrictVersion(v) < StrictVersion(lower_bound):
-        raise RuntimeError(
-            "Your fluxclient need to update (>={})".format(lower_bound))
-    if StrictVersion(v) >= StrictVersion(upper_bound):
-        raise RuntimeError("fluxclient is too new (<{})".format(upper_bound))
-
-
-def setup_logger(options):
+def setup_logger(options = None):
     log_datefmt = "%Y-%m-%d %H:%M:%S"
     log_format = "[%(asctime)s,%(levelname)s,%(name)s] %(message)s"
 
@@ -69,7 +54,6 @@ def setup_logger(options):
 
 
 def setup_env(options):
-    check_fluxclient()
     setup_logger(options)
 
 
