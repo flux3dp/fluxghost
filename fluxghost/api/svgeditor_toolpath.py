@@ -474,6 +474,16 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['printing_bot_padding'] = int(params[i+1])
                     except Exception:
                         pass
+                elif param == '-psw':
+                    try:
+                        svgeditor2taskcode_kwargs['printing_slice_width'] = int(params[i+1])
+                    except Exception:
+                        pass
+                elif param == '-psh':
+                    try:
+                        svgeditor2taskcode_kwargs['printing_slice_height'] = int(params[i+1])
+                    except Exception:
+                        pass
                 elif param == '-nv':
                     try:
                         svgeditor2taskcode_kwargs['nozzle_votage'] = float(params[i+1])
