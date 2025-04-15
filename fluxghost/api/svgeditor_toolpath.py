@@ -556,13 +556,13 @@ def laser_svgeditor_api_mixin(cls):
                 time_need = 0
                 traveled_dist = 0
                 metadata = {}
-                magic_number = 1
+                magic_number = 4 if (is_rotary_task or not start_with_home) else 3
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     if fcode_version == 2:
-                        magic_number = 4 if (is_rotary_task or not start_with_home) else 3
                         writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail, ), magic_number)
                     else:
+                        magic_number = 1
                         writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail, ))
                 else:
                     writer = GCodeMemoryWriter()
