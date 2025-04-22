@@ -47,7 +47,7 @@ def camera_calibration_api_mixin(cls):
                 'interrupt': [self.cmd_interrupt],
             }
             self.init_fisheye_params()
-            self.init_calibration_v2_params()
+            self.init_calibration_params()
 
         def init_fisheye_params(self):
             self.fisheye_calibrate_heights = []
@@ -56,8 +56,8 @@ def camera_calibration_api_mixin(cls):
             self.d = None
             self.interrupted = False
 
-        def init_calibration_v2_params(self):
-            self.calibration_v2_params = {}
+        def init_calibration_params(self):
+            self.calibration_params = {}
 
         def cmd_interrupt(self, message):
             self.interrupted = True
@@ -103,7 +103,7 @@ def camera_calibration_api_mixin(cls):
             data = json.loads(message)
             for key in ['k', 'd', 'rvec', 'tvec', 'rvec_polyfit', 'tvec_polyfit', 'levelingData']:
                 if key in data:
-                    self.calibration_v2_params[key] = np.array(data[key])
+                    self.calibration_params[key] = np.array(data[key])
             self.send_ok()
 
         def cmd_add_fisheye_calibration_image(self, message):
@@ -211,10 +211,10 @@ def camera_calibration_api_mixin(cls):
 
                     # difference between chessboard origin and laser origin
                     tvecs = tvecs + np.array(([35], [55], [0]))
-                    self.calibration_v2_params['k'] = k
-                    self.calibration_v2_params['d'] = d
-                    self.calibration_v2_params['rvec'] = rvecs[0]
-                    self.calibration_v2_params['tvec'] = tvecs[0]
+                    self.calibration_params['k'] = k
+                    self.calibration_params['d'] = d
+                    self.calibration_params['rvec'] = rvecs[0]
+                    self.calibration_params['tvec'] = tvecs[0]
                     _, array_buffer = cv2.imencode('.jpg', remap)
                     img_bytes = array_buffer.tobytes()
                     self.send_binary(img_bytes)
@@ -233,13 +233,13 @@ def camera_calibration_api_mixin(cls):
 
         # solve pnp step 1: given img and dh, find corners, return corners for user to check
         def cmd_solve_pnp_find_corners(self, message):
-            if self.calibration_v2_params.get('k', None) is None:
+            if self.calibration_params.get('k', None) is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
                 return
-            k = self.calibration_v2_params['k']
-            d = self.calibration_v2_params['d']
-            rvec = self.calibration_v2_params['rvec']
-            tvec = self.calibration_v2_params['tvec']
+            k = self.calibration_params['k']
+            d = self.calibration_params['d']
+            rvec = self.calibration_params['rvec']
+            tvec = self.calibration_params['tvec']
             message = message.split(' ')
             ref_points = json.loads(message[0])
             if isinstance(ref_points, int):
@@ -322,10 +322,10 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status='continue')
 
         def cmd_solve_pnp_calculate(self, message):
-            if self.calibration_v2_params.get('k', None) is None:
+            if self.calibration_params.get('k', None) is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
-            k = self.calibration_v2_params['k']
-            d = self.calibration_v2_params['d']
+            k = self.calibration_params['k']
+            d = self.calibration_params['d']
             message = message.split(' ')
             ref_points = json.loads(message[0])
             if isinstance(ref_points, int):
@@ -341,6 +341,8 @@ def camera_calibration_api_mixin(cls):
                 if not ret:
                     self.send_json(status='fail', reason='solve pnp failed')
                     return
+                self.calibration_params['rvec'] = new_rvec
+                self.calibration_params['tvec'] = new_tvec
                 self.send_ok(rvec=new_rvec.tolist(), tvec=new_tvec.tolist())
             except Exception as e:
                 self.send_json(status='fail', reason='solve pnp failed' + str(e))
