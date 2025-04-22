@@ -109,18 +109,18 @@ def find_chessboard(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoi
     return gray, False, None
 
 
-CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K1
+CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K4
 CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-5)
 
 
-def calibrate_fisheye(objpoints, imgpoints, heights, size):
+def calibrate_fisheye(objpoints, imgpoints, indices, size):
     if len(imgpoints) == 0:
         raise Exception('Failed to calibrate camera, no img points left behind')
     try:
         ret, k, d, rvecs, tvecs = cv2.fisheye.calibrate(
             objpoints, imgpoints, size, None, None, None, None, CALIBRATION_FLAGS, CALIBRATION_CRIT
         )
-        return ret, k, d, rvecs, tvecs, heights
+        return ret, k, d, rvecs, tvecs, indices
     except cv2.error as e:
         pattern = r'CALIB_CHECK_COND - Ill-conditioned matrix for input array (\d+)'
         match = re.search(pattern, e.err)
@@ -128,8 +128,8 @@ def calibrate_fisheye(objpoints, imgpoints, heights, size):
             error_array_number = int(match.group(1))
             new_objpoints = objpoints[:error_array_number] + objpoints[error_array_number + 1 :]
             new_imgpoints = imgpoints[:error_array_number] + imgpoints[error_array_number + 1 :]
-            heights = heights[:error_array_number] + heights[error_array_number + 1 :]
-            return calibrate_fisheye(new_objpoints, new_imgpoints, heights, size)
+            indices = indices[:error_array_number] + indices[error_array_number + 1 :]
+            return calibrate_fisheye(new_objpoints, new_imgpoints, indices, size)
         raise e
 
 
