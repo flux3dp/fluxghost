@@ -11,17 +11,19 @@ from scipy import spatial
 
 
 from fluxghost.utils.fisheye.calibration import (
+    calibrate_fisheye,
     calibrate_fisheye_camera,
     distort_points,
     find_chessboard,
     get_remap_img,
     remap_corners,
 )
-from fluxghost.utils.fisheye.constants import CHESSBOARD
+from fluxghost.utils.fisheye.constants import CHESSBOARD, L_PAD, R_PAD, T_PAD, B_PAD
 from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners
 from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
+from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -36,6 +38,8 @@ def camera_calibration_api_mixin(cls):
             # TODO: add all in one fisheye calibration
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_image],
+                'calibrate_fisheye': [self.cmd_calibrate_fisheye],
+                'detect_charuco': [self.cmd_detect_charuco],
                 'start_fisheye_calibration': [self.cmd_start_fisheye_calibration],
                 'add_fisheye_calibration_image': [self.cmd_add_fisheye_calibration_image],
                 'do_fisheye_calibration': [self.cmd_do_fisheye_calibration],
@@ -354,11 +358,60 @@ def camera_calibration_api_mixin(cls):
             heights = np.array(json.loads(message[2]))
             rvec_polyfit = np.polyfit(heights, rvecs.reshape(-1, 3), 1)
             tvec_polyfit = np.polyfit(heights, tvecs.reshape(-1, 3), 1)
-
-            for h in heights:
-                X = np.array([h, 1])
-                print('rvec', np.dot(X, rvec_polyfit), 'tvec', np.dot(X, tvec_polyfit), sep='\n')
             self.send_ok(rvec_polyfit=rvec_polyfit.tolist(), tvec_polyfit=tvec_polyfit.tolist())
+
+        def cmd_detect_charuco(self, message):
+            message = message.split(' ')
+            file_length = int(message[0])
+            squares_x = int(message[1])
+            squares_y = int(message[2])
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                res = get_calibration_data_from_charuco(img_cv, squares_x, squares_y)
+                if res is None:
+                    self.send_json(status='fail', reason='Failed to detect image.')
+                    return
+                imgp, objp = res
+                self.send_ok(imgp=imgp.tolist(), objp=objp.tolist())
+
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def cmd_calibrate_fisheye(self, message):
+            message = message.split(' ')
+            objpoints = [np.array(objp).reshape(1, -1, 3).astype(np.float32) for objp in json.loads(message[0])]
+            imgpoints = [np.array(imgp).reshape(1, -1, 2).astype(np.float32) for imgp in json.loads(message[1])]
+            img_size = json.loads(message[2])
+            indices = list(range(len(objpoints)))
+
+            # apply padding
+            # TODO: support different padding value?
+            for i in range(len(imgpoints)):
+                imgpoints[i] = imgpoints[i] + np.array([L_PAD, T_PAD]).astype(np.float32)
+            img_size = (img_size[0] + L_PAD + R_PAD, img_size[1] + T_PAD + B_PAD)
+
+            try:
+                ret, k, d, rvecs, tvecs, indices = calibrate_fisheye(objpoints, imgpoints, indices, img_size)
+                self.calibration_params['k'] = k
+                self.calibration_params['d'] = d
+                self.calibration_params['rvec'] = rvecs[0]
+                self.calibration_params['tvec'] = tvecs[0]
+                self.send_ok(
+                    ret=ret,
+                    k=k.tolist(),
+                    d=d.tolist(),
+                    rvecs=rvecs[0].tolist(),
+                    tvecs=tvecs[0].tolist(),
+                    indices=indices,
+                )
+            except Exception as e:
+                self.send_json(status='fail', reason=str(e))
+                raise (e)
+
 
     def calc_picture_shape(img):
         PI = np.pi
