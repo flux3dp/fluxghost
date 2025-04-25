@@ -109,7 +109,8 @@ def find_chessboard(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoi
     return gray, False, None
 
 
-CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K4
+# CALIB_FIX_K4 sometimes works better, maybe set flags according to the camera
+CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K1
 CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-5)
 
 

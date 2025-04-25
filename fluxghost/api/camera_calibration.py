@@ -229,7 +229,7 @@ def camera_calibration_api_mixin(cls):
                     if self.check_interrupted():
                         return
                     self.send_json(status='fail', reason=str(e))
-                    raise (e)
+                    logger.exception('calibrate chessboard failed')
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
