@@ -24,6 +24,7 @@ from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners
 from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
+from fluxghost.utils.fisheye.perspective import generate_grid_objects
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -46,6 +47,7 @@ def camera_calibration_api_mixin(cls):
                 'calibrate_chessboard': [self.cmd_calibrate_chessboard],
                 'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
                 'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
+                'check_pnp': [self.cmd_check_pnp],
                 'update_data': [self.cmd_update_data],
                 'extrinsic_regression': [self.cmd_extrinsic_regression],
                 'interrupt': [self.cmd_interrupt],
@@ -351,6 +353,39 @@ def camera_calibration_api_mixin(cls):
             except Exception as e:
                 self.send_json(status='fail', reason='solve pnp failed' + str(e))
 
+        def cmd_check_pnp(self, message):
+            message = message.split(' ')
+            args = json.loads(message[0])
+            size = args['size']
+            params = args['params']
+            dh = args['dh']
+            grid = args['grid']
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img = np.array(img)
+                img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+                img = pad_image(img)
+                k, d, rvec, tvec = np.array(params['k']), np.array(params['d']), np.array(params['rvec']), np.array(params['tvec'])
+                img = get_remap_img(img, k, d)
+                xgrid, ygrid, objp = generate_grid_objects(grid['x'], grid['y'])
+                objp[:, :, 2] = -dh
+                points, _ = cv2.fisheye.projectPoints(objp.reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d)
+                points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
+                xgrid -= xgrid[0]
+                ygrid -= ygrid[0]
+                img = apply_points(img, points, xgrid, ygrid, padding=0)
+
+                _, array_buffer = cv2.imencode('.jpg', img)
+                img_bytes = array_buffer.tobytes()
+                self.send_binary(img_bytes)
+                if IS_DEBUGGING:
+                    cv2.imwrite('check_pnp.png', img)
+
+            helper = BinaryUploadHelper(int(size), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
         def cmd_extrinsic_regression(self, message):
             message = message.split(' ')
             rvecs = np.array(json.loads(message[0]))
@@ -391,7 +426,7 @@ def camera_calibration_api_mixin(cls):
             # apply padding
             # TODO: support different padding value?
             for i in range(len(imgpoints)):
-                imgpoints[i] = imgpoints[i] + np.array([L_PAD, T_PAD]).astype(np.float32)
+                imgpoints[i] += np.array([L_PAD, T_PAD]).astype(np.float32)
             img_size = (img_size[0] + L_PAD + R_PAD, img_size[1] + T_PAD + B_PAD)
 
             try:

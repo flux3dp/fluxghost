@@ -9,7 +9,7 @@ from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
 from fluxghost.utils.fisheye.constants import CHESSBOARD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.corner_detection import apply_points
 from fluxghost.utils.fisheye.general import pad_image
-from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform
+from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform, generate_grid_objects
 from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 
@@ -29,20 +29,6 @@ def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, lef
     top = cy - height // 2 if top is None else cy - int(top) * DPMM
     img = img[top : top + height, left : left + width]
     return img
-
-def generate_grid_objects(grid_data_x, grid_data_y):
-    x_start, x_end, x_step = grid_data_x
-    y_start, y_end, y_step = grid_data_y
-    xgrid = np.arange(x_start, x_end + 1, x_step)
-    if xgrid[-1] != x_end:
-        xgrid = np.append(xgrid, x_end)
-    ygrid = np.arange(y_start, y_end + 1, y_step)
-    if ygrid[-1] != y_end:
-        ygrid = np.append(ygrid, y_end)
-    xx, yy = np.meshgrid(xgrid, ygrid)
-    objp = np.dstack([xx, yy, np.zeros_like(xx)])
-
-    return xgrid, ygrid, objp
 
 class FisheyeCameraMixin:
     cmd_mapping = None

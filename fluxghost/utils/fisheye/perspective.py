@@ -14,7 +14,6 @@ def get_split_indices(split, chessboard, i, j):
     b = min(((j + 1) * chessboard[1]) // split_y, chessboard[1] - 1)
     return l, r, t, b
 
-
 def get_all_split_indices(split, chessboard):
     split_x, split_y = split
     table = np.array([[None for _ in range(split_y + 1)] for _ in range(split_x + 1)])
@@ -26,6 +25,19 @@ def get_all_split_indices(split, chessboard):
             ]
     return table
 
+def generate_grid_objects(grid_data_x, grid_data_y):
+    x_start, x_end, x_step = grid_data_x
+    y_start, y_end, y_step = grid_data_y
+    xgrid = np.arange(x_start, x_end + 1, x_step)
+    if xgrid[-1] != x_end:
+        xgrid = np.append(xgrid, x_end)
+    ygrid = np.arange(y_start, y_end + 1, y_step)
+    if ygrid[-1] != y_end:
+        ygrid = np.append(ygrid, y_end)
+    xx, yy = np.meshgrid(xgrid, ygrid)
+    objp = np.dstack([xx, yy, np.zeros_like(xx)])
+
+    return xgrid, ygrid, objp
 
 def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1):
     img = pad_image(img)
