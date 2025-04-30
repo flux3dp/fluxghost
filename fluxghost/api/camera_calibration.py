@@ -272,7 +272,7 @@ def camera_calibration_api_mixin(cls):
                     corners = find_blob_centers(interested_img)
                     corners = corners + np.array([x, y])
                 else:
-                    corners = find_blob_centers(interested_img)
+                    corners = find_blob_centers(remap)
                 projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
 
