@@ -24,7 +24,7 @@ from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners
 from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
-from fluxghost.utils.fisheye.perspective import generate_grid_objects
+from fluxghost.utils.fisheye.perspective import calculate_regional_perspective_points, generate_grid_objects
 
 from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
 
@@ -366,12 +366,44 @@ def camera_calibration_api_mixin(cls):
                 img = np.array(img)
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
                 img = pad_image(img)
-                k, d, rvec, tvec = np.array(params['k']), np.array(params['d']), np.array(params['rvec']), np.array(params['tvec'])
+                k, d = np.array(params['k']), np.array(params['d'])
                 img = get_remap_img(img, k, d)
-                xgrid, ygrid, objp = generate_grid_objects(grid['x'], grid['y'])
-                objp[:, :, 2] = -dh
-                points, _ = cv2.fisheye.projectPoints(objp.reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d)
-                points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
+
+                rvec = params.get('rvec', None)
+                tvec = params.get('tvec', None)
+                points = None
+                if rvec is not None and tvec is not None:
+                    xgrid, ygrid, objp = generate_grid_objects(grid['x'], grid['y'])
+                    objp[:, :, 2] = -dh
+                    points, _ = cv2.fisheye.projectPoints(
+                        objp.reshape(-1, 1, 3).astype(np.float32),
+                        np.array(rvec),
+                        np.array(tvec),
+                        k,
+                        d,
+                    )
+                    points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
+                else:
+                    rvecs = params.get('rvecs', None)
+                    tvecs = params.get('tvecs', None)
+                    if rvecs is not None and tvecs is not None:
+                        for key in rvecs.keys():
+                            rvecs[key] = np.array(rvecs[key])
+                        for key in tvecs.keys():
+                            tvecs[key] = np.array(tvecs[key])
+                        points, xgrid, ygrid = calculate_regional_perspective_points(
+                            grid['x'],
+                            grid['y'],
+                            dh,
+                            k,
+                            d,
+                            rvecs,
+                            tvecs,
+                        )
+                if points is None:
+                    self.send_json(status='fail', reason='No pnp provided')
+                    return
+
                 xgrid -= xgrid[0]
                 ygrid -= ygrid[0]
                 img = apply_points(img, points, xgrid, ygrid, padding=0)

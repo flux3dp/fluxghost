@@ -9,7 +9,11 @@ from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
 from fluxghost.utils.fisheye.constants import CHESSBOARD, PERSPECTIVE_SPLIT
 from fluxghost.utils.fisheye.corner_detection import apply_points
 from fluxghost.utils.fisheye.general import pad_image
-from fluxghost.utils.fisheye.perspective import apply_perspective_points_transform, generate_grid_objects
+from fluxghost.utils.fisheye.perspective import (
+    apply_perspective_points_transform,
+    calculate_regional_perspective_points,
+    generate_grid_objects,
+)
 from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 
@@ -204,25 +208,20 @@ class FisheyeCameraMixin:
                 rvecs[key] = rvec
                 tvecs[key] = tvec
             grids = self.fisheye_param['grids']
-            xgrid, ygrid, objp = generate_grid_objects(grids['x'], grids['y'])
-            orig_shape = objp.shape
-            objp = objp.reshape(-1, 3)
-            perspective_points = np.zeros((objp.shape[0], 2), np.float32)
-            region_key_map = ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
-            for i in range(objp.shape[0]):
-                x, y = objp[i][0], objp[i][1]
-                x_index = min(int((x - xgrid[0]) * 3 // (xgrid[-1] - xgrid[0])), 2)
-                y_index = min(int((y - ygrid[0]) * 3 // (ygrid[-1] - ygrid[0])), 2)
-                region = region_key_map[y_index * 3 + x_index]
-                rvec = rvecs[region]
-                tvec = tvecs[region]
-                point, _ = cv2.fisheye.projectPoints(np.array([[x, y, -h]]).reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d)
-                perspective_points[i] = point[0][0]
-            perspective_points = perspective_points.reshape(1, -1, 2)
-            perspective_points = remap_corners(perspective_points, k, d).reshape(orig_shape[0], orig_shape[1], 2)
+
+            perspective_points, x_grid, y_grid = calculate_regional_perspective_points(
+                grids['x'],
+                grids['y'],
+                h,
+                k,
+                d,
+                rvecs,
+                tvecs,
+            )
+
             self.fisheye_param.update({
-                'xgrid': xgrid - xgrid[0],
-                'ygrid': ygrid - ygrid[0],
+                'xgrid': x_grid - x_grid[0],
+                'ygrid': y_grid - y_grid[0],
                 'perspective_points': perspective_points,
             })
 
