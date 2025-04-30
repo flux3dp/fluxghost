@@ -21,7 +21,8 @@ from fluxghost.utils.fisheye.calibration import (
 from fluxghost.utils.fisheye.constants import CHESSBOARD, L_PAD, R_PAD, T_PAD, B_PAD
 from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.solve_pnp import solve_pnp
-from fluxghost.utils.fisheye.corner_detection import apply_points, find_corners
+from fluxghost.utils.fisheye.corner_detection import apply_points
+from fluxghost.utils.fisheye.corner_detection.find_corners import find_blob_centers
 from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
 from fluxghost.utils.fisheye.perspective import calculate_regional_perspective_points, generate_grid_objects
@@ -268,10 +269,10 @@ def camera_calibration_api_mixin(cls):
                     x, y = interest_area['x'], interest_area['y']
                     width, height = interest_area['width'], interest_area['height']
                     interested_img = remap[y : y + height, x : x + width]
-                    corners = find_corners(interested_img, 2000, min_distance=100, quality_level=0.01, draw=False)
+                    corners = find_blob_centers(interested_img)
                     corners = corners + np.array([x, y])
                 else:
-                    corners = find_corners(remap, 2000, min_distance=100, quality_level=0.01, draw=False)
+                    corners = find_blob_centers(interested_img)
                 projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
                 projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
 
@@ -441,8 +442,8 @@ def camera_calibration_api_mixin(cls):
                 if res is None:
                     self.send_json(status='fail', reason='Failed to detect image.')
                     return
-                imgp, objp = res
-                self.send_ok(imgp=imgp.tolist(), objp=objp.tolist())
+                imgp, objp, found_ratio = res
+                self.send_ok(imgp=imgp.tolist(), objp=objp.tolist(), ratio=found_ratio)
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)

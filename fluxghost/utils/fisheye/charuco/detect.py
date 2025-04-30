@@ -31,13 +31,15 @@ def get_calibration_data_from_charuco(image, squares_x=15, squares_y=10):
             cv2.aruco.drawDetectedMarkers(image, marker_corners, marker_ids)
             cv2.aruco.drawDetectedCornersCharuco(image, diamond_corners, diamond_ids)
             cv2.imwrite('charuco-detected.png', image)
-        objp = board.getChessboardCorners()[diamond_ids.flatten()].reshape(-1, 3).astype(np.float32)
+        corners = board.getChessboardCorners()
+        objp = corners[diamond_ids.flatten()].reshape(-1, 3).astype(np.float32)
         imgp = diamond_corners.reshape(-1, 2).astype(np.float32)
 
         # make sure the chessboard is in the right orientation
         if imgp[0][0] > imgp[-1][0]:
-            last_point = board.getChessboardCorners()[-1]
+            last_point = corners[-1]
             objp = -objp + last_point
-        return imgp, objp
+        found_ratio = len(diamond_ids) / len(corners)
+        return imgp, objp, found_ratio
     else:
         return None
