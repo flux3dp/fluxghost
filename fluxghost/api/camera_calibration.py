@@ -366,7 +366,7 @@ def camera_calibration_api_mixin(cls):
                 img = Image.open(io.BytesIO(buf))
                 img = np.array(img)
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
-                img = pad_image(img)
+                img = pad_image(img, (0, 0, 0))
                 k, d = np.array(params['k']), np.array(params['d'])
                 img = get_remap_img(img, k, d)
 
