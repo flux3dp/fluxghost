@@ -472,8 +472,8 @@ def camera_calibration_api_mixin(cls):
                     ret=ret,
                     k=k.tolist(),
                     d=d.tolist(),
-                    rvecs=rvecs[0].tolist(),
-                    tvecs=tvecs[0].tolist(),
+                    rvec=rvecs[0].tolist(),
+                    tvec=tvecs[0].tolist(),
                     indices=indices,
                 )
             except Exception as e:
