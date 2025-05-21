@@ -1,3 +1,14 @@
 {
-    "python.linting.pylintEnabled": false
+    "[python]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.organizeImports": "explicit"
+    },
+    "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "ruff.enable": true,
+    "ruff.organizeImports": true,
+    "ruff.fixAll": true,
+    "eslint.workingDirectories": [ "./frontend" ]
 }
