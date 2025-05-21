@@ -1,51 +1,39 @@
-## FLUXGhost
+# FLUXGhost
 
 FLUXGhost provides a websocket based API for FLUX-Studio frontend, which connects to fluxclient.
 
-Official site: http://flux3dp.com/  
-Official forum: http://forum.flux3dp.com/  
-Official documentation: http://dev.flux3dp.com/  
+Official site: <http://flux3dp.com/>  
+Official forum: <http://forum.flux3dp.com/>  
+Official documentation: <http://dev.flux3dp.com/>  
 
 ## Features
 
 * Websocket based API for controlling your FLUX Delta.
 
-## Installation
+## Installation and Usage
 
-1. Install Python 3.4 (or newer).
-2. Install required packages
+1. Install docker and docker compose.
+2. Clone fluxclient(-dev), beamify, fluxsvg from github
+3. Launch fluxghost
 
-```
-$ pip3 install pycrypto
-$ pip3 install cython
-```
+    ```sh
+      docker compose build
+      docker compose up -d
+    ```
 
-3. Install fluxclient
-```
-cd [where fluxclient repository is]
-if you didn't install pcl:
-  $ python3 ./setup.py develop --without-pcl
-else:
-  $ python3 ./setup.py develop
-```
+4. To shutdown the server, run
 
-6. Launch fluxghost
-```
-$ python3 ./ghost.py --ip 0.0.0.0 --port 10000
-```
-
-Use `./ghost.py --help` to check what kind of options you can use.
-
+    ```sh
+      docker compose down
+    ```
 
 ## Compilation ( for FLUX Studio )
 
 1. Install pyinstaller
 
-```
-$ pip3 install pyinstaller
-```
+    ```sh
+    pip3 install pyinstaller
+    ```
 
 2. Run `pyinstaller ghost.spec` at fluxghost's root directory
-
 3. Binary files will be in ./dist/ghost
-

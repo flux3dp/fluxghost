@@ -1,12 +1,11 @@
-
-from select import select
-import logging
 import json
+import logging
+from select import select
 
-logger = logging.getLogger("API.BASE")
+logger = logging.getLogger('API.BASE')
 
 
-class ApiBase(object):
+class ApiBase:
     POOL_TIME = 30.0
     # Should implement
     # * rlist = [io1, io2, ...]
@@ -30,7 +29,7 @@ class ApiBase(object):
 
     def send_ok(self, **kw):
         if kw:
-            kw["status"] = "ok"
+            kw['status'] = 'ok'
             self.send_text(json.dumps(kw))
         else:
             self.send_text('{"status": "ok"}')
@@ -46,50 +45,47 @@ class ApiBase(object):
 
     def send_binary_buffer(self, mimetype, buffer):
         size = len(buffer)
-        self.send_json(status="binary", mimetype=mimetype, size=size)
+        self.send_json(status='binary', mimetype=mimetype, size=size)
         view = memoryview(buffer)
         sent = 0
         while sent < size:
-            self.send_binary(view[sent:sent + 4016])
+            self.send_binary(view[sent : sent + 4016])
             sent += 4016
 
     def send_binary_begin(self, mime, length):
-        self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' %
-                       (length, mime))
+        self.send_text('{"status": "binary", "length": %i, "mime": "%s"}' % (length, mime))
 
     def send_error(self, symbol, **kw):
         if isinstance(symbol, (tuple, list)):
-            self.send_json(status="error", error=symbol, **kw)
+            self.send_json(status='error', error=symbol, **kw)
         else:
-            self.send_json(status="error", error=(symbol, ), **kw)
+            self.send_json(status='error', error=(symbol,), **kw)
 
     def send_fatal(self, *args):
         if args:
             if len(args) > 1:
-                self.send_json(status="fatal", symbol=args, error=args[0],
-                               info=args[1])
+                self.send_json(status='fatal', symbol=args, error=args[0], info=args[1])
             else:
-                self.send_json(status="fatal", symbol=args, error=args[0])
+                self.send_json(status='fatal', symbol=args, error=args[0])
         else:
-            self.send_json(status="fatal", error="NOT_GIVEN", symbol=[])
+            self.send_json(status='fatal', error='NOT_GIVEN', symbol=[])
 
-    def send_traceback(self, symbol, classname="none"):
-        import traceback
+    def send_traceback(self, symbol, classname='none'):
         import sys
-        logger.error("Error Classname = " + classname)
+        import traceback
+
+        logger.error('Error Classname = ' + classname)
         etype, value, tb = sys.exc_info()
         if etype:
-            self.send_error(
-                symbol,
-                traceback=traceback.format_exception(etype, value, tb))
+            self.send_error(symbol, traceback=traceback.format_exception(etype, value, tb))
         else:
             self.send_error(symbol, traceback=None)
 
     def send_progress(self, message, percentage):
-        self.send_json(status="computing", message=message, percentage=percentage)
+        self.send_json(status='computing', message=message, percentage=percentage)
 
     def send_warning(self, message):
-        self.send_json(status="warning", message=message)
+        self.send_json(status='warning', message=message)
 
     def on_loop(self):
         pass

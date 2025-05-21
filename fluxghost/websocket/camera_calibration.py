@@ -1,7 +1,6 @@
-
 from fluxghost.api.camera_calibration import camera_calibration_api_mixin
-from .base import WebSocketBase
 
+from .base import WebSocketBase
 
 """
 

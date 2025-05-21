@@ -3,11 +3,10 @@ name: Build ghost linux
 on:
   push:
     tags:
-      - '*-release'
+      - "*-release"
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -15,20 +14,20 @@ jobs:
         os: [ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
+          sudo apt install -y python3-setuptools
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          sudo apt-get install -y python3-setuptools
 
       - name: Checkout Beamify
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: flux3dp/beamify
           ref: 2.0.5
@@ -42,7 +41,7 @@ jobs:
         uses: flux3dp/fluxsvg@2.7.7
 
       - name: Checkout FluxClient
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: flux3dp/fluxclient-dev
           ref: 2.8.7

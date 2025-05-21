@@ -26,7 +26,7 @@ def get_calibration_data_from_charuco(image, squares_x=15, squares_y=10):
     diamond_corners, diamond_ids, marker_corners, marker_ids = detect_charuco_markers(image, board)
 
     if diamond_corners is not None and diamond_ids is not None:
-        logger.info(f"Detected {len(diamond_ids)} charuco markers.")
+        logger.info(f'Detected {len(diamond_ids)} charuco markers.')
         if IS_DEBUGGING:
             cv2.aruco.drawDetectedMarkers(image, marker_corners, marker_ids)
             cv2.aruco.drawDetectedCornersCharuco(image, diamond_corners, diamond_ids)

@@ -18,19 +18,18 @@ def get_dictionary(squares_x, squares_y):
         if required_markers <= max_ids:
             return aruco.getPredefinedDictionary(dict_id)
 
-    raise ValueError("Board size requires more markers than available in 5x5 dictionaries.")
+    raise ValueError('Board size requires more markers than available in 5x5 dictionaries.')
 
 
-def get_charuco_board(squares_x = 10, squares_y=15, unit = 18 / 4):
-    '''
+def get_charuco_board(squares_x=10, squares_y=15, unit=18 / 4):
+    """
     :param squares_x: Number of squares in the x direction
     :param squares_y: Number of squares in the y direction
     :param unit: Length of the square side in mm
-    '''
+    """
     # Parameters
     square_length = 4 * unit
     marker_length = 3 * unit
     dictionary = get_dictionary(squares_x, squares_y)
     board = cv2.aruco.CharucoBoard((squares_x, squares_y), square_length, marker_length, dictionary)
     return board
-

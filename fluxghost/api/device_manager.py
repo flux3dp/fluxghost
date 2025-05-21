@@ -1,16 +1,15 @@
-from shlex import split
-from uuid import UUID
 import logging
 import socket
+from shlex import split
+from uuid import UUID
 
 from fluxclient.device.host2host_usb import FluxUSBError
-from fluxclient.device.manager import (DeviceManager, ManagerError,
-                                       ManagerException)
+from fluxclient.device.manager import DeviceManager, ManagerError, ManagerException
 from fluxclient.encryptor import KeyObject
 from fluxghost import g
 from fluxghost.utils.username import get_username
 
-logger = logging.getLogger("API.CONTROL_BASE")
+logger = logging.getLogger('API.CONTROL_BASE')
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
 STAGE_CONNECTIONG = '{"status": "connecting", "stage": "connecting"}'
@@ -26,29 +25,31 @@ def manager_mixin(cls):
 
         def __init__(self, *args, **kw):
             super().__init__(*args)
-            if "uuid" in kw:
-                self.target = ("uuid", UUID(hex=kw["uuid"]))
-            elif "usb_addr" in kw:
-                self.target = ("h2h", int(kw["usb_addr"]))
-            elif "uart" in kw:
-                self.target = ("uart", kw["uart"])
+            if 'uuid' in kw:
+                self.target = ('uuid', UUID(hex=kw['uuid']))
+            elif 'usb_addr' in kw:
+                self.target = ('h2h', int(kw['usb_addr']))
+            elif 'uart' in kw:
+                self.target = ('uart', kw['uart'])
             else:
-                raise SystemError("Poor connection configuration")
+                raise SystemError('Poor connection configuration')
             self.POOL_TIME = 1.5
 
         def on_connected(self):
-            payload = {"status": "connected",
-                       "serial": self.manager.serial,
-                       "version": str(self.manager.version),
-                       "model": self.manager.model_id,
-                       "name": self.manager.nickname}
+            payload = {
+                'status': 'connected',
+                'serial': self.manager.serial,
+                'version': str(self.manager.version),
+                'model': self.manager.model_id,
+                'name': self.manager.nickname,
+            }
             self.send_json(payload)
 
         def try_connect(self):
             self.send_text(STAGE_DISCOVER)
             endpoint_type, endpoint_target = self.target
 
-            if endpoint_type == "uuid":
+            if endpoint_type == 'uuid':
                 if endpoint_target in self.server.discover_devices:
                     device = self.server.discover_devices[endpoint_target]
                     self.send_text(STAGE_CONNECTIONG)
@@ -56,36 +57,32 @@ def manager_mixin(cls):
                     try:
                         self.manager = device.manage_device(self.client_key)
 
-                    except (OSError, ConnectionError, socket.timeout) as e:  # noqa
-                        logger.error("Socket erorr: %s", e)
-                        self.send_fatal("DISCONNECTED")
+                    except (OSError, ConnectionError, socket.timeout) as e:
+                        logger.error('Socket erorr: %s', e)
+                        self.send_fatal('DISCONNECTED')
                         return
                 else:
-                    self.send_fatal("NOT_FOUND")
+                    self.send_fatal('NOT_FOUND')
                     return
 
-            elif endpoint_type == "h2h":
+            elif endpoint_type == 'h2h':
                 usbprotocol = g.USBDEVS.get(endpoint_target)
                 self.send_text(STAGE_CONNECTIONG)
 
                 if usbprotocol:
                     try:
-                        self.manager = DeviceManager.from_usb(self.client_key,
-                                                              usbprotocol)
+                        self.manager = DeviceManager.from_usb(self.client_key, usbprotocol)
                     except FluxUSBError:
-                        logger.exception("USB control open failed.")
+                        logger.exception('USB control open failed.')
                         usbprotocol.stop()
-                        raise RuntimeError("PROTOCOL_ERROR")
+                        raise RuntimeError('PROTOCOL_ERROR')
                 else:
-                    logger.debug(
-                        "Try to connect to unknown device (addr=%s)",
-                        self.target[1])
-                    raise RuntimeError("UNKNOWN_DEVICE")
-            elif endpoint_type == "uart":
-                self.manager = DeviceManager.from_uart(self.client_key,
-                                                       endpoint_target)
+                    logger.debug('Try to connect to unknown device (addr=%s)', self.target[1])
+                    raise RuntimeError('UNKNOWN_DEVICE')
+            elif endpoint_type == 'uart':
+                self.manager = DeviceManager.from_uart(self.client_key, endpoint_target)
             else:
-                self.send_fatal("UNKNOWN_ENDPOINT_TYPE", endpoint_type)
+                self.send_fatal('UNKNOWN_ENDPOINT_TYPE', endpoint_type)
                 return
 
             if self.manager.authorized:
@@ -97,54 +94,53 @@ def manager_mixin(cls):
         def on_text_message(self, message):
             if self.client_key:
                 if self.manager.authorized:
-                    if message.startswith("set_network2 "):
+                    if message.startswith('set_network2 '):
                         try:
                             self.cmd_set_network_old(message[13:])
                         except Exception:
-                            logger.exception("ERR")
-                    elif message.startswith("set_nickname "):
+                            logger.exception('ERR')
+                    elif message.startswith('set_nickname '):
                         try:
                             self.cmd_set_nickname(message[13:])
                         except Exception:
-                            logger.exception("ERR")
+                            logger.exception('ERR')
                     else:
                         self.on_command(*split(message))
                 else:
-                    if message.startswith("password "):
+                    if message.startswith('password '):
                         try:
                             self.manager.authorize_with_password(message[9:])
                             self.on_connected()
                         except (ManagerError, ManagerException) as e:
-                            self.send_fatal(" ".join(e.err_symbol))
+                            self.send_fatal(' '.join(e.err_symbol))
                     else:
                         self.send_text(STAGE_REQUIRE_AUTHORIZE)
             else:
                 try:
                     self.client_key = KeyObject.load_keyobj(message)
                 except ValueError:
-                    self.send_fatal("BAD_PARAMS")
+                    self.send_fatal('BAD_PARAMS')
                     return
                 except Exception:
-                    logger.error("RSA Key load error: %s", message)
-                    self.send_fatal("BAD_PARAMS")
+                    logger.error('RSA Key load error: %s', message)
+                    self.send_fatal('BAD_PARAMS')
                     raise
 
                 try:
                     self.try_connect()
                 except (ManagerException, ManagerError) as e:
-                    self.send_fatal(" ".join(e.err_symbol))
+                    self.send_fatal(' '.join(e.err_symbol))
                 except RuntimeError as e:
                     self.send_fatal(e.args[0])
                 except Exception:
-                    logger.exception("Error while manager connecting")
-                    self.send_fatal("L_UNKNOWN_ERROR")
+                    logger.exception('Error while manager connecting')
+                    self.send_fatal('L_UNKNOWN_ERROR')
 
         def on_binary_message(self, buf):
-            self.send_fatal("PROTOCOL_ERROR",
-                            "Can not accept binary data")
+            self.send_fatal('PROTOCOL_ERROR', 'Can not accept binary data')
 
         def on_command(self, cmd, *args):
-            fn_name = "cmd_" + cmd
+            fn_name = 'cmd_' + cmd
             function = getattr(self, fn_name, self.cmd_not_found)
             try:
                 function(*args)
@@ -155,17 +151,19 @@ def manager_mixin(cls):
             except RuntimeError as e:
                 self.send_error(e.args)
             except ManagerException as e:
-                logger.exception("Device manager crashed")
+                logger.exception('Device manager crashed')
                 self.send_fatal(symbol=e.err_symbol)
             except Exception:
-                logger.exception("Device manager crashed")
-                self.send_fatal("L_UNKNOWN_ERROR")
+                logger.exception('Device manager crashed')
+                self.send_fatal('L_UNKNOWN_ERROR')
 
         def cmd_list_trust(self, *args):
             self.send_ok(acl=self.manager.list_trust())
 
-        def cmd_add_trust(self, pem, label=get_username(), *args):
-            if pem == "self":
+        def cmd_add_trust(self, pem, label=None, *args):
+            if label is None:
+                label = get_username()
+            if pem == 'self':
                 pem = self.client_key.public_key_pem
             self.manager.add_trust(label, pem)
             self.send_ok()
@@ -183,14 +181,14 @@ def manager_mixin(cls):
             self.send_ok()
 
         def cmd_set_password(self, old_password, new_password, *args):
-            reset_acl = "reset_acl" in args
+            reset_acl = 'reset_acl' in args
             self.manager.set_password(old_password, new_password, reset_acl)
             self.send_ok()
 
         def cmd_set_network(self, *args):
             options = {}
             for arg in args:
-                kv = arg.split("=", 1)
+                kv = arg.split('=', 1)
                 if len(kv) == 2:
                     k, v = kv
                     options[k] = v
@@ -199,13 +197,13 @@ def manager_mixin(cls):
 
         def cmd_set_network_old(self, message):
             import json
+
             m = json.loads(message)
-            p = ["%s=%s" % (k, v) for k, v in m.items()]
+            p = ['%s=%s' % (k, v) for k, v in m.items()]
             self.cmd_set_network(*p)
 
         def cmd_scan_wifi_access_points(self, *args):
-            self.send_ok(access_points=self.manager.scan_wifi_access_points(),
-                         cmd="scan")
+            self.send_ok(access_points=self.manager.scan_wifi_access_points(), cmd='scan')
 
         def cmd_get_wifi_ssid(self, *args):
             self.send_ok(ssid=self.manager.get_wifi_ssid())
@@ -217,7 +215,7 @@ def manager_mixin(cls):
             self.send_ok(ipaddr=self.manager.get_ipaddr(), ssid=self.manager.get_wifi_ssid())
 
         def cmd_not_found(self, *args):
-            self.send_error("L_UNKNOWN_COMMAND")
+            self.send_error('L_UNKNOWN_COMMAND')
 
         def on_closed(self):
             if self.manager:

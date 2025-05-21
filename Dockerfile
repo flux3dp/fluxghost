@@ -1,8 +1,8 @@
 FROM python:3.8
 
-# the context should be the parent directory of the Dockerfile(..)
+# NOTICE: the context should be the parent directory of the Dockerfile(..)
 ENV PYTHONUNBUFFERED=1
-# to make the uv environment across all folders
+# to make the uv environment system-wide
 ENV UV_PROJECT_ENVIRONMENT="/usr/local/"
 
 # use uv
@@ -13,9 +13,9 @@ RUN apt update && apt install ffmpeg libsm6 libxext6  -y
 # Updated WORKDIR
 WORKDIR /usr/src/app
 
-# Install dependencies
+# Install dependencies, all folder is needed due to fluxghost should be built
 COPY ./fluxghost /usr/src/app/build/fluxghost
-RUN cd /usr/src/app/build/fluxghost && uv sync --locked --no-dev -n
+RUN cd /usr/src/app/build/fluxghost && uv sync --locked --no-dev
 
 COPY ./fluxclient-dev /usr/src/app/build/fluxclient-dev
 COPY ./fluxsvg /usr/src/app/build/fluxsvg

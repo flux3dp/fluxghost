@@ -1,23 +1,22 @@
-
-from errno import EPIPE
-from io import BytesIO
-from time import time, sleep
 import json
 import logging
 import pipes
-import socket
 import shlex
+import socket
 import string
+from errno import EPIPE
+from io import BytesIO
+from time import sleep, time
 
 from fluxclient.device.host2host_usb import FluxUSBError
-from fluxclient.robot.errors import RobotError, RobotSessionError
-from fluxclient.utils.version import StrictVersion
 from fluxclient.fcode.g_to_f import GcodeToFcode
+from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.robot.robot import RawTasks
+from fluxclient.utils.version import StrictVersion
 
 from .control_base import control_base_mixin
 
-logger = logging.getLogger("API.CONTROL")
+logger = logging.getLogger('API.CONTROL')
 
 
 STAGE_DISCOVER = '{"status": "connecting", "stage": "discover"}'
@@ -41,118 +40,107 @@ def control_api_mixin(cls):
             self.set_hooks()
 
         def set_hooks(self):
-            if self.remote_version < StrictVersion("1.0b13"):
-                logger.warn("Remote version is too old, allow update fw only")
+            if self.remote_version < StrictVersion('1.0b13'):
+                logger.warn('Remote version is too old, allow update fw only')
                 self.cmd_mapping = {
-                    "update_fw": self.update_fw,
+                    'update_fw': self.update_fw,
                 }
                 return
 
             self.cmd_mapping = {
                 # deprecated
-                "ls": self.list_file,
+                'ls': self.list_file,
                 # deprecated
-                "select": self.select_file,
+                'select': self.select_file,
                 # deprecated
-                "mkdir": self.mkdir,
+                'mkdir': self.mkdir,
                 # deprecated
-                "rmdir": self.rmdir,
+                'rmdir': self.rmdir,
                 # deprecated
-                "rmfile": self.rmfile,
+                'rmfile': self.rmfile,
                 # deprecated
-                "cpfile": self.cpfile,
+                'cpfile': self.cpfile,
                 # deprecated
-                "fileinfo": self.fileinfo,
+                'fileinfo': self.fileinfo,
                 # deprecated
-                "upload": self.upload_file,
-                "update_fw": self.update_fw,
-                "update_laser_records": self.update_laser_records,
-                "update_fisheye_params": self.update_fisheye_params,
+                'upload': self.upload_file,
+                'update_fw': self.update_fw,
+                'update_laser_records': self.update_laser_records,
+                'update_fisheye_params': self.update_fisheye_params,
                 'update_fisheye_3d_rotation': self.update_fisheye_3d_rotation,
-                "update_mbfw": self.update_mbfw,
-
-                "deviceinfo": self.deviceinfo,
-                "cloud_validate_code": self.cloud_validate_code,
-                "wait_status": self.wait_status,
-                "kick": self.kick,
-
-                "file": {
-                    "lsusb": self.list_usb,
-                    "ls": self.list_file,
-                    "mkdir": self.mkdir,
-                    "rmdir": self.rmdir,
-                    "rm": self.rmfile,
-                    "rmfile": self.rmfile,
-                    "cp": self.cpfile,
-                    "cpfile": self.cpfile,
-                    "info": self.fileinfo,
-                    "fileinfo": self.fileinfo,
-                    "md5": self.filemd5,
-                    "upload": self.upload_file,
-                    "download": self.download,
-                    "download2": self.download2,
+                'update_mbfw': self.update_mbfw,
+                'deviceinfo': self.deviceinfo,
+                'cloud_validate_code': self.cloud_validate_code,
+                'wait_status': self.wait_status,
+                'kick': self.kick,
+                'file': {
+                    'lsusb': self.list_usb,
+                    'ls': self.list_file,
+                    'mkdir': self.mkdir,
+                    'rmdir': self.rmdir,
+                    'rm': self.rmfile,
+                    'rmfile': self.rmfile,
+                    'cp': self.cpfile,
+                    'cpfile': self.cpfile,
+                    'info': self.fileinfo,
+                    'fileinfo': self.fileinfo,
+                    'md5': self.filemd5,
+                    'upload': self.upload_file,
+                    'download': self.download,
+                    'download2': self.download2,
                 },
-
-                "config": {
-                    "set": self.config_set,
-                    "set_json": self.config_set_json,
-                    "get": self.config_get,
-                    "del": self.config_del
+                'config': {
+                    'set': self.config_set,
+                    'set_json': self.config_set_json,
+                    'get': self.config_get,
+                    'del': self.config_del,
                 },
-
-                "pipe": {
-                    "set": self.pipe_set,
-                    "get": self.pipe_get,
-                    "del": self.pipe_del
-                },
-
-                "play": {
-                    "select": self.select_file,
-                    "start": self.start_play,
-                    "preview": self.preview_play,
-                    "info": self.play_info,
-                    "report": self.report_play,
-                    "pause": self.pause_play,
-                    "resume": self.resume_play,
-                    "abort": self.abort_play,
+                'pipe': {'set': self.pipe_set, 'get': self.pipe_get, 'del': self.pipe_del},
+                'play': {
+                    'select': self.select_file,
+                    'start': self.start_play,
+                    'preview': self.preview_play,
+                    'info': self.play_info,
+                    'report': self.report_play,
+                    'pause': self.pause_play,
+                    'resume': self.resume_play,
+                    'abort': self.abort_play,
                     'restart': self.restart_play,
-                    "set_laser_power": self.set_laser_power,
-                    "set_laser_power_temp": self.set_laser_power_temp,
-                    "get_laser_power": self.get_laser_power,
-                    "set_laser_speed": self.set_laser_speed,
-                    "set_laser_speed_temp": self.set_laser_speed_temp,
-                    "get_laser_speed": self.get_laser_speed,
-                    "set_fan": self.set_fan,
-                    "set_fan_temp": self.set_fan_temp,
-                    "get_fan": self.get_fan,
+                    'set_laser_power': self.set_laser_power,
+                    'set_laser_power_temp': self.set_laser_power_temp,
+                    'get_laser_power': self.get_laser_power,
+                    'set_laser_speed': self.set_laser_speed,
+                    'set_laser_speed_temp': self.set_laser_speed_temp,
+                    'get_laser_speed': self.get_laser_speed,
+                    'set_fan': self.set_fan,
+                    'set_fan_temp': self.set_fan_temp,
+                    'get_fan': self.get_fan,
                     'set_origin_x': self.set_origin_x,
                     'set_origin_y': self.set_origin_y,
-                    "get_door_open": self.get_door_open,
-                    "get": self.player_get,
-                    "toolhead": {
-                        "operation": self.set_toolhead_operating,
-                        "standby": self.set_toolhead_standby,
-                        "heater": self.set_toolhead_heater,
+                    'get_door_open': self.get_door_open,
+                    'get': self.player_get,
+                    'toolhead': {
+                        'operation': self.set_toolhead_operating,
+                        'standby': self.set_toolhead_standby,
+                        'heater': self.set_toolhead_heater,
                     },
-                    "press_button": self.press_button_in_play,
-                    "quit": self.quit_play
+                    'press_button': self.press_button_in_play,
+                    'quit': self.quit_play,
                 },
-
                 'task': self.handle_task_command,
-
-                "fetch_log": self.fetch_log,
-                "fetch_laser_records": self.fetch_laser_records,
-                "fetch_camera_calib_pictures": self.fetch_camera_calib_pictures,
-                "fetch_fisheye_params": self.fetch_fisheye_params,
+                'fetch_log': self.fetch_log,
+                'fetch_laser_records': self.fetch_laser_records,
+                'fetch_camera_calib_pictures': self.fetch_camera_calib_pictures,
+                'fetch_fisheye_params': self.fetch_fisheye_params,
                 'fetch_fisheye_3d_rotation': self.fetch_fisheye_3d_rotation,
-                "fetch_auto_leveling_data": self.fetch_auto_leveling_data,
-                "jsonrpc_req": self.jsonrpc_req,
+                'fetch_auto_leveling_data': self.fetch_auto_leveling_data,
+                'jsonrpc_req': self.jsonrpc_req,
             }
 
         @property
         def task(self):
             if not self._task:
-                raise RuntimeError("OPERATION_ERROR")
+                raise RuntimeError('OPERATION_ERROR')
             return self._task
 
         @task.setter
@@ -190,7 +178,7 @@ def control_api_mixin(cls):
             return False
 
         def on_command(self, message):
-            if message == "ping":
+            if message == 'ping':
                 self.send_text('{"status": "pong"}')
                 return
             if isinstance(self._task, RawTasks):
@@ -209,60 +197,57 @@ def control_api_mixin(cls):
                 if self.invoke_command(self.cmd_mapping, args):
                     pass
                 else:
-                    logger.warn("Unknown Command: %s" % message)
-                    self.send_error("L_UNKNOWN_COMMAND")
+                    logger.warn('Unknown Command: %s' % message)
+                    self.send_error('L_UNKNOWN_COMMAND')
 
             except RobotError as e:
-                logger.debug("RobotError%s [error_symbol=%s]", repr(e.args),
-                             e.error_symbol)
+                logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                 self.send_error(e.error_symbol)
 
             except RobotSessionError as e:
-                logger.debug("RobotSessionError%s [error_symbol=%s]",
-                             repr(e.args), e.error_symbol)
+                logger.debug('RobotSessionError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                 self.send_fatal(e.error_symbol)
 
             except FluxUSBError as e:
-                logger.debug("USB Error%s [error_symbol=%s]",
-                             repr(e.args), e.symbol)
+                logger.debug('USB Error%s [error_symbol=%s]', repr(e.args), e.symbol)
                 self.send_fatal(e.symbol)
             except RuntimeError as e:
-                logger.debug("RuntimeError Error%s", repr(e.args))
+                logger.debug('RuntimeError Error%s', repr(e.args))
                 self.send_error(e.args)
 
-            except (TimeoutError, ConnectionResetError,  # noqa
-                    socket.timeout, ) as e:
-                from fluxclient.robot.robot import FluxRobot
+            except (TimeoutError, ConnectionResetError, socket.timeout) as e:
                 import sys
+
+                from fluxclient.robot.robot import FluxRobot
+
                 _, _, t = sys.exc_info()
                 while t.tb_next:
                     t = t.tb_next
-                    if "self" in t.tb_frame.f_locals:
-                        if isinstance(t.tb_frame.f_locals["self"], FluxRobot):
-                            self.send_fatal("TIMEOUT", repr(e.args))
-                            return
-                self.send_traceback("L_UNKNOWN_ERROR", repr(e.__class__))
+                    if 'self' in t.tb_frame.f_locals and isinstance(t.tb_frame.f_locals['self'], FluxRobot):
+                        self.send_fatal('TIMEOUT', repr(e.args))
+                        return
+                self.send_traceback('L_UNKNOWN_ERROR', repr(e.__class__))
 
-            except socket.error as e:
+            except OSError as e:
                 if e.args[0] == EPIPE:
-                    self.send_fatal("DISCONNECTED", repr(e.__class__))
+                    self.send_fatal('DISCONNECTED', repr(e.__class__))
                 else:
-                    logger.exception("Unknow socket error")
-                    self.send_fatal("L_UNKNOWN_ERROR", repr(e.__class__))
+                    logger.exception('Unknow socket error')
+                    self.send_fatal('L_UNKNOWN_ERROR', repr(e.__class__))
 
             except Exception as e:
-                logger.exception("Unknow error while process command")
-                self.send_traceback("L_UNKNOWN_ERROR", repr(e.__class__))
+                logger.exception('Unknow error while process command')
+                self.send_traceback('L_UNKNOWN_ERROR', repr(e.__class__))
 
         def kick(self):
             self.robot.kick()
             self.send_ok()
 
-        def list_file(self, location="", *args):
+        def list_file(self, location='', *args):
             if len(args) > 0:
-                location = location + " " + " ".join(args)
-            if location and location != "/":
-                path = location if location.startswith("/") else "/" + location
+                location = location + ' ' + ' '.join(args)
+            if location and location != '/':
+                path = location if location.startswith('/') else '/' + location
                 dirs = []
                 files = []
                 for is_dir, name in self.robot.list_files(path):
@@ -273,74 +258,69 @@ def control_api_mixin(cls):
 
                 dirs.sort()
                 files.sort()
-                self.send_ok(path=location, directories=dirs,
-                             files=files)
+                self.send_ok(path=location, directories=dirs, files=files)
             else:
-                self.send_ok(path=location,
-                             directories=["SD", "USB"], files=[])
+                self.send_ok(path=location, directories=['SD', 'USB'], files=[])
 
         def list_usb(self):
             ret = self.robot.list_usb().split('\n')
-            ok = ret[0]
             ret = ret[1:-1]
-            self.send_ok(cmd='lsusb' ,usbs=ret)
+            self.send_ok(cmd='lsusb', usbs=ret)
 
         def select_file(self, file, *args):
             if len(args) > 0:
-                file = file + " " + " ".join(args)
-            path = file if file.startswith("/") else "/" + file
+                file = file + ' ' + ' '.join(args)
+            path = file if file.startswith('/') else '/' + file
             self.robot.select_file(path)
             self.send_ok(path=path)
 
         def fileinfo(self, file, *args):
             if len(args) > 0:
-                file = file + " " + " ".join(args)
-            path = file if file.startswith("/") else "/" + file
+                file = file + ' ' + ' '.join(args)
+            path = file if file.startswith('/') else '/' + file
             info, binary = self.robot.file_info(path)
             if binary:
                 # TODO
-                self.send_json(status="binary", mimetype=binary[0][0],
-                               size=len(binary[0][1]))
+                self.send_json(status='binary', mimetype=binary[0][0], size=len(binary[0][1]))
                 self.send_binary(binary[0][1])
 
             self.send_ok(**info)
 
         def filemd5(self, file):
-            path = file if file.startswith("/") else "/" + file
+            path = file if file.startswith('/') else '/' + file
             hash = self.robot.file_md5(path)
             self.send_ok(file=path, md5=hash)
 
         def mkdir(self, file):
-            path = file if file.startswith("/") else "/" + file
-            if path.startswith("/SD/"):
+            path = file if file.startswith('/') else '/' + file
+            if path.startswith('/SD/'):
                 self.robot.mkdir(path)
-                self.send_json(status="ok", path=path)
+                self.send_json(status='ok', path=path)
             else:
-                self.send_error("NOT_SUPPORT")
+                self.send_error('NOT_SUPPORT')
 
         def rmdir(self, file):
-            path = file if file.startswith("/") else "/" + file
-            if path.startswith("/SD/"):
+            path = file if file.startswith('/') else '/' + file
+            if path.startswith('/SD/'):
                 self.robot.rmdir(path)
                 self.send_ok(path=path)
             else:
-                self.send_error("NOT_SUPPORT")
+                self.send_error('NOT_SUPPORT')
 
         def rmfile(self, file):
-            path = file if file.startswith("/") else "/" + file
+            path = file if file.startswith('/') else '/' + file
             self.robot.rmfile(path)
-            self.send_json(status="ok", path=path)
+            self.send_json(status='ok', path=path)
 
         def download(self, file):
             def report(left, size):
-                self.send_json(status="continue", left=left, size=size)
+                self.send_json(status='continue', left=left, size=size)
 
-            path = file if file.startswith("/") else "/" + file
+            path = file if file.startswith('/') else '/' + file
             buf = BytesIO()
             mimetype = self.robot.download_file(path, buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
 
         def download2(self, file):
@@ -349,38 +329,36 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
-            path = file if file.startswith("/") else "/" + file
+            path = file if file.startswith('/') else '/' + file
             buf = BytesIO()
             mimetype = self.robot.download_file(path, buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
         def cpfile(self, source, target):
-            spath = source if source.startswith("/") else "/" + source
-            tpath = target if target.startswith("/") else "/" + target
+            spath = source if source.startswith('/') else '/' + source
+            tpath = target if target.startswith('/') else '/' + target
             self.robot.cpfile(spath, tpath)
             self.send_ok(source=source, target=target)
 
-        def upload_file(self, mimetype, ssize, upload_to="#"):
-            if upload_to == "#":
+        def upload_file(self, mimetype, ssize, upload_to='#'):
+            if upload_to == '#':
                 pass
-            elif not upload_to.startswith("/"):
-                upload_to = "/" + upload_to
+            elif not upload_to.startswith('/'):
+                upload_to = '/' + upload_to
 
             size = int(ssize)
-            if mimetype == "text/gcode":
+            if mimetype == 'text/gcode':
                 if upload_to.endswith('.gcode'):
                     upload_to = upload_to[:-5] + 'fc'
 
                 def upload_callback(swap):
-                    gcode_content = swap.getvalue().decode("ascii", "ignore")
+                    gcode_content = swap.getvalue().decode('ascii', 'ignore')
                     gcode_content = gcode_content.split('\n')
 
                     fcode_output = BytesIO()
@@ -389,16 +367,17 @@ def control_api_mixin(cls):
 
                     fcode_len = fcode_output.truncate()
                     fcode_output.seek(0)
-                    self.send_json(status="uploading", sent=0,
-                                   amount=fcode_len)
-                    self.robot.upload_stream(fcode_output, 'application/fcode',
-                                             fcode_len, upload_to,
-                                             self.cb_upload_callback)
+                    self.send_json(status='uploading', sent=0, amount=fcode_len)
+                    self.robot.upload_stream(
+                        fcode_output, 'application/fcode', fcode_len, upload_to, self.cb_upload_callback
+                    )
                     self.send_ok()
 
                 self.simple_binary_receiver(size, upload_callback)
             else:
-                self.simple_binary_transfer(self.robot.transfer_upload_stream, mimetype, size, upload_to=upload_to, cb=self.send_ok)
+                self.simple_binary_transfer(
+                    self.robot.transfer_upload_stream, mimetype, size, upload_to=upload_to, cb=self.send_ok
+                )
             return
 
         def update_fw(self, mimetype, ssize):
@@ -407,59 +386,58 @@ def control_api_mixin(cls):
             def on_recived(stream):
                 stream.seek(0)
                 try:
-                    self.robot.update_firmware(stream, int(size),
-                                               self.cb_upload_callback)
+                    self.robot.update_firmware(stream, int(size), self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
-                    logger.debug("RobotError%s [error_symbol=%s]",
-                                 repr(e.args), e.error_symbol)
+                    logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
+
             self.simple_binary_receiver(size, on_recived)
 
         def update_laser_records(self, mimetype, ssize):
             size = int(ssize)
+
             def on_recived(stream):
                 stream.seek(0)
                 try:
-                    self.robot.update_laser_records(stream, int(size),
-                                                    self.cb_upload_callback)
+                    self.robot.update_laser_records(stream, int(size), self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
-                    logger.debug("RobotError%s [error_symbol=%s]",
-                                 repr(e.args), e.error_symbol)
+                    logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
+
             self.simple_binary_receiver(size, on_recived)
 
         def update_fisheye_params(self, mimetype, ssize):
             size = int(ssize)
+
             def on_recived(stream):
                 stream.seek(0)
                 try:
-                    self.robot.update_fisheye_params(stream, int(size),
-                                                    self.cb_upload_callback)
+                    self.robot.update_fisheye_params(stream, int(size), self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
-                    logger.debug("RobotError%s [error_symbol=%s]",
-                                 repr(e.args), e.error_symbol)
+                    logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
+
             self.simple_binary_receiver(size, on_recived)
 
         def update_fisheye_3d_rotation(self, mimetype, ssize):
             size = int(ssize)
+
             def on_recived(stream):
                 stream.seek(0)
                 try:
-                    self.robot.update_fisheye_3d_rotation(stream, int(size),
-                                                    self.cb_upload_callback)
+                    self.robot.update_fisheye_3d_rotation(stream, int(size), self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
-                    logger.debug("RobotError%s [error_symbol=%s]",
-                                 repr(e.args), e.error_symbol)
+                    logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
+
             self.simple_binary_receiver(size, on_recived)
 
         def update_mbfw(self, mimetype, ssize):
@@ -467,9 +445,9 @@ def control_api_mixin(cls):
 
             def on_recived(stream):
                 stream.seek(0)
-                self.robot._backend.update_atmel(self.robot, stream, int(size),
-                                                 self.cb_upload_callback)
+                self.robot._backend.update_atmel(self.robot, stream, int(size), self.cb_upload_callback)
                 self.send_ok()
+
             self.simple_binary_receiver(size, on_recived)
 
         def start_play(self):
@@ -580,9 +558,9 @@ def control_api_mixin(cls):
                 'red_laser_measure': self.robot.red_laser_measure,
                 'z_speed_limit_test': self.robot.z_speed_limit_test,
             }
-            method = method_map.get(task_type, None)
+            method = method_map.get(task_type)
             if method is None:
-                self.send_error("Unknown task: {}".format(task_type))
+                self.send_error(f'Unknown task: {task_type}')
                 return
             self.task = method()
             self.send_ok(task=task_type)
@@ -591,12 +569,12 @@ def control_api_mixin(cls):
             self.task = self.robot.raw()
             sock = PipeSocket(self.task.sock, self, 'raw')
             self.add_task_socket('raw', sock)
-            self.send_ok(task="raw")
+            self.send_ok(task='raw')
 
         def task_quit(self):
             self.task.quit()
             self.task = None
-            self.send_ok(task="")
+            self.send_ok(task='')
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
@@ -609,29 +587,26 @@ def control_api_mixin(cls):
 
         def wait_status(self, status, timeout=6.0):
             mapping = {
-                "idle": 0,
-                "running": 16,
-                "paused": 48,
-                "completed": 64,
-                "aborted": 128,
+                'idle': 0,
+                'running': 16,
+                'paused': 48,
+                'completed': 64,
+                'aborted': 128,
             }
 
-            if status.isdigit() is False:
-                st_id = mapping.get(status)
-            else:
-                st_id = int(status, 10)
+            st_id = mapping.get(status) if status.isdigit() is False else int(status, 10)
 
             ttl = time() + float(timeout)
 
             while ttl > time():
                 st = self.robot.report_play()
-                if st["st_id"] == st_id:
+                if st['st_id'] == st_id:
                     self.send_ok()
                     return
                 else:
                     sleep(0.2)
 
-            self.send_error("TIMEOUT")
+            self.send_error('TIMEOUT')
 
         def play_info(self):
             metadata, images = self.robot.play_info()
@@ -658,7 +633,7 @@ def control_api_mixin(cls):
             self.send_ok(key=key)
 
         def pipe_set(self, key, *value):
-            self.robot.pipe[key] = " ".join(value)
+            self.robot.pipe[key] = ' '.join(value)
             self.send_ok(key=key)
 
         def pipe_get(self, key):
@@ -674,15 +649,13 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
             buf = BytesIO()
             mimetype = self.robot.fetch_log(logname, buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
@@ -692,15 +665,13 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
             buf = BytesIO()
             mimetype = self.robot.fetch_laser_records(buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
@@ -710,15 +681,13 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
             buf = BytesIO()
             mimetype = self.robot.fetch_camera_calib_pictures(filename, buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
@@ -728,15 +697,13 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
             buf = BytesIO()
             mimetype = self.robot.fetch_fisheye_params(buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
@@ -746,15 +713,13 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
             buf = BytesIO()
             mimetype = self.robot.fetch_fisheye_3d_rotation(buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
@@ -764,15 +729,13 @@ def control_api_mixin(cls):
             def report(left, size):
                 if not flag:
                     flag.append(1)
-                    self.send_json(status="transfer", completed=0, size=size)
-                self.send_json(status="transfer",
-                               completed=(size - left), size=size)
+                    self.send_json(status='transfer', completed=0, size=size)
+                self.send_json(status='transfer', completed=(size - left), size=size)
 
             buf = BytesIO()
             mimetype = self.robot.fetch_auto_leveling_data(data_type, buf, report)
             if mimetype:
-                self.send_json(status="binary", mimetype=mimetype,
-                               size=buf.truncate())
+                self.send_json(status='binary', mimetype=mimetype, size=buf.truncate())
                 self.send_binary(buf.getvalue())
                 self.send_ok()
 
@@ -799,7 +762,7 @@ def control_api_mixin(cls):
             socket = self.on_pipe_task_message('raw', message)
             if socket:
                 if message == 'raw home':
-                    socket.send('$H\n'.encode())
+                    socket.send(b'$H\n')
                 else:
                     socket.send(message.encode() + b'\n')
 
@@ -823,7 +786,7 @@ def control_api_mixin(cls):
         # Front require command string append at response, override on_command
         # to record command.
         def on_command(self, message):
-            if message != "ping":
+            if message != 'ping':
                 self.__last_command = message
 
             super().on_command(message)
@@ -832,35 +795,34 @@ def control_api_mixin(cls):
             # Override send_ok and send front request string at response.
             # Request from norman.
             if self.__last_command:
-                if self.__last_command.startswith("file ls "):
-                    kw["cmd"] = "ls"
-                elif self.__last_command.startswith("play select"):
-                    kw["cmd"] = "select"
-                elif self.__last_command.startswith("file mkdir"):
-                    kw["cmd"] = "mkdir"
-                elif self.__last_command.startswith("file rmdir"):
-                    kw["cmd"] = "rmdir"
-                elif self.__last_command.startswith("file cpfile"):
-                    kw["cmd"] = "cpfile"
+                if self.__last_command.startswith('file ls '):
+                    kw['cmd'] = 'ls'
+                elif self.__last_command.startswith('play select'):
+                    kw['cmd'] = 'select'
+                elif self.__last_command.startswith('file mkdir'):
+                    kw['cmd'] = 'mkdir'
+                elif self.__last_command.startswith('file rmdir'):
+                    kw['cmd'] = 'rmdir'
+                elif self.__last_command.startswith('file cpfile'):
+                    kw['cmd'] = 'cpfile'
                 else:
-                    kw["cmd"] = self.__last_command
+                    kw['cmd'] = self.__last_command
 
             # Pop prog when play status id is completed. Request from proclaim.
-            if "device_status" in kw:
-                if kw["device_status"]["st_id"] == 64:
-                    kw["device_status"].pop("prog", None)
-
+            if 'device_status' in kw and kw['device_status']['st_id'] == 64:
+                kw['device_status'].pop('prog', None)
 
             super().send_ok(**kw)
 
     return DirtyLayer
 
 
-class PipeSocket(object):
+class PipeSocket:
     """This class pipe data from socket connected to device to websocket connected to frontend"""
+
     _task_type = 'pipe'
 
-    def __init__(self, sock, ws, task = 'pipe'):
+    def __init__(self, sock, ws, task='pipe'):
         self.sock = sock
         self.ws = ws
         self._task_type = task
@@ -874,9 +836,8 @@ class PipeSocket(object):
     def on_read(self):
         buf = self.sock.recv(128)
         if buf:
-            logger.info('%s: <= %s' % (self._task_type, buf.decode("ascii", "replace")))
-            self.ws.send_json(status=self._task_type,
-                              text=buf.decode("ascii", "replace"))
+            logger.info('%s: <= %s' % (self._task_type, buf.decode('ascii', 'replace')))
+            self.ws.send_json(status=self._task_type, text=buf.decode('ascii', 'replace'))
         else:
             self.ws.rlist.remove(self)
-            self.ws.send_fatal("DISCONNECTED")
+            self.ws.send_fatal('DISCONNECTED')

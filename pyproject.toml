@@ -22,6 +22,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+deploy = [
+    "pyinstaller>=6.13.0",
+]
 dev = [
     "ruff>=0.11.10",
     "pre-commit>=3.5.0",
@@ -47,6 +50,9 @@ target-version = "py38"
 
 [tool.ruff.format] # https://docs.astral.sh/ruff/settings/#format
 quote-style = "single"
+
+[tool.ruff.lint.isort]
+known-first-party = ["beamify", "fluxclient", "fluxsvg", "fluxghost"]
 
 [tool.ruff.lint] # https://docs.astral.sh/ruff/settings/#lint
 select = [
@@ -96,7 +102,6 @@ ignore = [
     "D212",    # Multi-line summary first line
     "F401",    # Unused imports
     "F403",    # Undefined local with import *
-    "I001",    # Unused imports
     "PLR0913", # Too many arguments
     "Q000",    # Single quotes found but double quotes preferred
     "Q003",    # Avoidable escaped quote
@@ -105,5 +110,6 @@ ignore = [
     "RUF012",  # Mutable class default
     "TID252",  # Relative import
     "UP031",   # Printf string formatting
+    "SIM112",  # Capitalized environment variable
 ]
 # Ruff configuration end

@@ -1,30 +1,30 @@
 import base64
+import contextlib
 import io
 import json
 import logging
 import math
 import threading
-import urllib.parse
 import traceback
+import urllib.parse
 import warnings
 from datetime import datetime
 
 from PIL import Image
 
-from fluxclient.toolpath.svgeditor_factory import SvgeditorImage, SvgeditorFactory
-
-from fluxclient.hw_profile import FCODE_VERSION_MAP
-from fluxclient.toolpath.toolpath import svgeditor2taskcode, gcode2fcode
-from fluxclient.toolpath import FCodeV1MemoryWriter, FCodeV2MemoryWriter, GCodeMemoryWriter
-from fluxclient import __version__
-
 import fluxsvg
-
+from fluxclient import __version__
+from fluxclient.hw_profile import FCODE_VERSION_MAP
+from fluxclient.toolpath import FCodeV1MemoryWriter, FCodeV2MemoryWriter, GCodeMemoryWriter
+from fluxclient.toolpath.svgeditor_factory import SvgeditorFactory, SvgeditorImage
+from fluxclient.toolpath.toolpath import gcode2fcode, svgeditor2taskcode
 from fluxghost.utils.username import get_username
-from .svg_toolpath import svg_base_api_mixin
-from .misc import BinaryUploadHelper, OnTextMessageMixin
 
-logger = logging.getLogger("API.SVGEDITOR")
+from .misc import BinaryUploadHelper, OnTextMessageMixin
+from .svg_toolpath import svg_base_api_mixin
+
+logger = logging.getLogger('API.SVGEDITOR')
+
 
 def laser_svgeditor_api_mixin(cls):
     class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
@@ -70,27 +70,29 @@ def laser_svgeditor_api_mixin(cls):
             divide_params = {}
             for i, param in enumerate(params):
                 if param == '-s':
-                    divide_params['scale'] = float(params[i+1])
+                    divide_params['scale'] = float(params[i + 1])
             self.plain_svg = self.plain_svg.replace(b'encoding="UTF-16"', b'encoding="utf-8"')
             self.plain_svg = self.plain_svg.replace(b'encoding="utf-16"', b'encoding="utf-8"')
             try:
                 result = fluxsvg.divide(self.plain_svg, params=divide_params, loop_compensation=self.loop_compensation)
 
-                self.send_json(name="strokes", length=result['strokes'].getbuffer().nbytes)
+                self.send_json(name='strokes', length=result['strokes'].getbuffer().nbytes)
                 self.send_binary(result['strokes'].getbuffer())
                 if result['bitmap'] is None:
-                    self.send_json(name="bitmap", length=0)
-                    self.send_binary(b"")
+                    self.send_json(name='bitmap', length=0)
+                    self.send_binary(b'')
                 else:
-                    self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
+                    self.send_json(
+                        name='bitmap', length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset']
+                    )
                     self.send_binary(result['bitmap'].getbuffer())
-                self.send_json(name="colors", length=result['colors'].getbuffer().nbytes)
+                self.send_json(name='colors', length=result['colors'].getbuffer().nbytes)
                 self.send_binary(result['colors'].getbuffer())
                 self.send_ok()
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, line_number))
+                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
                 raise e
 
         def divide_svg_by_layer(self, params):
@@ -98,19 +100,23 @@ def laser_svgeditor_api_mixin(cls):
             divide_params = {}
             for i, param in enumerate(params):
                 if param == '-s':
-                    divide_params['scale'] = float(params[i+1])
+                    divide_params['scale'] = float(params[i + 1])
             self.plain_svg = self.plain_svg.replace(b'encoding="UTF-16"', b'encoding="utf-8"')
             self.plain_svg = self.plain_svg.replace(b'encoding="utf-16"', b'encoding="utf-8"')
             try:
-                result = fluxsvg.divide_by_layer(self.plain_svg, params=divide_params, loop_compensation=self.loop_compensation)
+                result = fluxsvg.divide_by_layer(
+                    self.plain_svg, params=divide_params, loop_compensation=self.loop_compensation
+                )
                 if 'nolayer' in result:
-                    self.send_json(name="nolayer", length=result['nolayer'].getbuffer().nbytes)
+                    self.send_json(name='nolayer', length=result['nolayer'].getbuffer().nbytes)
                     self.send_binary(result['nolayer'].getbuffer())
                 if result['bitmap'] is None:
-                    self.send_json(name="bitmap", length=0)
-                    self.send_binary(b"")
+                    self.send_json(name='bitmap', length=0)
+                    self.send_binary(b'')
                 else:
-                    self.send_json(name="bitmap", length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset'])
+                    self.send_json(
+                        name='bitmap', length=result['bitmap'].getbuffer().nbytes, offset=result['bitmap_offset']
+                    )
                     self.send_binary(result['bitmap'].getbuffer())
                 for key, item in result.items():
                     if key == 'bitmap_offset':
@@ -118,9 +124,11 @@ def laser_svgeditor_api_mixin(cls):
                     if key == 'bitmap':
                         if item is None:
                             self.send_json(name='bitmap', length=0)
-                            self.send_binary(b"")
+                            self.send_binary(b'')
                         else:
-                            self.send_json(name='bitmap', length=item.getbuffer().nbytes, offset=result['bitmap_offset'])
+                            self.send_json(
+                                name='bitmap', length=item.getbuffer().nbytes, offset=result['bitmap_offset']
+                            )
                             self.send_binary(item.getbuffer())
                     else:
                         self.send_json(name=key, length=item.getbuffer().nbytes)
@@ -129,9 +137,8 @@ def laser_svgeditor_api_mixin(cls):
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, line_number))
+                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
                 raise e
-
 
         def cmd_svgeditor_upload(self, params):
             # clear previous data
@@ -143,15 +150,19 @@ def laser_svgeditor_api_mixin(cls):
             }
 
             def progress_callback(prog):
-                self.send_progress("Analyzing SVG - " + str(round(prog * 100, 2)) + "%", prog)
+                self.send_progress('Analyzing SVG - ' + str(round(prog * 100, 2)) + '%', prog)
 
             def generate_svgeditor_image(buf, name, thumbnail_length):
                 thumbnail = buf[:thumbnail_length]
                 svg_data = buf[thumbnail_length:]
-                svg_image = SvgeditorImage(thumbnail, svg_data, self.pixel_per_mm,
-                                            progress_callback=progress_callback,
-                                            check_interrupted=self.check_interrupted,
-                                            **svgeditor_image_params)
+                svg_image = SvgeditorImage(
+                    thumbnail,
+                    svg_data,
+                    self.pixel_per_mm,
+                    progress_callback=progress_callback,
+                    check_interrupted=self.check_interrupted,
+                    **svgeditor_image_params,
+                )
                 self.svg_image = svg_image
 
             def upload_callback(buf, name, thumbnail_length):
@@ -164,11 +175,11 @@ def laser_svgeditor_api_mixin(cls):
                         return
                     self.send_ok()
                 except Exception as e:
-                    logger.exception("Load SVG Error")
+                    logger.exception('Load SVG Error')
                     logger.exception(str(e))
                     traceback_info = traceback.extract_tb(e.__traceback__)
                     file_name, line_number, _, _ = traceback_info[-1]
-                    self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, line_number))
+                    self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
                     raise e
 
             logger.info('svg_editor')
@@ -220,7 +231,11 @@ def laser_svgeditor_api_mixin(cls):
                     except Exception:
                         pass
                 elif param == '-spin':
-                    warnings.warn('arg -spin for cmd_svgeditor_upload is deprecated in favor of -workarea', DeprecationWarning)
+                    warnings.warn(
+                        'arg -spin for cmd_svgeditor_upload is deprecated in favor of -workarea',
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                     svgeditor_image_params['rotary_enabled'] = True
                     self.factory_kwargs['rotary_enabled'] = True
                 elif param == '-workarea':
@@ -234,22 +249,21 @@ def laser_svgeditor_api_mixin(cls):
 
             try:
                 file_length, thumbnail_length = map(int, (file_length, thumbnail_length))
-                helper = BinaryUploadHelper(
-                        file_length, upload_callback, name, thumbnail_length)
+                helper = BinaryUploadHelper(file_length, upload_callback, name, thumbnail_length)
 
                 self.set_binary_helper(helper)
-                self.send_json(status="continue")
+                self.send_json(status='continue')
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, line_number))
+                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
                 raise e
 
         def cmd_upload_plain_svg(self, params):
             def upload_callback(buf, name):
                 if self.has_binary_helper():
                     self.set_binary_helper(None)
-                #todo divide buf as svg
+                # todo divide buf as svg
                 self.plain_svg = buf
                 self.send_ok()
 
@@ -257,21 +271,23 @@ def laser_svgeditor_api_mixin(cls):
 
             name, file_length = params.split()
             file_length = int(file_length)
-            helper = BinaryUploadHelper(
-                    file_length, upload_callback, name)
+            helper = BinaryUploadHelper(file_length, upload_callback, name)
 
             self.set_binary_helper(helper)
-            self.send_json(status="continue")
+            self.send_json(status='continue')
 
         def prepare_factory(self):
-            factory = SvgeditorFactory(self.pixel_per_mm, loop_compensation=self.loop_compensation, **self.factory_kwargs)
+            factory = SvgeditorFactory(
+                self.pixel_per_mm, loop_compensation=self.loop_compensation, **self.factory_kwargs
+            )
             factory.add_image(self.svg_image)
             return factory
 
         def cmd_g2f(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
+                self.send_progress('Calculating Toolpath ' + str(round(prog * 100, 2)) + '%', prog)
+
             def upload_callback(buf, thumbnail_length):
                 def process_thumbnail(base64_thumbnail: str):
                     _, data = base64_thumbnail.split(b',')
@@ -282,7 +298,7 @@ def laser_svgeditor_api_mixin(cls):
 
                 if self.has_binary_helper():
                     self.set_binary_helper(None)
-                #todo divide buf as svg
+                # todo divide buf as svg
                 thumbnail = process_thumbnail(buf[:thumbnail_length])
                 self.gcode_string = buf[thumbnail_length:]
                 self.send_ok()
@@ -290,19 +306,23 @@ def laser_svgeditor_api_mixin(cls):
                 try:
                     self.send_progress('Initializing', 0.03)
 
-                    self.fcode_metadata.update({
-                        'CREATED_AT': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                        'AUTHOR': urllib.parse.quote(get_username()),
-                        'SOFTWARE': 'fluxclient-%s-BS' % __version__,
-                    })
-                    writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata,
-                                                 (thumbnail, ))
+                    self.fcode_metadata.update(
+                        {
+                            'CREATED_AT': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                            'AUTHOR': urllib.parse.quote(get_username()),
+                            'SOFTWARE': 'fluxclient-%s-BS' % __version__,
+                        }
+                    )
+                    writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail,))
                     default_travel_speed = 7500
 
-                    gcode2fcode(writer, self.gcode_string,
-                                    travel_speed=default_travel_speed,
-                                    progress_callback=progress_callback,
-                                    check_interrupted=self.check_interrupted)
+                    gcode2fcode(
+                        writer,
+                        self.gcode_string,
+                        travel_speed=default_travel_speed,
+                        progress_callback=progress_callback,
+                        check_interrupted=self.check_interrupted,
+                    )
 
                     writer.terminated()
 
@@ -311,39 +331,39 @@ def laser_svgeditor_api_mixin(cls):
                         return
 
                     output_binary = writer.get_buffer()
-                    time_need = float(writer.get_metadata().get(b"TIME_COST", 0))
+                    time_need = float(writer.get_metadata().get(b'TIME_COST', 0))
 
-                    traveled_dist = float(writer.get_metadata().get(b"TRAVEL_DIST", 0))
+                    traveled_dist = float(writer.get_metadata().get(b'TRAVEL_DIST', 0))
                     self.send_progress('Finishing', 1.0)
 
                     if send_fcode:
-                        self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist)
+                        self.send_json(
+                            status='complete', length=len(output_binary), time=time_need, traveled_dist=traveled_dist
+                        )
                         self.send_binary(output_binary)
                     else:
-                        output_file = open("/var/gcode/userspace/temp.fc", "wb")
-                        output_file.write(output_binary)
-                        output_file.close()
-                        self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
-                    logger.info("G2F Processed")
+                        with open('/var/gcode/userspace/temp.fc', 'wb') as output_file:
+                            output_file.write(output_binary)
+                        self.send_json(status='complete', file='/var/gcode/userspace/temp.fc')
+                    logger.info('G2F Processed')
                 except Exception as e:
                     traceback_info = traceback.extract_tb(e.__traceback__)
                     file_name, line_number, _, _ = traceback_info[-1]
-                    self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, line_number))
+                    self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
                     raise e
 
             logger.info('task preview: gcode to fcode')
             file_length, thumbnail_length = map(int, params_str.split())
 
-            helper = BinaryUploadHelper(
-                    file_length, upload_callback, thumbnail_length)
+            helper = BinaryUploadHelper(file_length, upload_callback, thumbnail_length)
 
             self.set_binary_helper(helper)
-            self.send_json(status="continue")
+            self.send_json(status='continue')
 
         def cmd_go(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress("Calculating Toolpath " + str(round(prog * 100, 2)) + "%", prog)
+                self.send_progress('Calculating Toolpath ' + str(round(prog * 100, 2)) + '%', prog)
 
             logger.info('Calling laser svgeditor')
             self.is_task_interrupted = False
@@ -389,130 +409,103 @@ def laser_svgeditor_api_mixin(cls):
                     except Exception:
                         pass
                 elif param == '-film':
-                    self.fcode_metadata["CONTAIN_PHONE_FILM"] = '1'
+                    self.fcode_metadata['CONTAIN_PHONE_FILM'] = '1'
                 elif param == '-spin':
-                    val = float(params[i+1])
+                    val = float(params[i + 1])
                     svgeditor2taskcode_kwargs['spinning_axis_coord'] = val
                     if val > 0:
                         self.fcode_metadata['ROTARY'] = '1'
                         is_rotary_task = True
                 elif param == '-rotary-y-ratio':
-                    svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['rotary_y_ratio'] = float(params[i + 1])
                 elif param == '-rotary-z-motion':
                     # default true in svgeditor2taskcode
                     try:
-                        svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i+1])
+                        svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i + 1])
                     except Exception:
-                        logger.info('Bad rotary_z_motion {}'.format(params[i+1]))
-                        pass
+                        logger.info(f'Bad rotary_z_motion {params[i + 1]}')
                 elif param == '-blade':
-                    svgeditor2taskcode_kwargs['blade_radius'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['blade_radius'] = float(params[i + 1])
                 elif param == '-precut':
-                    svgeditor2taskcode_kwargs['precut_at'] = [float(j) for j in params[i+1].split(',')]
+                    svgeditor2taskcode_kwargs['precut_at'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-prespray':
-                    svgeditor2taskcode_kwargs['prespray'] = [float(j) for j in params[i+1].split(',')]
+                    svgeditor2taskcode_kwargs['prespray'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-temp':
                     send_fcode = False
                 elif param == '-gc':
                     output_fcode = False
                 elif param == '-af':
                     svgeditor2taskcode_kwargs['enable_autofocus'] = True
-                    try:
-                        svgeditor2taskcode_kwargs['z_offset'] = float(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['z_offset'] = float(params[i + 1])
                 elif param == '-fg':
                     svgeditor2taskcode_kwargs['support_fast_gradient'] = True
                 elif param == '-mfg':
                     svgeditor2taskcode_kwargs['mock_fast_gradient'] = True
                 elif param == '-vsl':
-                    svgeditor2taskcode_kwargs['vector_speed_limit'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['vector_speed_limit'] = float(params[i + 1])
                 elif param == '-csl':
                     # 3d engraving curve speed limit
-                    svgeditor2taskcode_kwargs['curve_speed_limit'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['curve_speed_limit'] = float(params[i + 1])
                 elif param == '-diode':
                     svgeditor2taskcode_kwargs['support_diode'] = True
-                    svgeditor2taskcode_kwargs['diode_offset'] = [float(j) for j in params[i+1].split(',')]
+                    svgeditor2taskcode_kwargs['diode_offset'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-diode-owe':
                     svgeditor2taskcode_kwargs['diode_one_way_engraving'] = True
                 elif param == '-acc':
-                    svgeditor2taskcode_kwargs['acc'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['acc'] = float(params[i + 1])
                 elif param == '-min-speed':
-                    svgeditor2taskcode_kwargs['min_speed'] = float(params[i+1])
+                    svgeditor2taskcode_kwargs['min_speed'] = float(params[i + 1])
                 elif param == '-rev':
                     svgeditor2taskcode_kwargs['is_reverse_engraving'] = True
                 elif param == '-mask':
-                    clip_rect = [0, 0, 0, 0] # top right bottom left
-                    try:
-                        clip_rect = [float(j) for j in params[i+1].split(',')]
-                    except Exception:
-                        pass
+                    clip_rect = [0, 0, 0, 0]  # top right bottom left
+                    with contextlib.suppress(Exception):
+                        clip_rect = [float(j) for j in params[i + 1].split(',')]
                     svgeditor2taskcode_kwargs['clip'] = clip_rect
                 elif param == '-cbl':
                     svgeditor2taskcode_kwargs['custom_backlash'] = True
                 elif param == '-mep':
-                    try:
-                        svgeditor2taskcode_kwargs['min_engraving_padding'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['min_engraving_padding'] = int(params[i + 1])
                 elif param == '-mpp':
-                    try:
-                        svgeditor2taskcode_kwargs['min_printing_padding'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['min_printing_padding'] = int(params[i + 1])
                 elif param == '-mpc':
                     svgeditor2taskcode_kwargs['multipass_compensation'] = True
                 elif param == '-owp':
                     svgeditor2taskcode_kwargs['one_way_printing'] = True
                 elif param == '-ptp':
-                    try:
-                        svgeditor2taskcode_kwargs['printing_top_padding'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['printing_top_padding'] = int(params[i + 1])
                 elif param == '-pbp':
-                    try:
-                        svgeditor2taskcode_kwargs['printing_bot_padding'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['printing_bot_padding'] = int(params[i + 1])
                 elif param == '-psw':
-                    try:
-                        svgeditor2taskcode_kwargs['printing_slice_width'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['printing_slice_width'] = int(params[i + 1])
                 elif param == '-psh':
-                    try:
-                        svgeditor2taskcode_kwargs['printing_slice_height'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['printing_slice_height'] = int(params[i + 1])
                 elif param == '-nv':
-                    try:
-                        svgeditor2taskcode_kwargs['nozzle_votage'] = float(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['nozzle_votage'] = float(params[i + 1])
                 elif param == '-npw':
-                    try:
-                        svgeditor2taskcode_kwargs['nozzle_pulse_width'] = float(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['nozzle_pulse_width'] = float(params[i + 1])
                 elif param == '-mof':
                     # module offset
-                    value = json.loads(params[i+1])
+                    value = json.loads(params[i + 1])
                     svgeditor2taskcode_kwargs['module_offsets'] = value
                 elif param == '-ts':
-                    try:
-                        svgeditor2taskcode_kwargs['travel_speed'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['travel_speed'] = int(params[i + 1])
                 elif param == '-pts':
-                    try:
-                        svgeditor2taskcode_kwargs['path_travel_speed'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['path_travel_speed'] = int(params[i + 1])
                 elif param == '-ats':
-                    try:
-                        svgeditor2taskcode_kwargs['a_travel_speed'] = int(params[i+1])
-                    except Exception:
-                        pass
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['a_travel_speed'] = int(params[i + 1])
                 elif param == '-no-pwm':
                     svgeditor2taskcode_kwargs['no_pwm'] = True
                 elif param == '-job-origin':
@@ -524,7 +517,6 @@ def laser_svgeditor_api_mixin(cls):
                         start_with_home = False
                     except Exception:
                         logger.exception('Invalid job origin')
-                        pass
                 elif param == '-acc-override':
                     try:
                         value = json.loads(params[i + 1])
@@ -534,10 +526,9 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-segment':
                     # default true in svgeditor2taskcode
                     try:
-                        svgeditor2taskcode_kwargs['segment'] = json.loads(params[i+1])
+                        svgeditor2taskcode_kwargs['segment'] = json.loads(params[i + 1])
                     except Exception:
-                        logger.info('Bad segment {}'.format(params[i+1]))
-                        pass
+                        logger.info(f'Bad segment {params[i + 1]}')
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
@@ -545,13 +536,15 @@ def laser_svgeditor_api_mixin(cls):
             try:
                 self.send_progress('Initializing', 0.03)
                 factory = self.prepare_factory()
-                self.fcode_metadata.update({
-                    'CREATED_AT': datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    'AUTHOR': urllib.parse.quote(get_username()),
-                    'SOFTWARE': 'fluxclient-%s-BS' % __version__,
-                    'START_WITH_HOME': '1' if start_with_home else '0',
-                    '3D_CURVE_TASK': '1' if self.curve_engraving_detail else '0',
-                })
+                self.fcode_metadata.update(
+                    {
+                        'CREATED_AT': datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ'),
+                        'AUTHOR': urllib.parse.quote(get_username()),
+                        'SOFTWARE': 'fluxclient-%s-BS' % __version__,
+                        'START_WITH_HOME': '1' if start_with_home else '0',
+                        '3D_CURVE_TASK': '1' if self.curve_engraving_detail else '0',
+                    }
+                )
                 logger.info('FCode Version: %d', fcode_version)
                 time_need = 0
                 traveled_dist = 0
@@ -560,18 +553,21 @@ def laser_svgeditor_api_mixin(cls):
                 if output_fcode:
                     thumbnail = factory.generate_thumbnail()
                     if fcode_version == 2:
-                        writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail, ), magic_number)
+                        writer = FCodeV2MemoryWriter(self.fcode_metadata, (thumbnail,), magic_number)
                     else:
                         magic_number = 1
-                        writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail, ))
+                        writer = FCodeV1MemoryWriter('LASER', self.fcode_metadata, (thumbnail,))
                 else:
                     writer = GCodeMemoryWriter()
                 svgeditor2taskcode_kwargs['magic_number'] = magic_number
 
-                svgeditor2taskcode(writer, factory,
-                                progress_callback=progress_callback,
-                                check_interrupted=self.check_interrupted,
-                                **svgeditor2taskcode_kwargs)
+                svgeditor2taskcode(
+                    writer,
+                    factory,
+                    progress_callback=progress_callback,
+                    check_interrupted=self.check_interrupted,
+                    **svgeditor2taskcode_kwargs,
+                )
                 if output_fcode:
                     time_need = writer.get_time_cost()
                     traveled_dist = writer.get_traveled()
@@ -592,34 +588,36 @@ def laser_svgeditor_api_mixin(cls):
                 print('time cost:', time_need, '\ntravel distance', traveled_dist)
                 self.send_progress('Finishing', 1.0)
                 if send_fcode:
-                    self.send_json(status="complete", length=len(output_binary), time=time_need, traveled_dist=traveled_dist, metadata=metadata)
+                    self.send_json(
+                        status='complete',
+                        length=len(output_binary),
+                        time=time_need,
+                        traveled_dist=traveled_dist,
+                        metadata=metadata,
+                    )
                     self.send_binary(output_binary)
                 else:
-                    output_file = open("/var/gcode/userspace/temp.fc", "wb")
-                    output_file.write(output_binary)
-                    output_file.close()
-                    self.send_json(status="complete", file="/var/gcode/userspace/temp.fc")
-                logger.info("Svg Editor Processed")
+                    with open('/var/gcode/userspace/temp.fc', 'wb') as output_file:
+                        output_file.write(output_binary)
+                    self.send_json(status='complete', file='/var/gcode/userspace/temp.fc')
+                logger.info('Svg Editor Processed')
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message='{}\n{}, line: {}'.format(str(e), file_name, line_number))
+                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
                 raise e
 
         def cmd_interrupt(self, params):
             self.is_task_interrupted = True
             self.send_ok()
 
-        def check_interrupted(self) :
+        def check_interrupted(self):
             if not getattr(self, 'running', False):
                 return True
             return self.is_task_interrupted
 
         def _handle_message(self, opcode, message):
-            msg_thread = threading.Thread(
-                target=super()._handle_message,
-                args=[opcode, message]
-            )
+            msg_thread = threading.Thread(target=super()._handle_message, args=[opcode, message])
             msg_thread.start()
 
     return LaserSvgeditorApi

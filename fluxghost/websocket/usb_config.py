@@ -1,6 +1,5 @@
-
-
 from fluxghost.api.usb_config import usb_config_api_mixin
+
 from .base import WebSocketBase
 
 """

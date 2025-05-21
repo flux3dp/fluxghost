@@ -1,7 +1,6 @@
-
 from fluxghost.api.image_tracer import image_tracer_api_mixin
-from .base import WebSocketBase
 
+from .base import WebSocketBase
 
 """
 

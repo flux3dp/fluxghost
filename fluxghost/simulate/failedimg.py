@@ -1,4 +1,3 @@
-
 from binascii import a2b_base64
 
 IMAGE_BUF = a2b_base64(
@@ -19,5 +18,6 @@ IMAGE_BUF = a2b_base64(
     b'21LiJEHKM7ktkp0vPnkp1nwuCXKJ9IrkHek+ycdSaiUoszpYIcN9ab9ClnpymQSbSrdJvpST'
     b'npLccspyIXb6QPJyqu8/NN0g+VqKnRdVfSxkbd4kFvS7ZrKR8I/rhcFAWBgl8sajqIRCUmlq'
     b'nJYBeGnt/Kof1OczC7DWXJU5njnALNcD4wfNILGAH4QBWE0swHK4bDxZax1g6Bs5ax1gSOP9'
-    b'BS61HHzxQMroAAAAAElFTkSuQmCC')
-IMAGE_MIMETYPE = "image/png"
+    b'BS61HHzxQMroAAAAAElFTkSuQmCC'
+)
+IMAGE_MIMETYPE = 'image/png'

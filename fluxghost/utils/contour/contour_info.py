@@ -7,11 +7,11 @@ from scipy.spatial import cKDTree
 
 def get_center(contour):
     moment = cv2.moments(contour)
-    if moment["m00"] == 0:
+    if moment['m00'] == 0:
         cx, cy = 0, 0
     else:
-        cx = int(moment["m10"] / moment["m00"])
-        cy = int(moment["m01"] / moment["m00"])
+        cx = int(moment['m10'] / moment['m00'])
+        cy = int(moment['m01'] / moment['m00'])
     return cx, cy
 
 

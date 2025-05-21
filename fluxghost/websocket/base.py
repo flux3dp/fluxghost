@@ -1,13 +1,12 @@
-
-from time import time
 import logging
+from time import time
 
 from fluxghost.api import ApiBase
-from fluxghost.utils.websocket import WebSocketHandler, WebsocketError, ST_UNEXPECTED_CONDITION
+from fluxghost.utils.websocket import ST_UNEXPECTED_CONDITION, WebsocketError, WebSocketHandler
 
-logger = logging.getLogger("WS.BASE")
+logger = logging.getLogger('WS.BASE')
 
-__all__ = ["WebSocketBase", ]
+__all__ = ['WebSocketBase']
 
 
 class WebSocketBase(WebSocketHandler, ApiBase):
@@ -37,15 +36,15 @@ class WebSocketBase(WebSocketHandler, ApiBase):
         try:
             ApiBase.serve_forever(self)
         except WebsocketError as e:
-            logger.debug("WebsocketError: %s", e)
+            logger.debug('WebsocketError: %s', e)
         except Exception:
-            logger.exception("Unhandle exception")
+            logger.exception('Unhandle exception')
         finally:
             self.request.close()
 
     def send_fatal(self, *args):
         ApiBase.send_fatal(self, *args)
-        self.close(error=True, message="error %s" % args[0])
+        self.close(error=True, message='error %s' % args[0])
 
     def on_read(self):
         try:
@@ -58,9 +57,8 @@ class WebSocketBase(WebSocketHandler, ApiBase):
         self.check_ttl()
 
     def check_ttl(self):
-        if hasattr(self, "_binary_helper") and self._binary_helper:
-            if time() - self._binary_helper.last_update > 60:
-                self.send_fatal('TIMEOUT', 'WAITING_BINARY')
+        if hasattr(self, '_binary_helper') and self._binary_helper and time() - self._binary_helper.last_update > 60:
+            self.send_fatal('TIMEOUT', 'WAITING_BINARY')
 
         t = self.timer + self.TIMEOUT
 
@@ -71,12 +69,11 @@ class WebSocketBase(WebSocketHandler, ApiBase):
             self.close_directly()
 
         elif t < time():
-            self.close(error=True, message="error TIMEOUT")
+            self.close(error=True, message='error TIMEOUT')
 
     def close(self, error=False, message=None):
         if error:
-            logger.warning("Websocket close because: %s", message)
-            WebSocketHandler.close(self, code=ST_UNEXPECTED_CONDITION,
-                                   message=message)
+            logger.warning('Websocket close because: %s', message)
+            WebSocketHandler.close(self, code=ST_UNEXPECTED_CONDITION, message=message)
         else:
             WebSocketHandler.close(self)

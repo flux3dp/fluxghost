@@ -1,5 +1,5 @@
-
 from fluxghost.api.touch import touch_api_mixin
+
 from .base import WebSocketBase
 
 

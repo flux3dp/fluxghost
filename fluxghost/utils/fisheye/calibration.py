@@ -91,7 +91,9 @@ def do_find_chessboard(img, chessboard, downsize_ratio=1, try_denoise=True):
     return gray, ret, (corners * downsize_ratio if ret else corners)
 
 
-def find_chessboard(img, chessboard, downsize_ratio=1, do_subpix=True, try_denoise=True, try_remap=True, k=None, d=None):
+def find_chessboard(
+    img, chessboard, downsize_ratio=1, do_subpix=True, try_denoise=True, try_remap=True, k=None, d=None
+):
     gray, ret, corners = do_find_chessboard(img, chessboard, downsize_ratio=downsize_ratio, try_denoise=try_denoise)
     if ret:
         if do_subpix:
@@ -135,7 +137,7 @@ def calibrate_fisheye(objpoints, imgpoints, indices, size):
 
 
 # Calibrate using cv2.fisheye.calibrate
-def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback = None, init_k=INIT_K, init_d=INIT_D):
+def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback=None, init_k=INIT_K, init_d=INIT_D):
     objp = np.zeros((chessboard[0] * chessboard[1], 1, 3), np.float64)
     objp[:, :, :2] = np.mgrid[0 : chessboard[0], 0 : chessboard[1]].T.reshape(-1, 1, 2) * 10
     objpoints = []  # 3d point in real world space
@@ -149,20 +151,18 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback = 
         img = pad_image(img)
         gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=True, try_denoise=False, k=init_k, d=init_d)
         if ret:
-            logger.info('found corners for idx {}, height {}'.format(i, h))
+            logger.info(f'found corners for idx {i}, height {h}')
             objp = objp.copy()
             objp[:, :, 2] = -h
             objpoints.append(objp)
             imgpoints.append(corners)
             heights.append(h)
         else:
-            logger.info('unable to find corners for idx {}, height {}'.format(i, h))
+            logger.info(f'unable to find corners for idx {i}, height {h}')
     best_result = None
     try:
-        ret, k, d, rvecs, tvecs, res_heights = calibrate_fisheye(
-            objpoints, imgpoints, heights, gray.shape[::-1]
-        )
-        logger.info('Calibrate All imgs: {}'.format(ret))
+        ret, k, d, rvecs, tvecs, res_heights = calibrate_fisheye(objpoints, imgpoints, heights, gray.shape[::-1])
+        logger.info(f'Calibrate All imgs: {ret}')
         if ret < 5:
             return ret, k, d, rvecs, tvecs, res_heights
         best_result = (ret, k, d, rvecs, tvecs, res_heights)
@@ -172,14 +172,13 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback = 
         try:
             h = heights[i]
             ret, k, d, rvecs, tvecs, _ = calibrate_fisheye([objpoints[i]], [imgpoints[i]], [h], gray.shape[::-1])
-            logger.info('Calibrate {}: {}'.format(h, ret))
+            logger.info(f'Calibrate {h}: {ret}')
             if not best_result or ret < best_result[0]:
                 best_result = (ret, k, d, rvecs, tvecs, [h])
         except Exception:
-            logger.info('Failed to find matrix for img {}'.format(i))
-            pass
+            logger.info(f'Failed to find matrix for img {i}')
     if not best_result:
         raise Exception('Failed to calibrate camera, no img points left behind')
     ret, k, d, rvecs, tvecs, heights = best_result
-    logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
+    logger.info(f'Calibration res: ret: {ret}\nK: {k}\nD: {d}')
     return ret, k, d, rvecs, tvecs, heights

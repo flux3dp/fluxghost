@@ -1,5 +1,5 @@
-
 from fluxghost.api.discover import discover_api_mixin
+
 from .base import WebSocketBase
 
 """

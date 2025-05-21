@@ -1,4 +1,3 @@
-
 from .device import SimulateDevice
 
-__all__ = ["SimulateDevice"]
+__all__ = ['SimulateDevice']

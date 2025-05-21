@@ -3,11 +3,10 @@ name: Build ghost mac
 on:
   push:
     tags:
-      - '*-release'
+      - "*-release"
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -15,9 +14,9 @@ jobs:
         os: [macOS-13]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -34,7 +33,7 @@ jobs:
           pip3 install -r requirements.txt --no-binary=lxml
 
       - name: Checkout Beamify
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: flux3dp/beamify
           ref: 2.0.5
@@ -51,7 +50,7 @@ jobs:
         uses: flux3dp/fluxsvg@2.7.7
 
       - name: Checkout FluxClient
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: flux3dp/fluxclient-dev
           ref: 2.8.7

@@ -1,12 +1,11 @@
-
 import threading
 
-from fluxghost.http_server_base import HttpServerBase
 from fluxghost.http_handler import HttpHandler
+from fluxghost.http_server_base import HttpServerBase
 
 
 class HttpServer(HttpServerBase):
-    runmode = "THREAD"
+    runmode = 'THREAD'
 
     def on_accept(self):
         request, client = self.sock.accept()

@@ -1,14 +1,13 @@
-import logging
 import io
 import json
-from math import radians, cos, sin
+import logging
+from math import cos, radians, sin
 from time import time
 
 import cv2
 import numpy as np
 from PIL import Image
 from scipy import spatial
-
 
 from fluxghost.utils.fisheye.calibration import (
     calibrate_fisheye,
@@ -18,16 +17,16 @@ from fluxghost.utils.fisheye.calibration import (
     get_remap_img,
     remap_corners,
 )
-from fluxghost.utils.fisheye.constants import CHESSBOARD, L_PAD, R_PAD, T_PAD, B_PAD
-from fluxghost.utils.fisheye.general import pad_image
-from fluxghost.utils.fisheye.solve_pnp import solve_pnp
-from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.corner_detection.find_corners import find_blob_centers
-from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
+from fluxghost.utils.fisheye.constants import B_PAD, CHESSBOARD, L_PAD, R_PAD, T_PAD
+from fluxghost.utils.fisheye.corner_detection import apply_points
+from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
+from fluxghost.utils.fisheye.corner_detection.find_corners import find_blob_centers
+from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.perspective import calculate_regional_perspective_points, generate_grid_objects
+from fluxghost.utils.fisheye.solve_pnp import solve_pnp
 
-from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
+from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
 IS_DEBUGGING = False
 logger = logging.getLogger('API.CAMERA_CALIBRATION')
@@ -36,7 +35,7 @@ logger = logging.getLogger('API.CAMERA_CALIBRATION')
 def camera_calibration_api_mixin(cls):
     class CameraCalibrationApi(OnTextMessageMixin, BinaryHelperMixin, cls):
         def __init__(self, *args, **kw):
-            super(CameraCalibrationApi, self).__init__(*args, **kw)
+            super().__init__(*args, **kw)
             # TODO: add all in one fisheye calibration
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_image],
@@ -312,7 +311,7 @@ def camera_calibration_api_mixin(cls):
                             best_res = (res, total_dist)
                     result_img_points = np.array(best_res[0])
                 else:
-                    logger.info('corners lens: {} is less than projected_points, use projected_points'.format(len(corners)))
+                    logger.info(f'corners lens: {len(corners)} is less than projected_points, use projected_points')
                     result_img_points = projected_points
 
                 self.send_ok(points=result_img_points.tolist())
@@ -389,9 +388,9 @@ def camera_calibration_api_mixin(cls):
                     rvecs = params.get('rvecs', None)
                     tvecs = params.get('tvecs', None)
                     if rvecs is not None and tvecs is not None:
-                        for key in rvecs.keys():
+                        for key in rvecs:
                             rvecs[key] = np.array(rvecs[key])
-                        for key in tvecs.keys():
+                        for key in tvecs:
                             tvecs[key] = np.array(tvecs[key])
                         points, xgrid, ygrid = calculate_regional_perspective_points(
                             grid['x'],
@@ -480,7 +479,6 @@ def camera_calibration_api_mixin(cls):
             except Exception as e:
                 self.send_json(status='fail', reason=str(e))
                 raise (e)
-
 
     def calc_picture_shape(img):
         PI = np.pi

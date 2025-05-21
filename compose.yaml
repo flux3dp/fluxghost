@@ -1,5 +1,5 @@
 services:
-  app:
+  api:
     image: flux-ghost
     build:
       # Build context is the parent directory ('..')

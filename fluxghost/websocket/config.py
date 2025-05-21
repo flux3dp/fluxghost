@@ -1,39 +1,36 @@
+import contextlib
+import dbm
 import logging
 import platform
-import dbm
 from os.path import expanduser
-import sys
 
+from .base import BinaryUploadHelper, WebSocketBase, WebsocketBinaryHelperMixin
 
-from .base import WebSocketBase, BinaryUploadHelper, WebsocketBinaryHelperMixin
+logger = logging.getLogger('WS.CONFIG')
 
-logger = logging.getLogger("WS.CONFIG")
-
-WRITE_OP = "w"
-READ_OP = "r"
+WRITE_OP = 'w'
+READ_OP = 'r'
 
 
 class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
-
     operation = None
     config_path = ''
     config_file = '.FluxStudio'  # TODO: find a proper name~
 
-    if platform.platform().startswith("Darwin"):
-        config_path = expanduser("~") + '/Library/Preferences/'
-    elif platform.platform().startswith("Linux"):
-        config_path = expanduser("~") + '/'
+    if platform.platform().startswith('Darwin'):
+        config_path = expanduser('~') + '/Library/Preferences/'
+    elif platform.platform().startswith('Linux'):
+        config_path = expanduser('~') + '/'
         # print('config_path', config_path)
     else:
         # c:\Users\John\.
-        raise RuntimeError("Unknow platform!!")
+        raise RuntimeError('Unknow platform!!')
 
     def on_close(self, *args, **kw):
-        super(WebsocketConfig, self).on_close(*args, **kw)
-        try:
+        super().on_close(*args, **kw)
+
+        with contextlib.suppress(Exception):
             self.db.close()
-        except:
-            pass
 
     def on_text_message(self, message):
         op, self.key = message.split(maxsplit=1)
@@ -41,29 +38,31 @@ class WebsocketConfig(WebsocketBinaryHelperMixin, WebSocketBase):
 
         try:
             if self.operation:
-                raise RuntimeError("CONFIG_FILE_ALREADY_OPENED")
+                raise RuntimeError('CONFIG_FILE_ALREADY_OPENED')
 
             if op == WRITE_OP:
                 self.operation = WRITE_OP
-                self.db = dbm.open(self.config_path + self.config_file, 'c')
-                self.send('{"status": "opened"}')
-                self.begin_recv_binary(self.key)
+                with dbm.open(self.config_path + self.config_file, 'c') as db:
+                    self.db = db
+                    self.send('{"status": "opened"}')
+                    self.begin_recv_binary(self.key)
 
             elif op == READ_OP:
                 self.operation = READ_OP
-                self.db = dbm.open(self.config_path + self.config_file, 'c')
-                self.send('{"status": "opened"}')
-                self.read_key()
+                with dbm.open(self.config_path + self.config_file, 'c') as db:
+                    self.db = db
+                    self.send('{"status": "opened"}')
+                    self.read_key()
 
             else:
-                raise RuntimeError("BAD_FILE_OPERATION")
+                raise RuntimeError('BAD_FILE_OPERATION')
 
         except RuntimeError as e:
             self.send_error(e.args[0])
             self.close()
 
         except PermissionError:
-            self.send_error("ACCESS_DENY")
+            self.send_error('ACCESS_DENY')
             self.close()
         except Exception as e:
             self.send_error(e)
