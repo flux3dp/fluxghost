@@ -120,7 +120,7 @@ def svg_base_api_mixin(cls):
 
         def cmd_set_fcode_metadata(self, params):
             key, value = params.split()
-            logger.info(f'meta_option {key}')
+            logger.info('meta_option {}'.format(key))
             self.fcode_metadata[key] = value
             self.send_ok()
 

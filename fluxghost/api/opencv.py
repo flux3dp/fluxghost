@@ -56,7 +56,7 @@ def opencv_mixin(cls):
                 return self.send_json(status='need_upload')
             open_cv_image = self.imgs[img_url]
             ksize = 2 * radius + 1
-            logger.info(f'Sharpening img: {img_url} with sharpness {sharpness}, radius {radius}')
+            logger.info('Sharpening img: {} with sharpness {}, radius {}'.format(img_url, sharpness, radius))
             gaussian_blur = cv2.GaussianBlur(open_cv_image, (ksize, ksize), 0)
             unsharp_img = cv2.addWeighted(open_cv_image, 1 + sharpness, gaussian_blur, -sharpness, 0)
             logger.info('Sharpen completed')

@@ -45,7 +45,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             logger.info('%s %s' % (self.address_string(), format % args))
 
     def do_GET(self):
-        logger.debug(f'Start handling GET {self.path}')
+        logger.debug('Start handling GET {}'.format(self.path))
         if self.path.startswith('/ws/'):
             klass, kwargs = get_match_ws_service(self.path[4:])
 
@@ -61,7 +61,7 @@ class HttpHandler(BaseHTTPRequestHandler):
             try:
                 hostname = self.get_hostname()
                 print('Proxying %s' % hostname)
-                url = f'http://{hostname}{self.path}'
+                url = 'http://{}{}'.format(hostname, self.path)
                 req = Request(url=url)
                 req_headers = self.headers.items()
                 for header, value in req_headers:
@@ -77,7 +77,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                     if e.getcode():
                         resp = e
                     else:
-                        self.send_error(599, f'error proxying: {unicode(e)}')  # noqa: F821
+                        self.send_error(599, 'error proxying: {}'.format(unicode(e)))  # noqa: F821
                         return
                 self.send_response(resp.getcode())
                 respheaders = resp.getheaders()
@@ -92,7 +92,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                     resp_content = resp.read(4192)
                 self.wfile.flush()
             except OSError as e:
-                self.send_error(404, f'error trying to proxy: {e!s}')
+                self.send_error(404, 'error trying to proxy: {!s}'.format(e))
         else:
             # self.send_response(200)
             # self.end_headers()
@@ -103,7 +103,7 @@ class HttpHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         hostname = self.get_hostname()
         print('Proxying %s' % hostname)
-        url = f'http://{hostname}{self.path}'
+        url = 'http://{}{}'.format(hostname, self.path)
         req = Request(url=url)
         req_headers = self.headers.items()
         data_length = 0
@@ -130,7 +130,7 @@ class HttpHandler(BaseHTTPRequestHandler):
                 print('Response Error code ' + str(e.getcode()))
             else:
                 print('Something went wrong..')
-                self.send_error(599, f'error proxying: {unicode(e)}')  # noqa: F821
+                self.send_error(599, 'error proxying: {}'.format(unicode(e)))  # noqa: F821
                 return
         print('Proxy response code %d' % resp.getcode())
         self.send_response(resp.getcode())

@@ -560,7 +560,7 @@ def control_api_mixin(cls):
             }
             method = method_map.get(task_type)
             if method is None:
-                self.send_error(f'Unknown task: {task_type}')
+                self.send_error('Unknown task: {}'.format(task_type))
                 return
             self.task = method()
             self.send_ok(task=task_type)

@@ -151,18 +151,18 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback=No
         img = pad_image(img)
         gray, ret, corners = find_chessboard(img, chessboard, 2, do_subpix=True, try_denoise=False, k=init_k, d=init_d)
         if ret:
-            logger.info(f'found corners for idx {i}, height {h}')
+            logger.info('found corners for idx {}, height {}'.format(i, h))
             objp = objp.copy()
             objp[:, :, 2] = -h
             objpoints.append(objp)
             imgpoints.append(corners)
             heights.append(h)
         else:
-            logger.info(f'unable to find corners for idx {i}, height {h}')
+            logger.info('unable to find corners for idx {}, height {}'.format(i, h))
     best_result = None
     try:
         ret, k, d, rvecs, tvecs, res_heights = calibrate_fisheye(objpoints, imgpoints, heights, gray.shape[::-1])
-        logger.info(f'Calibrate All imgs: {ret}')
+        logger.info('Calibrate All imgs: {}'.format(ret))
         if ret < 5:
             return ret, k, d, rvecs, tvecs, res_heights
         best_result = (ret, k, d, rvecs, tvecs, res_heights)
@@ -172,13 +172,13 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback=No
         try:
             h = heights[i]
             ret, k, d, rvecs, tvecs, _ = calibrate_fisheye([objpoints[i]], [imgpoints[i]], [h], gray.shape[::-1])
-            logger.info(f'Calibrate {h}: {ret}')
+            logger.info('Calibrate {}: {}'.format(h, ret))
             if not best_result or ret < best_result[0]:
                 best_result = (ret, k, d, rvecs, tvecs, [h])
         except Exception:
-            logger.info(f'Failed to find matrix for img {i}')
+            logger.info('Failed to find matrix for img {}'.format(i))
     if not best_result:
         raise Exception('Failed to calibrate camera, no img points left behind')
     ret, k, d, rvecs, tvecs, heights = best_result
-    logger.info(f'Calibration res: ret: {ret}\nK: {k}\nD: {d}')
+    logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
     return ret, k, d, rvecs, tvecs, heights

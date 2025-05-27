@@ -62,7 +62,7 @@ def fcode_reader_api_mixin(cls):
                     length = length[0]
                 file_size = int(length)
                 if buf_type != '-g' and buf_type != '-f':
-                    self.send_fatal(f'TYPE_ERROR {buf_type}')
+                    self.send_fatal('TYPE_ERROR {}'.format(buf_type))
                     return
 
                 self.buf_type = buf_type

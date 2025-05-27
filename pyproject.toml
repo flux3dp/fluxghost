@@ -111,5 +111,6 @@ ignore = [
     "TID252",  # Relative import
     "UP031",   # Printf string formatting
     "SIM112",  # Capitalized environment variable
+    "UP032",   # f-string conversion
 ]
 # Ruff configuration end

@@ -311,7 +311,9 @@ def camera_calibration_api_mixin(cls):
                             best_res = (res, total_dist)
                     result_img_points = np.array(best_res[0])
                 else:
-                    logger.info(f'corners lens: {len(corners)} is less than projected_points, use projected_points')
+                    logger.info(
+                        'corners lens: {} is less than projected_points, use projected_points'.format(len(corners))
+                    )
                     result_img_points = projected_points
 
                 self.send_ok(points=result_img_points.tolist())

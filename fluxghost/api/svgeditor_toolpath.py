@@ -92,7 +92,7 @@ def laser_svgeditor_api_mixin(cls):
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
+                self.send_json(status='Error', message='{!s}\n{}, line: {}'.format(e, file_name, line_number))
                 raise e
 
         def divide_svg_by_layer(self, params):
@@ -137,7 +137,7 @@ def laser_svgeditor_api_mixin(cls):
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
+                self.send_json(status='Error', message='{!s}\n{}, line: {}'.format(e, file_name, line_number))
                 raise e
 
         def cmd_svgeditor_upload(self, params):
@@ -179,7 +179,7 @@ def laser_svgeditor_api_mixin(cls):
                     logger.exception(str(e))
                     traceback_info = traceback.extract_tb(e.__traceback__)
                     file_name, line_number, _, _ = traceback_info[-1]
-                    self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
+                    self.send_json(status='Error', message='{!s}\n{}, line: {}'.format(e, file_name, line_number))
                     raise e
 
             logger.info('svg_editor')
@@ -256,7 +256,7 @@ def laser_svgeditor_api_mixin(cls):
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
+                self.send_json(status='Error', message='{!s}\n{}, line: {}'.format(e, file_name, line_number))
                 raise e
 
         def cmd_upload_plain_svg(self, params):
@@ -349,7 +349,7 @@ def laser_svgeditor_api_mixin(cls):
                 except Exception as e:
                     traceback_info = traceback.extract_tb(e.__traceback__)
                     file_name, line_number, _, _ = traceback_info[-1]
-                    self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
+                    self.send_json(status='Error', message='{!s}\n{}, line: {}'.format(e, file_name, line_number))
                     raise e
 
             logger.info('task preview: gcode to fcode')
@@ -423,7 +423,7 @@ def laser_svgeditor_api_mixin(cls):
                     try:
                         svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i + 1])
                     except Exception:
-                        logger.info(f'Bad rotary_z_motion {params[i + 1]}')
+                        logger.info('Bad rotary_z_motion {}'.format(params[i + 1]))
                 elif param == '-blade':
                     svgeditor2taskcode_kwargs['blade_radius'] = float(params[i + 1])
                 elif param == '-precut':
@@ -528,7 +528,7 @@ def laser_svgeditor_api_mixin(cls):
                     try:
                         svgeditor2taskcode_kwargs['segment'] = json.loads(params[i + 1])
                     except Exception:
-                        logger.info(f'Bad segment {params[i + 1]}')
+                        logger.info('Bad segment {}'.format(params[i + 1]))
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
@@ -604,7 +604,7 @@ def laser_svgeditor_api_mixin(cls):
             except Exception as e:
                 traceback_info = traceback.extract_tb(e.__traceback__)
                 file_name, line_number, _, _ = traceback_info[-1]
-                self.send_json(status='Error', message=f'{e!s}\n{file_name}, line: {line_number}')
+                self.send_json(status='Error', message='{!s}\n{}, line: {}'.format(e, file_name, line_number))
                 raise e
 
         def cmd_interrupt(self, params):
