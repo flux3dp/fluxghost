@@ -20,7 +20,7 @@ def find_grid(
 ):
     corner_tree = spatial.KDTree(corners)
 
-    def findPoint(point,used_points=None, k=3):
+    def findPoint(point, used_points=None, k=3):
         x, y = point
         dists, indices = corner_tree.query([x, y], k=k)
         for i in range(k):

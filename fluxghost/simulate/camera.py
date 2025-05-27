@@ -1,21 +1,20 @@
-
+import os
 from threading import Thread
 from time import sleep
-import os
 
-SIMULATE_CAMERA_FILE = os.path.join(
-    os.path.dirname(__file__), "..", "assets", "flux-icon.png")
+SIMULATE_CAMERA_FILE = os.path.join(os.path.dirname(__file__), '..', 'assets', 'flux-icon.png')
 
 
-class SimulateCamera(object):
+class SimulateCamera:
     def __init__(self):
         self.__running = True
 
         try:
-            with open(SIMULATE_CAMERA_FILE, "rb") as f:
+            with open(SIMULATE_CAMERA_FILE, 'rb') as f:
                 self._buf = f.read()
         except Exception:
             from .failedimg import IMAGE_BUF
+
             self._buf = IMAGE_BUF
 
         self._fd_r, self._fd_w = os.pipe()
@@ -25,7 +24,7 @@ class SimulateCamera(object):
 
     def __trigger(self):
         while self.__running:
-            os.write(self._fd_w, b"\x00")
+            os.write(self._fd_w, b'\x00')
             sleep(0.25)
 
     # TODO: remove

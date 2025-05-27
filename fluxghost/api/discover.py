@@ -1,56 +1,58 @@
-
-from time import time
-import logging
 import json
+import logging
+from time import time
 
 from fluxghost import g
 
-logger = logging.getLogger("API.DISCOVER")
+logger = logging.getLogger('API.DISCOVER')
 ## Review Usb is temporarily disabled because it will block review LAN devices when connecting delta with usb sometimes
+
 
 def get_online_message(source, device):
     st = None
     doc = {
-        "uuid": device.uuid.hex,
-        "alive": True,
-        "source": source,
-        "serial": device.serial,
-        "version": str(device.version),
-        "model": device.model_id,
+        'uuid': device.uuid.hex,
+        'alive': True,
+        'source': source,
+        'serial': device.serial,
+        'version': str(device.version),
+        'model': device.model_id,
     }
 
-    if source == "lan":
-        doc.update({
-            "name": device.name,
-            "ipaddr": device.ipaddr,
-            "password": device.has_password,
-        })
+    if source == 'lan':
+        doc.update(
+            {
+                'name': device.name,
+                'ipaddr': device.ipaddr,
+                'password': device.has_password,
+            }
+        )
         st = device.status
-    elif source == "h2h":
+    elif source == 'h2h':
         st = device.device_status
-        doc.update({
-            "name": device.nickname,
-            "addr": device.addr,
-        })
+        doc.update(
+            {
+                'name': device.nickname,
+                'addr': device.addr,
+            }
+        )
     else:
         st = {}
 
-    doc.update({
-        "st_ts": st.get("st_ts"),
-        "st_id": st.get("st_id"),
-        "st_prog": st.get("st_prog"),
-        "head_module": st.get("st_head", st.get("head_module")),
-        "error_label": st.get("st_err", st.get("error_label")),
-    })
+    doc.update(
+        {
+            'st_ts': st.get('st_ts'),
+            'st_id': st.get('st_id'),
+            'st_prog': st.get('st_prog'),
+            'head_module': st.get('st_head', st.get('head_module')),
+            'error_label': st.get('st_err', st.get('error_label')),
+        }
+    )
     return doc
 
 
 def get_offline_message(source, device=None, uuid=None):
-    return {
-        "uuid": device.uuid.hex if device else uuid.hex,
-        "alive": False,
-        "source": source
-    }
+    return {'uuid': device.uuid.hex if device else uuid.hex, 'alive': False, 'source': source}
 
 
 def discover_api_mixin(cls):
@@ -71,12 +73,11 @@ def discover_api_mixin(cls):
                         # Dead devices
                         if uuid in self.lan_alive_devices:
                             self.lan_alive_devices.remove(uuid)
-                            self.send_text(self.build_dead_response("lan",
-                                                                    device))
+                            self.send_text(self.build_dead_response('lan', device))
                     else:
                         # Alive devices
                         self.lan_alive_devices.add(uuid)
-                        self.send_text(self.build_response("lan", device))
+                        self.send_text(self.build_response('lan', device))
 
         def review_usb_devices(self):
             rmlist = []
@@ -86,14 +87,14 @@ def discover_api_mixin(cls):
                     pass
                 else:
                     rmlist.append(addr)
-                    self.send_text(self.build_dead_response("h2h", uuid=uuid))
+                    self.send_text(self.build_dead_response('h2h', uuid=uuid))
             for addr in rmlist:
                 self.usb_alive_addr.pop(addr)
 
             for addr, usbdevice in g.USBDEVS.items():
                 if addr not in self.usb_alive_addr:
                     self.usb_alive_addr[addr] = usbdevice.uuid
-                self.send_text(self.build_response("h2h", usbdevice))
+                self.send_text(self.build_response('h2h', usbdevice))
 
         def on_review_devices(self):
             self.review_lan_devices()
@@ -102,34 +103,34 @@ def discover_api_mixin(cls):
         def on_text_message(self, message):
             try:
                 payload = json.loads(message)
-            except Exception as e:
-                self.traceback("BAD_PARAMS")
+            except Exception:
+                self.traceback('BAD_PARAMS')
                 return
 
-            cmd = payload.get("cmd")
-            if cmd == "poke":
+            cmd = payload.get('cmd')
+            if cmd == 'poke':
                 try:
-                    self.server.discover.poke(payload["ipaddr"])
-                except OSError as e:
+                    self.server.discover.poke(payload['ipaddr'])
+                except OSError:
                     pass
                 except Exception as e:
-                    logger.error("Poke error: %s", repr(e))
-            elif cmd == "poketcp":
+                    logger.error('Poke error: %s', repr(e))
+            elif cmd == 'poketcp':
                 try:
-                    self.server.discover.add_poketcp_ipaddr(payload["ipaddr"])
-                except OSError as e:
+                    self.server.discover.add_poketcp_ipaddr(payload['ipaddr'])
+                except OSError:
                     pass
                 except Exception as e:
-                    logger.error("Poke TCP error: %s", repr(e))
+                    logger.error('Poke TCP error: %s', repr(e))
             elif cmd == 'testtcp':
                 try:
-                    self.server.discover.test_poketcp_ipaddr(payload["ipaddr"], 0.5)
-                except OSError as e:
+                    self.server.discover.test_poketcp_ipaddr(payload['ipaddr'], 0.5)
+                except OSError:
                     pass
                 except Exception as e:
-                    logger.error("Test TCP error: %s", repr(e))
+                    logger.error('Test TCP error: %s', repr(e))
             else:
-                self.send_error("L_UNKNOWN_COMMAND")
+                self.send_error('L_UNKNOWN_COMMAND')
 
         def on_loop(self):
             self.on_review_devices()
@@ -139,8 +140,7 @@ def discover_api_mixin(cls):
             pass
 
         def build_dead_response(self, source, device=None, uuid=None):
-            return json.dumps(
-                get_offline_message(source, device=device, uuid=uuid))
+            return json.dumps(get_offline_message(source, device=device, uuid=uuid))
 
         def build_response(self, source, device):
             return json.dumps(get_online_message(source, device))

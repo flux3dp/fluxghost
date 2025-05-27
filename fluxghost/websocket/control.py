@@ -1,7 +1,6 @@
-
 from fluxghost.api.control import control_api_mixin
-from .base import WebSocketBase
 
+from .base import WebSocketBase
 
 """
 Control printer

@@ -3,7 +3,6 @@ import struct
 
 from fluxclient.utils._utils import Utils
 
-
 # Following is define in RFC 6455
 # WebSocket Frame Flag
 FLAG_FIN = 0x8000
@@ -18,7 +17,7 @@ FRAME_TEXT = 0x1
 FRAME_BINARY = 0x2
 FRAME_CLOSE = 0x8
 FRAME_PING = 0x9
-FRAME_PONG = 0xa
+FRAME_PONG = 0xA
 
 # WebSocket Close Status
 ST_NORMAL = 1000
@@ -41,7 +40,7 @@ WAIT_LARGE_DATA = 0x40
 HAS_FRAGMENT_FLAG = 0x80
 
 
-MAX_FRAME_SIZE = 2 ** 20
+MAX_FRAME_SIZE = 2**20
 BUFFER_SIZE = 4096 * 2
 MAGIC_STRING = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
@@ -72,7 +71,7 @@ About WebSocketHandler:
 """
 
 
-class WebSocketHandler(object):
+class WebSocketHandler:
     def __init__(self, request, client, server, **options):
         self.request = request
         self.client_address = client
@@ -89,19 +88,17 @@ class WebSocketHandler(object):
         return self.request.fileno()
 
     def do_recv(self):
-        buf = (
-            (self.recv_flag & WAIT_LARGE_DATA == 0)
-            and self.buf_view[self.recv_offset :]
-            or self.ext_buf_view[self.ext_recv_offset :]
-        )
+        buf = ((self.recv_flag & WAIT_LARGE_DATA == 0) and self.buf_view[self.recv_offset :]) or self.ext_buf_view[
+            self.ext_recv_offset :
+        ]
 
         try:
             length = self.request.recv_into(buf)
             if length == 0:
-                raise WebsocketError("Connection closed")
-        except socket.error as e:
+                raise WebsocketError('Connection closed')
+        except OSError as e:
             self._closed()
-            raise WebsocketError("Connection closed") from e  # noqa
+            raise WebsocketError('Connection closed') from e
         except WebsocketError:
             self._closed()
             raise
@@ -125,7 +122,7 @@ class WebSocketHandler(object):
             if self.recv_offset < 6:
                 return False
 
-            (flags, ) = struct.unpack('>H', self.buffer[:2])
+            (flags,) = struct.unpack('>H', self.buffer[:2])
             flag_payload = flags & FLAG_PAYLOAD
 
             # ref: Calculate message lenght according to RFC 6455 (Chp 5-2)
@@ -134,25 +131,25 @@ class WebSocketHandler(object):
 
             if flag_payload == 126:
                 payload_len = struct.unpack('>H', self.buffer[2:4])[0]
-                fullsize += (payload_len + 2)
+                fullsize += payload_len + 2
             elif flag_payload == 127:
                 if self.recv_offset < 10:
                     return
                 payload_len = struct.unpack('>Q', self.buffer[2:10])[0]
-                fullsize += (payload_len + 8)
+                fullsize += payload_len + 8
             else:
                 fullsize += payload_len
 
             if fullsize < BUFFER_SIZE:
                 if self.recv_offset >= fullsize:
                     self._handle_message_frame(self.buf_view[:fullsize])
-                    self.buf_view[:(self.recv_offset - fullsize)] = self.buf_view[fullsize:self.recv_offset]
+                    self.buf_view[: (self.recv_offset - fullsize)] = self.buf_view[fullsize : self.recv_offset]
                     self.recv_offset -= fullsize
-                    return (self.recv_offset > 0)
+                    return self.recv_offset > 0
             else:
                 self.recv_flag |= WAIT_LARGE_DATA
                 self.ext_buffer = bytearray(fullsize)
-                self.ext_buffer[:self.recv_offset] = self.buffer[:self.recv_offset]
+                self.ext_buffer[: self.recv_offset] = self.buffer[: self.recv_offset]
                 self.ext_recv_offset = self.recv_offset
                 self.ext_buf_view = memoryview(self.ext_buffer)
         else:
@@ -169,7 +166,7 @@ class WebSocketHandler(object):
         return False
 
     def _handle_message_frame(self, memview):
-        (flags, ) = struct.unpack('>H', memview[:2])
+        (flags,) = struct.unpack('>H', memview[:2])
 
         flag_fin = flags & FLAG_FIN
         flag_rsv = flags & FLAG_RSVs
@@ -178,9 +175,8 @@ class WebSocketHandler(object):
         flag_payload = flags & FLAG_PAYLOAD
 
         try:
-            assert flag_rsv == 0, "flag_rsv must be 0 but get %i" % flag_rsv
-            assert flag_mask == FLAG_MASK, ("flag_mask must be %i but get %i" %
-                                            (FLAG_MASK, flag_mask))
+            assert flag_rsv == 0, 'flag_rsv must be 0 but get %i' % flag_rsv
+            assert flag_mask == FLAG_MASK, 'flag_mask must be %i but get %i' % (FLAG_MASK, flag_mask)
         except AssertionError as e:
             raise WebsocketError(e.args[0])
 
@@ -190,8 +186,8 @@ class WebSocketHandler(object):
         elif flag_payload == 127:
             body_offset = 10
 
-        mask = memview[body_offset:body_offset + 4]
-        data = bytearray(memview[body_offset + 4:])
+        mask = memview[body_offset : body_offset + 4]
+        data = bytearray(memview[body_offset + 4 :])
 
         self._unmask_data(mask, data)
 
@@ -205,15 +201,14 @@ class WebSocketHandler(object):
         else:
             if not has_fragement:
                 self.fragments = [data]
-                self.fragments_opcode = (flag_opcode >> 8)
+                self.fragments_opcode = flag_opcode >> 8
                 self.recv_flag |= HAS_FRAGMENT_FLAG
             else:
                 self.fragments.append(data)
 
                 if flag_fin:
                     try:
-                        self._handle_message(self.fragments_opcode,
-                                             b''.join(self.fragments))
+                        self._handle_message(self.fragments_opcode, b''.join(self.fragments))
                     finally:
                         self.fragments = None
                         self.recv_flag ^= HAS_FRAGMENT_FLAG
@@ -223,17 +218,17 @@ class WebSocketHandler(object):
         if opcode == 0x1:
             # TODO: this if statement is only for ping-pong
             # might be too fundamental, should we add another layer for this?
-            if message.decode("utf8") == "ping":
+            if message.decode('utf8') == 'ping':
                 self.send_text('{"status": "pong"}')
             else:
-                self.on_text_message(message.decode("utf8"))
+                self.on_text_message(message.decode('utf8'))
         elif opcode == 0x2:
             self.on_binary_message(message)
         elif opcode == 0x8:
             self.on_close(message)
         elif opcode == 0x9:
             self.on_ping(message)
-        elif opcode == 0xa:
+        elif opcode == 0xA:
             self.on_pong(message)
 
     def _unmask_data(self, mask, data):
@@ -241,32 +236,31 @@ class WebSocketHandler(object):
 
     def _send(self, opcode, message):
         if self._is_closing and opcode != FRAME_CLOSE:
-            raise WebsocketError("Connection already closed")
+            raise WebsocketError('Connection already closed')
 
         length = len(message)
 
         flag = 0
-        flag += (opcode << 8)
+        flag += opcode << 8
         flag += FLAG_FIN
 
         try:
             if length < 126:
                 self.request.send(struct.pack('>H', flag + length))
-            elif length < 2 ** 16:
+            elif length < 2**16:
                 self.request.send(struct.pack('>HH', flag + 126, length))
-            elif length < 2 ** 64:
+            elif length < 2**64:
                 self.request.send(struct.pack('>HQ', flag + 127, length))
             else:
-                raise Exception("Can not send message larger then %i" %
-                                (2 ** 64))
-        except socket.error as e:
+                raise Exception('Can not send message larger then %i' % (2**64))
+        except OSError as e:
             self._closed()
-            raise WebsocketError("Connection closed") from e
+            raise WebsocketError('Connection closed') from e
 
         sent = 0
         buf = memoryview(message)
         while sent < length:
-            sent += self.request.send(buf[sent:sent + 4096])
+            sent += self.request.send(buf[sent : sent + 4096])
 
     def _closed(self):
         self.request.close()
@@ -281,7 +275,7 @@ class WebSocketHandler(object):
             try:
                 self._send(FRAME_CLOSE, b'\x03\xe8')
                 self.request.shutdown(socket.SHUT_WR)
-            except IOError:
+            except OSError:
                 pass
 
     def on_text_message(self, message):
@@ -311,7 +305,7 @@ class WebSocketHandler(object):
     def ping(self, data):
         self._send(FRAME_PING, data)
 
-    def close(self, code=ST_NORMAL, message=""):
+    def close(self, code=ST_NORMAL, message=''):
         # RFC 6455: If there is a body, the first two bytes of the body MUST be
         # a 2-byte unsigned integer
         buffer = struct.pack('>H', code) + message.encode()

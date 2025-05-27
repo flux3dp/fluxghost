@@ -1,17 +1,18 @@
-from io import StringIO, BytesIO
-from os import environ
-import logging
 import json
+import logging
+from io import BytesIO, StringIO
+from os import environ
 
 from PIL import Image
 
 from fluxclient.fcode.f_to_g import FcodeToGcode
 from fluxclient.fcode.g_to_f import GcodeToFcode
-from fluxclient.utils._utils import GcodeToFcodeCpp
 from fluxclient.hw_profile import HW_PROFILE
-from .misc import BinaryUploadHelper, BinaryHelperMixin, OnTextMessageMixin
+from fluxclient.utils._utils import GcodeToFcodeCpp
 
-logger = logging.getLogger("API.FCODE_READER")
+from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
+
+logger = logging.getLogger('API.FCODE_READER')
 
 
 def fcode_reader_api_mixin(cls):
@@ -25,7 +26,7 @@ def fcode_reader_api_mixin(cls):
                 'get_meta': [self.get_meta],
                 'get_path': [self.get_path],
                 'get_fcode': [self.get_fcode],
-                'change_img': [self.begin_recv_buf, 'change_img']
+                'change_img': [self.begin_recv_buf, 'change_img'],
             }
             self.config = {}
             self.fcode = None
@@ -44,15 +45,14 @@ def fcode_reader_api_mixin(cls):
                 ext_metadata['FILAMENT_DETECT'] = 'N'
 
             head_error_level = 8191
-            if self.config.get('detect_head_tilt', '1')== '0':
+            if self.config.get('detect_head_tilt', '1') == '0':
                 head_error_level -= 32
             if self.config.get('detect_head_shake', '1') == '0':
                 head_error_level -= 16
             ext_metadata['HEAD_ERROR_LEVEL'] = str(head_error_level)
 
-
             if flag == 'upload':
-                logger.debug("begin upload g/f code")
+                logger.debug('begin upload g/f code')
                 buf_type = '-f'
 
                 length = length.split()
@@ -89,11 +89,11 @@ def fcode_reader_api_mixin(cls):
                         tmp = StringIO()
                         self.data_parser.f_to_g(tmp)
                         self.fcode = buf
-                        logger.debug("fcode parsing done")
+                        logger.debug('fcode parsing done')
                         if res == 'ok':
                             self.send_ok()
                         elif res == 'out_of_bound':
-                            self.send_error("6", info="GCODE_OUT_OF_BOUND")
+                            self.send_error('6', info='GCODE_OUT_OF_BOUND')
 
                     elif res == 'broken':
                         self.send_error('15', info='File broken')
@@ -108,27 +108,20 @@ def fcode_reader_api_mixin(cls):
                     if res != 'broken':
                         self.fcode = fcode_output.getvalue()
 
-                    #    if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
-                    #        self.send_error("6", info="gcode area too big")
-                    #    elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
-                    #        self.send_error("6", info="gcode area too big")
-                    #    elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
-                    #        self.send_error("6", info="gcode area too big")
-                    #    elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
-                    #        self.send_error("6", info="gcode area too big")
-                    #    else:
-                    #        self.send_ok()
                         if float(self.data_parser.md.get('MAX_X', 0)) > HW_PROFILE['model-1']['radius']:
-                            self.send_error("6", info="gcode area too big X")
+                            self.send_error('6', info='gcode area too big X')
                         elif float(self.data_parser.md.get('MAX_Y', 0)) > HW_PROFILE['model-1']['radius']:
-                            self.send_error("6", info="gcode area too big Y")
+                            self.send_error('6', info='gcode area too big Y')
                         elif float(self.data_parser.md.get('MAX_R', 0)) > HW_PROFILE['model-1']['radius']:
-                            self.send_error("6", info="gcode area too big R")
-                        elif float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height'] or float(self.data_parser.md.get('MAX_Z', 0)) < 0:
-                            self.send_error("6", info="gcode area too big z")
+                            self.send_error('6', info='gcode area too big R')
+                        elif (
+                            float(self.data_parser.md.get('MAX_Z', 0)) > HW_PROFILE['model-1']['height']
+                            or float(self.data_parser.md.get('MAX_Z', 0)) < 0
+                        ):
+                            self.send_error('6', info='gcode area too big z')
                         else:
                             self.send_ok()
-                        logger.debug("gcode parsing done")
+                        logger.debug('gcode parsing done')
                     else:
                         self.send_error('15', info='Parsing file fail')
 
@@ -136,10 +129,9 @@ def fcode_reader_api_mixin(cls):
                 self.change_img(buf)
 
             ########################
-            if environ.get("flux_debug") == '1':
-                if self.fcode:
-                    with open('output.fc', 'wb') as f:
-                        f.write(self.fcode)
+            if environ.get('FLUX_DEBUG') == '1' and self.fcode:
+                with open('output.fc', 'wb') as f:
+                    f.write(self.fcode)
             ########################
 
         def get_img(self, *args):
@@ -177,7 +169,7 @@ def fcode_reader_api_mixin(cls):
                 self.send_text('{"status": "complete", "length": %d}' % len(self.fcode))
                 self.send_binary(self.fcode)
                 ######################### fake code ###################################
-                if environ.get("flux_debug") == '1':
+                if environ.get('flux_debug') == '1':
                     with open('output.fc', 'wb') as f:
                         f.write(self.fcode)
                 ############################################################
@@ -208,12 +200,11 @@ def fcode_reader_api_mixin(cls):
 
             self.send_ok()
 
-
         def advanced_setting(self, lines):
             lines = lines.split('\n')
             for line in lines:
                 if '#' in line:  # clean up comement
-                    line = line[:line.index('#')].strip()
+                    line = line[: line.index('#')].strip()
                 if '=' in line:
                     key, value = map(lambda x: x.strip(), line.split('=', 1))
                     self.config[key] = value

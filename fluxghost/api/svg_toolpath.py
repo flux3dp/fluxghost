@@ -1,14 +1,10 @@
-
 import logging
 
-from fluxclient.toolpath.svg_factory import SvgImage, SvgFactory
-from fluxclient.toolpath import FCodeV1MemoryWriter, GCodeMemoryWriter
-from fluxclient import __version__
+from fluxclient.toolpath.svg_factory import SvgFactory, SvgImage
 
-from fluxghost.utils.username import get_username
-from .misc import BinaryUploadHelper, BinaryHelperMixin
+from .misc import BinaryHelperMixin, BinaryUploadHelper
 
-logger = logging.getLogger("API.SVG")
+logger = logging.getLogger('API.SVG')
 
 
 def svg_base_api_mixin(cls):
@@ -22,7 +18,7 @@ def svg_base_api_mixin(cls):
         svgs = None
 
         def __init__(self, *args, **kw):
-            super(SvgBaseApi, self).__init__(*args, **kw)
+            super().__init__(*args, **kw)
             self.svgs = {}
             self.fcode_metadata = {}
 
@@ -47,11 +43,10 @@ def svg_base_api_mixin(cls):
             for i, name in enumerate(names):
                 svg_image = self.svgs.get(name, None)
                 if svg_image is None:
-                    logger.error("Can not find svg named %r", name)
+                    logger.error('Can not find svg named %r', name)
                     continue
-                logger.info("Preprocessing image %s", name)
-                self.send_progress('Processing image',
-                                   (i / len(names) * 0.3 + 0.10))
+                logger.info('Preprocessing image %s', name)
+                self.send_progress('Processing image', (i / len(names) * 0.3 + 0.10))
 
                 factory.add_image(svg_image)
             return factory
@@ -61,8 +56,8 @@ def svg_base_api_mixin(cls):
                 try:
                     svg_image = SvgImage(buf)
                 except Exception:
-                    logger.exception("Load SVG Error")
-                    self.send_error("SVG_BROKEN")
+                    logger.exception('Load SVG Error')
+                    self.send_error('SVG_BROKEN')
                     return
                 for error in svg_image.errors:
                     self.send_warning(error)
@@ -70,22 +65,19 @@ def svg_base_api_mixin(cls):
                 self.send_ok()
 
             name, file_length = message.split()
-            helper = BinaryUploadHelper(
-                int(file_length), upload_callback, name)
+            helper = BinaryUploadHelper(int(file_length), upload_callback, name)
             self.set_binary_helper(helper)
-            self.send_json(status="continue")
+            self.send_json(status='continue')
 
         def cmd_upload_svg_and_preview(self, params):
-            def upload_callback(buf, name, preview_size, point1, point2,
-                                rotation, preview_bitmap_size):
+            def upload_callback(buf, name, preview_size, point1, point2, rotation, preview_bitmap_size):
                 svg_image = self.svgs.get(name, None)
                 if svg_image:
                     svg_image.set_svg(buf[:-preview_bitmap_size])
-                    svg_image.set_preview(preview_size,
-                                          buf[-preview_bitmap_size:])
+                    svg_image.set_preview(preview_size, buf[-preview_bitmap_size:])
                     svg_image.set_image_coordinate(point1, point2, rotation)
                 else:
-                    logger.error("Can not find SVG name %r", name)
+                    logger.error('Can not find SVG name %r', name)
                 self.send_ok()
 
             logger.info('compute')
@@ -100,22 +92,30 @@ def svg_base_api_mixin(cls):
             bitmap_h = int(options[10])
 
             helper = BinaryUploadHelper(
-                svg_length + bitmap_w * bitmap_h, upload_callback, name,
-                (bitmap_w, bitmap_h), (x1, y1), (x2, y2), rotation,
-                bitmap_w * bitmap_h)
+                svg_length + bitmap_w * bitmap_h,
+                upload_callback,
+                name,
+                (bitmap_w, bitmap_h),
+                (x1, y1),
+                (x2, y2),
+                rotation,
+                bitmap_w * bitmap_h,
+            )
             self.set_binary_helper(helper)
-            self.send_json(status="continue")
+            self.send_json(status='continue')
 
         def cmd_get(self, name):
             svg_image = self.svgs.get(name, None)
             if svg_image:
                 self.send_json(
-                    status="continue", length=len(svg_image.buf),
+                    status='continue',
+                    length=len(svg_image.buf),
                     width=svg_image.viewbox_width,
-                    height=svg_image.viewbox_height)
+                    height=svg_image.viewbox_height,
+                )
                 self.send_binary(svg_image.buf)
             else:
-                logger.error("%r svg not found", name)
+                logger.error('%r svg not found', name)
                 self.send_error('NOT_FOUND')
 
         def cmd_set_fcode_metadata(self, params):

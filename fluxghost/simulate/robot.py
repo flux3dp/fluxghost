@@ -1,10 +1,10 @@
-
 from fluxclient.robot.errors import RobotError
-from .filesystem import get_simulate_path, get_simulate_file_info
-from .failedimg import IMAGE_MIMETYPE, IMAGE_BUF
+
+from .failedimg import IMAGE_BUF, IMAGE_MIMETYPE
+from .filesystem import get_simulate_file_info, get_simulate_path
 
 
-class SimulateRobot(object):
+class SimulateRobot:
     selected_node = None
 
     def __init__(self, device):
@@ -13,15 +13,14 @@ class SimulateRobot(object):
     def list_files(self, path):
         is_dir, node = get_simulate_path(path)
         if is_dir:
-            folders = tuple(((True, name) for name in node["folders"].keys()))
-            files = tuple(((False, name) for name in node["files"].keys()))
+            folders = tuple((True, name) for name in node['folders'])
+            files = tuple((False, name) for name in node['files'])
             return folders + files
         else:
-            raise RobotError("Not a folder",
-                             error_symbol=["NOT_EXIST", "BAD_NODE22"])
+            raise RobotError('Not a folder', error_symbol=['NOT_EXIST', 'BAD_NODE22'])
 
     def file_info(self, path):
-        return get_simulate_file_info(path), ((IMAGE_MIMETYPE, IMAGE_BUF), )
+        return get_simulate_file_info(path), ((IMAGE_MIMETYPE, IMAGE_BUF),)
 
     def close(self):
         pass
@@ -36,7 +35,7 @@ class SimulateRobot(object):
         if self.selected_node:
             self.device.simulate_start_player(self.selected_node)
         else:
-            raise RobotError(error_symbol=["NO_TASK"])
+            raise RobotError(error_symbol=['NO_TASK'])
 
     def pause_play(self):
         pass

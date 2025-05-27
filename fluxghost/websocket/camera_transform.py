@@ -1,7 +1,6 @@
-
 from fluxghost.api.camera_transform import camera_transform_api_mixin
-from .base import WebSocketBase
 
+from .base import WebSocketBase
 
 """
 

@@ -1,7 +1,6 @@
-
 from fluxghost.api.inter_process import inter_process_api_mixin
-from .base import WebSocketBase
 
+from .base import WebSocketBase
 
 """
 

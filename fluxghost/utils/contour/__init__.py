@@ -4,7 +4,6 @@ from .contour_info import get_contour_info, get_rotation_kd_tree
 from .find_contours import get_contour_by_canny, get_contour_by_hsv_gradient
 from .group_contours import group_similar_contours
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -13,7 +12,9 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False):
     hsv_child_contours, hsv_parent_contours = get_contour_by_hsv_gradient(img, is_spliced_img=is_spliced_img)
 
     groups = []
-    groups += group_similar_contours(canny_child_contours + hsv_child_contours + canny_parent_contours + hsv_parent_contours)
+    groups += group_similar_contours(
+        canny_child_contours + hsv_child_contours + canny_parent_contours + hsv_parent_contours
+    )
     groups = [group for group in groups if len(group[0]) > 1]
     groups = sorted(groups, key=lambda x: (len(x[0]), -x[2]), reverse=True)
     logger.info('Result group number: %d' % len(groups))

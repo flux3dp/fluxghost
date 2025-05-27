@@ -1,11 +1,11 @@
 import ast
-import astor
 import os
 import sys
 
+import astor
+
 
 class TypeHintRemover(ast.NodeTransformer):
-
     def visit_FunctionDef(self, node):
         # remove the return type definition
         node.returns = None
@@ -28,6 +28,7 @@ class TypeHintRemover(ast.NodeTransformer):
     def visit_ImportFrom(self, node):
         return node if node.module != 'typing' else None
 
+
 def remove_type_hints(source: str):
     # parse the source code into an AST
     parsed_source = ast.parse(source)
@@ -45,11 +46,12 @@ def main():
             if file.endswith('.py'):
                 file_path = os.path.join(root, file)
                 print(file_path)
-                with open(file_path, 'r') as sourceFile:
+                with open(file_path) as sourceFile:
                     source = '\n'.join(sourceFile.readlines())
                     dest = remove_type_hints(source)
                 with open(file_path, 'w') as destFile:
                     destFile.write(dest)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

@@ -15,7 +15,7 @@ CRITICAL_VERSION = StrictVersion('1.0')
 logger = logging.getLogger('API.CAMERA')
 
 
-'''
+"""
 Control printer
 
 Javascript Example:
@@ -27,7 +27,7 @@ ws.onclose = function(v) { console.log('CONNECTION CLOSED, code=' + v.code +
 
 // After recive connected...
 ws.send('ls')
-'''
+"""
 fisheye_models = ['fad1', 'ado1', 'fbb2']
 
 
@@ -87,7 +87,7 @@ def camera_api_mixin(cls):
     return CameraAPI
 
 
-class CameraWrapper(object):
+class CameraWrapper:
     def __init__(self, ws, camera):
         self.ws = ws
         self.camera = camera

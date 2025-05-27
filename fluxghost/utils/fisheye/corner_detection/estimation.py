@@ -27,14 +27,17 @@ def get_pixel_ratio_p0(x, y):
 
 
 def get_pixel_ratio_pitch_20(x, y):
-    x_ratio = ((215 - x) / 215)
+    x_ratio = (215 - x) / 215
     abs_x_ratio = abs(x_ratio)
     y_ratio = y / 300
-    xr = (1 - y_ratio) * (3 * abs_x_ratio + 3.9 * (1 - abs_x_ratio)) + y_ratio * (4.3 * abs_x_ratio + 6.3 * (1 - abs_x_ratio))
+    xr = (1 - y_ratio) * (3 * abs_x_ratio + 3.9 * (1 - abs_x_ratio)) + y_ratio * (
+        4.3 * abs_x_ratio + 6.3 * (1 - abs_x_ratio)
+    )
     xyr = (1 - y_ratio) * (-0.45 * x_ratio) + y_ratio * (0.3 * x_ratio)
     yr = (1 - y_ratio) * 2.2 + y_ratio * 5.1
     yxr = (1 - y_ratio) * -1.1 + y_ratio * -1.3
     return xr, yr, yxr, xyr
+
 
 # Guessing pixel ration for images
 @functools.lru_cache(maxsize=20)

@@ -1,0 +1,15 @@
+services:
+  api:
+    image: flux-ghost
+    build:
+      # Build context is the parent directory ('..')
+      context: ..
+      dockerfile: ./fluxghost/Dockerfile
+
+    command: uv run --no-dev ghost.py --allow-foreign --ip 0.0.0.0
+
+    volumes:
+      - .:/usr/src/app
+
+    ports:
+      - "8000:8000"

@@ -16,12 +16,12 @@ from fluxghost.utils.fisheye.perspective import (
 )
 from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
-
 logger = logging.getLogger(__file__)
 
 CX = 1321
 CY = 1100
 DPMM = 5
+
 
 # deprecated v1 functions
 def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, left=None):
@@ -34,6 +34,7 @@ def crop_transformed_img(img, cx=CX, cy=CY, width=430, height=300, top=None, lef
     img = img[top : top + height, left : left + width]
     return img
 
+
 class FisheyeCameraMixin:
     cmd_mapping = None
     fisheye_param = None
@@ -45,7 +46,7 @@ class FisheyeCameraMixin:
     rotated_perspective_points = None
 
     def __init__(self, *args, **kw):
-        super(FisheyeCameraMixin, self).__init__(*args, **kw)
+        super().__init__(*args, **kw)
         self.cmd_mapping = {
             'set_fisheye_matrix': [self.set_fisheye_matrix],
             'set_leveling_data': [self.set_leveling_data],
@@ -202,7 +203,7 @@ class FisheyeCameraMixin:
             rvecs = {}
             tvecs = {}
             X = np.array([h, 1])
-            for key in rvec_polyfits.keys():
+            for key in rvec_polyfits:
                 rvec = np.dot(X, rvec_polyfits[key])
                 tvec = np.dot(X, tvec_polyfits[key])
                 rvecs[key] = rvec
@@ -219,11 +220,13 @@ class FisheyeCameraMixin:
                 tvecs,
             )
 
-            self.fisheye_param.update({
-                'xgrid': x_grid - x_grid[0],
-                'ygrid': y_grid - y_grid[0],
-                'perspective_points': perspective_points,
-            })
+            self.fisheye_param.update(
+                {
+                    'xgrid': x_grid - x_grid[0],
+                    'ygrid': y_grid - y_grid[0],
+                    'perspective_points': perspective_points,
+                }
+            )
 
         else:
             self.send_error('Invalid version')

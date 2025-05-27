@@ -1,26 +1,116 @@
-[tool.black]
-line-length = 120
-skip-string-normalization = true
-target-version = ['py38']
-include = '\.pyi?$'
+[build-system]
+requires = ["uv_build>=0.7.6,<0.8.0"]
+build-backend = "uv_build"
 
-[tool.poetry]
+[project]
 name = "fluxghost"
 version = "2.3.9"
 description = "FLUXGhost provides a websocket based API for FLUX-Studio frontend, which connects to fluxclient."
-authors = ["Simon Ko <simon@flux3dp.com>", "Dean Sung <dean@flux3dp.com>"]
+authors = [
+    { name = "Simon Ko", email = "simon@flux3dp.com" },
+    { name = "Dean Sung", email = "dean@flux3dp.com" },
+]
+requires-python = ">=3.8,<3.9"
 readme = "README.md"
+dependencies = [
+    "numpy~=1.19",
+    "scipy~=1.10.0",
+    "cython>=3.0.10,<4",
+    "pillow>=10.3.0,<11",
+    "opencv-python>=4.10.0.84,<5",
+    "pyusb==1.0.2",
+]
 
-[tool.poetry.dependencies]
-python = "~3.8"
-numpy = "^1.19"
-scipy = "~1.10.0"
-cython = "^3.0.10"
-pillow = "^10.3.0"
-opencv-python = "^4.10.0.84"
-pyusb = "1.0.2"
+[dependency-groups]
+deploy = [
+    "pyinstaller>=6.13.0",
+]
+dev = [
+    "ruff>=0.11.10",
+    "pre-commit>=3.5.0",
+]
 
+[tool.uv]
+package = true
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv.build-backend]
+module-name = "fluxghost"
+module-root = ""
+
+[[tool.uv.index]]
+name = "pypi"
+url = "https://pypi.org/simple"
+
+# Ruff configuration
+[tool.ruff] # https://docs.astral.sh/ruff/settings/#top-level
+line-length = 120
+show-fixes = true
+src = [".", "fluxghost"]
+target-version = "py38"
+
+[tool.ruff.format] # https://docs.astral.sh/ruff/settings/#format
+quote-style = "single"
+
+[tool.ruff.lint.isort]
+known-first-party = ["beamify", "fluxclient", "fluxsvg", "fluxghost"]
+
+[tool.ruff.lint] # https://docs.astral.sh/ruff/settings/#lint
+select = [
+#   "A",     # Builtins
+#   "ANN",   # Annotations
+#   "ARG",   # Unused arguments
+    "ASYNC", # Asynchronous code
+    "B",     # Bugbear
+#   "BLE",   # Blind except
+#   "C4",    # Comprehensions
+    "COM",   # Commas
+#   "D1",    # Undocumented public elements
+#   "D2",    # Docstring conventions
+    "D3",    # Triple double quotes
+#   "D4",    # Docstring text format
+#   "DTZ",   # Datetimes
+    "E",     # Errors
+#   "EM",    # Error messages
+#   "ERA",   # Commented-out code
+    "F",     # Pyflakes
+#   "FBT",   # "Boolean trap"
+#   "FIX",   # "FIXME"-comments
+#   "G",     # Logging format
+    "I",     # Isort
+    "ICN",   # Import conventions
+#   "INP",   # Disallow PEP-420 (Implicit namespace packages)
+#   "LOG",   # Logging
+#   "N",     # PEP-8 Naming
+#   "PERF",  # Unnecessary performance costs
+    "PIE",   # Unnecessary code
+    "Q",     # Quotes
+#   "RET",   # Return
+    "RUF",   # Ruff
+    "SIM",   # Code simplification
+    "T10",   # Debugger
+#   "T20",   # Print
+#   "TCH",   # Type checking
+#   "TD",    # "TODO"-comments
+    "TID",   # Tidy imports
+    "UP",    # Pyupgrade
+    "W",     # Warnings
+]
+ignore = [
+    "B904",    # Raise without from inside except
+    "COM812",  # Missing trailing comma
+    "D203",    # One blank line before class docstring
+    "D212",    # Multi-line summary first line
+    "F401",    # Unused imports
+    "F403",    # Undefined local with import *
+    "PLR0913", # Too many arguments
+    "Q000",    # Single quotes found but double quotes preferred
+    "Q003",    # Avoidable escaped quote
+    "RUF001",  # Ambiguous unicode character string
+    "RUF005",  # Collection literal concatenation
+    "RUF012",  # Mutable class default
+    "TID252",  # Relative import
+    "UP031",   # Printf string formatting
+    "SIM112",  # Capitalized environment variable
+    "UP032",   # f-string conversion
+]
+# Ruff configuration end

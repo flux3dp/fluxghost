@@ -1,14 +1,13 @@
-
-from hashlib import sha1
-import logging
 import base64
+import logging
+from hashlib import sha1
 
 from fluxghost.utils.websocket import MAGIC_STRING
 
-logger = logging.getLogger("WebSocketHandler")
+logger = logging.getLogger('WebSocketHandler')
 
 
-class WebSocketHandler(object):
+class WebSocketHandler:
     """WebSocketHandler handle websocket handshake. After handshake, handler
     will move to ws_class"""
 
@@ -21,17 +20,17 @@ class WebSocketHandler(object):
 
         if not (upgrade and (upgrade.lower() == 'websocket')):
             logger.error("Bad Header 'Upgrade': %s" % upgrade)
-            handler.response_403(body="Bad WebSocket request")
+            handler.response_403(body='Bad WebSocket request')
             return False
 
         if not (conn and ('upgrade' in conn.lower().split(', '))):
             logger.error("Bad Header 'Connection': %s" % conn)
-            handler.response_403(body="Bad WebSocket request")
+            handler.response_403(body='Bad WebSocket request')
             return False
 
         if not (ws_version and (13 in map(int, ws_version.split(',')))):
             logger.error("Bad Header 'Sec-WebSocket-Version': %s" % ws_version)
-            handler.response_403(body="Bad WebSocket request")
+            handler.response_403(body='Bad WebSocket request')
             return False
 
         self.handshake(handler, ws_key)

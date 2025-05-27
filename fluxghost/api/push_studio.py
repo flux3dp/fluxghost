@@ -4,10 +4,11 @@ from .misc import BinaryHelperMixin, OnTextMessageMixin
 
 logger = logging.getLogger(__file__)
 
+
 def push_studio_api_mixin(cls):
     class PushStudioApi(OnTextMessageMixin, BinaryHelperMixin, cls):
         def __init__(self, *args, **kw):
-            super(PushStudioApi, self).__init__(*args, **kw)
+            super().__init__(*args, **kw)
             self.cmd_mapping = {
                 'set_handler': [self.cmd_set_handler],
             }

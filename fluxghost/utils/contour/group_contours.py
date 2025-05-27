@@ -12,20 +12,22 @@ def calculate_hu_moments(contours):
 
 # https://docs.opencv.org/4.x/d3/dc0/group__imgproc__shape.html#gaf2b97a230b51856d09a2d934b78c015f
 def normalize_hu_moments(hu_moments):
-    '''
+    """
     basically like openCV log transform
     but hu[4], hu[5] may be very small with different sign,
     so we use the absolute value to normalize
     hu[6] is ignored cause it's so different for the same shapes
-    '''
-    return np.array([
-        -np.sign(hu_moments[0]) / np.log10(np.abs(hu_moments[0])),
-        -np.sign(hu_moments[1]) / np.log10(np.abs(hu_moments[1])),
-        -np.sign(hu_moments[2]) / np.log10(np.abs(hu_moments[2])),
-        -np.sign(hu_moments[3]) / np.log10(np.abs(hu_moments[3])),
-        -1 / np.log10(np.abs(hu_moments[4])),
-        -1 / np.log10(np.abs(hu_moments[5])),
-    ])
+    """
+    return np.array(
+        [
+            -np.sign(hu_moments[0]) / np.log10(np.abs(hu_moments[0])),
+            -np.sign(hu_moments[1]) / np.log10(np.abs(hu_moments[1])),
+            -np.sign(hu_moments[2]) / np.log10(np.abs(hu_moments[2])),
+            -np.sign(hu_moments[3]) / np.log10(np.abs(hu_moments[3])),
+            -1 / np.log10(np.abs(hu_moments[4])),
+            -1 / np.log10(np.abs(hu_moments[5])),
+        ]
+    )
 
 
 def calculate_hu_moments_dist(hu_moments1, hu_moments2):
@@ -115,7 +117,7 @@ def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
             group_id_map[j] = group_count
             group_count += 1
     groups_map = {}
-    for i in group_id_map.keys():
+    for i in group_id_map:
         group_idx = group_id_map[i]
         if group_idx not in groups_map:
             groups_map[group_idx] = ([], [], 0)
@@ -147,21 +149,11 @@ def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
                         idx_to_remove.append(i)
                         remaining -= 1
                         break
-        group_contours = [
-            contour
-            for idx, contour in enumerate(group_contours)
-            if idx not in idx_to_remove
-        ]
-        group_hu_moments = np.array([
-            hu_moment
-            for idx, hu_moment in enumerate(group_hu_moments)
-            if idx not in idx_to_remove
-        ])
-        smoothness_list = [
-            smoothness
-            for idx, smoothness in enumerate(smoothness_list)
-            if idx not in idx_to_remove
-        ]
+        group_contours = [contour for idx, contour in enumerate(group_contours) if idx not in idx_to_remove]
+        group_hu_moments = np.array(
+            [hu_moment for idx, hu_moment in enumerate(group_hu_moments) if idx not in idx_to_remove]
+        )
+        smoothness_list = [smoothness for idx, smoothness in enumerate(smoothness_list) if idx not in idx_to_remove]
         group_similarity = np.std(smoothness_list) / np.mean(smoothness_list)
         groups[group_idx] = (group_contours, group_hu_moments, group_similarity)
 

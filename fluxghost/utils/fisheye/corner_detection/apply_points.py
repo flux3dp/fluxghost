@@ -3,7 +3,8 @@ import numpy as np
 
 from ..constants import DPMM
 
-def apply_points(img, corners, x_grid, y_grid, padding = 100, perspective_pixel_per_mm = DPMM):
+
+def apply_points(img, corners, x_grid, y_grid, padding=100, perspective_pixel_per_mm=DPMM):
     img_h = y_grid[-1] * perspective_pixel_per_mm + padding * 2
     img_w = x_grid[-1] * perspective_pixel_per_mm + padding * 2
     base_img = np.zeros((img_h, img_w, 3), np.uint8)
@@ -45,5 +46,5 @@ def apply_points(img, corners, x_grid, y_grid, padding = 100, perspective_pixel_
 
             img_l = 0 if left == 0 else left * perspective_pixel_per_mm + padding
             img_t = 0 if t == 0 else t * perspective_pixel_per_mm + padding
-            base_img[img_t:img_t + draw_h, img_l:img_l + draw_w] = out
+            base_img[img_t : img_t + draw_h, img_l : img_l + draw_w] = out
     return base_img

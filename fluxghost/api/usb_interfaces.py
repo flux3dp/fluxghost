@@ -1,4 +1,3 @@
-
 """
 Commands
 
@@ -29,34 +28,34 @@ errors:
     UNKNOWN_ERROR: unhandle error during opening/io usb device.
 """
 
-from threading import Thread
-from glob import glob
 import logging
 import sys
+from glob import glob
+from threading import Thread
 
 from serial.tools import list_ports as _list_ports
 
-from fluxclient.device.host2host_usb import USBProtocol, FluxUSBError
+from fluxclient.device.host2host_usb import FluxUSBError, USBProtocol
 from fluxghost import g
 
-logger = logging.getLogger("API.USB")
+logger = logging.getLogger('API.USB')
 
 
 def h2h_usb_daemon_thread(protocol, address):
-    logger.debug("USB daemon at %s start", address)
+    logger.debug('USB daemon at %s start', address)
     g.USBDEVS[address] = protocol
     try:
         protocol.run()
-        logger.debug("USB daemon at %s terminated", address)
+        logger.debug('USB daemon at %s terminated', address)
     except Exception:
-        logger.exception("USB daemon at %s crashed", address)
+        logger.exception('USB daemon at %s crashed', address)
 
     g.USBDEVS.pop(address)
     protocol.close()
 
 
 def usb_interfaces_api_mixin(cls):
-    class ClosedUsbDev(object):
+    class ClosedUsbDev:
         endpoint_profile = False
 
     class H2HInterfacesApi(cls):
@@ -64,12 +63,12 @@ def usb_interfaces_api_mixin(cls):
             super().__init__(*args, **kw)
 
         def on_text_message(self, message):
-            if message == "list":
+            if message == 'list':
                 self.list_devices()
-            elif message.startswith("open "):
+            elif message.startswith('open '):
                 addr = int(message[5:])
                 self.open_device(addr)
-            elif message.startswith("close "):
+            elif message.startswith('close '):
                 addr = int(message[6:])
                 self.close_device(addr)
 
@@ -90,50 +89,46 @@ def usb_interfaces_api_mixin(cls):
             g.USBDEVS = usbdevs
 
         def list_devices(self):
-            h2h = {ifce.address:
-                   g.USBDEVS.get(ifce.address,
-                                 ClosedUsbDev).endpoint_profile
-                   for ifce in USBProtocol.get_interfaces()}
+            h2h = {
+                ifce.address: g.USBDEVS.get(ifce.address, ClosedUsbDev).endpoint_profile
+                for ifce in USBProtocol.get_interfaces()
+            }
 
             if sys.platform.startswith('darwin'):
-                uart = [s for s in glob('/dev/tty.*') if "Bl" not in s]
+                uart = [s for s in glob('/dev/tty.*') if 'Bl' not in s]
             else:
-                uart = [s[0] for s in _list_ports.comports() if s[2] != "n/a"]
+                uart = [s[0] for s in _list_ports.comports() if s[2] != 'n/a']
 
-            self.send_ok(h2h=h2h, uart=uart, cmd="list")
+            self.send_ok(h2h=h2h, uart=uart, cmd='list')
 
         def open_device(self, addr):
             if g.USBDEVS.get(addr):
-                self.send_error("RESOURCE_BUSY", cmd="open")
+                self.send_error('RESOURCE_BUSY', cmd='open')
                 return
 
             for usbdev in USBProtocol.get_interfaces():
                 if usbdev.address == addr:
                     try:
                         usbprotocol = USBProtocol.connect(usbdev)
-                        t = Thread(target=h2h_usb_daemon_thread,
-                                   args=(usbprotocol, addr))
+                        t = Thread(target=h2h_usb_daemon_thread, args=(usbprotocol, addr))
                         t.daemon = True
-                        t.name = "USB Daemon: %s" % addr
+                        t.name = 'USB Daemon: %s' % addr
                         t.start()
-                        self.send_ok(devopen=addr,
-                                     profile=usbprotocol.endpoint_profile,
-                                     cmd="open")
-                        logger.debug("USB address %s opened: %s", addr,
-                                     usbprotocol.endpoint_profile)
+                        self.send_ok(devopen=addr, profile=usbprotocol.endpoint_profile, cmd='open')
+                        logger.debug('USB address %s opened: %s', addr, usbprotocol.endpoint_profile)
                         return
                     except FluxUSBError as e:
-                        self.send_error(e.symbol, cmd="open")
+                        self.send_error(e.symbol, cmd='open')
                         return
-            self.send_error("NOT_FOUND", cmd="open")
+            self.send_error('NOT_FOUND', cmd='open')
 
         def close_device(self, addr):
             usbprotocol = g.USBDEVS.get(addr)
             if usbprotocol:
                 usbprotocol.stop()
-                self.send_ok(devclose=addr, cmd="close")
-                logger.debug("USB address %x closed", addr)
+                self.send_ok(devclose=addr, cmd='close')
+                logger.debug('USB address %x closed', addr)
             else:
-                self.send_error("NOT_FOUND", cmd="close")
+                self.send_error('NOT_FOUND', cmd='close')
 
     return H2HInterfacesApi
