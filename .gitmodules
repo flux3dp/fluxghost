@@ -1,0 +1,3 @@
+[submodule "fluxclient-dev"]
+	path = fluxclient
+	url = https://github.com/flux3dp/fluxclient-dev

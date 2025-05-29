@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "fluxghost"
-version = "2.3.9"
+version = "2.5.0"
 description = "FLUXGhost provides a websocket based API for FLUX-Studio frontend, which connects to fluxclient."
 authors = [
     { name = "Simon Ko", email = "simon@flux3dp.com" },
@@ -28,6 +28,8 @@ deploy = [
 dev = [
     "ruff>=0.11.10",
     "pre-commit>=3.5.0",
+    "setuptools>=75.3.2",
+    "psutil>=7.0.0",
 ]
 
 [tool.uv]
