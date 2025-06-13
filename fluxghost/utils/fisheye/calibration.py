@@ -117,23 +117,35 @@ CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-
 
 
 def calibrate_fisheye(objpoints, imgpoints, indices, size):
-    if len(imgpoints) == 0:
-        raise Exception('Failed to calibrate camera, no img points left behind')
+    def do_calibrate(use_intrinsic_guess=False):
+        if len(imgpoints) == 0:
+            raise Exception('Failed to calibrate camera, no img points left behind')
+        try:
+            flag = CALIBRATION_FLAGS
+            if use_intrinsic_guess:
+                flag += cv2.fisheye.CALIB_USE_INTRINSIC_GUESS
+            init_k = INIT_K.copy() if use_intrinsic_guess else None
+            init_d = INIT_D.copy() if use_intrinsic_guess else None
+            ret, k, d, rvecs, tvecs = cv2.fisheye.calibrate(
+                objpoints, imgpoints, size, init_k, init_d, None, None, flag, CALIBRATION_CRIT
+            )
+            return ret, k, d, rvecs, tvecs, indices
+        except cv2.error as e:
+            pattern = r'CALIB_CHECK_COND - Ill-conditioned matrix for input array (\d+)'
+            match = re.search(pattern, e.err)
+            if match:
+                error_array_number = int(match.group(1))
+                new_objpoints = objpoints[:error_array_number] + objpoints[error_array_number + 1 :]
+                new_imgpoints = imgpoints[:error_array_number] + imgpoints[error_array_number + 1 :]
+                new_indices = indices[:error_array_number] + indices[error_array_number + 1 :]
+                return calibrate_fisheye(new_objpoints, new_imgpoints, new_indices, size)
+            raise e
+
     try:
-        ret, k, d, rvecs, tvecs = cv2.fisheye.calibrate(
-            objpoints, imgpoints, size, None, None, None, None, CALIBRATION_FLAGS, CALIBRATION_CRIT
-        )
-        return ret, k, d, rvecs, tvecs, indices
-    except cv2.error as e:
-        pattern = r'CALIB_CHECK_COND - Ill-conditioned matrix for input array (\d+)'
-        match = re.search(pattern, e.err)
-        if match:
-            error_array_number = int(match.group(1))
-            new_objpoints = objpoints[:error_array_number] + objpoints[error_array_number + 1 :]
-            new_imgpoints = imgpoints[:error_array_number] + imgpoints[error_array_number + 1 :]
-            indices = indices[:error_array_number] + indices[error_array_number + 1 :]
-            return calibrate_fisheye(new_objpoints, new_imgpoints, indices, size)
-        raise e
+        return do_calibrate(use_intrinsic_guess=True)
+    except Exception:
+        logger.exception('Calibrate with intrinsic guess failed, trying without it')
+        return do_calibrate(use_intrinsic_guess=False)
 
 
 # Calibrate using cv2.fisheye.calibrate
