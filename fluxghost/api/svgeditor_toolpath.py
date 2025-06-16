@@ -146,7 +146,6 @@ def laser_svgeditor_api_mixin(cls):
             svgeditor_image_params = {
                 'loop_compensation': self.loop_compensation,
                 'hardware': 'fbb1b',
-                'rotary_enabled': False,
             }
 
             def progress_callback(prog):
@@ -230,14 +229,6 @@ def laser_svgeditor_api_mixin(cls):
                             self.factory_kwargs['pixel_per_mm_x'] = 20
                     except Exception:
                         pass
-                elif param == '-spin':
-                    warnings.warn(
-                        'arg -spin for cmd_svgeditor_upload is deprecated in favor of -workarea',
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                    svgeditor_image_params['rotary_enabled'] = True
-                    self.factory_kwargs['rotary_enabled'] = True
                 elif param == '-workarea':
                     try:
                         val: str = params[i + 1]
@@ -529,6 +520,10 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['segment'] = json.loads(params[i + 1])
                     except Exception:
                         logger.info('Bad segment {}'.format(params[i + 1]))
+                elif param == '-engraving-erode':
+                    with contextlib.suppress(Exception):
+                        val = float(params[i + 1])
+                        svgeditor2taskcode_kwargs['engraving_erode'] = val
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
