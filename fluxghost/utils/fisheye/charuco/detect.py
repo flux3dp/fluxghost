@@ -1,7 +1,6 @@
 import logging
 
 import cv2
-import cv2.aruco as aruco
 import numpy as np
 
 from . import get_charuco_board
@@ -11,7 +10,7 @@ IS_DEBUGGING = False
 
 
 def detect_charuco_markers(image, board):
-    detector = aruco.CharucoDetector(board)
+    detector = cv2.aruco.CharucoDetector(board)
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 

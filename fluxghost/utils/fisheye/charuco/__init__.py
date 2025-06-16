@@ -1,5 +1,4 @@
 import cv2
-import cv2.aruco as aruco
 
 
 def get_dictionary(squares_x, squares_y):
@@ -7,16 +6,16 @@ def get_dictionary(squares_x, squares_y):
 
     # Available 5x5 dictionaries in OpenCV
     dict_options = [
-        (aruco.DICT_5X5_50, 50),
-        (aruco.DICT_5X5_100, 100),
-        (aruco.DICT_5X5_250, 250),
-        (aruco.DICT_5X5_1000, 1000),
+        (cv2.aruco.DICT_5X5_50, 50),
+        (cv2.aruco.DICT_5X5_100, 100),
+        (cv2.aruco.DICT_5X5_250, 250),
+        (cv2.aruco.DICT_5X5_1000, 1000),
     ]
 
     # Find the smallest dictionary that fits the requirement
     for dict_id, max_ids in dict_options:
         if required_markers <= max_ids:
-            return aruco.getPredefinedDictionary(dict_id)
+            return cv2.aruco.getPredefinedDictionary(dict_id)
 
     raise ValueError('Board size requires more markers than available in 5x5 dictionaries.')
 
