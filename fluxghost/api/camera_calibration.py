@@ -175,7 +175,7 @@ def camera_calibration_api_mixin(cls):
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 try:
                     calibrate_ret, k, d, rvecs, tvecs, _ = calibrate_fisheye_camera(
-                        [img_cv], [height], [chess_w, chess_h], self.on_progress
+                        [img_cv], [height], (chess_w, chess_h), self.on_progress
                     )
                     rvecs = np.array(rvecs)
                     tvecs = np.array(tvecs)
@@ -185,7 +185,7 @@ def camera_calibration_api_mixin(cls):
                     objp[:, :, :2] = np.mgrid[0:chess_w, 0:chess_h].T.reshape(-1, 1, 2) * 10
                     objp[:, :, 2] = -height
                     _, ret, corners = find_chessboard(
-                        remap, [chess_w, chess_h], 2, do_subpix=True, try_denoise=False, k=k, d=d
+                        remap, (chess_w, chess_h), 2, do_subpix=True, try_denoise=False, k=k, d=d
                     )
                     projected, _ = cv2.fisheye.projectPoints(objp, rvecs[0], tvecs[0], k, d)
                     projected = remap_corners(projected, k, d).reshape(chess_h, chess_w, 2)
