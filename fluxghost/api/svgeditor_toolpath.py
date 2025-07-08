@@ -524,6 +524,10 @@ def laser_svgeditor_api_mixin(cls):
                     with contextlib.suppress(Exception):
                         val = float(params[i + 1])
                         svgeditor2taskcode_kwargs['engraving_erode'] = val
+                elif param == '-machine-limit-position':
+                    with contextlib.suppress(Exception):
+                        val = json.loads(params[i + 1])
+                        svgeditor2taskcode_kwargs['machine_limit_position'] = val
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
