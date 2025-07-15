@@ -51,6 +51,7 @@ def camera_calibration_api_mixin(cls):
                 'update_data': [self.cmd_update_data],
                 'extrinsic_regression': [self.cmd_extrinsic_regression],
                 'interrupt': [self.cmd_interrupt],
+                'remap_image': [self.cmd_remap_image],
             }
             self.init_fisheye_params()
             self.init_calibration_params()
@@ -234,6 +235,34 @@ def camera_calibration_api_mixin(cls):
                     logger.exception('calibrate chessboard failed')
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def cmd_remap_image(self, message):
+            message = message.split(' ')
+            args = json.loads(message[0])
+            size = args['size']
+            params = args.get('params', {})
+
+            k = params.get('k', self.calibration_params.get('k', None))
+            d = params.get('d', self.calibration_params.get('d', None))
+
+            if k is None or d is None:
+                self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
+                return
+            k, d = np.array(k), np.array(d)
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf))
+                img_cv = np.array(img)
+                img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
+                remap = pad_image(img_cv, (0, 0, 0))
+                remap = get_remap_img(remap, k, d)
+                _, array_buffer = cv2.imencode('.jpg', remap)
+                img_bytes = array_buffer.tobytes()
+                self.send_binary(img_bytes)
+
+            helper = BinaryUploadHelper(int(size), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')
 
