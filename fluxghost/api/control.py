@@ -554,6 +554,7 @@ def control_api_mixin(cls):
                 self.task_begin_raw()
                 return
             method_map = {
+                'auto_cover': self.robot.auto_cover,
                 'cartridge_io': self.robot.cartridge_io,
                 'red_laser_measure': self.robot.red_laser_measure,
                 'z_speed_limit_test': self.robot.z_speed_limit_test,
