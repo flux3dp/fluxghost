@@ -480,7 +480,7 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['printing_slice_height'] = int(params[i + 1])
                 elif param == '-nv':
                     with contextlib.suppress(Exception):
-                        svgeditor2taskcode_kwargs['nozzle_votage'] = float(params[i + 1])
+                        svgeditor2taskcode_kwargs['nozzle_voltage'] = float(params[i + 1])
                 elif param == '-npw':
                     with contextlib.suppress(Exception):
                         svgeditor2taskcode_kwargs['nozzle_pulse_width'] = float(params[i + 1])
