@@ -64,6 +64,10 @@ def camera_api_mixin(cls):
                     idx = int(msgs[1])
                     success, data = self.robot.set_camera(idx)
                     self.send_ok(success=success, data=data.decode())
+                elif cmd == 'send_text':
+                    text = msgs[1]
+                    success, data = self.robot.send_text(text)
+                    self.send_ok(success=success, data=data.decode())
                 else:
                     super().on_command(message)
 
