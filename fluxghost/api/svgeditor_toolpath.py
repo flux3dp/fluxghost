@@ -528,6 +528,8 @@ def laser_svgeditor_api_mixin(cls):
                     with contextlib.suppress(Exception):
                         val = json.loads(params[i + 1])
                         svgeditor2taskcode_kwargs['machine_limit_position'] = val
+                elif param == '-skip-prespray':
+                    svgeditor2taskcode_kwargs['skip_prespray'] = True
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
