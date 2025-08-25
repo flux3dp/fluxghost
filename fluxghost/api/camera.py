@@ -58,11 +58,11 @@ def camera_api_mixin(cls):
                     data = msgs[1]
                     self.set_3d_rotation(data)
                 elif cmd == 'get_camera_count':
-                    success, data = self.robot.get_camera_counts()
+                    success, data = self.robot.send_text('camera_number')
                     self.send_ok(success=success, data=data.decode())
                 elif cmd.startswith('set_camera'):
                     idx = int(msgs[1])
-                    success, data = self.robot.set_camera(idx)
+                    success, data = self.robot.send_text('camera_change:%d' % idx)
                     self.send_ok(success=success, data=data.decode())
                 elif cmd == 'send_text':
                     text = msgs[1]
