@@ -6,9 +6,16 @@ import numpy as np
 
 from fluxclient.hw_profile import HW_PROFILE
 from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
-from fluxghost.utils.fisheye.constants import CHESSBOARD, PERSPECTIVE_SPLIT
+from fluxghost.utils.fisheye.constants import (
+    CHESSBOARD,
+    IMAGE_H,
+    IMAGE_W,
+    PADDED_H,
+    PADDED_W,
+    PERSPECTIVE_SPLIT,
+)
 from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.general import pad_image
+from fluxghost.utils.fisheye.general import pad_image, pad_low_resolution_image
 from fluxghost.utils.fisheye.perspective import (
     apply_perspective_points_transform,
     calculate_regional_perspective_points,
@@ -286,15 +293,23 @@ class FisheyeCameraMixin:
             xgrid = self.fisheye_param['xgrid']
             ygrid = self.fisheye_param['ygrid']
             img = pad_image(open_cv_img, (0, 0, 0))
+            h, w = open_cv_img.shape[:2]
+            if w == IMAGE_W:
+                img = pad_image(open_cv_img, (0, 0, 0))
+                if downsample > 1:
+                    img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
+            else:
+                #  Assuming the image is proportionally smaller
+                downsample = max(1, round(IMAGE_W / w))
+                img = pad_low_resolution_image(open_cv_img, (0, 0, 0))
             if downsample > 1:
-                img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
                 k = k.copy()
                 k[0][0] /= downsample
                 k[1][1] /= downsample
                 k[0][2] /= downsample
                 k[1][2] /= downsample
                 img = get_remap_img(img, k, d)
-                img = cv2.resize(img, (img.shape[1] * downsample, img.shape[0] * downsample))
+                img = cv2.resize(img, (PADDED_W, PADDED_H))
             else:
                 img = get_remap_img(img, k, d)
             padding = 150 if version == 2 else 0

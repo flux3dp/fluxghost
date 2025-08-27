@@ -53,6 +53,9 @@ def camera_api_mixin(cls):
                 if cmd == 'enable_streaming':
                     self.robot.enable_streaming()
                 elif cmd == 'require_frame':
+                    if len(msgs) > 1 and msgs[1] == 'l':
+                        self.robot.require_frame(True)
+                        return
                     self.robot.require_frame()
                 elif cmd == 'set_3d_rotation':
                     data = msgs[1]

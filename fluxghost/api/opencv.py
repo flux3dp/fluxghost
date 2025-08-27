@@ -60,7 +60,7 @@ def opencv_mixin(cls):
             gaussian_blur = cv2.GaussianBlur(open_cv_image, (ksize, ksize), 0)
             unsharp_img = cv2.addWeighted(open_cv_image, 1 + sharpness, gaussian_blur, -sharpness, 0)
             logger.info('Sharpen completed')
-            is_success, array_buffer = cv2.imencode('.png', unsharp_img)
+            _, array_buffer = cv2.imencode('.png', unsharp_img)
             img_bytes = array_buffer.tobytes()
             self.send_binary(img_bytes)
 
