@@ -292,7 +292,6 @@ class FisheyeCameraMixin:
             d = self.fisheye_param['d']
             xgrid = self.fisheye_param['xgrid']
             ygrid = self.fisheye_param['ygrid']
-            img = pad_image(open_cv_img, (0, 0, 0))
             h, w = open_cv_img.shape[:2]
             if w == IMAGE_W:
                 img = pad_image(open_cv_img, (0, 0, 0))
