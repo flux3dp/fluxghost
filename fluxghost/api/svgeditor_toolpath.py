@@ -371,6 +371,8 @@ def laser_svgeditor_api_mixin(cls):
             fcode_version = 1
 
             for i, param in enumerate(params):
+                if not param.startswith('-'):
+                    continue
                 # -{model_name} is deprecated, use -model {model_name} instead
                 # can be removed after beam studio web update
                 if param == '-hexa' or param == '-bb2':
@@ -530,6 +532,9 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['machine_limit_position'] = val
                 elif param == '-skip-prespray':
                     svgeditor2taskcode_kwargs['skip_prespray'] = True
+                elif param == '-expected-module':
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['expected_module'] = int(params[i + 1])
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
