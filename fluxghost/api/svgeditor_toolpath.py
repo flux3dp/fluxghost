@@ -190,23 +190,7 @@ def laser_svgeditor_api_mixin(cls):
             self.factory_kwargs = {}
 
             for i, param in enumerate(params):
-                # -{model_name} is deprecated, use -model {model_name} instead
-                # can be removed after beam studio web update
-                if param == '-bb2' or param == '-hexa':
-                    svgeditor_image_params['hardware'] = 'hexa'
-                elif param == '-pro':
-                    svgeditor_image_params['hardware'] = 'beambox-pro'
-                elif param == '-beamo':
-                    svgeditor_image_params['hardware'] = 'beamo'
-                elif param == '-ado1':
-                    svgeditor_image_params['hardware'] = 'ador'
-                elif param == '-fbb2':
-                    svgeditor_image_params['hardware'] = 'fbb2'
-                elif param == '-fhx2rf4':
-                    svgeditor_image_params['hardware'] = 'fhx2rf4'
-                elif param == '-fhx2rf7':
-                    svgeditor_image_params['hardware'] = 'fhx2rf7'
-                elif param == '-model':
+                if param == '-model':
                     try:
                         model = params[i + 1]
                         svgeditor_image_params['hardware'] = model
@@ -373,28 +357,7 @@ def laser_svgeditor_api_mixin(cls):
             for i, param in enumerate(params):
                 if not param.startswith('-'):
                     continue
-                # -{model_name} is deprecated, use -model {model_name} instead
-                # can be removed after beam studio web update
-                if param == '-hexa' or param == '-bb2':
-                    hardware_name = 'hexa'
-                elif param == '-pro':
-                    hardware_name = 'beambox-pro'
-                elif param == '-beamo':
-                    hardware_name = 'beamo'
-                elif param == '-ado1':
-                    hardware_name = 'ador'
-                    svgeditor2taskcode_kwargs['path_travel_speed'] = 3600
-                    fcode_version = 2
-                elif param == '-fbb2':
-                    hardware_name = 'fbb2'
-                    fcode_version = 2
-                elif param == '-fhx2rf4':
-                    hardware_name = 'fhx2rf4'
-                    fcode_version = 2
-                elif param == '-fhx2rf7':
-                    hardware_name = 'fhx2rf7'
-                    fcode_version = 2
-                elif param == '-model':
+                if param == '-model':
                     try:
                         model = params[i + 1]
                         hardware_name = model
