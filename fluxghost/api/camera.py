@@ -33,6 +33,8 @@ fisheye_models = ['fad1', 'ado1', 'fbb2', 'fbm2']
 
 def camera_api_mixin(cls):
     class CameraAPI(FisheyeCameraMixin, control_base_mixin(cls)):
+        is_next_image_low_resolution = False
+
         def get_robot_from_device(self, device):
             self.remote_version = device.version
             self.remote_model = getattr(device, 'model_id', '')
@@ -75,6 +77,8 @@ def camera_api_mixin(cls):
                     super().on_command(message)
 
         def on_image(self, camera, image):
+            is_low_resolution = self.is_next_image_low_resolution
+            self.is_next_image_low_resolution = False
             logger.debug('on_image')
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
@@ -84,7 +88,7 @@ def camera_api_mixin(cls):
                 except Exception:
                     self.send_binary(image)
                     return
-                img = self.handle_fisheye_image(cv_img, downsample=1)
+                img = self.handle_fisheye_image(cv_img, downsample=1, is_low_resolution=is_low_resolution)
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)

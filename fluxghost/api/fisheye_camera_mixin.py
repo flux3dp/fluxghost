@@ -255,7 +255,9 @@ class FisheyeCameraMixin:
         self.fisheye_param.update({'xgrid': xgrid - xgrid[0], 'ygrid': ygrid - ygrid[0], 'perspective_points': points})
         self.send_ok()
 
-    def handle_fisheye_image(self, open_cv_img, downsample=1):
+    def handle_fisheye_image(
+        self, open_cv_img, downsample=1, is_low_resolution=False, expected_size=(IMAGE_W, IMAGE_H)
+    ):
         version = self.fisheye_param.get('v', 1)
         if version == 1:
             perspective_points = (
@@ -293,7 +295,11 @@ class FisheyeCameraMixin:
             xgrid = self.fisheye_param['xgrid']
             ygrid = self.fisheye_param['ygrid']
             h, w = open_cv_img.shape[:2]
-            if w == IMAGE_W:
+            if is_low_resolution and w < expected_size[0]:
+                #  Assuming the image is proportionally smaller
+                downsample = max(1, round(expected_size[0] / w))
+                img = pad_low_resolution_image(open_cv_img, (0, 0, 0))
+            else:
                 img = pad_image(open_cv_img, (0, 0, 0))
                 if downsample > 1:
                     img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
