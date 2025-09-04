@@ -57,6 +57,7 @@ def camera_api_mixin(cls):
                 elif cmd == 'require_frame':
                     if len(msgs) > 1 and msgs[1] == 'l':
                         self.robot.require_frame(True)
+                        self.is_next_image_low_resolution = True
                         return
                     self.robot.require_frame()
                 elif cmd == 'set_3d_rotation':
