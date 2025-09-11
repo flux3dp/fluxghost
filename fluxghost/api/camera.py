@@ -28,7 +28,7 @@ ws.onclose = function(v) { console.log('CONNECTION CLOSED, code=' + v.code +
 // After recive connected...
 ws.send('ls')
 """
-fisheye_models = ['fad1', 'ado1', 'fbb2', 'fbm2']
+fisheye_models = ['fad1', 'ado1', 'fbb2', 'fbm2', 'fhx2rf4', 'fhx2rf7']
 
 
 def camera_api_mixin(cls):
