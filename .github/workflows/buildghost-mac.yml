@@ -2,6 +2,8 @@ name: Build ghost mac
 
 on:
   push:
+    branches:
+      - chore/update-buildghost-mac
     tags:
       - "*-release"
   workflow_dispatch:
@@ -12,7 +14,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-15]
+        os: [macOS-15, macOS-intel]
 
     steps:
       - uses: actions/checkout@v4
