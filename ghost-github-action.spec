@@ -168,8 +168,10 @@ a = Analysis(
     cipher=block_cipher,
     binaries=binaries,
 )
-a.datas += collect_data_files('fluxclient', includes=['assets'])
+a.datas += collect_data_files('fluxclient', includes=['assets/*'])
 a.datas += fetch_datas()
+print('a.datas', a.datas)
+
 pyz = PYZ(a.pure, cipher=block_cipher)
 exe = EXE(
     pyz,
