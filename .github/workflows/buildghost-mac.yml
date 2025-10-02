@@ -65,9 +65,8 @@ jobs:
 
       - name: Build Flux Api
         run: |
-          echo $PKG_CONFIG_PATH
           echo $(brew --prefix cairo)
-          ls $(brew --prefix cairo)/lib/pkgconfig
+          ls $(brew --prefix cairo)/lib
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; printenv; python3 ghost.py --test"
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; pyinstaller --clean ghost-github-action.spec"
           ./dist/flux_api/flux_api --test
