@@ -171,7 +171,7 @@ a = Analysis(
 for file_path, destination in collect_data_files('fluxclient', includes=['assets/*']):
     file_basename = os.path.basename(file_path)
     destination = os.path.join(destination, file_basename)
-    a.datas.append((file_basename, destination, 'DATA'))
+    a.datas.append((destination, file_path, 'DATA'))
 a.datas += fetch_datas()
 print('a.datas', a.datas)
 
