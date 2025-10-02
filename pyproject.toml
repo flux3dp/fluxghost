@@ -21,6 +21,7 @@ dependencies = [
     "pyusb==1.0.2",
     "cffi==1.17.1", # for fluxsvg
     "cairocffi==1.7.1", # for fluxsvg
+    "lxml==6.0.0",
 ]
 
 [dependency-groups]
