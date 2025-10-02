@@ -66,7 +66,7 @@ jobs:
         run: |
           cd .github/actions/fluxclient
           # FIXME: Failed to install deps only on github action, use || operator temporary
-          python3 setup.py install --verbose || echo "Failed to install beamify"
+          pip install . -v
 
       - name: Build Flux Api
         run: |
