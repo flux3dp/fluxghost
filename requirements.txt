@@ -5,6 +5,12 @@ altgraph==0.17.4
     # via
     #   macholib
     #   pyinstaller
+cairocffi==1.7.1
+    # via fluxghost
+cffi==1.17.1
+    # via
+    #   cairocffi
+    #   fluxghost
 cython==3.1.1
     # via fluxghost
 importlib-metadata==8.5.0
@@ -28,6 +34,8 @@ pefile==2023.2.7 ; sys_platform == 'win32'
     # via pyinstaller
 pillow==10.4.0
     # via fluxghost
+pycparser==2.23
+    # via cffi
 pyinstaller==6.13.0
 pyinstaller-hooks-contrib==2025.4
     # via pyinstaller
