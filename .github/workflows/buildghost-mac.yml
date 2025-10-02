@@ -48,7 +48,6 @@ jobs:
       - name: Install Beamify
         run: |
           cd .github/actions/beamify/python
-          # FIXME: Failed to install deps only on github action, use || operator temporary
           pip install . -v
 
       - name: Install Fluxsvg
@@ -65,7 +64,6 @@ jobs:
       - name: Install FluxClient
         run: |
           cd .github/actions/fluxclient
-          # FIXME: Failed to install deps only on github action, use || operator temporary
           pip install . -v
 
       - name: Build Flux Api
