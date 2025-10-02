@@ -168,7 +168,10 @@ a = Analysis(
     cipher=block_cipher,
     binaries=binaries,
 )
-a.datas += collect_data_files('fluxclient', includes=['assets/*'])
+for file_path, destination in collect_data_files('fluxclient', includes=['assets/*']):
+    file_basename = os.path.basename(file_path)
+    destination = os.path.join(destination, file_basename)
+    a.datas.append((file_basename, destination, 'DATA'))
 a.datas += fetch_datas()
 print('a.datas', a.datas)
 
