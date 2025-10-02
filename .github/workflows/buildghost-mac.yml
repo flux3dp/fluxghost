@@ -24,7 +24,10 @@ jobs:
       - name: Install Brew Packages
         run: |
           brew install zlib
-          brew reinstall cairo
+
+      - name: Set dyld path for cairo
+        run: |
+          echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
 
       - name: Install Python dependencies
         run: |
@@ -65,9 +68,7 @@ jobs:
 
       - name: Build Flux Api
         run: |
-          echo $(brew --prefix cairo)
-          ls $(brew --prefix cairo)/lib
-          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$(brew --prefix cairo)/lib"
+          echo $DYLD_LIBRARY_PATH
 
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; printenv; python3 ghost.py --test"
           bash -c "set -e 1; export LC_ALL=\"en_US.UTF-8\"; export LC_CTYPE=\"en_US.UTF-8\"; pyinstaller --clean ghost-github-action.spec"
