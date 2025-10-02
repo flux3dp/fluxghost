@@ -38,8 +38,8 @@ def fetch_data(package, path):
 def fetch_datas():
     datas = []
     packages_to_fetch = [
-        ('fluxclient', 'assets'),
-        ('fluxclient/assets/*', 'fluxclient/assets'),
+        ('fluxclient', ''),
+        ('fluxclient/fluxclient/assets/*', 'fluxclient/assets'),
         ('cffi', ''),
         ('cssselect2', ''),
         ('pycparser', ''),
