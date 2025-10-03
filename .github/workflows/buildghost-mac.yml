@@ -13,6 +13,7 @@ jobs:
       matrix:
         python-version: [3.8]
         os: [macOS-15, macOS-15-intel]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
