@@ -2,8 +2,6 @@ name: Build ghost mac
 
 on:
   push:
-    branches:
-      - chore/update-buildghost-mac
     tags:
       - "*-release"
   workflow_dispatch:

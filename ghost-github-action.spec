@@ -173,7 +173,6 @@ for file_path, destination in collect_data_files('fluxclient', includes=['assets
     destination = os.path.join(destination, file_basename)
     a.datas.append((destination, file_path, 'DATA'))
 a.datas += fetch_datas()
-print('a.datas', a.datas)
 
 pyz = PYZ(a.pure, cipher=block_cipher)
 exe = EXE(
