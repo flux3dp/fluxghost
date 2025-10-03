@@ -395,6 +395,16 @@ def control_api_mixin(cls):
 
             self.simple_binary_receiver(size, on_recived)
 
+        def update_mbfw(self, mimetype, ssize):
+            size = int(ssize)
+
+            def on_recived(stream):
+                stream.seek(0)
+                self.robot._backend.update_atmel(self.robot, stream, int(size), self.cb_upload_callback)
+                self.send_ok()
+
+            self.simple_binary_receiver(size, on_recived)
+
         def update_laser_records(self, mimetype, ssize):
             size = int(ssize)
 
@@ -437,16 +447,6 @@ def control_api_mixin(cls):
                 except RobotError as e:
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
-
-            self.simple_binary_receiver(size, on_recived)
-
-        def update_mbfw(self, mimetype, ssize):
-            size = int(ssize)
-
-            def on_recived(stream):
-                stream.seek(0)
-                self.robot._backend.update_atmel(self.robot, stream, int(size), self.cb_upload_callback)
-                self.send_ok()
 
             self.simple_binary_receiver(size, on_recived)
 
