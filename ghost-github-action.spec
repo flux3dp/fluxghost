@@ -3,7 +3,7 @@ import os
 import platform
 import site
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 os_type = platform.system()
 sitepackages = site.getsitepackages()
@@ -38,7 +38,6 @@ def fetch_data(package, path):
 def fetch_datas():
     datas = []
     packages_to_fetch = [
-        ('fluxclient', 'assets'),
         ('cffi', ''),
         ('cssselect2', ''),
         ('pycparser', ''),
@@ -169,7 +168,12 @@ a = Analysis(
     cipher=block_cipher,
     binaries=binaries,
 )
+for file_path, destination in collect_data_files('fluxclient', includes=['assets/*']):
+    file_basename = os.path.basename(file_path)
+    destination = os.path.join(destination, file_basename)
+    a.datas.append((destination, file_path, 'DATA'))
 a.datas += fetch_datas()
+
 pyz = PYZ(a.pure, cipher=block_cipher)
 exe = EXE(
     pyz,
@@ -185,7 +189,7 @@ exe = EXE(
 
 # print('Datas:')
 # for d in a.datas:
-#   print(d)
+#     print(d)
 # print('=====')
 
 # print('Hidden imports:')
