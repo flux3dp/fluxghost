@@ -41,16 +41,16 @@ def main():
     for m in TEST_MODULES:
         ret &= try_import(m)
 
-    # sys.stdout.write('Open resource fluxclient::assets/flux3dp-icon.png ... ')
-    # sys.stdout.flush()
-    # try:
-    #     import pkg_resources
+    sys.stdout.write('Open resource fluxclient::assets/flux3dp-icon.png ... ')
+    sys.stdout.flush()
+    try:
+        import pkg_resources
 
-    #     pkg_resources.resource_stream('fluxclient', 'assets/flux3dp-icon.png')
-    #     sys.stdout.write('OK\n')
-    # except Exception as e:
-    #     sys.stdout.write('ERROR: %s\n' % e)
-    #     sys.stdout.flush()
-    #     ret = False
+        pkg_resources.resource_stream('fluxclient', 'assets/flux3dp-icon.png')
+        sys.stdout.write('OK\n')
+    except Exception as e:
+        sys.stdout.write('ERROR: %s\n' % e)
+        sys.stdout.flush()
+        ret = False
 
     return 0 if ret else 1
