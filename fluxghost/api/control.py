@@ -383,7 +383,7 @@ def control_api_mixin(cls):
         def update_fw(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_firmware(stream, int(size), self.cb_upload_callback)
@@ -393,22 +393,22 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def update_mbfw(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 self.robot._backend.update_atmel(self.robot, stream, int(size), self.cb_upload_callback)
                 self.send_ok()
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def update_laser_records(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_laser_records(stream, int(size), self.cb_upload_callback)
@@ -418,12 +418,12 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def update_fisheye_params(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_fisheye_params(stream, int(size), self.cb_upload_callback)
@@ -433,12 +433,12 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def update_fisheye_3d_rotation(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_fisheye_3d_rotation(stream, int(size), self.cb_upload_callback)
@@ -448,7 +448,7 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def start_play(self):
             self.robot.start_play()
