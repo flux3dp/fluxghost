@@ -29,8 +29,8 @@ jobs:
           else
             arch -arm64 brew install zlib
             arch -arm64 brew reinstall cairo
-            echo "export LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
-            echo "export CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\""
+            echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
+            echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\""
             echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
           fi
 
