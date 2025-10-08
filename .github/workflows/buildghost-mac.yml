@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-15, macOS-15-intel]
+        os: [macOS-15-intel]
       fail-fast: false
 
     steps:
@@ -24,13 +24,11 @@ jobs:
 
       - name: Install Brew Packages
         run: |
-          arch -arm64 brew install zlib
-          arch -arm64 brew install cairo
+          brew install zlib
 
       - name: Set dyld path for cairo
         run: |
           echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
-          brew --prefix cairo
 
       - name: Install Python dependencies
         run: |
