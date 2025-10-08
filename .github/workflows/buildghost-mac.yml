@@ -24,7 +24,8 @@ jobs:
 
       - name: Install Brew Packages
         run: |
-          brew install zlib
+          arch -arm64 brew install zlib
+          arch -arm64 brew install cairo
 
       - name: Set dyld path for cairo
         run: |
