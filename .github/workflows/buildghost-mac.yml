@@ -32,8 +32,8 @@ jobs:
             echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
             echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\""
             echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
-            file $(brew --prefix cairo)/lib/libcairo.2.dylib
-            which brew
+            echo $(file $(brew --prefix cairo)/lib/libcairo.2.dylib)
+            echo $(which brew)
             exit 64
           fi
 
