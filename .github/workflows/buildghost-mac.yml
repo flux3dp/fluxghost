@@ -33,8 +33,8 @@ jobs:
             echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\""
             echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
             echo $(file $(brew --prefix cairo)/lib/libcairo.2.dylib)
+            echo $DYLD_LIBRARY_PATH
             echo $(which brew)
-            exit 64
           fi
 
       - name: Install Python dependencies
