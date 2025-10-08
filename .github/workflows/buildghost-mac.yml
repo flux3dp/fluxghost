@@ -31,6 +31,7 @@ jobs:
             arch -arm64 brew reinstall cairo
             echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
             echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\"" >> $GITHUB_ENV
+            echo "PKG_CONFIG_PATH="/opt/homebrew/opt/zlib/lib/pkgconfig"" >> $GITHUB_ENV
             echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib:/opt/homebrew/lib" >> $GITHUB_ENV
             echo $(file $(brew --prefix cairo)/lib/libcairo.2.dylib)
             echo $DYLD_LIBRARY_PATH
