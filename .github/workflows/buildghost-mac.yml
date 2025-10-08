@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-15, macOS-15-intel]
+        os: [macOS-15]
       fail-fast: false
 
     steps:
@@ -32,6 +32,9 @@ jobs:
             echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
             echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\""
             echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
+            file $(brew --prefix cairo)/lib/libcairo.2.dylib
+            which brew
+            exit 64
           fi
 
       - name: Install Python dependencies
