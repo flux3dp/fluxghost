@@ -29,6 +29,7 @@ jobs:
       - name: Set dyld path for cairo
         run: |
           echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
+          brew --prefix cairo
 
       - name: Install Python dependencies
         run: |
