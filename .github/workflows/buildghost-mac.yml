@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-15-intel]
+        os: [macOS-15, macOS-15-intel]
       fail-fast: false
 
     steps:
@@ -24,7 +24,14 @@ jobs:
 
       - name: Install Brew Packages
         run: |
-          brew install zlib
+          if [ "${{ matrix.os }}" = "macOS-15-intel" ]; then
+            brew install zlib
+          else
+            arch -arm64 brew install zlib
+            arch -arm64 brew reinstall cairo
+            export LDFLAGS="-L/opt/homebrew/opt/zlib/lib"
+            export CPPFLAGS="-I/opt/homebrew/opt/zlib/include"
+          fi
 
       - name: Set dyld path for cairo
         run: |
