@@ -65,10 +65,11 @@ def control_api_mixin(cls):
                 # deprecated
                 'upload': self.upload_file,
                 'update_fw': self.update_fw,
+                'update_mbfw': self.update_mbfw,
+                'update_hbfw': self.update_hbfw,
                 'update_laser_records': self.update_laser_records,
                 'update_fisheye_params': self.update_fisheye_params,
                 'update_fisheye_3d_rotation': self.update_fisheye_3d_rotation,
-                'update_mbfw': self.update_mbfw,
                 'deviceinfo': self.deviceinfo,
                 'cloud_validate_code': self.cloud_validate_code,
                 'wait_status': self.wait_status,
@@ -380,13 +381,13 @@ def control_api_mixin(cls):
                 )
             return
 
-        def update_fw(self, mimetype, ssize):
+        def update_firmware(self, firmware_type, ssize):
             size = int(ssize)
 
             def on_received(stream):
                 stream.seek(0)
                 try:
-                    self.robot.update_firmware(stream, int(size), self.cb_upload_callback)
+                    self.robot.update_firmware(stream, firmware_type, int(size), self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
@@ -395,15 +396,14 @@ def control_api_mixin(cls):
 
             self.simple_binary_receiver(size, on_received)
 
-        def update_mbfw(self, mimetype, ssize):
-            size = int(ssize)
+        def update_fw(self, _, ssize):
+            self.update_firmware('update_fw', ssize)
 
-            def on_received(stream):
-                stream.seek(0)
-                self.robot._backend.update_atmel(self.robot, stream, int(size), self.cb_upload_callback)
-                self.send_ok()
+        def update_mbfw(self, _, ssize):
+            self.update_firmware('update_mbfw', ssize)
 
-            self.simple_binary_receiver(size, on_received)
+        def update_hbfw(self, _, ssize):
+            self.update_firmware('update_hbfw', ssize)
 
         def update_laser_records(self, mimetype, ssize):
             size = int(ssize)
