@@ -380,10 +380,6 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i + 1])
                     except Exception:
                         logger.info('Bad rotary_z_motion {}'.format(params[i + 1]))
-                elif param == '-blade':
-                    svgeditor2taskcode_kwargs['blade_radius'] = float(params[i + 1])
-                elif param == '-precut':
-                    svgeditor2taskcode_kwargs['precut_at'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-prespray':
                     svgeditor2taskcode_kwargs['prespray'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-temp':
