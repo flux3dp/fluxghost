@@ -20,14 +20,15 @@ from fluxclient.toolpath.svgeditor_factory import SvgeditorFactory, SvgeditorIma
 from fluxclient.toolpath.toolpath import gcode2fcode, svgeditor2taskcode
 from fluxghost.utils.username import get_username
 
-from .misc import BinaryUploadHelper, OnTextMessageMixin
-from .svg_toolpath import svg_base_api_mixin
+from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
 logger = logging.getLogger('API.SVGEDITOR')
 
 
 def laser_svgeditor_api_mixin(cls):
-    class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
+    class LaserSvgeditorApi(OnTextMessageMixin, BinaryHelperMixin, cls):
+        fcode_metadata = None
+
         def __init__(self, *args):
             self.pixel_per_mm = 10
             self.svg_image = None
@@ -35,6 +36,7 @@ def laser_svgeditor_api_mixin(cls):
             self.is_task_interrupted = False
             self.curve_engraving_detail = None
             super().__init__(*args)
+            self.fcode_metadata = {}
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
                 'divide_svg': [self.divide_svg],
@@ -49,20 +51,19 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_set_params(self, params):
             key, value = params.split()
             logger.info('setting parameter %r = %r', key, value)
-            if not self.set_param(key, value):
-                if key == 'loop_compensation':
-                    self.loop_compensation = max(0, float(value))
-                elif key == 'curve_engraving':
-                    try:
-                        curve_engraving_detail = json.loads(value)
-                        self.curve_engraving_detail = curve_engraving_detail
-                    except Exception:
-                        logger.exception('Invalid curve_engraving value')
-                        self.send_json(status='error', message='Invalid curve_engraving value')
-                elif key in ('shading', 'one_way', 'calibration'):
-                    pass
-                else:
-                    self.send_json(status='error', message='Unknown parameter %s' % key)
+            if key == 'loop_compensation':
+                self.loop_compensation = max(0, float(value))
+            elif key == 'curve_engraving':
+                try:
+                    curve_engraving_detail = json.loads(value)
+                    self.curve_engraving_detail = curve_engraving_detail
+                except Exception:
+                    logger.exception('Invalid curve_engraving value')
+                    self.send_json(status='error', message='Invalid curve_engraving value')
+            elif key in ('shading', 'one_way', 'calibration'):
+                pass
+            else:
+                self.send_json(status='error', message='Unknown parameter %s' % key)
             self.send_ok()
 
         def divide_svg(self, params):
