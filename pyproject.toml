@@ -22,6 +22,7 @@ dependencies = [
     "cffi==1.17.1", # for fluxsvg
     "cairocffi==1.7.1", # for fluxsvg
     "lxml==6.0.0",
+    "msgpack>=1.1.1", # for fluxclient
 ]
 
 [dependency-groups]
