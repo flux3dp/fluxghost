@@ -17,8 +17,12 @@ importlib-metadata==8.5.0
     # via
     #   pyinstaller
     #   pyinstaller-hooks-contrib
+lxml==6.0.0
+    # via fluxghost
 macholib==1.16.3 ; sys_platform == 'darwin'
     # via pyinstaller
+msgpack==1.1.1
+    # via fluxghost
 numpy==1.24.4
     # via
     #   fluxghost
