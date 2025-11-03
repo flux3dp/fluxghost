@@ -150,7 +150,9 @@ def laser_svgeditor_api_mixin(cls):
             }
 
             def progress_callback(prog):
-                self.send_progress('Analyzing SVG - ' + str(round(prog * 100, 2)) + '%', prog)
+                self.send_progress(
+                    'Analyzing SVG - ' + str(round(prog * 100, 2)) + '%', prog, translation_key='analyzing_svg'
+                )
 
             def generate_svgeditor_image(buf, name, thumbnail_length):
                 thumbnail = buf[:thumbnail_length]
@@ -262,7 +264,11 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_g2f(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress('Calculating Toolpath ' + str(round(prog * 100, 2)) + '%', prog)
+                self.send_progress(
+                    'Calculating task path' + str(round(prog * 100, 2)) + '%',
+                    prog,
+                    translation_key='calculating_task_path',
+                )
 
             def upload_callback(buf, thumbnail_length):
                 def process_thumbnail(base64_thumbnail: str):
@@ -280,7 +286,7 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_ok()
                 send_fcode = True
                 try:
-                    self.send_progress('Initializing', 0.03)
+                    self.send_progress('Initializing', 0.03, translation_key='initializing')
 
                     self.fcode_metadata.update(
                         {
@@ -310,7 +316,7 @@ def laser_svgeditor_api_mixin(cls):
                     time_need = float(writer.get_metadata().get(b'TIME_COST', 0))
 
                     traveled_dist = float(writer.get_metadata().get(b'TRAVEL_DIST', 0))
-                    self.send_progress('Finishing', 1.0)
+                    self.send_progress('Finishing', 1.0, translation_key='finishing')
 
                     if send_fcode:
                         self.send_json(
@@ -339,7 +345,11 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_go(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress('Calculating Toolpath ' + str(round(prog * 100, 2)) + '%', prog)
+                self.send_progress(
+                    'Calculating task path ' + str(round(prog * 100, 2)) + '%',
+                    prog,
+                    translation_key='calculating_task_path',
+                )
 
             logger.info('Calling laser svgeditor')
             self.is_task_interrupted = False
@@ -500,7 +510,7 @@ def laser_svgeditor_api_mixin(cls):
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
 
             try:
-                self.send_progress('Initializing', 0.03)
+                self.send_progress('Initializing', 0.03, translation_key='initializing')
                 factory = self.prepare_factory()
                 self.fcode_metadata.update(
                     {
@@ -552,7 +562,7 @@ def laser_svgeditor_api_mixin(cls):
 
                 output_binary = writer.get_buffer()
                 print('time cost:', time_need, '\ntravel distance', traveled_dist)
-                self.send_progress('Finishing', 1.0)
+                self.send_progress('Finishing', 1.0, translation_key='finishing')
                 if send_fcode:
                     self.send_json(
                         status='complete',
