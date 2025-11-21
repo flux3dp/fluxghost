@@ -199,6 +199,7 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor_image_params['hardware'] = model
                     except Exception:
                         pass
+                # Deprecated, use -dpmm instead, can remove after web version not using this
                 elif param == '-ldpi':
                     self.pixel_per_mm = 5
                 elif param == '-mdpi':
@@ -206,14 +207,11 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-hdpi':
                     self.pixel_per_mm = 20
                 elif param == '-udpi':
-                    self.pixel_per_mm = 50
-                    self.factory_kwargs['pixel_per_mm_x'] = 20
-                elif param == '-dpi':
+                    self.pixel_per_mm = 40
+                elif param == '-dpmm':
                     try:
-                        dpi = int(params[i + 1])
-                        self.pixel_per_mm = round(dpi / 25.4)
-                        if self.pixel_per_mm > 20:
-                            self.factory_kwargs['pixel_per_mm_x'] = 20
+                        dpmm = float(params[i + 1])
+                        self.pixel_per_mm = round(dpmm)
                     except Exception:
                         pass
                 elif param == '-workarea':
