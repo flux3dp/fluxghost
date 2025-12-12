@@ -81,8 +81,8 @@ class ApiBase:
         else:
             self.send_error(symbol, traceback=None)
 
-    def send_progress(self, message, percentage):
-        self.send_json(status='computing', message=message, percentage=percentage)
+    def send_progress(self, message, percentage, translation_key=None):
+        self.send_json(status='computing', message=message, percentage=percentage, translation_key=translation_key)
 
     def send_warning(self, message):
         self.send_json(status='warning', message=message)

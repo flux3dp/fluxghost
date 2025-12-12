@@ -20,14 +20,15 @@ from fluxclient.toolpath.svgeditor_factory import SvgeditorFactory, SvgeditorIma
 from fluxclient.toolpath.toolpath import gcode2fcode, svgeditor2taskcode
 from fluxghost.utils.username import get_username
 
-from .misc import BinaryUploadHelper, OnTextMessageMixin
-from .svg_toolpath import svg_base_api_mixin
+from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
 logger = logging.getLogger('API.SVGEDITOR')
 
 
 def laser_svgeditor_api_mixin(cls):
-    class LaserSvgeditorApi(OnTextMessageMixin, svg_base_api_mixin(cls)):
+    class LaserSvgeditorApi(OnTextMessageMixin, BinaryHelperMixin, cls):
+        fcode_metadata = None
+
         def __init__(self, *args):
             self.pixel_per_mm = 10
             self.svg_image = None
@@ -35,6 +36,7 @@ def laser_svgeditor_api_mixin(cls):
             self.is_task_interrupted = False
             self.curve_engraving_detail = None
             super().__init__(*args)
+            self.fcode_metadata = {}
             self.cmd_mapping = {
                 'upload_plain_svg': [self.cmd_upload_plain_svg],
                 'divide_svg': [self.divide_svg],
@@ -49,20 +51,19 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_set_params(self, params):
             key, value = params.split()
             logger.info('setting parameter %r = %r', key, value)
-            if not self.set_param(key, value):
-                if key == 'loop_compensation':
-                    self.loop_compensation = max(0, float(value))
-                elif key == 'curve_engraving':
-                    try:
-                        curve_engraving_detail = json.loads(value)
-                        self.curve_engraving_detail = curve_engraving_detail
-                    except Exception:
-                        logger.exception('Invalid curve_engraving value')
-                        self.send_json(status='error', message='Invalid curve_engraving value')
-                elif key in ('shading', 'one_way', 'calibration'):
-                    pass
-                else:
-                    self.send_json(status='error', message='Unknown parameter %s' % key)
+            if key == 'loop_compensation':
+                self.loop_compensation = max(0, float(value))
+            elif key == 'curve_engraving':
+                try:
+                    curve_engraving_detail = json.loads(value)
+                    self.curve_engraving_detail = curve_engraving_detail
+                except Exception:
+                    logger.exception('Invalid curve_engraving value')
+                    self.send_json(status='error', message='Invalid curve_engraving value')
+            elif key in ('shading', 'one_way', 'calibration'):
+                pass
+            else:
+                self.send_json(status='error', message='Unknown parameter %s' % key)
             self.send_ok()
 
         def divide_svg(self, params):
@@ -149,7 +150,9 @@ def laser_svgeditor_api_mixin(cls):
             }
 
             def progress_callback(prog):
-                self.send_progress('Analyzing SVG - ' + str(round(prog * 100, 2)) + '%', prog)
+                self.send_progress(
+                    'Analyzing SVG - ' + str(round(prog * 100, 2)) + '%', prog, translation_key='analyzing_svg'
+                )
 
             def generate_svgeditor_image(buf, name, thumbnail_length):
                 thumbnail = buf[:thumbnail_length]
@@ -196,6 +199,7 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor_image_params['hardware'] = model
                     except Exception:
                         pass
+                # Deprecated, use -dpmm instead, can remove after web version not using this
                 elif param == '-ldpi':
                     self.pixel_per_mm = 5
                 elif param == '-mdpi':
@@ -203,14 +207,11 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-hdpi':
                     self.pixel_per_mm = 20
                 elif param == '-udpi':
-                    self.pixel_per_mm = 50
-                    self.factory_kwargs['pixel_per_mm_x'] = 20
-                elif param == '-dpi':
+                    self.pixel_per_mm = 40
+                elif param == '-dpmm':
                     try:
-                        dpi = int(params[i + 1])
-                        self.pixel_per_mm = round(dpi / 25.4)
-                        if self.pixel_per_mm > 20:
-                            self.factory_kwargs['pixel_per_mm_x'] = 20
+                        dpmm = float(params[i + 1])
+                        self.pixel_per_mm = round(dpmm)
                     except Exception:
                         pass
                 elif param == '-workarea':
@@ -261,7 +262,11 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_g2f(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress('Calculating Toolpath ' + str(round(prog * 100, 2)) + '%', prog)
+                self.send_progress(
+                    'Calculating task path' + str(round(prog * 100, 2)) + '%',
+                    prog,
+                    translation_key='calculating_task_path',
+                )
 
             def upload_callback(buf, thumbnail_length):
                 def process_thumbnail(base64_thumbnail: str):
@@ -279,7 +284,7 @@ def laser_svgeditor_api_mixin(cls):
                 self.send_ok()
                 send_fcode = True
                 try:
-                    self.send_progress('Initializing', 0.03)
+                    self.send_progress('Initializing', 0.03, translation_key='initializing')
 
                     self.fcode_metadata.update(
                         {
@@ -309,7 +314,7 @@ def laser_svgeditor_api_mixin(cls):
                     time_need = float(writer.get_metadata().get(b'TIME_COST', 0))
 
                     traveled_dist = float(writer.get_metadata().get(b'TRAVEL_DIST', 0))
-                    self.send_progress('Finishing', 1.0)
+                    self.send_progress('Finishing', 1.0, translation_key='finishing')
 
                     if send_fcode:
                         self.send_json(
@@ -338,7 +343,11 @@ def laser_svgeditor_api_mixin(cls):
         def cmd_go(self, params_str):
             def progress_callback(prog):
                 prog = math.floor(prog * 500) / 500
-                self.send_progress('Calculating Toolpath ' + str(round(prog * 100, 2)) + '%', prog)
+                self.send_progress(
+                    'Calculating task path ' + str(round(prog * 100, 2)) + '%',
+                    prog,
+                    translation_key='calculating_task_path',
+                )
 
             logger.info('Calling laser svgeditor')
             self.is_task_interrupted = False
@@ -380,10 +389,6 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['rotary_z_motion'] = json.loads(params[i + 1])
                     except Exception:
                         logger.info('Bad rotary_z_motion {}'.format(params[i + 1]))
-                elif param == '-blade':
-                    svgeditor2taskcode_kwargs['blade_radius'] = float(params[i + 1])
-                elif param == '-precut':
-                    svgeditor2taskcode_kwargs['precut_at'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-prespray':
                     svgeditor2taskcode_kwargs['prespray'] = [float(j) for j in params[i + 1].split(',')]
                 elif param == '-temp':
@@ -503,7 +508,7 @@ def laser_svgeditor_api_mixin(cls):
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
 
             try:
-                self.send_progress('Initializing', 0.03)
+                self.send_progress('Initializing', 0.03, translation_key='initializing')
                 factory = self.prepare_factory()
                 self.fcode_metadata.update(
                     {
@@ -555,7 +560,7 @@ def laser_svgeditor_api_mixin(cls):
 
                 output_binary = writer.get_buffer()
                 print('time cost:', time_need, '\ntravel distance', traveled_dist)
-                self.send_progress('Finishing', 1.0)
+                self.send_progress('Finishing', 1.0, translation_key='finishing')
                 if send_fcode:
                     self.send_json(
                         status='complete',

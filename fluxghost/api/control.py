@@ -65,10 +65,11 @@ def control_api_mixin(cls):
                 # deprecated
                 'upload': self.upload_file,
                 'update_fw': self.update_fw,
+                'update_mbfw': self.update_mbfw,
+                'update_hbfw': self.update_hbfw,
                 'update_laser_records': self.update_laser_records,
                 'update_fisheye_params': self.update_fisheye_params,
                 'update_fisheye_3d_rotation': self.update_fisheye_3d_rotation,
-                'update_mbfw': self.update_mbfw,
                 'deviceinfo': self.deviceinfo,
                 'cloud_validate_code': self.cloud_validate_code,
                 'wait_status': self.wait_status,
@@ -380,25 +381,34 @@ def control_api_mixin(cls):
                 )
             return
 
-        def update_fw(self, mimetype, ssize):
+        def update_firmware(self, firmware_type, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
-                    self.robot.update_firmware(stream, int(size), self.cb_upload_callback)
+                    self.robot.update_firmware(stream, firmware_type, int(size), self.cb_upload_callback)
                     self.send_ok()
                     self.close()
                 except RobotError as e:
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
+
+        def update_fw(self, _, ssize):
+            self.update_firmware('update_fw', ssize)
+
+        def update_mbfw(self, _, ssize):
+            self.update_firmware('update_mbfw', ssize)
+
+        def update_hbfw(self, _, ssize):
+            self.update_firmware('update_hbfw', ssize)
 
         def update_laser_records(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_laser_records(stream, int(size), self.cb_upload_callback)
@@ -408,12 +418,12 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def update_fisheye_params(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_fisheye_params(stream, int(size), self.cb_upload_callback)
@@ -423,12 +433,12 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def update_fisheye_3d_rotation(self, mimetype, ssize):
             size = int(ssize)
 
-            def on_recived(stream):
+            def on_received(stream):
                 stream.seek(0)
                 try:
                     self.robot.update_fisheye_3d_rotation(stream, int(size), self.cb_upload_callback)
@@ -438,17 +448,7 @@ def control_api_mixin(cls):
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
 
-            self.simple_binary_receiver(size, on_recived)
-
-        def update_mbfw(self, mimetype, ssize):
-            size = int(ssize)
-
-            def on_recived(stream):
-                stream.seek(0)
-                self.robot._backend.update_atmel(self.robot, stream, int(size), self.cb_upload_callback)
-                self.send_ok()
-
-            self.simple_binary_receiver(size, on_recived)
+            self.simple_binary_receiver(size, on_received)
 
         def start_play(self):
             self.robot.start_play()

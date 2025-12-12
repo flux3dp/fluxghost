@@ -31,7 +31,6 @@ TEST_MODULES = [
     'fluxclient',
     'fluxclient.fcode',
     'fluxclient.hw_profile',
-    'fluxclient.laser',
     'fluxclient.robot',
 ] + [m.rsplit('.', 1)[0] for p, m in ROUTES]
 

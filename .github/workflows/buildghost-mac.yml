@@ -12,7 +12,8 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-13]
+        os: [macOS-15, macOS-15-intel]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v4
@@ -23,8 +24,11 @@ jobs:
 
       - name: Install Brew Packages
         run: |
-          # /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
           brew install zlib
+
+      - name: Set dyld path for cairo
+        run: |
+          echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
 
       - name: Install Python dependencies
         run: |
@@ -36,15 +40,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: flux3dp/beamify
-          ref: 2.0.8
+          ref: 2.1.0
           token: ${{ secrets.REPO_TOKEN }}
           path: .github/actions/beamify
 
       - name: Install Beamify
         run: |
           cd .github/actions/beamify/python
-          # FIXME: Failed to install deps only on github action, use || operator temporary
-          python3 setup.py install --verbose
+          pip install . -v
 
       - name: Install Fluxsvg
         uses: flux3dp/fluxsvg@2.7.7
@@ -53,15 +56,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: flux3dp/fluxclient-dev
-          ref: 2.9.6
+          ref: 2.9.8
           token: ${{ secrets.REPO_TOKEN }}
           path: .github/actions/fluxclient
 
       - name: Install FluxClient
         run: |
           cd .github/actions/fluxclient
-          # FIXME: Failed to install deps only on github action, use || operator temporary
-          python3 setup.py install --verbose
+          pip install . -v
 
       - name: Build Flux Api
         run: |
