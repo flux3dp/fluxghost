@@ -314,31 +314,66 @@ def camera_calibration_api_mixin(cls):
                         cv2.circle(remap_copy, tuple(c.astype(int)), 3, (0, 0, 255), 1)
                     for p in projected_points:
                         cv2.circle(remap_copy, tuple(p.astype(int)), 0, (255, 0, 0), -1)
-                        cv2.circle(remap_copy, tuple(p.astype(int)), 3, (255, 0, 0), 1)
+                        cv2.circle(remap_copy, tuple(p.astype(int)), 5, (255, 0, 0), 1)
 
-                if len(corners) > len(projected_points):
+                target_counts = len(projected_points)
+                if len(corners) >= target_counts:
                     corner_tree = spatial.KDTree(corners)
-                    _, candidates_indice = corner_tree.query(projected_points[0], k=len(corners))
                     best_res = None
-                    for index in candidates_indice:
-                        res = [corners[index]]
-                        used_indices = set([index])
-                        total_dist = 0
-                        delta = corners[index] - projected_points[0]
-                        for i in range(1, len(projected_points)):
-                            desire_point = projected_points[i] + delta
-                            dists, indices = corner_tree.query(desire_point, k=len(projected_points))
-                            for j in range(len(indices)):
-                                if indices[j] not in used_indices:
-                                    used_indices.add(indices[j])
-                                    res.append(corners[indices[j]])
-                                    total_dist += dists[j]
+                    for ref_index in range(target_counts):
+                        for candidate_index in range(len(corners)):
+                            res = [None] * target_counts
+                            score = 0
+                            score_detail = [0] * target_counts
+                            res[ref_index] = corners[candidate_index]
+                            score_detail[ref_index] = 1.0
+                            used_indices = set([candidate_index])
+                            delta = corners[candidate_index] - projected_points[ref_index]
+                            # Find best match point for target_counts - 1 times, add min dist result for each time
+                            for i in range(target_counts - 1):
+                                min_dist_data = None
+                                # Check for j-th target point distance
+                                for j in range(target_counts):
+                                    if res[j] is not None:
+                                        continue
+                                    dists, indices = corner_tree.query(
+                                        projected_points[j] + delta, k=1 + len(used_indices)
+                                    )
+                                    for dist, idx in zip(dists, indices):
+                                        if idx not in used_indices:
+                                            if min_dist_data is None or dist < min_dist_data[0]:
+                                                min_dist_data = (dist, idx, j)
+                                            break
+                                dist, corner_idx, target_idx = min_dist_data
+                                used_indices.add(corner_idx)
+                                res[target_idx] = corners[corner_idx]
+                                # soft_inlier_score with sigma = 30
+                                point_score = np.exp(-(dist * dist) / (2 * 30 * 30))
+                                score_detail[target_idx] = point_score
+                                score += point_score
+                                # Early stop: even all next points are perfect score, total score cannot exceed best_res
+                                if best_res and score + (target_counts - i - 2) < best_res[1]:
                                     break
-                                if best_res and total_dist > best_res[1]:
-                                    break
-                        if best_res is None or total_dist < best_res[1]:
-                            best_res = (res, total_dist)
-                    result_img_points = np.array(best_res[0])
+                            if best_res is None or score > best_res[1]:
+                                best_res = (res, score, score_detail, ref_index)
+                    res, score, score_detail, ref_index = best_res
+                    logger.info('[solve_pnp] Total score: {}, detail: {}'.format(score, score_detail))
+                    if score < 0.5:
+                        logger.info('[solve_pnp] Total score: %.2f is less than threshold.' % score)
+                        result_img_points = projected_points
+                    else:
+                        for i in range(target_counts):
+                            if IS_DEBUGGING:
+                                color = (255, 0, 255) if i == ref_index else (0, 255, 0)
+                                cv2.circle(remap_copy, tuple(res[i].astype(int)), 0, color, -1)
+                                cv2.circle(remap_copy, tuple(res[i].astype(int)), 4, color, 1)
+                            if score_detail[i] < 0.3:
+                                logger.info(
+                                    '[solve_pnp] Point %d score: %.2f less than threshold, use ref point + offset'
+                                    % (i, score_detail[i])
+                                )
+                                res[i] = res[ref_index] + (projected_points[i] - projected_points[ref_index])
+                        result_img_points = np.array(res)
                 else:
                     logger.info(
                         'corners lens: {} is less than projected_points, use projected_points'.format(len(corners))
@@ -352,7 +387,7 @@ def camera_calibration_api_mixin(cls):
                 if IS_DEBUGGING:
                     for p in result_img_points:
                         cv2.circle(remap_copy, tuple(p.astype(int)), 0, (255, 255, 0), -1)
-                        cv2.circle(remap_copy, tuple(p.astype(int)), 3, (255, 255, 0), 1)
+                        cv2.circle(remap_copy, tuple(p.astype(int)), 5, (255, 255, 0), 1)
                     cv2.imwrite('solve-pnp-corner.png', remap_copy)
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
