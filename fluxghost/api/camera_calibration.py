@@ -378,7 +378,18 @@ def camera_calibration_api_mixin(cls):
                     logger.info(
                         'corners lens: {} is less than projected_points, use projected_points'.format(len(corners))
                     )
-                    result_img_points = projected_points
+                    if interest_area:
+                        x, y = interest_area['x'], interest_area['y']
+                        width, height = interest_area['width'], interest_area['height']
+                        min_x, min_y = x + 0.05 * width, y + 0.05 * height
+                        max_x, max_y = x + 0.95 * width, y + 0.95 * height
+                        interest_center = np.array([x + width / 2, y + height / 2])
+                        projected_points_center = np.average(projected_points, axis=0)
+                        result_img_points = projected_points + (interest_center - projected_points_center)
+                        result_img_points[:, 0] = np.clip(result_img_points[:, 0], min_x, max_x)
+                        result_img_points[:, 1] = np.clip(result_img_points[:, 1], min_y, max_y)
+                    else:
+                        result_img_points = projected_points
 
                 self.send_ok(points=result_img_points.tolist())
                 _, array_buffer = cv2.imencode('.jpg', remap)
