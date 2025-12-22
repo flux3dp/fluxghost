@@ -317,6 +317,7 @@ def camera_calibration_api_mixin(cls):
                         cv2.circle(remap_copy, tuple(p.astype(int)), 5, (255, 0, 0), 1)
 
                 target_counts = len(projected_points)
+                result_img_points = None
                 if len(corners) >= target_counts:
                     corner_tree = spatial.KDTree(corners)
                     best_res = None
@@ -358,10 +359,7 @@ def camera_calibration_api_mixin(cls):
                                 best_res = (res, score, score_detail, ref_index)
                     res, score, score_detail, ref_index = best_res
                     logger.info('[solve_pnp] Total score: {}, detail: {}'.format(score, score_detail))
-                    if score < 0.5:
-                        logger.info('[solve_pnp] Total score: %.2f is less than threshold.' % score)
-                        result_img_points = projected_points
-                    else:
+                    if score >= 0.5:
                         for i in range(target_counts):
                             if IS_DEBUGGING:
                                 color = (255, 0, 255) if i == ref_index else (0, 255, 0)
@@ -374,10 +372,11 @@ def camera_calibration_api_mixin(cls):
                                 )
                                 res[i] = res[ref_index] + (projected_points[i] - projected_points[ref_index])
                         result_img_points = np.array(res)
-                else:
-                    logger.info(
-                        'corners lens: {} is less than projected_points, use projected_points'.format(len(corners))
-                    )
+                    else:
+                        logger.info('[solve_pnp] Total score: %.2f is less than threshold.' % score)
+
+                if result_img_points is None:
+                    logger.info('[solve_pnp] Fail to use found points, projected points directly.')
                     if interest_area:
                         x, y = interest_area['x'], interest_area['y']
                         width, height = interest_area['width'], interest_area['height']
