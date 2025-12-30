@@ -10,17 +10,17 @@ from PIL import Image
 from scipy import spatial
 
 from fluxghost.utils.fisheye.calibration import (
-    calibrate_fisheye,
+    calibrate_camera,
     calibrate_fisheye_camera,
     distort_points,
     find_chessboard,
     get_remap_img,
+    project_points,
     remap_corners,
 )
 from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
 from fluxghost.utils.fisheye.constants import B_PAD, CHESSBOARD, L_PAD, R_PAD, T_PAD
 from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.corner_detection.constants import get_ref_points
 from fluxghost.utils.fisheye.corner_detection.find_corners import find_blob_centers
 from fluxghost.utils.fisheye.general import pad_image
 from fluxghost.utils.fisheye.perspective import calculate_regional_perspective_points, generate_grid_objects
@@ -39,6 +39,8 @@ def camera_calibration_api_mixin(cls):
             # TODO: add all in one fisheye calibration
             self.cmd_mapping = {
                 'upload': [self.cmd_upload_image],
+                'calibrate_camera': [self.cmd_calibrate_camera],
+                # Deprecated, use calibrate_camera instead
                 'calibrate_fisheye': [self.cmd_calibrate_fisheye],
                 'detect_charuco': [self.cmd_detect_charuco],
                 'start_fisheye_calibration': [self.cmd_start_fisheye_calibration],
@@ -188,7 +190,7 @@ def camera_calibration_api_mixin(cls):
                     _, ret, corners = find_chessboard(
                         remap, (chess_w, chess_h), 2, do_subpix=True, try_denoise=False, k=k, d=d
                     )
-                    projected, _ = cv2.fisheye.projectPoints(objp, rvecs[0], tvecs[0], k, d)
+                    projected = project_points(objp, rvecs[0], tvecs[0], k, d)
                     projected = remap_corners(projected, k, d).reshape(chess_h, chess_w, 2)
                     corners = np.array(corners).reshape(chess_h, chess_w, 2) if ret else None
                     for i in range(chess_h):
@@ -251,14 +253,16 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
                 return
             k, d = np.array(k), np.array(d)
+            is_fisheye = params.get('is_fisheye', True)
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                remap = pad_image(img_cv, (0, 0, 0))
-                remap = get_remap_img(remap, k, d)
-                _, array_buffer = cv2.imencode('.jpg', remap)
+                if is_fisheye:
+                    img_cv = pad_image(img_cv, (0, 0, 0))
+                img_cv = get_remap_img(img_cv, k, d, is_fisheye=is_fisheye)
+                _, array_buffer = cv2.imencode('.jpg', img_cv)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
 
@@ -275,11 +279,9 @@ def camera_calibration_api_mixin(cls):
             d = self.calibration_params['d']
             rvec = self.calibration_params['rvec']
             tvec = self.calibration_params['tvec']
+            is_fisheye = self.calibration_params.get('is_fisheye', True)
             message = message.split(' ')
             ref_points = json.loads(message[0])
-            if isinstance(ref_points, int):
-                ref_points = get_ref_points(ref_points)
-                logger.warning('Use version ref points is deprecated')
             dh = round(float(message[1]), 2)
             ref_points = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             file_length = int(message[2])
@@ -291,30 +293,31 @@ def camera_calibration_api_mixin(cls):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                remap = pad_image(img_cv, (0, 0, 0))
-                remap = get_remap_img(remap, k, d)
+                if is_fisheye:
+                    img_cv = pad_image(img_cv, (0, 0, 0))
+                img_cv = get_remap_img(img_cv, k, d, is_fisheye=is_fisheye)
                 if interest_area:
                     x, y = interest_area['x'], interest_area['y']
                     width, height = interest_area['width'], interest_area['height']
-                    interested_img = remap[y : y + height, x : x + width]
+                    interested_img = img_cv[y : y + height, x : x + width]
                     corners = find_blob_centers(interested_img)
                     if len(corners) > 0:
                         corners = corners + np.array([x, y])
                 else:
-                    corners = find_blob_centers(remap)
-                projected_points, _ = cv2.fisheye.projectPoints(ref_points, rvec, tvec, k, d)
-                projected_points = remap_corners(projected_points, k, d).reshape(-1, 2)
+                    corners = find_blob_centers(img_cv)
+                projected_points = project_points(ref_points, rvec, tvec, k, d, is_fisheye=is_fisheye)
+                projected_points = remap_corners(projected_points, k, d, is_fisheye=is_fisheye).reshape(-1, 2)
 
                 if IS_DEBUGGING:
-                    remap_copy = remap.copy()
+                    img_copy = img_cv.copy()
                     if interest_area:
-                        cv2.rectangle(remap_copy, (x, y), (x + width, y + height), (0, 0, 255), 1)
+                        cv2.rectangle(img_copy, (x, y), (x + width, y + height), (0, 0, 255), 1)
                     for c in corners:
-                        cv2.circle(remap_copy, tuple(c.astype(int)), 0, (0, 0, 255), -1)
-                        cv2.circle(remap_copy, tuple(c.astype(int)), 3, (0, 0, 255), 1)
+                        cv2.circle(img_copy, tuple(c.astype(int)), 0, (0, 0, 255), -1)
+                        cv2.circle(img_copy, tuple(c.astype(int)), 3, (0, 0, 255), 1)
                     for p in projected_points:
-                        cv2.circle(remap_copy, tuple(p.astype(int)), 0, (255, 0, 0), -1)
-                        cv2.circle(remap_copy, tuple(p.astype(int)), 5, (255, 0, 0), 1)
+                        cv2.circle(img_copy, tuple(p.astype(int)), 0, (255, 0, 0), -1)
+                        cv2.circle(img_copy, tuple(p.astype(int)), 5, (255, 0, 0), 1)
 
                 target_counts = len(projected_points)
                 result_img_points = None
@@ -363,8 +366,8 @@ def camera_calibration_api_mixin(cls):
                         for i in range(target_counts):
                             if IS_DEBUGGING:
                                 color = (255, 0, 255) if i == ref_index else (0, 255, 0)
-                                cv2.circle(remap_copy, tuple(res[i].astype(int)), 0, color, -1)
-                                cv2.circle(remap_copy, tuple(res[i].astype(int)), 4, color, 1)
+                                cv2.circle(img_copy, tuple(res[i].astype(int)), 0, color, -1)
+                                cv2.circle(img_copy, tuple(res[i].astype(int)), 4, color, 1)
                             if score_detail[i] < 0.3:
                                 logger.info(
                                     '[solve_pnp] Point %d score: %.2f less than threshold, use ref point + offset'
@@ -391,14 +394,14 @@ def camera_calibration_api_mixin(cls):
                         result_img_points = projected_points
 
                 self.send_ok(points=result_img_points.tolist())
-                _, array_buffer = cv2.imencode('.jpg', remap)
+                _, array_buffer = cv2.imencode('.jpg', img_cv)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
                 if IS_DEBUGGING:
                     for p in result_img_points:
-                        cv2.circle(remap_copy, tuple(p.astype(int)), 0, (255, 255, 0), -1)
-                        cv2.circle(remap_copy, tuple(p.astype(int)), 5, (255, 255, 0), 1)
-                    cv2.imwrite('solve-pnp-corner.png', remap_copy)
+                        cv2.circle(img_copy, tuple(p.astype(int)), 0, (255, 255, 0), -1)
+                        cv2.circle(img_copy, tuple(p.astype(int)), 5, (255, 255, 0), 1)
+                    cv2.imwrite('solve-pnp-corner.png', img_copy)
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
@@ -409,18 +412,16 @@ def camera_calibration_api_mixin(cls):
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
             k = self.calibration_params['k']
             d = self.calibration_params['d']
+            is_fisheye = self.calibration_params.get('is_fisheye', True)
             message = message.split(' ')
             ref_points = json.loads(message[0])
-            if isinstance(ref_points, int):
-                ref_points = get_ref_points(ref_points)
-                logger.warning('Use version ref points is deprecated')
             dh = round(float(message[1]), 2)
             objpoints = np.array([(x, y, -dh) for x, y in ref_points]).reshape(-1, 1, 3)
             imgpoints = np.array(json.loads(message[2]))
-            distorted = distort_points(imgpoints, k, d)
+            distorted = distort_points(imgpoints, k, d, is_fisheye=is_fisheye)
 
             try:
-                ret, new_rvec, new_tvec = solve_pnp(objpoints, distorted.reshape(-1, 1, 2), k, d)
+                ret, new_rvec, new_tvec = solve_pnp(objpoints, distorted.reshape(-1, 1, 2), k, d, is_fisheye=is_fisheye)
                 if not ret:
                     self.send_json(status='fail', reason='solve pnp failed')
                     return
@@ -442,9 +443,11 @@ def camera_calibration_api_mixin(cls):
                 img = Image.open(io.BytesIO(buf))
                 img = np.array(img)
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
-                img = pad_image(img, (0, 0, 0))
                 k, d = np.array(params['k']), np.array(params['d'])
-                img = get_remap_img(img, k, d)
+                is_fisheye = params.get('is_fisheye', True)
+                if is_fisheye:
+                    img = pad_image(img, (0, 0, 0))
+                img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
 
                 rvec = params.get('rvec', None)
                 tvec = params.get('tvec', None)
@@ -452,14 +455,15 @@ def camera_calibration_api_mixin(cls):
                 if rvec is not None and tvec is not None:
                     xgrid, ygrid, objp = generate_grid_objects(grid['x'], grid['y'])
                     objp[:, :, 2] = -dh
-                    points, _ = cv2.fisheye.projectPoints(
+                    points = project_points(
                         objp.reshape(-1, 1, 3).astype(np.float32),
                         np.array(rvec),
                         np.array(tvec),
                         k,
                         d,
+                        is_fisheye=is_fisheye,
                     )
-                    points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
+                    points = remap_corners(points, k, d, is_fisheye=is_fisheye).reshape(objp.shape[0], objp.shape[1], 2)
                 else:
                     rvecs = params.get('rvecs', None)
                     tvecs = params.get('tvecs', None)
@@ -526,24 +530,35 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status='continue')
 
         def cmd_calibrate_fisheye(self, message):
+            logger.warning('calibrate_fisheye is deprecated, use calibrate_camera instead')
+            self.cmd_calibrate_camera(message)
+
+        def cmd_calibrate_camera(self, message):
             message = message.split(' ')
             objpoints = [np.array(objp).reshape(1, -1, 3).astype(np.float32) for objp in json.loads(message[0])]
             imgpoints = [np.array(imgp).reshape(1, -1, 2).astype(np.float32) for imgp in json.loads(message[1])]
             img_size = json.loads(message[2])
+            is_fisheye = True
+            if len(message) > 3:
+                is_fisheye = message[3].lower() == 'true'
             indices = list(range(len(objpoints)))
 
-            # apply padding
-            # TODO: support different padding value?
-            for i in range(len(imgpoints)):
-                imgpoints[i] += np.array([L_PAD, T_PAD]).astype(np.float32)
-            img_size = (img_size[0] + L_PAD + R_PAD, img_size[1] + T_PAD + B_PAD)
+            if is_fisheye:
+                # apply padding
+                # TODO: support different padding value?
+                for i in range(len(imgpoints)):
+                    imgpoints[i] += np.array([L_PAD, T_PAD]).astype(np.float32)
+                img_size = (img_size[0] + L_PAD + R_PAD, img_size[1] + T_PAD + B_PAD)
 
             try:
-                ret, k, d, rvecs, tvecs, indices = calibrate_fisheye(objpoints, imgpoints, indices, img_size)
+                ret, k, d, rvecs, tvecs, indices = calibrate_camera(
+                    objpoints, imgpoints, indices, img_size, is_fisheye=is_fisheye
+                )
                 self.calibration_params['k'] = k
                 self.calibration_params['d'] = d
                 self.calibration_params['rvec'] = rvecs[0]
                 self.calibration_params['tvec'] = tvecs[0]
+                self.calibration_params['is_fisheye'] = is_fisheye
                 self.send_ok(
                     ret=ret,
                     k=k.tolist(),
@@ -551,6 +566,7 @@ def camera_calibration_api_mixin(cls):
                     rvec=rvecs[0].tolist(),
                     tvec=tvecs[0].tolist(),
                     indices=indices,
+                    is_fisheye=is_fisheye,
                 )
             except Exception as e:
                 self.send_json(status='fail', reason=str(e))

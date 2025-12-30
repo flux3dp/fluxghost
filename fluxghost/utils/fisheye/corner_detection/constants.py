@@ -13,15 +13,6 @@ def get_grid(version):
     raise ValueError('Invalid version')
 
 
-def get_ref_points(version):
-    warnings.warn('get_ref_points is deprecated', DeprecationWarning, stacklevel=2)
-    if version == 2:
-        return [(155, 90), (275, 90), (155, 210), (275, 210), (185, 120), (245, 120), (185, 180), (245, 180)]
-    if version == 3:
-        return [(-60, 10), (60, 10), (-60, 90), (60, 90), (-30, 30), (30, 30), (-30, 70), (30, 70)]
-    raise ValueError('Invalid version')
-
-
 # init parameters for pitch 0
 H = 200
 IMG_CENTER = (2800, 2250)
