@@ -427,6 +427,10 @@ def camera_calibration_api_mixin(cls):
                 if not ret:
                     self.send_json(status='fail', reason='solve pnp failed')
                     return
+                projected = project_points(objpoints, new_rvec, new_tvec, k, d, is_fisheye=is_fisheye)
+                projected = remap_corners(projected, k, d, is_fisheye=is_fisheye).reshape(-1, 2)
+                reproj_error = np.mean(projected - imgpoints, axis=0)
+                logger.info('[solve_pnp] Reprojection error: {}'.format(reproj_error))
                 self.calibration_params['rvec'] = new_rvec
                 self.calibration_params['tvec'] = new_tvec
                 self.send_ok(rvec=new_rvec.tolist(), tvec=new_tvec.tolist())
