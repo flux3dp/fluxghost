@@ -143,6 +143,7 @@ class FisheyeCameraMixin:
                 'ref_height': data['refHeight'],
                 'rvec_polyfit': np.array(data['rvec_polyfit']),
                 'tvec_polyfit': np.array(data['tvec_polyfit']),
+                'is_fisheye': data.get('is_fisheye', True),
             }
         elif version == 3:
             self.fisheye_param = {
@@ -151,6 +152,7 @@ class FisheyeCameraMixin:
                 'd': np.array(data['d']),
                 'rvec': np.array(data['rvec']),
                 'tvec': np.array(data['tvec']),
+                'is_fisheye': data.get('is_fisheye', True),
             }
         elif version == 4:
             self.fisheye_param = {
@@ -160,6 +162,7 @@ class FisheyeCameraMixin:
                 'rvec_polyfits': data['rvec_polyfits'],
                 'tvec_polyfits': data['tvec_polyfits'],
                 'grids': data['grids'],
+                'is_fisheye': data.get('is_fisheye', True),
             }
         else:
             self.send_error('Invalid version')
@@ -176,12 +179,12 @@ class FisheyeCameraMixin:
             self.send_error('Invalid version')
             return
         version = self.fisheye_param.get('v', 1)
+        is_fisheye = self.fisheye_param.get('is_fisheye', True)
         if version == 2:
             k = self.fisheye_param['k']
             d = self.fisheye_param['d']
             rvec_polyfit = self.fisheye_param['rvec_polyfit']
             tvec_polyfit = self.fisheye_param['tvec_polyfit']
-            is_fisheye = self.fisheye_param.get('is_fisheye', True)
             dh = h - self.fisheye_param['ref_height']
             X = np.array([dh, 1])
             rvec = np.dot(X, rvec_polyfit)
@@ -226,6 +229,7 @@ class FisheyeCameraMixin:
                 d,
                 rvecs,
                 tvecs,
+                is_fisheye=is_fisheye,
             )
 
             self.fisheye_param.update(

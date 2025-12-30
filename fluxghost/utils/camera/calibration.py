@@ -49,10 +49,14 @@ def distort_points(corners, k, d, is_fisheye=True):
     corners = cv2.convertPointsToHomogeneous(corners).reshape(-1, 3)
     corners = np.matmul(q, corners.T).T
     corners = cv2.convertPointsFromHomogeneous(corners).reshape(-1, 1, 2)
-    if not is_fisheye:
-        res = cv2.undistortPoints(corners, k, d, None, k)
+    if is_fisheye:
+        res = cv2.fisheye.distortPoints(corners, k, d)
         return res
-    res = cv2.fisheye.distortPoints(corners, k, d)
+    corners = corners.reshape(-1, 2)
+    obj = np.hstack([corners, np.ones((len(corners), 1))]).astype(np.float32)
+    rvec = np.zeros((3, 1))
+    tvec = np.zeros((3, 1))
+    res, _ = cv2.projectPoints(obj, rvec, tvec, k, d)
     return res
 
 

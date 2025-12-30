@@ -250,12 +250,12 @@ def camera_calibration_api_mixin(cls):
 
             k = params.get('k', self.calibration_params.get('k'))
             d = params.get('d', self.calibration_params.get('d'))
+            is_fisheye = params.get('is_fisheye', self.calibration_params.get('is_fisheye', True))
 
             if k is None or d is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
                 return
             k, d = np.array(k), np.array(d)
-            is_fisheye = params.get('is_fisheye', True)
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
@@ -480,6 +480,7 @@ def camera_calibration_api_mixin(cls):
                             d,
                             rvecs,
                             tvecs,
+                            is_fisheye=is_fisheye,
                         )
                 if points is None:
                     self.send_json(status='fail', reason='No pnp provided')

@@ -12,7 +12,13 @@ def solve_pnp(
     flags=cv2.SOLVEPNP_ITERATIVE,
     is_fisheye=True,
 ):
-    normalized_img_points = cv2.fisheye.undistortPoints(imgpoints, k, d, np.eye(3), k) if is_fisheye else imgpoints
     return cv2.solvePnP(
-        objpoints, normalized_img_points, k, None, None, None, useExtrinsicGuess=useExtrinsicGuess, flags=flags
+        objpoints,
+        cv2.fisheye.undistortPoints(imgpoints, k, d, np.eye(3), k) if is_fisheye else imgpoints,
+        k,
+        None if is_fisheye else d,
+        None,
+        None,
+        useExtrinsicGuess=useExtrinsicGuess,
+        flags=flags,
     )
