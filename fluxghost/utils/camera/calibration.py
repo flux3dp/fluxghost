@@ -6,7 +6,7 @@ import numpy as np
 
 from .general import pad_image
 
-logger = logging.getLogger('utils.fisheye.calibration')
+logger = logging.getLogger('utils.camera.calibration')
 
 INIT_K = np.array(
     [

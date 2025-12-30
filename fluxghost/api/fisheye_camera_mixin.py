@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 
 from fluxclient.hw_profile import HW_PROFILE
-from fluxghost.utils.fisheye.calibration import get_remap_img, project_points, remap_corners
-from fluxghost.utils.fisheye.constants import (
+from fluxghost.utils.camera.calibration import get_remap_img, project_points, remap_corners
+from fluxghost.utils.camera.constants import (
     CHESSBOARD,
     IMAGE_H,
     IMAGE_W,
@@ -14,14 +14,14 @@ from fluxghost.utils.fisheye.constants import (
     PADDED_W,
     PERSPECTIVE_SPLIT,
 )
-from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.general import pad_image, pad_low_resolution_image
-from fluxghost.utils.fisheye.perspective import (
+from fluxghost.utils.camera.corner_detection import apply_points
+from fluxghost.utils.camera.general import pad_image, pad_low_resolution_image
+from fluxghost.utils.camera.perspective import (
     apply_perspective_points_transform,
     calculate_regional_perspective_points,
     generate_grid_objects,
 )
-from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
+from fluxghost.utils.camera.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 logger = logging.getLogger(__file__)
 

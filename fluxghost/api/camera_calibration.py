@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 from scipy import spatial
 
-from fluxghost.utils.fisheye.calibration import (
+from fluxghost.utils.camera.calibration import (
     calibrate_camera,
     calibrate_fisheye_camera,
     distort_points,
@@ -18,13 +18,13 @@ from fluxghost.utils.fisheye.calibration import (
     project_points,
     remap_corners,
 )
-from fluxghost.utils.fisheye.charuco.detect import get_calibration_data_from_charuco
-from fluxghost.utils.fisheye.constants import B_PAD, CHESSBOARD, L_PAD, R_PAD, T_PAD
-from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.corner_detection.find_corners import find_blob_centers
-from fluxghost.utils.fisheye.general import pad_image
-from fluxghost.utils.fisheye.perspective import calculate_regional_perspective_points, generate_grid_objects
-from fluxghost.utils.fisheye.solve_pnp import solve_pnp
+from fluxghost.utils.camera.charuco.detect import get_calibration_data_from_charuco
+from fluxghost.utils.camera.constants import B_PAD, CHESSBOARD, L_PAD, R_PAD, T_PAD
+from fluxghost.utils.camera.corner_detection import apply_points
+from fluxghost.utils.camera.corner_detection.find_corners import find_blob_centers
+from fluxghost.utils.camera.general import pad_image
+from fluxghost.utils.camera.perspective import calculate_regional_perspective_points, generate_grid_objects
+from fluxghost.utils.camera.solve_pnp import solve_pnp
 
 from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
