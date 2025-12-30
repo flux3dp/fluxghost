@@ -113,6 +113,8 @@ def camera_calibration_api_mixin(cls):
             for key in ['k', 'd', 'rvec', 'tvec', 'rvec_polyfit', 'tvec_polyfit', 'levelingData']:
                 if key in data:
                     self.calibration_params[key] = np.array(data[key])
+            if data.get('is_fisheye') is not None:
+                self.calibration_params['is_fisheye'] = data['is_fisheye']
             self.send_ok()
 
         def cmd_add_fisheye_calibration_image(self, message):
@@ -246,8 +248,8 @@ def camera_calibration_api_mixin(cls):
             size = args['size']
             params = args.get('params', {})
 
-            k = params.get('k', self.calibration_params.get('k', None))
-            d = params.get('d', self.calibration_params.get('d', None))
+            k = params.get('k', self.calibration_params.get('k'))
+            d = params.get('d', self.calibration_params.get('d'))
 
             if k is None or d is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
@@ -272,7 +274,7 @@ def camera_calibration_api_mixin(cls):
 
         # solve pnp step 1: given img and dh, find corners, return corners for user to check
         def cmd_solve_pnp_find_corners(self, message):
-            if self.calibration_params.get('k', None) is None:
+            if self.calibration_params.get('k') is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
                 return
             k = self.calibration_params['k']
@@ -408,7 +410,7 @@ def camera_calibration_api_mixin(cls):
             self.send_json(status='continue')
 
         def cmd_solve_pnp_calculate(self, message):
-            if self.calibration_params.get('k', None) is None:
+            if self.calibration_params.get('k') is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
             k = self.calibration_params['k']
             d = self.calibration_params['d']
@@ -449,8 +451,7 @@ def camera_calibration_api_mixin(cls):
                     img = pad_image(img, (0, 0, 0))
                 img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
 
-                rvec = params.get('rvec', None)
-                tvec = params.get('tvec', None)
+                rvec, tvec = params.get('rvec'), params.get('tvec')
                 points = None
                 if rvec is not None and tvec is not None:
                     xgrid, ygrid, objp = generate_grid_objects(grid['x'], grid['y'])
@@ -465,8 +466,7 @@ def camera_calibration_api_mixin(cls):
                     )
                     points = remap_corners(points, k, d, is_fisheye=is_fisheye).reshape(objp.shape[0], objp.shape[1], 2)
                 else:
-                    rvecs = params.get('rvecs', None)
-                    tvecs = params.get('tvecs', None)
+                    rvecs, tvecs = params.get('rvecs', None), params.get('tvecs', None)
                     if rvecs is not None and tvecs is not None:
                         for key in rvecs:
                             rvecs[key] = np.array(rvecs[key])
