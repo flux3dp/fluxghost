@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-from .calibration import get_remap_img, remap_corners
+from .calibration import get_remap_img, project_points, remap_corners
 from .constants import DPMM
 from .general import pad_image
 
@@ -42,7 +42,7 @@ def generate_grid_objects(grid_data_x, grid_data_y):
     return xgrid, ygrid, objp
 
 
-def calculate_regional_perspective_points(grid_data_x, grid_data_y, h, k, d, rvecs, tvecs):
+def calculate_regional_perspective_points(grid_data_x, grid_data_y, h, k, d, rvecs, tvecs, is_fisheye=True):
     """
     Calculate the perspective points using for 9-region rvecs and tvecs
     region keys: ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
@@ -67,18 +67,21 @@ def calculate_regional_perspective_points(grid_data_x, grid_data_y, h, k, d, rve
         region = region_key_map[y_index * 3 + x_index]
         rvec = rvecs[region]
         tvec = tvecs[region]
-        point, _ = cv2.fisheye.projectPoints(
-            np.array([[x, y, -h]]).reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d
+        point = project_points(
+            np.array([[x, y, -h]]).reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d, is_fisheye=is_fisheye
         )
         perspective_points[i] = point[0][0]
     perspective_points = perspective_points.reshape(1, -1, 2)
-    perspective_points = remap_corners(perspective_points, k, d).reshape(orig_shape[0], orig_shape[1], 2)
+    perspective_points = remap_corners(perspective_points, k, d, is_fisheye=is_fisheye).reshape(
+        orig_shape[0], orig_shape[1], 2
+    )
 
     return perspective_points, xgrid, ygrid
 
 
-def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1):
-    img = pad_image(img)
+def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1, is_fisheye=True):
+    if is_fisheye:
+        img = pad_image(img)
     if downsample > 1:
         img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
         k = k.copy()
@@ -86,10 +89,10 @@ def apply_perspective_points_transform(img, k, d, split, chessboard, points, dow
         k[1][1] /= downsample
         k[0][2] /= downsample
         k[1][2] /= downsample
-        img = get_remap_img(img, k, d)
+        img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
         img = cv2.resize(img, (img.shape[1] * downsample, img.shape[0] * downsample))
     else:
-        img = get_remap_img(img, k, d)
+        img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
 
     padding = 100
     split_x, split_y = split

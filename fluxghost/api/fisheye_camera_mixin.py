@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 
 from fluxclient.hw_profile import HW_PROFILE
-from fluxghost.utils.fisheye.calibration import get_remap_img, remap_corners
-from fluxghost.utils.fisheye.constants import (
+from fluxghost.utils.camera.calibration import get_remap_img, project_points, remap_corners
+from fluxghost.utils.camera.constants import (
     CHESSBOARD,
     IMAGE_H,
     IMAGE_W,
@@ -14,14 +14,14 @@ from fluxghost.utils.fisheye.constants import (
     PADDED_W,
     PERSPECTIVE_SPLIT,
 )
-from fluxghost.utils.fisheye.corner_detection import apply_points
-from fluxghost.utils.fisheye.general import pad_image, pad_low_resolution_image
-from fluxghost.utils.fisheye.perspective import (
+from fluxghost.utils.camera.corner_detection import apply_points
+from fluxghost.utils.camera.general import pad_image, pad_low_resolution_image
+from fluxghost.utils.camera.perspective import (
     apply_perspective_points_transform,
     calculate_regional_perspective_points,
     generate_grid_objects,
 )
-from fluxghost.utils.fisheye.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
+from fluxghost.utils.camera.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 logger = logging.getLogger(__file__)
 
@@ -143,6 +143,7 @@ class FisheyeCameraMixin:
                 'ref_height': data['refHeight'],
                 'rvec_polyfit': np.array(data['rvec_polyfit']),
                 'tvec_polyfit': np.array(data['tvec_polyfit']),
+                'is_fisheye': data.get('is_fisheye', True),
             }
         elif version == 3:
             self.fisheye_param = {
@@ -151,6 +152,7 @@ class FisheyeCameraMixin:
                 'd': np.array(data['d']),
                 'rvec': np.array(data['rvec']),
                 'tvec': np.array(data['tvec']),
+                'is_fisheye': data.get('is_fisheye', True),
             }
         elif version == 4:
             self.fisheye_param = {
@@ -160,6 +162,7 @@ class FisheyeCameraMixin:
                 'rvec_polyfits': data['rvec_polyfits'],
                 'tvec_polyfits': data['tvec_polyfits'],
                 'grids': data['grids'],
+                'is_fisheye': data.get('is_fisheye', True),
             }
         else:
             self.send_error('Invalid version')
@@ -176,6 +179,7 @@ class FisheyeCameraMixin:
             self.send_error('Invalid version')
             return
         version = self.fisheye_param.get('v', 1)
+        is_fisheye = self.fisheye_param.get('is_fisheye', True)
         if version == 2:
             k = self.fisheye_param['k']
             d = self.fisheye_param['d']
@@ -199,7 +203,7 @@ class FisheyeCameraMixin:
                         key = keyMap[y * 3 + x]
                         h -= self.leveling_data[key]
                     objp[i * len(xgrid) + j] = [xgrid[j], ygrid[i], -h]
-            projected_points, _ = cv2.fisheye.projectPoints(objp, rvec, tvec, k, d)
+            projected_points = project_points(objp, rvec, tvec, k, d, is_fisheye=is_fisheye)
             perspective_points = remap_corners(projected_points, k, d).reshape(len(ygrid), len(xgrid), 2)
             self.fisheye_param.update({'xgrid': xgrid, 'ygrid': ygrid, 'perspective_points': perspective_points})
         elif version == 4:
@@ -225,6 +229,7 @@ class FisheyeCameraMixin:
                 d,
                 rvecs,
                 tvecs,
+                is_fisheye=is_fisheye,
             )
 
             self.fisheye_param.update(
@@ -250,7 +255,8 @@ class FisheyeCameraMixin:
         d = self.fisheye_param['d']
         rvec = self.fisheye_param['rvec']
         tvec = self.fisheye_param['tvec']
-        points, _ = cv2.fisheye.projectPoints(objp.reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d)
+        is_fisheye = self.fisheye_param.get('is_fisheye', True)
+        points = project_points(objp.reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d, is_fisheye=is_fisheye)
         points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
         self.fisheye_param.update({'xgrid': xgrid - xgrid[0], 'ygrid': ygrid - ygrid[0], 'perspective_points': points})
         self.send_ok()
@@ -295,12 +301,13 @@ class FisheyeCameraMixin:
             xgrid = self.fisheye_param['xgrid']
             ygrid = self.fisheye_param['ygrid']
             h, w = open_cv_img.shape[:2]
+            is_fisheye = self.fisheye_param.get('is_fisheye', True)
             if is_low_resolution and w < expected_size[0]:
                 #  Assuming the image is proportionally smaller
                 downsample = max(1, round(expected_size[0] / w))
                 img = pad_low_resolution_image(open_cv_img, (0, 0, 0))
             else:
-                img = pad_image(open_cv_img, (0, 0, 0))
+                img = pad_image(open_cv_img, (0, 0, 0)) if is_fisheye else open_cv_img
                 if downsample > 1:
                     img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
 
@@ -310,10 +317,10 @@ class FisheyeCameraMixin:
                 k[1][1] /= downsample
                 k[0][2] /= downsample
                 k[1][2] /= downsample
-                img = get_remap_img(img, k, d)
+                img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
                 img = cv2.resize(img, (PADDED_W, PADDED_H))
             else:
-                img = get_remap_img(img, k, d)
+                img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
             padding = 150 if version == 2 else 0
             img = apply_points(img, self.fisheye_param['perspective_points'], xgrid, ygrid, padding=padding)
             img = img[padding:, padding:]

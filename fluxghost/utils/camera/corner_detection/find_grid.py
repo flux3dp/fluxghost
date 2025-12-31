@@ -6,7 +6,7 @@ import scipy.spatial as spatial
 
 from .estimation import get_origin, get_pixel_ratio
 
-logger = logging.getLogger('utils.fisheye.corner_detection.find_grid')
+logger = logging.getLogger('utils.camera.corner_detection.find_grid')
 
 
 def find_grid(

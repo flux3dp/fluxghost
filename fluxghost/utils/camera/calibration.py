@@ -6,7 +6,7 @@ import numpy as np
 
 from .general import pad_image
 
-logger = logging.getLogger('utils.fisheye.calibration')
+logger = logging.getLogger('utils.camera.calibration')
 
 INIT_K = np.array(
     [
@@ -26,25 +26,37 @@ INIT_D = np.array(
 )
 
 
-def get_remap_img(img, k, d):
+def get_remap_img(img, k, d, is_fisheye=True):
     h, w = img.shape[:2]
+    if not is_fisheye:
+        img = cv2.undistort(img, k, d)
+        return img
     mapx, mapy = cv2.fisheye.initUndistortRectifyMap(k, d, np.eye(3), k, (w, h), cv2.CV_32FC1)
     img = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
-    # img = cv2.fisheye.undistortImage(img, k, d, np.eye(3), k)
     return img
 
 
-def remap_corners(corners, k, d):
+def remap_corners(corners, k, d, is_fisheye=True):
+    if not is_fisheye:
+        res = cv2.undistortPoints(corners, k, d, None, k)
+        return res
     res = cv2.fisheye.undistortPoints(corners, k, d, np.eye(3), k)
     return res
 
 
-def distort_points(corners, k, d):
+def distort_points(corners, k, d, is_fisheye=True):
     q = np.linalg.inv(k)
     corners = cv2.convertPointsToHomogeneous(corners).reshape(-1, 3)
     corners = np.matmul(q, corners.T).T
     corners = cv2.convertPointsFromHomogeneous(corners).reshape(-1, 1, 2)
-    res = cv2.fisheye.distortPoints(corners, k, d)
+    if is_fisheye:
+        res = cv2.fisheye.distortPoints(corners, k, d)
+        return res
+    corners = corners.reshape(-1, 2)
+    obj = np.hstack([corners, np.ones((len(corners), 1))]).astype(np.float32)
+    rvec = np.zeros((3, 1))
+    tvec = np.zeros((3, 1))
+    res, _ = cv2.projectPoints(obj, rvec, tvec, k, d)
     return res
 
 
@@ -112,23 +124,34 @@ def find_chessboard(
 
 
 # CALIB_FIX_K4 sometimes works better, maybe set flags according to the camera
-CALIBRATION_FLAGS = cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K1
+CALIBRATION_FLAGS_FISHEYE = (
+    cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K1
+)
+CALIBRATION_FLAGS = cv2.CALIB_FIX_K1
 CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-5)
 
 
-def calibrate_fisheye(objpoints, imgpoints, indices, size):
+def calibrate_camera(objpoints, imgpoints, indices, size, is_fisheye=True):
     def do_calibrate(use_intrinsic_guess=False):
         if len(imgpoints) == 0:
             raise Exception('Failed to calibrate camera, no img points left behind')
         try:
-            flag = CALIBRATION_FLAGS
-            if use_intrinsic_guess:
-                flag += cv2.fisheye.CALIB_USE_INTRINSIC_GUESS
             init_k = INIT_K.copy() if use_intrinsic_guess else None
             init_d = INIT_D.copy() if use_intrinsic_guess else None
-            ret, k, d, rvecs, tvecs = cv2.fisheye.calibrate(
-                objpoints, imgpoints, size, init_k, init_d, None, None, flag, CALIBRATION_CRIT
-            )
+            if is_fisheye:
+                flag = CALIBRATION_FLAGS_FISHEYE
+                if use_intrinsic_guess:
+                    flag += cv2.fisheye.CALIB_USE_INTRINSIC_GUESS
+                ret, k, d, rvecs, tvecs = cv2.fisheye.calibrate(
+                    objpoints, imgpoints, size, init_k, init_d, None, None, flag, CALIBRATION_CRIT
+                )
+            else:
+                flag = CALIBRATION_FLAGS
+                if use_intrinsic_guess:
+                    flag += cv2.CALIB_USE_INTRINSIC_GUESS
+                ret, k, d, rvecs, tvecs = cv2.calibrateCamera(
+                    objpoints, imgpoints, size, init_k, init_d, None, None, flag, CALIBRATION_CRIT
+                )
             return ret, k, d, rvecs, tvecs, indices
         except cv2.error as e:
             pattern = r'CALIB_CHECK_COND - Ill-conditioned matrix for input array (\d+)'
@@ -138,7 +161,7 @@ def calibrate_fisheye(objpoints, imgpoints, indices, size):
                 new_objpoints = objpoints[:error_array_number] + objpoints[error_array_number + 1 :]
                 new_imgpoints = imgpoints[:error_array_number] + imgpoints[error_array_number + 1 :]
                 new_indices = indices[:error_array_number] + indices[error_array_number + 1 :]
-                return calibrate_fisheye(new_objpoints, new_imgpoints, new_indices, size)
+                return calibrate_camera(new_objpoints, new_imgpoints, new_indices, size)
             raise e
 
     try:
@@ -173,7 +196,7 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback=No
             logger.info('unable to find corners for idx {}, height {}'.format(i, h))
     best_result = None
     try:
-        ret, k, d, rvecs, tvecs, res_heights = calibrate_fisheye(objpoints, imgpoints, heights, gray.shape[::-1])
+        ret, k, d, rvecs, tvecs, res_heights = calibrate_camera(objpoints, imgpoints, heights, gray.shape[::-1])
         logger.info('Calibrate All imgs: {}'.format(ret))
         if ret < 5:
             return ret, k, d, rvecs, tvecs, res_heights
@@ -183,7 +206,7 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback=No
     for i in range(len(heights)):
         try:
             h = heights[i]
-            ret, k, d, rvecs, tvecs, _ = calibrate_fisheye([objpoints[i]], [imgpoints[i]], [h], gray.shape[::-1])
+            ret, k, d, rvecs, tvecs, _ = calibrate_camera([objpoints[i]], [imgpoints[i]], [h], gray.shape[::-1])
             logger.info('Calibrate {}: {}'.format(h, ret))
             if not best_result or ret < best_result[0]:
                 best_result = (ret, k, d, rvecs, tvecs, [h])
@@ -194,3 +217,11 @@ def calibrate_fisheye_camera(imgs, img_heights, chessboard, progress_callback=No
     ret, k, d, rvecs, tvecs, heights = best_result
     logger.info('Calibration res: ret: {}\nK: {}\nD: {}'.format(ret, k, d))
     return ret, k, d, rvecs, tvecs, heights
+
+
+def project_points(objpoints, rvec, tvec, k, d, is_fisheye=True):
+    if is_fisheye:
+        imgpoints, _ = cv2.fisheye.projectPoints(objpoints, rvec, tvec, k, d)
+    else:
+        imgpoints, _ = cv2.projectPoints(objpoints, rvec, tvec, k, d)
+    return imgpoints
