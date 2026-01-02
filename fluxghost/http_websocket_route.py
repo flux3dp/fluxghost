@@ -21,7 +21,6 @@ ROUTES = [
     (re.compile('usb-config'), 'fluxghost.websocket.usb_config.WebsocketUsbConfig'),
     (re.compile('ver'), 'fluxghost.websocket.ver.WebsocketVer'),
     (re.compile('svgeditor-laser-parser'), 'fluxghost.websocket.toolpath.WebsocketLaserSvgeditor'),
-    (re.compile('fcode-reader'), 'fluxghost.websocket.fcode_reader.WebsocketFcodeReader'),
     (re.compile('camera-calibration'), 'fluxghost.websocket.camera_calibration.WebsocketCameraCalibration'),
     (re.compile('camera-transform'), 'fluxghost.websocket.camera_transform.WebsocketCameraTransform'),
     (re.compile('image-tracer'), 'fluxghost.websocket.image_tracer.WebsocketImageTracer'),
