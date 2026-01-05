@@ -9,7 +9,6 @@ from io import BytesIO
 from time import sleep, time
 
 from fluxclient.device.host2host_usb import FluxUSBError
-from fluxclient.fcode.g_to_f import GcodeToFcode
 from fluxclient.robot.errors import RobotError, RobotSessionError
 from fluxclient.robot.robot import RawTasks
 from fluxclient.utils.version import StrictVersion
@@ -354,31 +353,10 @@ def control_api_mixin(cls):
                 upload_to = '/' + upload_to
 
             size = int(ssize)
-            if mimetype == 'text/gcode':
-                if upload_to.endswith('.gcode'):
-                    upload_to = upload_to[:-5] + 'fc'
+            self.simple_binary_transfer(
+                self.robot.transfer_upload_stream, mimetype, size, upload_to=upload_to, cb=self.send_ok
+            )
 
-                def upload_callback(swap):
-                    gcode_content = swap.getvalue().decode('ascii', 'ignore')
-                    gcode_content = gcode_content.split('\n')
-
-                    fcode_output = BytesIO()
-                    g2f = GcodeToFcode()
-                    g2f.process(gcode_content, fcode_output)
-
-                    fcode_len = fcode_output.truncate()
-                    fcode_output.seek(0)
-                    self.send_json(status='uploading', sent=0, amount=fcode_len)
-                    self.robot.upload_stream(
-                        fcode_output, 'application/fcode', fcode_len, upload_to, self.cb_upload_callback
-                    )
-                    self.send_ok()
-
-                self.simple_binary_receiver(size, upload_callback)
-            else:
-                self.simple_binary_transfer(
-                    self.robot.transfer_upload_stream, mimetype, size, upload_to=upload_to, cb=self.send_ok
-                )
             return
 
         def update_firmware(self, firmware_type, ssize):
