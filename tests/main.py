@@ -29,7 +29,6 @@ TEST_MODULES = [
     'numpy',
     'zipimport',
     'fluxclient',
-    'fluxclient.fcode',
     'fluxclient.hw_profile',
     'fluxclient.robot',
 ] + [m.rsplit('.', 1)[0] for p, m in ROUTES]
