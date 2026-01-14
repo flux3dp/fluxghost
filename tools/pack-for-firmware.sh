@@ -3,7 +3,7 @@
 cd $(dirname $0)
 cd ..
 git stash -u
-python3 ./tools/type_hint_remover.py fluxghost
+uv run ./tools/type_hint_remover.py fluxghost
 cd ..
 tar -zcvf ./fluxghost/fluxghost.tar.gz --exclude="__pycache__" --exclude="lib/" --exclude="tools/" --exclude="dist/" --exclude="build/"  --exclude="node_modules/" --exclude="*.yml" --exclude="*.spec" --exclude=".git/" --exclude=".vscode/" --exclude=".venv/"  --exclude="*.pyc" --exclude=".DS_Store" ./fluxghost
 cd fluxghost
