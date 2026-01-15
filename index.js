@@ -17,13 +17,13 @@ const main = async () => {
                 await exec.exec('cp', ['./lib/x32/*', 'C:\\Windows\\system32'], options);
             }
             // await exec.exec('python', ['ghost.py', '--test'], options);
-            await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
+            await exec.exec('pyinstaller', ['--clean', 'ghost.spec'], options);
         } else if (os.platform() === 'linux') {
             await exec.exec('python3', ['ghost.py', '--test'], options);
-            await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
+            await exec.exec('pyinstaller', ['--clean', 'ghost.spec'], options);
         } else if (os.platform() === 'darwin') {
             await exec.exec('python3', ['ghost.py', '--test'], options);
-            await exec.exec('pyinstaller', ['--clean', 'ghost-github-action.spec'], options);
+            await exec.exec('pyinstaller', ['--clean', 'ghost.spec'], options);
         } else {
             throw `Unsupported OS: ${os.platform()}`
         }

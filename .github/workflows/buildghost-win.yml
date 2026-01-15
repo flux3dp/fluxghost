@@ -63,7 +63,7 @@ jobs:
             cp ./lib/x64/* C:\Windows\System32
           }
           sh -c "set -e 1; python ghost.py --test"
-          sh -c "set -e 1; pyinstaller --clean ghost-github-action.spec"
+          sh -c "set -e 1; pyinstaller --clean ghost.spec"
           ./dist/flux_api/flux_api --test
 
       - name: Cleanup artifacts
