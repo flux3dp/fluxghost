@@ -378,7 +378,7 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-spin':
                     val = float(params[i + 1])
                     svgeditor2taskcode_kwargs['spinning_axis_coord'] = val
-                    if val > 0:
+                    if val >= 0:
                         self.fcode_metadata['ROTARY'] = '1'
                         is_rotary_task = True
                 elif param == '-rotary-y-ratio':
