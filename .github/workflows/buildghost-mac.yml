@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-15, macOS-15-intel]
+        os: [macOS-15]
       fail-fast: false
 
     steps:
@@ -24,11 +24,19 @@ jobs:
 
       - name: Install Brew Packages
         run: |
-          brew install zlib
-
-      - name: Set dyld path for cairo
-        run: |
-          echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
+          if [ "${{ matrix.os }}" = "macOS-15-intel" ]; then
+            brew install zlib
+          else
+            arch -arm64 brew install zlib
+            arch -arm64 brew reinstall cairo
+            echo "LDFLAGS=\"-L/opt/homebrew/opt/zlib/lib\"" >> $GITHUB_ENV
+            echo "CPPFLAGS=\"-I/opt/homebrew/opt/zlib/include\"" >> $GITHUB_ENV
+            echo "PKG_CONFIG_PATH="/opt/homebrew/opt/zlib/lib/pkgconfig"" >> $GITHUB_ENV
+            echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib:/opt/homebrew/lib" >> $GITHUB_ENV
+            echo $(file $(brew --prefix cairo)/lib/libcairo.2.dylib)
+            echo $DYLD_LIBRARY_PATH
+            echo $(which brew)
+          fi
 
       - name: Install Python dependencies
         run: |
