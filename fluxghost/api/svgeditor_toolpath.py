@@ -191,6 +191,7 @@ def laser_svgeditor_api_mixin(cls):
             file_length = params[1]
             thumbnail_length = params[2]
             self.factory_kwargs = {}
+            self.pixel_per_mm = 10
 
             for i, param in enumerate(params):
                 if param == '-model':
