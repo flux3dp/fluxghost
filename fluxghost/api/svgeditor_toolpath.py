@@ -507,6 +507,8 @@ def laser_svgeditor_api_mixin(cls):
                 elif param == '-watt':
                     with contextlib.suppress(Exception):
                         svgeditor2taskcode_kwargs['watt'] = int(params[i + 1])
+                elif param == '-s-curve':
+                    svgeditor2taskcode_kwargs['s_curve'] = True
 
             self.factory_kwargs['hardware_name'] = hardware_name
             svgeditor2taskcode_kwargs['hardware_name'] = hardware_name
