@@ -70,6 +70,7 @@ def control_api_mixin(cls):
                 'update_fisheye_params': self.update_fisheye_params,
                 'update_fisheye_3d_rotation': self.update_fisheye_3d_rotation,
                 'deviceinfo': self.deviceinfo,
+                'deviceinfo_flux': self.deviceinfo_flux,
                 'cloud_validate_code': self.cloud_validate_code,
                 'wait_status': self.wait_status,
                 'kick': self.kick,
@@ -557,6 +558,9 @@ def control_api_mixin(cls):
 
         def deviceinfo(self):
             self.send_ok(**self.robot.deviceinfo)
+
+        def deviceinfo_flux(self):
+            self.send_ok(data=self.robot.deviceinfo_flux())
 
         def cloud_validate_code(self):
             self.send_ok(code=self.robot.get_cloud_validation_code())
