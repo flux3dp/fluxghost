@@ -20,7 +20,7 @@ def detect_charuco_markers(image, board):
     return diamond_corners, diamond_ids, marker_corners, marker_ids
 
 
-def get_calibration_data_from_charuco(image, squares_x=15, squares_y=10):
+def get_calibration_data_from_charuco(image, squares_x=15, squares_y=10, is_vertical=False):
     board = get_charuco_board(squares_x, squares_y)
     diamond_corners, diamond_ids, marker_corners, marker_ids = detect_charuco_markers(image, board)
 
@@ -33,6 +33,12 @@ def get_calibration_data_from_charuco(image, squares_x=15, squares_y=10):
         corners = board.getChessboardCorners()
         objp = corners[diamond_ids.flatten()].reshape(-1, 3).astype(np.float32)
         imgp = diamond_corners.reshape(-1, 2).astype(np.float32)
+
+        if is_vertical:
+            max_x = np.max(objp[:, 0])
+            objp[:, 0] = max_x - objp[:, 0]
+            objp[:, [0, 1]] = objp[:, [1, 0]]
+
 
         # make sure the chessboard is in the right orientation
         if imgp[0][0] > imgp[-1][0]:

@@ -522,12 +522,18 @@ def camera_calibration_api_mixin(cls):
             file_length = int(message[0])
             squares_x = int(message[1])
             squares_y = int(message[2])
+            opts = {}
+            if len(message) > 3:
+                try:
+                    opts = json.loads(message[3])
+                except Exception as e:
+                    logger.warning('Failed to parse options for detect_charuco, using default options. Error: {}'.format(e))
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                res = get_calibration_data_from_charuco(img_cv, squares_x, squares_y)
+                res = get_calibration_data_from_charuco(img_cv, squares_x, squares_y, is_vertical=opts.get('is_vertical', False))
                 if res is None:
                     self.send_json(status='fail', reason='Failed to detect image.')
                     return
