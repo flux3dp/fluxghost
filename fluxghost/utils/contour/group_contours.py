@@ -106,8 +106,12 @@ def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
     group_count = 0
     for i, j in pairs:
         if i in group_id_map and j in group_id_map:
-            group_id_map[i] = min(group_id_map[i], group_id_map[j])
-            group_id_map[j] = min(group_id_map[i], group_id_map[j])
+            old_id = max(group_id_map[i], group_id_map[j])
+            new_id = min(group_id_map[i], group_id_map[j])
+            if old_id != new_id:
+                for k in group_id_map:
+                    if group_id_map[k] == old_id:
+                        group_id_map[k] = new_id
         elif i in group_id_map:
             group_id_map[j] = group_id_map[i]
         elif j in group_id_map:
