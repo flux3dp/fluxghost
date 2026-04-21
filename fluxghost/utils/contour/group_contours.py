@@ -15,7 +15,7 @@ def normalize_hu_moments(hu_moments):
     """
     basically like openCV log transform
     but hu[4], hu[5] may be very small with different sign,
-    so we use the absolute value to normalize
+    so we use the absolute value to normalize.
     hu[6] is ignored cause it's so different for the same shapes
     """
     return np.array(
@@ -37,12 +37,12 @@ def calculate_hu_moments_dist(hu_moments1, hu_moments2):
     return dist
 
 
-def calculate_area_difference(area1, area2):
-    return abs(area1 - area2) / max(area1, area2)
+def calculate_area_ratio(area1, area2):
+    return min(area1, area2) / max(area1, area2)
 
 
-def check_area_difference(area1, area2, threshold=0.2):
-    return calculate_area_difference(area1, area2) < threshold
+def check_area_difference(area1, area2, threshold):
+    return calculate_area_ratio(area1, area2) >= threshold
 
 
 def check_bbox_intersect(bbox1, bbox2):
@@ -86,7 +86,7 @@ def check_contour_intersection(contour1, contour2):
     return check_area_intersect(contour1, contour2, w, h)
 
 
-def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
+def group_similar_contours(contours, hu_threshold=0.15, area_diff_threshold=0.5):
     groups = []
     hu_moments = calculate_hu_moments(contours)
     areas = [abs(cv2.contourArea(contour)) for contour in contours]
@@ -99,7 +99,7 @@ def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
             hu_dist = calculate_hu_moments_dist(hu_moment, hu_moments[j])
             if hu_dist >= hu_threshold:
                 continue
-            if not check_area_difference(area, areas[j], area_threshold):
+            if not check_area_difference(area, areas[j], area_diff_threshold):
                 continue
             pairs.append((i, j))
     group_id_map = {}

@@ -23,7 +23,7 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False):
     if not all_groups:
         group = groups[0]
         contours = group[0]
-        logger.info('Most commen group contours: %d' % len(contours))
+        logger.info('Most common group contours: %d' % len(contours))
         data = []
         base_kd_tree = get_rotation_kd_tree(contours[0])
         for i, contour in enumerate(contours):
