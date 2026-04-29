@@ -3,10 +3,11 @@ import logging
 import cv2
 import numpy as np
 
+from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
+
 from . import get_charuco_board
 
 logger = logging.getLogger(__file__)
-IS_DEBUGGING = False
 
 
 def detect_charuco_markers(image, board):
@@ -30,11 +31,11 @@ def get_calibration_data_from_charuco(
         return None
 
     logger.info('Detected {} charuco markers.'.format(len(diamond_ids)))
-    if IS_DEBUGGING:
-        cv2.imwrite('charuco-detected-image.png', image.copy())
+    if WRITE_DEBUG_IMG:
+        debug_imwrite('charuco-detected-image.png', image.copy())
         cv2.aruco.drawDetectedMarkers(image, marker_corners, marker_ids)
         cv2.aruco.drawDetectedCornersCharuco(image, diamond_corners, diamond_ids)
-        cv2.imwrite('charuco-detected.png', image)
+        debug_imwrite('charuco-detected.png', image)
 
     corners = board.getChessboardCorners()
     objp = corners[diamond_ids.flatten()].reshape(-1, 3).astype(np.float32)

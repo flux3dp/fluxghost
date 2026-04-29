@@ -1,7 +1,11 @@
+import logging
+
 import cv2
 import numpy as np
 
 from .contour_data import ContourData
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_hu_moments_dist(cd1: ContourData, cd2: ContourData):
@@ -99,7 +103,7 @@ def group_similar_contours(contour_data_list, hu_threshold=0.15, area_diff_thres
     groups = list(groups_map.values())
 
     result = []
-    for group_idx, group in enumerate(groups):
+    for _, group in enumerate(groups):
         idx_to_remove = set()
         remaining = len(group)
         if remaining <= 1:
