@@ -1,48 +1,23 @@
+import logging
+
 import cv2
 import numpy as np
 
+from .contour_data import ContourData
 
-def calculate_hu_moments(contours):
-    hu_moments = []
-    for contour in contours:
-        moments = cv2.moments(contour)
-        hu_moments.append(cv2.HuMoments(moments).flatten())
-    return hu_moments
+logger = logging.getLogger(__name__)
 
 
-# https://docs.opencv.org/4.x/d3/dc0/group__imgproc__shape.html#gaf2b97a230b51856d09a2d934b78c015f
-def normalize_hu_moments(hu_moments):
-    """
-    basically like openCV log transform
-    but hu[4], hu[5] may be very small with different sign,
-    so we use the absolute value to normalize
-    hu[6] is ignored cause it's so different for the same shapes
-    """
-    return np.array(
-        [
-            -np.sign(hu_moments[0]) / np.log10(np.abs(hu_moments[0])),
-            -np.sign(hu_moments[1]) / np.log10(np.abs(hu_moments[1])),
-            -np.sign(hu_moments[2]) / np.log10(np.abs(hu_moments[2])),
-            -np.sign(hu_moments[3]) / np.log10(np.abs(hu_moments[3])),
-            -1 / np.log10(np.abs(hu_moments[4])),
-            -1 / np.log10(np.abs(hu_moments[5])),
-        ]
-    )
+def calculate_hu_moments_dist(cd1: ContourData, cd2: ContourData):
+    return np.linalg.norm(cd1.normalized_hu_moments - cd2.normalized_hu_moments, ord=1)
 
 
-def calculate_hu_moments_dist(hu_moments1, hu_moments2):
-    normalized1 = normalize_hu_moments(hu_moments1)
-    normalized2 = normalize_hu_moments(hu_moments2)
-    dist = np.linalg.norm(normalized1 - normalized2, ord=1)
-    return dist
+def calculate_area_ratio(area1, area2):
+    return min(area1, area2) / max(area1, area2)
 
 
-def calculate_area_difference(area1, area2):
-    return abs(area1 - area2) / max(area1, area2)
-
-
-def check_area_difference(area1, area2, threshold=0.2):
-    return calculate_area_difference(area1, area2) < threshold
+def check_area_difference(area1, area2, threshold):
+    return calculate_area_ratio(area1, area2) >= threshold
 
 
 def check_bbox_intersect(bbox1, bbox2):
@@ -63,13 +38,6 @@ def check_area_intersect(contour1, contour2, w, h):
     return cv2.countNonZero(cv2.bitwise_and(mask1, mask2)) > 0
 
 
-def calculate_smoothness(contour):
-    perimeter = cv2.arcLength(contour, True)
-    area = cv2.contourArea(contour)
-    # the higher the smoother
-    return np.sqrt(area) / perimeter
-
-
 def check_contour_intersection(contour1, contour2):
     bbox1 = cv2.boundingRect(contour1)
     bbox2 = cv2.boundingRect(contour2)
@@ -86,75 +54,74 @@ def check_contour_intersection(contour1, contour2):
     return check_area_intersect(contour1, contour2, w, h)
 
 
-def group_similar_contours(contours, hu_threshold=0.15, area_threshold=0.25):
-    groups = []
-    hu_moments = calculate_hu_moments(contours)
-    areas = [abs(cv2.contourArea(contour)) for contour in contours]
+def group_similar_contours(contour_data_list, hu_threshold=0.15, min_area_ratio=0.5):
     pairs = []
 
-    for i in range(len(contours)):
-        hu_moment = hu_moments[i]
-        area = areas[i]
-        for j in range(i + 1, len(contours)):
-            hu_dist = calculate_hu_moments_dist(hu_moment, hu_moments[j])
+    for i in range(len(contour_data_list)):
+        cd_i = contour_data_list[i]
+        for j in range(i + 1, len(contour_data_list)):
+            cd_j = contour_data_list[j]
+            hu_dist = calculate_hu_moments_dist(cd_i, cd_j)
             if hu_dist >= hu_threshold:
                 continue
-            if not check_area_difference(area, areas[j], area_threshold):
+            if not check_area_difference(cd_i.area, cd_j.area, min_area_ratio):
                 continue
             pairs.append((i, j))
-    group_id_map = {}
-    group_count = 0
+    parent = {}
+    rank = {}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]  # path compression
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return
+        if rank[ra] < rank[rb]:
+            ra, rb = rb, ra
+        parent[rb] = ra
+        if rank[ra] == rank[rb]:
+            rank[ra] += 1
+
     for i, j in pairs:
-        if i in group_id_map and j in group_id_map:
-            group_id_map[i] = min(group_id_map[i], group_id_map[j])
-            group_id_map[j] = min(group_id_map[i], group_id_map[j])
-        elif i in group_id_map:
-            group_id_map[j] = group_id_map[i]
-        elif j in group_id_map:
-            group_id_map[i] = group_id_map[j]
-        else:
-            group_id_map[i] = group_count
-            group_id_map[j] = group_count
-            group_count += 1
+        for x in (i, j):
+            if x not in parent:
+                parent[x] = x
+                rank[x] = 0
+        union(i, j)
+
     groups_map = {}
-    for i in group_id_map:
-        group_idx = group_id_map[i]
-        if group_idx not in groups_map:
-            groups_map[group_idx] = ([], [], 0)
-        groups_map[group_idx][0].append(contours[i])
-        groups_map[group_idx][1].append(hu_moments[i])
+    for i in parent:
+        root = find(i)
+        if root not in groups_map:
+            groups_map[root] = []
+        groups_map[root].append(contour_data_list[i])
     groups = list(groups_map.values())
 
-    for group_idx, group in enumerate(groups):
-        group_contours, group_hu_moments, _ = group
-        idx_to_remove = []
-        remaining = len(group_contours)
-        if remaining <= 1:
+    result = []
+    for group in groups:
+        idx_to_remove = set()
+        if len(group) <= 1:
+            result.append((group, 0.0))
             continue
-        smoothness_list = [calculate_smoothness(c) for c in group_contours]
-
-        for i in range(len(group_contours)):
+        for i in range(len(group)):
             if i in idx_to_remove:
                 continue
-            for j in range(i + 1, len(group_contours)):
+            for j in range(i + 1, len(group)):
                 if j in idx_to_remove:
                     continue
-                if check_contour_intersection(group_contours[i], group_contours[j]):
-                    smoothness_i = smoothness_list[i]
-                    smoothness_j = smoothness_list[j]
-                    if smoothness_i > smoothness_j:
-                        idx_to_remove.append(j)
-                        remaining -= 1
+                if check_contour_intersection(group[i].contour, group[j].contour):
+                    if group[i].compare(group[j]):
+                        idx_to_remove.add(j)
                     else:
-                        idx_to_remove.append(i)
-                        remaining -= 1
+                        idx_to_remove.add(i)
                         break
-        group_contours = [contour for idx, contour in enumerate(group_contours) if idx not in idx_to_remove]
-        group_hu_moments = np.array(
-            [hu_moment for idx, hu_moment in enumerate(group_hu_moments) if idx not in idx_to_remove]
-        )
-        smoothness_list = [smoothness for idx, smoothness in enumerate(smoothness_list) if idx not in idx_to_remove]
-        group_similarity = np.std(smoothness_list) / np.mean(smoothness_list)
-        groups[group_idx] = (group_contours, group_hu_moments, group_similarity)
+        filtered_group = [cd for idx, cd in enumerate(group) if idx not in idx_to_remove]
+        filtered_smoothness = [cd.smoothness for cd in filtered_group]
+        group_similarity = np.std(filtered_smoothness) / np.mean(filtered_smoothness)
+        result.append((filtered_group, group_similarity))
 
-    return groups
+    return result
