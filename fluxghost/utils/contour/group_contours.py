@@ -54,16 +54,7 @@ def check_contour_intersection(contour1, contour2):
     return check_area_intersect(contour1, contour2, w, h)
 
 
-def contour_to_image(contour):
-    bbox = cv2.boundingRect(contour)
-    x, y, w, h = bbox
-    img = np.zeros((h, w), np.uint8)
-    contour = contour.copy() - (x, y)
-    cv2.drawContours(img, [contour], -1, 255, thickness=cv2.FILLED)
-    return img
-
-
-def group_similar_contours(contour_data_list, hu_threshold=0.15, area_diff_threshold=0.5):
+def group_similar_contours(contour_data_list, hu_threshold=0.15, min_area_ratio=0.5):
     pairs = []
 
     for i in range(len(contour_data_list)):
@@ -73,33 +64,41 @@ def group_similar_contours(contour_data_list, hu_threshold=0.15, area_diff_thres
             hu_dist = calculate_hu_moments_dist(cd_i, cd_j)
             if hu_dist >= hu_threshold:
                 continue
-            if not check_area_difference(cd_i.area, cd_j.area, area_diff_threshold):
+            if not check_area_difference(cd_i.area, cd_j.area, min_area_ratio):
                 continue
             pairs.append((i, j))
-    group_id_map = {}
-    group_count = 0
+    parent = {}
+    rank = {}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]  # path compression
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return
+        if rank[ra] < rank[rb]:
+            ra, rb = rb, ra
+        parent[rb] = ra
+        if rank[ra] == rank[rb]:
+            rank[ra] += 1
+
     for i, j in pairs:
-        if i in group_id_map and j in group_id_map:
-            old_id = max(group_id_map[i], group_id_map[j])
-            new_id = min(group_id_map[i], group_id_map[j])
-            if old_id != new_id:
-                for k in group_id_map:
-                    if group_id_map[k] == old_id:
-                        group_id_map[k] = new_id
-        elif i in group_id_map:
-            group_id_map[j] = group_id_map[i]
-        elif j in group_id_map:
-            group_id_map[i] = group_id_map[j]
-        else:
-            group_id_map[i] = group_count
-            group_id_map[j] = group_count
-            group_count += 1
+        for x in (i, j):
+            if x not in parent:
+                parent[x] = x
+                rank[x] = 0
+        union(i, j)
+
     groups_map = {}
-    for i in group_id_map:
-        group_idx = group_id_map[i]
-        if group_idx not in groups_map:
-            groups_map[group_idx] = []
-        groups_map[group_idx].append(contour_data_list[i])
+    for i in parent:
+        root = find(i)
+        if root not in groups_map:
+            groups_map[root] = []
+        groups_map[root].append(contour_data_list[i])
     groups = list(groups_map.values())
 
     result = []
@@ -116,7 +115,7 @@ def group_similar_contours(contour_data_list, hu_threshold=0.15, area_diff_thres
                 if j in idx_to_remove:
                     continue
                 if check_contour_intersection(group[i].contour, group[j].contour):
-                    if group[i] > group[j]:
+                    if group[i].compare(group[j]):
                         idx_to_remove.add(j)
                         remaining -= 1
                     else:

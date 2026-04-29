@@ -3,6 +3,7 @@ import math
 import random
 
 import cv2
+import numpy as np
 
 from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
 
@@ -14,31 +15,59 @@ from .group_contours import group_similar_contours
 logger = logging.getLogger(__name__)
 
 
+def write_all_contours_debug_image(img, contour_data_list, suffix=''):
+    if not WRITE_DEBUG_IMG:
+        return
+    img_copy = img.copy()
+    for cd in contour_data_list:
+        bbox = cv2.boundingRect(cd.contour)
+        center = (bbox[0] + bbox[2] // 2, bbox[1] + bbox[3] // 2)
+        color = (int(256 * random.random()), int(256 * random.random()), int(256 * random.random()), 255)
+        cv2.drawContours(img_copy, [cd.contour], -1, color, thickness=5)
+        cv2.putText(img_copy, str(cd.index), center, cv2.FONT_HERSHEY_SIMPLEX, 2, color, 5)
+    debug_imwrite(f'similar-contours-all{suffix}.png', img_copy)
+
+
+def write_group_contours_debug_image(img, data, suffix=''):
+    if not WRITE_DEBUG_IMG:
+        return
+    img_copy = img.copy()
+    for group_data in data:
+        color = (int(256 * random.random()), int(256 * random.random()), int(256 * random.random()), 255)
+        for info in group_data:
+            contour = np.array(info['contour'], dtype=np.int32).reshape(-1, 1, 2)
+            cv2.drawContours(img_copy, [contour], -1, color, thickness=3)
+            cv2.circle(img_copy, info['center'], 3, color, -1)
+            cv2.line(
+                img_copy,
+                info['center'],
+                (
+                    info['center'][0] + int(100 * math.cos(info['angle'])),
+                    info['center'][1] + int(100 * math.sin(info['angle'])),
+                ),
+                color,
+                3,
+            )
+    debug_imwrite(f'similar-contours-groups{suffix}.png', img_copy)
+
+
 def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
     canny_child_contours, canny_parent_contours = get_contour_by_canny(img, is_spliced_img=is_spliced_img)
     hsv_child_contours, hsv_parent_contours = get_contour_by_hsv_gradient(img, is_spliced_img=is_spliced_img)
 
     contour_data_list = []
     i = 0
-    for label, priority, list in [
+    for label, priority, contours in [
         ('canny child', 2, canny_child_contours),
         ('canny parent', 2, canny_parent_contours),
         ('hsv child', 1, hsv_child_contours),
         ('hsv parent', 1, hsv_parent_contours),
     ]:
-        for contour in list:
+        for contour in contours:
             contour_data_list.append(ContourData(contour, i, source=label, priority=priority))
             i += 1
 
-    if WRITE_DEBUG_IMG:
-        img_copy = img.copy()
-        for cd in contour_data_list:
-            bbox = cv2.boundingRect(cd.contour)
-            center = (bbox[0] + bbox[2] // 2, bbox[1] + bbox[3] // 2)
-            color = (int(256 * random.random()), int(256 * random.random()), int(256 * random.random()), 255)
-            cv2.drawContours(img_copy, [cd.contour], -1, color, thickness=5)
-            cv2.putText(img_copy, str(cd.index), center, cv2.FONT_HERSHEY_SIMPLEX, 2, color, 5)
-        debug_imwrite(f'similar-contours-all{suffix}.png', img_copy)
+    write_all_contours_debug_image(img, contour_data_list, suffix=suffix)
 
     groups = group_similar_contours(contour_data_list)
     groups = [group for group in groups if len(group[0]) > 1]
@@ -58,8 +87,6 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''
         return data
     else:
         data = []
-        if WRITE_DEBUG_IMG:
-            img_copy = img.copy()
         for i, group in enumerate(groups):
             contour_data_list = group[0]
             logger.info('Group #%d contours: %d' % (i, len(contour_data_list)))
@@ -68,22 +95,6 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''
             for j, cd in enumerate(contour_data_list):
                 info = get_contour_info(cd, base_kd_tree if j > 0 else None, include_contour=True)
                 group_data.append(info)
-                if WRITE_DEBUG_IMG:
-                    color = (int(256 * random.random()), int(256 * random.random()), int(256 * random.random()), 255)
-                    cv2.drawContours(img_copy, [cd.contour], -1, color, thickness=3)
-                    cv2.circle(img_copy, info['center'], 3, color, -1)
-                    cv2.line(
-                        img_copy,
-                        info['center'],
-                        (
-                            info['center'][0] + int(100 * math.cos(info['angle'])),
-                            info['center'][1] + int(100 * math.sin(info['angle'])),
-                        ),
-                        color,
-                        3,
-                    )
-                    cv2.putText(img_copy, str(cd.index), info['center'], cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
             data.append(group_data)
-        if WRITE_DEBUG_IMG:
-            debug_imwrite(f'similar-contours-groups{suffix}.png', img_copy)
+        write_group_contours_debug_image(img, data, suffix=suffix)
         return data

@@ -9,6 +9,9 @@ def normalize_hu_moments(hu_moments):
     so we use the absolute value to normalize.
     hu[6] is ignored cause it's so different for the same shapes
     """
+    # avoid log(0) and log of negative numbers
+    hu_moments = np.where(np.abs(hu_moments) < 1e-30, 1e-30, hu_moments)
+
     return np.array(
         [
             -np.sign(hu_moments[0]) / np.log10(np.abs(hu_moments[0])),
@@ -52,10 +55,7 @@ class ContourData:
     def __repr__(self):
         return f'ContourData(index={self.index}, area={self.area}, source="{self.source}")'
 
-    def __gt__(self, other):
+    def compare(self, other: 'ContourData'):
         if self.priority != other.priority:
             return self.priority > other.priority
         return self.smoothness > other.smoothness
-
-    def __eq__(self, other):
-        return self.priority == other.priority and self.smoothness == other.smoothness
