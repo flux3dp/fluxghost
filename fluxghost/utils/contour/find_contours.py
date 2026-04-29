@@ -30,11 +30,11 @@ def find_contours(
     hierarchy_map = {-1: 0}
     for i in range(len(hierarchy)):
         tier = 1
-        parent = hierarchy[i][3]
-        while hierarchy_map.get(parent, -1) < 0:
-            parent = hierarchy[parent][3]
+        parent_idx = hierarchy[i][3]
+        while hierarchy_map.get(parent_idx, -1) < 0:
+            parent_idx = hierarchy[parent_idx][3]
             tier += 1
-        hierarchy_map[i] = hierarchy_map[parent] + tier
+        hierarchy_map[i] = hierarchy_map[parent_idx] + tier
     parent_contour_img = np.zeros_like(img)
     child_contour_img = np.zeros_like(img)
     for i in range(len(contours)):

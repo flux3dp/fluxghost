@@ -102,10 +102,9 @@ def group_similar_contours(contour_data_list, hu_threshold=0.15, min_area_ratio=
     groups = list(groups_map.values())
 
     result = []
-    for _, group in enumerate(groups):
+    for group in groups:
         idx_to_remove = set()
-        remaining = len(group)
-        if remaining <= 1:
+        if len(group) <= 1:
             result.append((group, 0.0))
             continue
         for i in range(len(group)):
@@ -117,10 +116,8 @@ def group_similar_contours(contour_data_list, hu_threshold=0.15, min_area_ratio=
                 if check_contour_intersection(group[i].contour, group[j].contour):
                     if group[i].compare(group[j]):
                         idx_to_remove.add(j)
-                        remaining -= 1
                     else:
                         idx_to_remove.add(i)
-                        remaining -= 1
                         break
         filtered_group = [cd for idx, cd in enumerate(group) if idx not in idx_to_remove]
         filtered_smoothness = [cd.smoothness for cd in filtered_group]
