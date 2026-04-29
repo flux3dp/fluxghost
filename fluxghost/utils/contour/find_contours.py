@@ -66,7 +66,7 @@ def find_contours(
 def get_contour_by_canny(img, is_spliced_img=False, size_threshold=20000):
     if is_spliced_img:
         img = cv2.GaussianBlur(img, (17, 17), 0)
-        img = cv2.Canny(img, 30, 85)
+        img = cv2.Canny(img, 30, 50)
     else:
         img = cv2.Canny(img, 30, 200, 5)
     return find_contours(
