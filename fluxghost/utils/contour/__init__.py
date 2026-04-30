@@ -51,6 +51,20 @@ def write_group_contours_debug_image(img, data, suffix=''):
     debug_imwrite(f'similar-contours-groups{suffix}.png', img_copy)
 
 
+def handle_transparent_image(img):
+    """
+    Handle transparent image, currently Canny ignore alpha channel and treat it as original color, which may cause
+    contours not detected.
+    So we fill transparent area with inverse of average color to make it more likely to be detected.
+    May change to average color of nearby non-transparent pixels in the future.
+    """
+    if img.shape[2] > 3:
+        transparent_mask = img[:, :, 3] == 0
+        non_transparent_mask = ~transparent_mask
+        avg_color = cv2.mean(img, mask=non_transparent_mask.astype('uint8'))[:3]
+        img[transparent_mask] = [255 - avg_color[0], 255 - avg_color[1], 255 - avg_color[2], 255]
+
+
 def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
     canny_child_contours, canny_parent_contours = get_contour_by_canny(img, is_spliced_img=is_spliced_img)
     hsv_child_contours, hsv_parent_contours = get_contour_by_hsv_gradient(img, is_spliced_img=is_spliced_img)
