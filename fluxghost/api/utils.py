@@ -178,7 +178,7 @@ def utils_api_mixin(cls):
             def upload_callback(buf):
                 try:
                     image = Image.open(io.BytesIO(buf))
-                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGBA2BGRA)
                     is_spliced_img = False
                     if len(params) > 1 and params[1] == '1':
                         is_spliced_img = True
@@ -199,7 +199,7 @@ def utils_api_mixin(cls):
             def upload_callback(buf):
                 try:
                     image = Image.open(io.BytesIO(buf))
-                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGBA2BGRA)
                     is_spliced_img = False
                     if len(params) > 1 and params[1] == '1':
                         is_spliced_img = True

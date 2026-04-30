@@ -66,6 +66,8 @@ def handle_transparent_image(img):
 
 
 def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
+    handle_transparent_image(img)
+
     canny_child_contours, canny_parent_contours = get_contour_by_canny(img, is_spliced_img=is_spliced_img)
     hsv_child_contours, hsv_parent_contours = get_contour_by_hsv_gradient(img, is_spliced_img=is_spliced_img)
 
