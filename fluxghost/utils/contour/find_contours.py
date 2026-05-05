@@ -16,13 +16,13 @@ def find_contours(
     size_threshold=20000,
     label='',
 ):
-    debug_imwrite(f'find-contours-{label}-1-input.png', img)
+    debug_imwrite('find-contours-{}-1-input.png'.format(label), img)
 
     # Step 1: dilate to merge seperate segments
     kernel = cv2.getStructuringElement(kernel_type, (dilate_k, dilate_k))
     img = cv2.dilate(img, kernel, iterations=1)
 
-    debug_imwrite(f'find-contours-{label}-2-dilated.png', img)
+    debug_imwrite('find-contours-{}-2-dilated.png'.format(label), img)
 
     # Step 2: Find and fill closed contours
     res = findContours(img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -53,8 +53,8 @@ def find_contours(
     kernel = cv2.getStructuringElement(kernel_type, (parent_erode_k, parent_erode_k))
     parent_contour_img = cv2.erode(parent_contour_img, kernel, iterations=1)
 
-    debug_imwrite(f'find-contours-{label}-3-child-erode.png', child_contour_img)
-    debug_imwrite(f'find-contours-{label}-3-parent-erode.png', parent_contour_img)
+    debug_imwrite('find-contours-{}-3-child-erode.png'.format(label), child_contour_img)
+    debug_imwrite('find-contours-{}-3-parent-erode.png'.format(label), parent_contour_img)
 
     # Step 4: Do a final dilate to compensate the erosion and merge some seperated parts
     kernel = cv2.getStructuringElement(kernel_type, (dilate_k_2, dilate_k_2))
@@ -62,8 +62,8 @@ def find_contours(
     kernel = cv2.getStructuringElement(kernel_type, (parent_dilate_k_2, parent_dilate_k_2))
     parent_contour_img = cv2.dilate(parent_contour_img, kernel, iterations=1)
 
-    debug_imwrite(f'find-contours-{label}-4-child-dilate.png', child_contour_img)
-    debug_imwrite(f'find-contours-{label}-4-parent-dilate.png', parent_contour_img)
+    debug_imwrite('find-contours-{}-4-child-dilate.png'.format(label), child_contour_img)
+    debug_imwrite('find-contours-{}-4-parent-dilate.png'.format(label), parent_contour_img)
 
     res = findContours(child_contour_img, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     child_contours = res[0]

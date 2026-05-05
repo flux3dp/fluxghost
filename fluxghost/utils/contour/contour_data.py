@@ -50,10 +50,10 @@ class ContourData:
         return img
 
     def __str__(self):
-        return f'ContourData {self.index}'
+        return 'ContourData {}'.format(self.index)
 
     def __repr__(self):
-        return f'ContourData(index={self.index}, area={self.area}, source="{self.source}")'
+        return 'ContourData(index={}, area={}, source="{}")'.format(self.index, self.area, self.source)
 
     def compare(self, other: 'ContourData'):
         if self.priority != other.priority:

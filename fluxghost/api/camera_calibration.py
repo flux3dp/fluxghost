@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 from scipy import spatial
 
+from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
 from fluxghost.utils.camera.calibration import (
     calibrate_camera,
     calibrate_fisheye_camera,
@@ -28,7 +29,6 @@ from fluxghost.utils.camera.solve_pnp import solve_pnp
 
 from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
-IS_DEBUGGING = False
 logger = logging.getLogger('API.CAMERA_CALIBRATION')
 
 
@@ -310,7 +310,7 @@ def camera_calibration_api_mixin(cls):
                 projected_points = project_points(ref_points, rvec, tvec, k, d, is_fisheye=is_fisheye)
                 projected_points = remap_corners(projected_points, k, d, is_fisheye=is_fisheye).reshape(-1, 2)
 
-                if IS_DEBUGGING:
+                if WRITE_DEBUG_IMG:
                     img_copy = img_cv.copy()
                     if interest_area:
                         cv2.rectangle(img_copy, (x, y), (x + width, y + height), (0, 0, 255), 1)
@@ -366,7 +366,7 @@ def camera_calibration_api_mixin(cls):
                     logger.info('[solve_pnp] Total score: {}, detail: {}'.format(score, score_detail))
                     if score >= 0.5:
                         for i in range(target_counts):
-                            if IS_DEBUGGING:
+                            if WRITE_DEBUG_IMG:
                                 color = (255, 0, 255) if i == ref_index else (0, 255, 0)
                                 cv2.circle(img_copy, tuple(res[i].astype(int)), 0, color, -1)
                                 cv2.circle(img_copy, tuple(res[i].astype(int)), 4, color, 1)
@@ -403,11 +403,11 @@ def camera_calibration_api_mixin(cls):
                 _, array_buffer = cv2.imencode('.jpg', img_cv)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
-                if IS_DEBUGGING:
+                if WRITE_DEBUG_IMG:
                     for p in result_img_points:
                         cv2.circle(img_copy, tuple(p.astype(int)), 0, (255, 255, 0), -1)
                         cv2.circle(img_copy, tuple(p.astype(int)), 5, (255, 255, 0), 1)
-                    cv2.imwrite('solve-pnp-corner.png', img_copy)
+                    debug_imwrite('solve-pnp-corner.png', img_copy)
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
@@ -501,8 +501,8 @@ def camera_calibration_api_mixin(cls):
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
-                if IS_DEBUGGING:
-                    cv2.imwrite('check_pnp.png', img)
+                if WRITE_DEBUG_IMG:
+                    debug_imwrite('check_pnp.png', img)
 
             helper = BinaryUploadHelper(int(size), upload_callback)
             self.set_binary_helper(helper)
@@ -527,13 +527,17 @@ def camera_calibration_api_mixin(cls):
                 try:
                     opts = json.loads(message[3])
                 except Exception as e:
-                    logger.warning('Failed to parse options for detect_charuco, using default options. Error: {}'.format(e))
+                    logger.warning(
+                        'Failed to parse options for detect_charuco, using default options. Error: {}'.format(e)
+                    )
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf))
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
-                res = get_calibration_data_from_charuco(img_cv, squares_x, squares_y, is_vertical=opts.get('is_vertical', False))
+                res = get_calibration_data_from_charuco(
+                    img_cv, squares_x, squares_y, is_vertical=opts.get('is_vertical', False)
+                )
                 if res is None:
                     self.send_json(status='fail', reason='Failed to detect image.')
                     return

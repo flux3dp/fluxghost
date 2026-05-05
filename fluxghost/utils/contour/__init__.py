@@ -25,7 +25,7 @@ def write_all_contours_debug_image(img, contour_data_list, suffix=''):
         color = (int(256 * random.random()), int(256 * random.random()), int(256 * random.random()), 255)
         cv2.drawContours(img_copy, [cd.contour], -1, color, thickness=5)
         cv2.putText(img_copy, str(cd.index), center, cv2.FONT_HERSHEY_SIMPLEX, 2, color, 5)
-    debug_imwrite(f'similar-contours-all{suffix}.png', img_copy)
+    debug_imwrite('similar-contours-all{}.png'.format(suffix), img_copy)
 
 
 def write_group_contours_debug_image(img, data, suffix=''):
@@ -48,7 +48,7 @@ def write_group_contours_debug_image(img, data, suffix=''):
                 color,
                 3,
             )
-    debug_imwrite(f'similar-contours-groups{suffix}.png', img_copy)
+    debug_imwrite('similar-contours-groups{}.png'.format(suffix), img_copy)
 
 
 def handle_transparent_image(img):
@@ -66,6 +66,7 @@ def handle_transparent_image(img):
 
 
 def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
+    debug_imwrite('similar-contours-{}.png'.format(suffix), img)
     handle_transparent_image(img)
 
     canny_child_contours, canny_parent_contours = get_contour_by_canny(img, is_spliced_img=is_spliced_img)
