@@ -66,7 +66,7 @@ def handle_transparent_image(img):
 
 
 def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
-    debug_imwrite('similar-contours-{}.png'.format(suffix), img)
+    debug_imwrite('similar-contours-input{}.png'.format(suffix), img)
     handle_transparent_image(img)
 
     canny_child_contours, canny_parent_contours = get_contour_by_canny(img, is_spliced_img=is_spliced_img)
@@ -98,8 +98,9 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''
         logger.info('Most common group contours: %d' % len(contour_data_list))
         data = []
         base_kd_tree = get_rotation_kd_tree(contour_data_list[0].contour)
+        base_area = contour_data_list[0].area
         for i, cd in enumerate(contour_data_list):
-            info = get_contour_info(cd, base_kd_tree if i > 0 else None)
+            info = get_contour_info(cd, base_kd_tree if i > 0 else None, base_area=base_area)
             data.append(info)
         return data
     else:
@@ -109,8 +110,9 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''
             logger.info('Group #%d contours: %d' % (i, len(contour_data_list)))
             group_data = []
             base_kd_tree = get_rotation_kd_tree(contour_data_list[0].contour)
+            base_area = contour_data_list[0].area
             for j, cd in enumerate(contour_data_list):
-                info = get_contour_info(cd, base_kd_tree if j > 0 else None, include_contour=True)
+                info = get_contour_info(cd, base_kd_tree if j > 0 else None, base_area=base_area, include_contour=True)
                 group_data.append(info)
             data.append(group_data)
         write_group_contours_debug_image(img, data, suffix=suffix)

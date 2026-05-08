@@ -24,8 +24,7 @@ def get_rotation_kd_tree(contour):
     return kd_tree
 
 
-def find_rotation_angle(contour, kd_tree, angle_step=0.5):
-    points = contour.reshape(-1, 2)
+def find_rotation_angle(points, kd_tree, angle_step=0.5):
     angles = np.arange(0, 360, angle_step)
     errors = np.empty(len(angles))
 
@@ -76,11 +75,14 @@ def find_rotation_angle(contour, kd_tree, angle_step=0.5):
     return best[0]
 
 
-def get_contour_info(contour_data: ContourData, base_contour_kd_tree, include_contour=False):
+def get_contour_info(contour_data: ContourData, base_contour_kd_tree, base_area=None, include_contour=False):
     contour = contour_data.contour
     center = get_center(contour)
     if base_contour_kd_tree:
-        angle = find_rotation_angle(contour.reshape(-1, 2) - center, base_contour_kd_tree)
+        points = contour.reshape(-1, 2) - center
+        if base_area is not None:
+            points = points * math.sqrt(base_area / contour_data.area)
+        angle = find_rotation_angle(points, base_contour_kd_tree)
         angle = math.radians(angle)
     else:
         angle = 0
