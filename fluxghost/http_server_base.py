@@ -88,7 +88,8 @@ class HttpServerBase:
     def serve_forever(self):
         self.running = True
         disc = self.discover
-        args = ((self.sock,) + self.discover_socks, (), (), 5.0) if disc else ((self.sock,), (), (), 5.0)
+        sockets = (self.sock,) + self.discover_socks if disc else (self.sock,)
+        args = (sockets, (), (), 5.0)
 
         while self.running:
             try:
@@ -112,7 +113,7 @@ class HttpServerBase:
                         self.on_accept()
                     elif sock in disc.socks:
                         try:
-                            disc.try_recive(disc.socks, callback=self.on_discover_device, timeout=0.01)
+                            disc.try_receive(disc.socks, callback=self.on_discover_device, timeout=0.01)
                         except OSError:
                             logger.debug('Discover error, recreate')
 
