@@ -164,6 +164,8 @@ class FisheyeCameraMixin:
                 'tvec_polyfits': data['tvec_polyfits'],
                 'grids': data['grids'],
                 'is_fisheye': data.get('is_fisheye', True),
+                'total_width': data.get('total_width', None),
+                'total_height': data.get('total_height', None),
             }
         else:
             self.send_error('Invalid version')
@@ -231,6 +233,8 @@ class FisheyeCameraMixin:
                 rvecs,
                 tvecs,
                 is_fisheye=is_fisheye,
+                total_width=self.fisheye_param.get('total_width', None),
+                total_height=self.fisheye_param.get('total_height', None),
             )
 
             self.fisheye_param.update(
