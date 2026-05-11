@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 
 from fluxclient.hw_profile import HW_PROFILE
+from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
 from fluxghost.utils.camera.calibration import get_remap_img, project_points, remap_corners
 from fluxghost.utils.camera.constants import (
     CHESSBOARD,
@@ -261,6 +262,32 @@ class FisheyeCameraMixin:
         self.fisheye_param.update({'xgrid': xgrid - xgrid[0], 'ygrid': ygrid - ygrid[0], 'perspective_points': points})
         self.send_ok()
 
+    def write_preview_remap_grid_image(self, img, xgrid, ygrid):
+        if not WRITE_DEBUG_IMG:
+            return
+        remap = img.copy()
+        for i in range(len(ygrid)):
+            for j in range(len(xgrid)):
+                color = (255, 0, 0)
+                p = tuple(self.fisheye_param['perspective_points'][i][j].astype(int))
+                cv2.circle(remap, p, 0, color, -1)
+                cv2.circle(remap, p, 3, color, 1)
+                if i > 0:
+                    cv2.line(
+                        remap,
+                        p,
+                        tuple(self.fisheye_param['perspective_points'][i - 1][j].astype(int)),
+                        color,
+                    )
+                if j > 0:
+                    cv2.line(
+                        remap,
+                        p,
+                        tuple(self.fisheye_param['perspective_points'][i][j - 1].astype(int)),
+                        color,
+                    )
+        debug_imwrite('preview-remap.png', remap)
+
     def handle_fisheye_image(
         self, open_cv_img, downsample=1, is_low_resolution=False, expected_size=(IMAGE_W, IMAGE_H)
     ):
@@ -322,6 +349,9 @@ class FisheyeCameraMixin:
             else:
                 img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
             padding = 150 if version == 2 else 0
+
+            self.write_preview_remap_grid_image(img, xgrid, ygrid)
+
             img = apply_points(img, self.fisheye_param['perspective_points'], xgrid, ygrid, padding=padding)
             img = img[padding:, padding:]
         return img

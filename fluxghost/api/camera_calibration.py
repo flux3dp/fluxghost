@@ -298,6 +298,7 @@ def camera_calibration_api_mixin(cls):
                 if is_fisheye:
                     img_cv = pad_image(img_cv, (0, 0, 0))
                 img_cv = get_remap_img(img_cv, k, d, is_fisheye=is_fisheye)
+                debug_imwrite('solve-pnp-input.png', img_cv)
                 if interest_area:
                     x, y = interest_area['x'], interest_area['y']
                     width, height = interest_area['width'], interest_area['height']
