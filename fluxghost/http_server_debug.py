@@ -31,9 +31,9 @@ def check_autoreload():
 class HttpServer(HttpServerBase):
     runmode = 'FORK'
 
-    def on_accept(self):
+    def on_accept(self, sock):
         check_autoreload()
-        request, client = self.sock.accept()
+        request, client = sock.accept()
 
         w = Process(target=fork_entry, args=(request, client, self))
         w.daemon = True

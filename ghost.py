@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import contextlib
 import os
 import sys
 from signal import SIGTERM
@@ -105,6 +106,7 @@ def main():
 
     setup_env(options)
 
+    from fluxghost.cert.fetch_certs import fetch_certs
     from fluxghost.http_server import HttpServer
 
     if options.test:
@@ -121,6 +123,8 @@ def main():
 
     if not options.assets:
         options.assets = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fluxghost', 'assets')
+
+    fetch_certs()
 
     server = HttpServer(
         assets_path=options.assets,
