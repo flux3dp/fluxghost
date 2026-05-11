@@ -42,7 +42,9 @@ def generate_grid_objects(grid_data_x, grid_data_y):
     return xgrid, ygrid, objp
 
 
-def calculate_regional_perspective_points(grid_data_x, grid_data_y, h, k, d, rvecs, tvecs, is_fisheye=True):
+def calculate_regional_perspective_points(
+    grid_data_x, grid_data_y, h, k, d, rvecs, tvecs, is_fisheye=True, total_width=None, total_height=None
+):
     """
     Calculate the perspective points using for 9-region rvecs and tvecs
     region keys: ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
@@ -60,10 +62,14 @@ def calculate_regional_perspective_points(grid_data_x, grid_data_y, h, k, d, rve
     objp = objp.reshape(-1, 3)
     perspective_points = np.zeros((objp.shape[0], 2), np.float32)
     region_key_map = ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
+    if total_width is None:
+        total_width = xgrid[-1] - xgrid[0]
+    if total_height is None:
+        total_height = ygrid[-1] - ygrid[0]
     for i in range(objp.shape[0]):
         x, y = objp[i][0], objp[i][1]
-        x_index = min(int((x - xgrid[0]) * 3 // (xgrid[-1] - xgrid[0])), 2)
-        y_index = min(int((y - ygrid[0]) * 3 // (ygrid[-1] - ygrid[0])), 2)
+        x_index = min(int((x - xgrid[0]) * 3 // total_width), 2)
+        y_index = min(int((y - ygrid[0]) * 3 // total_height), 2)
         region = region_key_map[y_index * 3 + x_index]
         rvec = rvecs[region]
         tvec = tvecs[region]
