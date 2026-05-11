@@ -3,5 +3,5 @@ name: 'Build Flux Api'
 description: 'Build flux_api from fluxghost, support function for Beamstudio'
 author: 'Flux'
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'index.js'
