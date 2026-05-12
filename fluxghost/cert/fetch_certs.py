@@ -60,7 +60,7 @@ def _check_needs_update() -> bool:
 def fetch_certs():
     try:
         if not SERVER_URL or not SHARED_SECRET:
-            logger.warning('Certificate server URL or secret not set, skipping certificate fetch.')
+            logger.debug('Certificate server URL or secret not set, skipping certificate fetch.')
             return True
 
         if not _check_needs_update():
