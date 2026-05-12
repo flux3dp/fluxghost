@@ -1,15 +1,20 @@
 import logging
 import platform
 import socket
+import ssl
 from os import getenv, path
 from select import select
 from sys import stdout
 from threading import Lock
 
+from fluxghost.cert import CERT_DIR
 from fluxghost.http_handlers.file_handler import FileHandler
 from fluxghost.http_handlers.websocket_handler import WebSocketHandler
 
 logger = logging.getLogger('HTTPServer')
+
+certfile = path.join(CERT_DIR, 'fullchain.pem')
+keyfile = path.join(CERT_DIR, 'privkey.pem')
 
 
 class HttpServerBase:
@@ -17,7 +22,9 @@ class HttpServerBase:
     discover_mutex = None
     discover = None
 
-    def __init__(self, assets_path, address, allow_foreign=False, enable_discover=False, backlog=10, debug=False):
+    def __init__(
+        self, assets_path, address, allow_foreign=False, enable_discover=False, backlog=10, debug=False, ssl_port=8443
+    ):
         self.discover_mutex = Lock()
         self.assets_handler = FileHandler(assets_path)
         self.ws_handler = WebSocketHandler()
@@ -27,12 +34,30 @@ class HttpServerBase:
         self.allow_foreign = allow_foreign
         self.push_studio_ws = None
 
-        self.sock = s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        s.bind(address)
-        s.listen(backlog)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.sock.bind(address)
+        self.sock.listen(backlog)
+
+        self.ssl_sock = None
+        if path.isfile(certfile) and path.isfile(keyfile):
+            try:
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                ctx.load_cert_chain(certfile, keyfile)
+                raw_ssl_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                raw_ssl_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                raw_ssl_sock.bind((address[0], ssl_port))
+                raw_ssl_sock.listen(backlog)
+                self.ssl_sock = ctx.wrap_socket(raw_ssl_sock, server_side=True)
+                logger.info('Listen HTTPS on %s:%s' % (address[0], ssl_port))
+            except Exception:
+                logger.exception('Failed to start SSL socket')
+                self.ssl_sock = None
+        else:
+            logger.info('SSL cert not found, skipping HTTPS')
+
         if address[1] == 0:
-            address = s.getsockname()
+            address = self.sock.getsockname()
             home = str(path.expanduser('~'))
             sys = platform.system()
             appdata = ''
@@ -85,10 +110,18 @@ class HttpServerBase:
         self.discover = DeviceDiscover()
         self.discover_socks = self.discover.socks
 
+    def _build_select_sockets(self):
+        sockets = (self.sock,)
+        if self.ssl_sock:
+            sockets += (self.ssl_sock,)
+        if self.discover:
+            sockets += self.discover_socks
+        return sockets
+
     def serve_forever(self):
         self.running = True
         disc = self.discover
-        sockets = (self.sock,) + self.discover_socks if disc else (self.sock,)
+        sockets = self._build_select_sockets()
         args = (sockets, (), (), 5.0)
 
         while self.running:
@@ -97,7 +130,8 @@ class HttpServerBase:
                     try:
                         self.launch_discover()
                         disc = self.discover
-                        args = ((self.sock,) + self.discover_socks, (), (), 30.0)
+                        sockets = self._build_select_sockets()
+                        args = (sockets, (), (), 30.0)
                         logger.info('Discover started')
                     except OSError:
                         pass
@@ -110,7 +144,9 @@ class HttpServerBase:
 
                 for sock in select(*args)[0]:
                     if sock == self.sock:
-                        self.on_accept()
+                        self.on_accept(self.sock)
+                    elif sock == self.ssl_sock:
+                        self.on_accept(self.ssl_sock)
                     elif sock in disc.socks:
                         try:
                             disc.try_receive(disc.socks, callback=self.on_discover_device, timeout=0.01)
