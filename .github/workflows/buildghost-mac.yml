@@ -16,24 +16,26 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install Brew Packages
         run: |
-          brew install zlib cairo freetype pixman fontconfig libpng webp
-
-      - name: Set build environment
-        run: |
-          echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
-          if [ "${{ matrix.os }}" != "macOS-15-intel" ]; then
-            echo "LDFLAGS=-L$(brew --prefix zlib)/lib" >> $GITHUB_ENV
-            echo "CPPFLAGS=-I$(brew --prefix zlib)/include" >> $GITHUB_ENV
-            echo "PKG_CONFIG_PATH=$(brew --prefix zlib)/lib/pkgconfig" >> $GITHUB_ENV
+          if [ "${{ matrix.os }}" = "macOS-15-intel" ]; then
+            brew install zlib
+          else
+            brew install zlib cairo freetype pixman fontconfig libpng webp
           fi
+
+      - name: Set build environment for Apple Silicon
+        if: matrix.os != 'macOS-15-intel'
+        run: |
+          echo "LDFLAGS=-L$(brew --prefix zlib)/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix zlib)/include" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(brew --prefix zlib)/lib/pkgconfig" >> $GITHUB_ENV
 
       - name: Install Python dependencies
         run: |
@@ -81,7 +83,7 @@ jobs:
           mkdir artifacts
           mv dist/flux_api artifacts
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{matrix.os}}
           path: artifacts
