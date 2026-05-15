@@ -146,7 +146,7 @@ if os_type.startswith('Windows'):
         binaries.append((path, '.'))
 elif os_type.startswith('Darwin'):
     mac_arch = platform.machine()  # 'arm64' on Apple Silicon, 'x86_64' on Intel
-    print('mac_arch', mac_arch)
+    print('mac_arch:', mac_arch)
     if mac_arch == 'arm64':
         import subprocess
         def brew_lib(pkg, dylib):
