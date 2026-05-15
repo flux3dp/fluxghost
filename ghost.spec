@@ -145,13 +145,28 @@ if os_type.startswith('Windows'):
         path = os.path.join('.\\lib\\win', file)
         binaries.append((path, '.'))
 elif os_type.startswith('Darwin'):
-    binaries.append(('./lib/mac/libcairo.2.dylib', '.'))
-    binaries.append(('./lib/mac/libz.1.dylib', '.'))
-    binaries.append(('./lib/mac/libfreetype.6.dylib', '.'))
-    binaries.append(('./lib/mac/libpixman-1.0.dylib', '.'))
-    binaries.append(('./lib/mac/libfontconfig.1.dylib', '.'))
-    binaries.append(('./lib/mac/libpng16.16.dylib', '.'))
-    binaries.append(('./lib/mac/libwebp.7.dylib', '.'))
+    mac_arch = platform.machine()  # 'arm64' on Apple Silicon, 'x86_64' on Intel
+    print('mac_arch', mac_arch)
+    if mac_arch == 'arm64':
+        import subprocess
+        def brew_lib(pkg, dylib):
+            prefix = subprocess.check_output(['brew', '--prefix', pkg]).decode().strip()
+            return os.path.join(prefix, 'lib', dylib)
+        binaries.append((brew_lib('cairo', 'libcairo.2.dylib'), '.'))
+        binaries.append((brew_lib('zlib', 'libz.1.dylib'), '.'))
+        binaries.append((brew_lib('freetype', 'libfreetype.6.dylib'), '.'))
+        binaries.append((brew_lib('pixman', 'libpixman-1.0.dylib'), '.'))
+        binaries.append((brew_lib('fontconfig', 'libfontconfig.1.dylib'), '.'))
+        binaries.append((brew_lib('libpng', 'libpng16.16.dylib'), '.'))
+        binaries.append((brew_lib('webp', 'libwebp.7.dylib'), '.'))
+    else:
+        binaries.append(('./lib/mac/libcairo.2.dylib', '.'))
+        binaries.append(('./lib/mac/libz.1.dylib', '.'))
+        binaries.append(('./lib/mac/libfreetype.6.dylib', '.'))
+        binaries.append(('./lib/mac/libpixman-1.0.dylib', '.'))
+        binaries.append(('./lib/mac/libfontconfig.1.dylib', '.'))
+        binaries.append(('./lib/mac/libpng16.16.dylib', '.'))
+        binaries.append(('./lib/mac/libwebp.7.dylib', '.'))
 elif os_type.startswith('Linux'):
     # binaries.append( ('/usr/local/lib/libcairo.so.2', '.') )
     pass

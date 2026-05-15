@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.8]
-        os: [macOS-15, macOS-15-intel]
+        os: [macOS-15-intel, macOS-15]
       fail-fast: false
 
     steps:
@@ -24,11 +24,16 @@ jobs:
 
       - name: Install Brew Packages
         run: |
-          brew install zlib
+          brew install zlib cairo freetype pixman fontconfig libpng webp
 
-      - name: Set dyld path for cairo
+      - name: Set build environment
         run: |
           echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
+          if [ "${{ matrix.os }}" != "macOS-15-intel" ]; then
+            echo "LDFLAGS=-L$(brew --prefix zlib)/lib" >> $GITHUB_ENV
+            echo "CPPFLAGS=-I$(brew --prefix zlib)/include" >> $GITHUB_ENV
+            echo "PKG_CONFIG_PATH=$(brew --prefix zlib)/lib/pkgconfig" >> $GITHUB_ENV
+          fi
 
       - name: Install Python dependencies
         run: |
