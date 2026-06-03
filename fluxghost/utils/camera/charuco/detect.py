@@ -21,9 +21,7 @@ def detect_charuco_markers(image, board):
     return diamond_corners, diamond_ids, marker_corners, marker_ids
 
 
-def get_calibration_data_from_charuco(
-    image, squares_x=15, squares_y=10, is_vertical=False, include_marker_corners=True
-):
+def get_calibration_data_from_charuco(image, squares_x=15, squares_y=10, is_vertical=False):
     board = get_charuco_board(squares_x, squares_y)
     diamond_corners, diamond_ids, marker_corners, marker_ids = detect_charuco_markers(image, board)
 
@@ -43,10 +41,11 @@ def get_calibration_data_from_charuco(
 
     # Decide orientation flip from diamond corners only (their order is well-defined).
     needs_flip = imgp[0][0] > imgp[-1][0]
+    found_ratio = len(diamond_ids) / len(corners)
 
-    # Optionally append aruco marker corners (4 extra 2D-3D correspondences per marker).
+    # When found_ratio lower than 0.75, append aruco marker corners (4 extra 2D-3D correspondences per marker).
     # Note: marker corners are typically less precise than charuco intersections.
-    if include_marker_corners and marker_ids is not None and len(marker_ids) > 0:
+    if found_ratio < 0.75 and marker_ids is not None and len(marker_ids) > 0:
         board_obj_points = board.getObjPoints()
         board_ids = board.getIds().flatten()
         id_to_idx = {int(i): k for k, i in enumerate(board_ids)}
@@ -78,6 +77,4 @@ def get_calibration_data_from_charuco(
         last_point = corners[-1]
         objp = -objp + last_point
 
-    # found_ratio reflects diamond coverage of the board, independent of marker corners.
-    found_ratio = len(diamond_ids) / len(corners)
     return imgp, objp, found_ratio
