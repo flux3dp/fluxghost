@@ -501,6 +501,9 @@ def laser_svgeditor_api_mixin(cls):
                         svgeditor2taskcode_kwargs['machine_limit_position'] = val
                 elif param == '-skip-prespray':
                     svgeditor2taskcode_kwargs['skip_prespray'] = True
+                elif param == '-prespray-times':
+                    with contextlib.suppress(Exception):
+                        svgeditor2taskcode_kwargs['prespray_times'] = int(params[i + 1])
                 elif param == '-expected-module':
                     with contextlib.suppress(Exception):
                         svgeditor2taskcode_kwargs['expected_module'] = int(params[i + 1])
