@@ -146,6 +146,9 @@ class FisheyeCameraMixin:
                 'tvec_polyfit': np.array(data['tvec_polyfit']),
                 'is_fisheye': data.get('is_fisheye', True),
             }
+
+            remote_model = getattr(self, 'remote_model', None)
+            return self.set_fisheye_height(0, remote_model)
         elif version == 3:
             self.fisheye_param = {
                 'v': version,
@@ -167,6 +170,9 @@ class FisheyeCameraMixin:
                 'total_width': data.get('total_width', None),
                 'total_height': data.get('total_height', None),
             }
+
+            remote_model = getattr(self, 'remote_model', None)
+            return self.set_fisheye_height(0, remote_model)
         else:
             self.send_error('Invalid version')
             return
