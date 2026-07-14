@@ -67,5 +67,5 @@ Each module spawns its own server (`ghost.py -d --port 0`) via `tests/usage/_har
 | X3 | relay without registered handler (current behavior pinned) | — | test_push_channel |
 
 Notes:
-- The toolpath module requires fluxsvg/beamify installed and (on Apple Silicon) `DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib`; the harness sets the DYLD var automatically and the module must skip cleanly when the route is unavailable.
+- The toolpath module requires fluxsvg/beamify installed and native cairo reachable via `DYLD_FALLBACK_LIBRARY_PATH` (`/opt/homebrew/lib` on Apple Silicon, `/usr/local/lib` on Intel); the harness sets the arch-appropriate path automatically and the module must skip cleanly when the route is unavailable.
 - "Quirk pinned" tests assert today's behavior on purpose so a fix shows up as a deliberate test change, not silent drift.

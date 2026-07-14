@@ -25,6 +25,7 @@ import base64
 import contextlib
 import json
 import os
+import platform
 import socket
 import subprocess
 import sys
@@ -125,7 +126,11 @@ class WS:
 def start_server():
     env = dict(os.environ)
     if sys.platform == 'darwin' and 'DYLD_FALLBACK_LIBRARY_PATH' not in env:
-        env['DYLD_FALLBACK_LIBRARY_PATH'] = '/opt/homebrew/lib'  # arm64: lib/mac dylibs are x86_64-only
+        # lib/mac dylibs are x86_64-only; use the Homebrew cairo for this arch:
+        # /opt/homebrew (arm64) vs /usr/local (x86_64).
+        env['DYLD_FALLBACK_LIBRARY_PATH'] = (
+            '/opt/homebrew/lib' if platform.machine() == 'arm64' else '/usr/local/lib'
+        )
     proc = subprocess.Popen(
         [sys.executable, os.path.join(ROOT, 'ghost.py'), '-d', '--port', '0'],
         stdout=subprocess.PIPE,

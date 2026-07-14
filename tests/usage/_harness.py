@@ -9,6 +9,7 @@ import base64
 import contextlib
 import json
 import os
+import platform
 import socket
 import subprocess
 import sys
@@ -24,7 +25,11 @@ class Server:
     def __init__(self, extra_args=None):
         env = dict(os.environ)
         if sys.platform == 'darwin' and 'DYLD_FALLBACK_LIBRARY_PATH' not in env:
-            env['DYLD_FALLBACK_LIBRARY_PATH'] = '/opt/homebrew/lib'
+            # fluxsvg -> cairocffi dlopens native cairo. Point at the Homebrew
+            # lib dir for this arch: /opt/homebrew (arm64) vs /usr/local (x86_64).
+            env['DYLD_FALLBACK_LIBRARY_PATH'] = (
+                '/opt/homebrew/lib' if platform.machine() == 'arm64' else '/usr/local/lib'
+            )
         args = [sys.executable, os.path.join(ROOT, 'ghost.py'), '-d', '--port', '0']
         if extra_args:
             args += list(extra_args)
