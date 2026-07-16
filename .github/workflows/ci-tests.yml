@@ -1,4 +1,4 @@
-name: CI tests win
+name: CI tests
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   test:
-    runs-on: windows-latest
+    runs-on: macOS-26
     strategy:
       matrix:
         python-version: [3.8]
