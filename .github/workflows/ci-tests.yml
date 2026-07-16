@@ -60,11 +60,12 @@ jobs:
       # fluxsvg -> cairocffi loads native cairo; the bundled DLLs live in lib/x64.
       - name: Install native libraries
         run: |
-          if ("${{ matrix.arch }}" -eq "32") {
-            cp ./lib/x32/* C:\Windows\System32
-          } else {
-            cp ./lib/x64/* C:\Windows\System32
-          }
+          brew install cairo
+          # if ("${{ matrix.arch }}" -eq "32") {
+          #   cp ./lib/x32/* C:\Windows\System32
+          # } else {
+          #   cp ./lib/x64/* C:\Windows\System32
+          # }
 
       - name: Import smoke check
         run: python ghost.py --test
