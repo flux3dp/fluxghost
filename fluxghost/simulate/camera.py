@@ -1,4 +1,5 @@
 import os
+import socket
 from threading import Thread
 from time import sleep
 
@@ -17,14 +18,17 @@ class SimulateCamera:
 
             self._buf = IMAGE_BUF
 
-        self._fd_r, self._fd_w = os.pipe()
+        # A socketpair (not os.pipe) so the read end is selectable on Windows;
+        # ApiBase._serve_forever selects on it and select() rejects non-socket
+        # fds on Windows (WinError 10038).
+        self._sock_r, self._sock_w = socket.socketpair()
         self._thread = Thread(target=self.__trigger)
         self._thread.daemon = True
         self._thread.start()
 
     def __trigger(self):
         while self.__running:
-            os.write(self._fd_w, b'\x00')
+            self._sock_w.send(b'\x00')
             sleep(0.25)
 
     # TODO: remove

@@ -88,32 +88,41 @@ class WebSocketHandler:
         return self.request.fileno()
 
     def do_recv(self):
-        buf = ((self.recv_flag & WAIT_LARGE_DATA == 0) and self.buf_view[self.recv_offset :]) or self.ext_buf_view[
-            self.ext_recv_offset :
-        ]
+        while True:
+            buf = ((self.recv_flag & WAIT_LARGE_DATA == 0) and self.buf_view[self.recv_offset :]) or self.ext_buf_view[
+                self.ext_recv_offset :
+            ]
 
-        try:
-            length = self.request.recv_into(buf)
-            if length == 0:
-                raise WebsocketError('Connection closed')
-        except OSError as e:
-            self._closed()
-            raise WebsocketError('Connection closed') from e
-        except WebsocketError:
-            self._closed()
-            raise
+            try:
+                length = self.request.recv_into(buf)
+                if length == 0:
+                    raise WebsocketError('Connection closed')
+            except OSError as e:
+                self._closed()
+                raise WebsocketError('Connection closed') from e
+            except WebsocketError:
+                self._closed()
+                raise
 
-        if self.recv_flag & WAIT_LARGE_DATA == 0:
-            self.recv_offset += length
-        else:
-            self.ext_recv_offset += length
+            if self.recv_flag & WAIT_LARGE_DATA == 0:
+                self.recv_offset += length
+            else:
+                self.ext_recv_offset += length
 
-        try:
-            while self._handleBuffer():
-                pass
-        except WebsocketError:
-            self._closed()
-            raise
+            try:
+                while self._handleBuffer():
+                    pass
+            except WebsocketError:
+                self._closed()
+                raise
+
+            # On TLS connections recv_into may leave decrypted bytes buffered in the
+            # SSL object while the kernel socket is drained; select() on the raw fd
+            # would then block even though data is available, stalling the tail of a
+            # large upload until the next client packet. Drain the SSL buffer here.
+            pending = getattr(self.request, 'pending', None)
+            if pending is None or pending() <= 0:
+                break
 
     def _handleBuffer(self):
         # Return True if buffer has data left inside
