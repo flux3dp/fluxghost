@@ -1,14 +1,15 @@
-name: Build ghost win
+name: CI tests
 
 on:
   push:
-    tags:
-      - "*-release"
+    branches:
+      - master
+  pull_request:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  test:
+    runs-on: macOS-26
     strategy:
       matrix:
         python-version: [3.8]
@@ -28,8 +29,9 @@ jobs:
         env:
           # env for windows to install pycrypto; MSVC version may change
           CL: /FI"C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Tools\\MSVC\\14.24.28314\\INCLUDE\\stdint.h"
-      # using https://github.com/InVisionApp/private-action-loader for private repo.
 
+      # fluxclient/fluxsvg/beamify are not in requirements.txt; install the same
+      # pinned refs the release build uses (see buildghost-win.yml).
       - name: Checkout Beamify
         uses: actions/checkout@v4
         with:
@@ -55,23 +57,24 @@ jobs:
       - name: Install FluxClient
         uses: ./.github/actions/fluxclient
 
-      - name: Build Flux Api
+      - name: Install Brew Packages
         run: |
-          if ("${{ matrix.arch }}" -eq "32") {
-            cp ./lib/x32/* C:\Windows\System32
-          } else {
-            cp ./lib/x64/* C:\Windows\System32
-          }
-          sh -c "set -e 1; python ghost.py --test"
-          sh -c "set -e 1; pyinstaller --clean ghost.spec"
-          ./dist/flux_api/flux_api --test
+          brew install zlib cairo freetype pixman fontconfig libpng webp
 
-      - name: Cleanup artifacts
+      - name: Set build environment for Apple Silicon
         run: |
-          mkdir artifacts
-          mv dist/flux_api artifacts
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: win-x${{matrix.arch}}
-          path: artifacts
+          echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:+$DYLD_LIBRARY_PATH:}$(brew --prefix cairo)/lib" >> $GITHUB_ENV
+          echo "LDFLAGS=-L$(brew --prefix zlib)/lib" >> $GITHUB_ENV
+          echo "CPPFLAGS=-I$(brew --prefix zlib)/include" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$(brew --prefix zlib)/lib/pkgconfig" >> $GITHUB_ENV
+
+      - name: Import smoke check
+        run: python ghost.py --test
+
+      - name: Websocket smoke suite
+        shell: bash
+        run: python tools/ws_smoke.py
+
+      - name: Usage protocol tests
+        shell: bash
+        run: python -m unittest discover -s tests/usage -t . -v

@@ -150,8 +150,9 @@ class HttpServerBase:
                     elif sock in disc.socks:
                         try:
                             disc.try_receive(disc.socks, callback=self.on_discover_device, timeout=0.01)
-                        except OSError:
-                            logger.debug('Discover error, recreate')
+                        except Exception as e:
+                            # a malformed datagram must never kill the server
+                            logger.debug('Discover error, recreate: %r', e)
 
             except InterruptedError:
                 pass

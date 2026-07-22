@@ -28,7 +28,10 @@ class SimulateCamera:
 
     def __trigger(self):
         while self.__running:
-            self._sock_w.send(b'\x00')
+            try:
+                self._sock_w.send(b'\x00')
+            except OSError:  # close() raced us; just stop
+                break
             sleep(0.25)
 
     # TODO: remove
@@ -37,14 +40,14 @@ class SimulateCamera:
         return self
 
     def fileno(self):
-        return self._fd_r
+        return self._sock_r.fileno()
 
     def feed(self, callback):
-        os.read(self._fd_r, 1)
+        self._sock_r.recv(1)
         callback(self, self._buf)
 
     def close(self):
         if self.__running:
             self.__running = False
-            os.close(self._fd_w)
-            os.close(self._fd_r)
+            self._sock_w.close()
+            self._sock_r.close()
