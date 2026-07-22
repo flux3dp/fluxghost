@@ -7,6 +7,7 @@ Issues found while reviewing, building, and testing the stack (2026-07-05). Orde
 - [ ] **`lib/mac` cairo dylibs are x86_64-only.** `libcairo.2.dylib` and friends fail to `dlopen` on Apple Silicon (`incompatible architecture (have 'x86_64', need 'arm64')`), so a native arm64 PyInstaller build would ship a broken `svgeditor-laser-parser`. Rebuild them as universal (or arm64) binaries. Dev workaround documented in CLAUDE.md: `brew install cairo` + `DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/lib`.
 - [ ] **Python 3.8 pin** (`requires-python = ">=3.8,<3.9"`) — EOL since Oct 2024; blocks numpy/scipy upgrades (stuck at numpy 1.24 / scipy 1.10). fluxghost is the pin holder; fluxclient builds fine on newer Pythons. Plan a 3.11+ migration.
 - [ ] **fluxclient has intentionally ancient pins** — `pyasn1==0.1.9`, `pyusb==1.0.2` — tied to device auth/USB protocol code. Verify against real hardware and either bump or document why they must stay.
+- [ ] **CI/release builds pin fluxclient 2.9.12 while local dev uses 2.10.x** — `ci-tests.yml` and all three `buildghost-*.yml` workflows check out `flux3dp/fluxclient-dev@2.9.12`, but sibling-checkout dev environments run 2.10.3. 2.9.12 still spells `DeviceDiscover.try_recive` (renamed `try_receive` in 2.10.x), so `http_server_base.py` carries a `getattr` compat shim (added 2026-07-22 after the pinned CI crashed on any discover UDP packet). Bump the workflow pins to a 2.10.x tag and drop the shim.
 
 ## Dead / Misleading Code
 
