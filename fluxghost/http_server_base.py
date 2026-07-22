@@ -149,9 +149,7 @@ class HttpServerBase:
                         self.on_accept(self.ssl_sock)
                     elif sock in disc.socks:
                         try:
-                            # fluxclient < 2.10 spells this try_recive (release builds pin 2.9.12)
-                            receive = getattr(disc, 'try_receive', None) or disc.try_recive
-                            receive(disc.socks, callback=self.on_discover_device, timeout=0.01)
+                            disc.try_receive(disc.socks, callback=self.on_discover_device, timeout=0.01)
                         except Exception as e:
                             # a malformed datagram must never kill the server
                             logger.debug('Discover error, recreate: %r', e)
