@@ -2,7 +2,7 @@
 
 `ws://127.0.0.1:8000/ws/opencv`
 
-Image sharpening service. The client uploads an image once (keyed by its URL), then can request unsharp-mask sharpening of that cached image; the sharpened result is returned as a PNG binary frame.
+General OpenCV image service. The client uploads an image once (keyed by its URL), then can request unsharp-mask sharpening of that cached image; the sharpened result is returned as a PNG binary frame. It also provides one-shot circular-blob detection (`detect_blobs`) used by Beam Studio's Print and Cut alignment.
 
 - **Handler**: `fluxghost/api/opencv.py` (`opencv_mixin`), wrapper `fluxghost/websocket/opencv.py`, route `fluxghost/http_websocket_route.py:29` - **Beam Studio client**: `packages/core/src/web/helpers/api/open-cv.ts` (`OpenCVWebSocket`, used by the Sharpen dialog `app/components/dialogs/image/Sharpen.tsx`)
 
@@ -42,6 +42,42 @@ If `img_url` has not been uploaded on this connection:
 ```
 
 The Beam Studio client reacts to `need_upload` by fetching the URL, running `upload`, and re-sending the same `sharpen` command (`open-cv.ts:82-112`).
+
+### `detect_blobs <file_length> [<json_params>]`
+
+Detects dark circular blobs (e.g. printed alignment marks) with `cv2.SimpleBlobDetector` (`find_blob_centers` in `fluxghost/utils/camera/corner_detection/find_corners.py`). Unlike `sharpen`, this is a one-shot command: the image is streamed directly after the command and is not cached in `self.imgs`.
+
+`json_params` is an optional JSON object; recognized keys are forwarded to `find_blob_centers`: `min_threshold`, `max_threshold`, `min_area`, `max_area`, `min_circularity`, `max_circularity`, `min_convexity`, `max_convexity`. Unknown keys are ignored. The uploaded image is decoded with PIL, converted to RGB then BGR, so any common format (PNG/JPEG, with or without alpha) works.
+
+Response `points` are blob centers in image pixel coordinates.
+
+```
+→ detect_blobs 152833 {"min_area": 500, "max_area": 3000, "min_circularity": 0.7}
+← {"status": "continue"}
+→ <binary chunks totalling 152833 bytes>
+← {"status": "ok", "points": [[102.5, 88.1], [1893.2, 87.4], [103.0, 1401.8], [1894.1, 1400.2]]}
+```
+
+- **Beam Studio client**: `OpenCVWebSocket.detectBlobs` (`packages/core/src/web/helpers/api/open-cv.ts`), used by `app/components/dialogs/PrintAndCut/utils/alignByCamera.ts`.
+
+### `image_contour <file_length> [<json_params>]`
+
+Detects the outer silhouette of the image content and returns its contours — used by Beam Studio's Print and Cut, which builds the offset cut path client-side (round-join ClipperOffset on the raw silhouette). One-shot command like `detect_blobs`.
+
+The mask comes from the alpha channel when the image has transparency (`alpha > alpha_threshold`, default 0 so anti-aliased thin strokes are kept), otherwise from luminance (`gray < threshold`, i.e. dark content on a light background), then `cv2.findContours(RETR_EXTERNAL)` + `approxPolyDP(epsilon)`. Contours smaller than `min_area` (px²) are dropped.
+
+`json_params` keys (all optional): `threshold` (int, default 250), `epsilon` (float, default 1.0), `min_area` (float, default 100), `alpha_threshold` (int, default 0).
+
+Response `contours` is a list of contours, each a list of `[x, y]` points in image pixel coordinates.
+
+```
+→ image_contour 152833 {"threshold": 250, "epsilon": 1.0}
+← {"status": "continue"}
+→ <binary chunks totalling 152833 bytes>
+← {"status": "ok", "contours": [[[18.0, 42.0], [305.0, 12.0], ...]]}
+```
+
+- **Beam Studio client**: `OpenCVWebSocket.imageContour` (`packages/core/src/web/helpers/api/open-cv.ts`), used by `app/components/dialogs/PrintAndCut/utils/computeCutPathD.ts` (caches the contours per design, offsets them with ClipperOffset, and falls back to a bounding-box outline when this call fails).
 
 ## Errors
 
