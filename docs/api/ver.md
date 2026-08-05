@@ -20,7 +20,7 @@ There are no commands. Any text or binary message a client manages to send befor
 Sent once, immediately on connect, via `send_json(fluxclient=..., fluxghost=...)` (`fluxghost/api/ver.py:9`, `fluxghost/api/api_base.py:37-41`):
 
 ```json
-{"fluxclient": "2.10.3", "fluxghost": "2.5.5"}
+{"fluxclient": "2.10.3", "fluxghost": "2.5.6"}
 ```
 
 - `fluxclient` — `fluxclient.__version__` of the bundled fluxclient library.
@@ -36,7 +36,7 @@ None. The handler has no error paths of its own; the only failures a client can 
 
 ```
    (client opens ws://127.0.0.1:8000/ws/ver)
-← {"fluxclient": "2.10.3", "fluxghost": "2.5.5"}
+← {"fluxclient": "2.10.3", "fluxghost": "2.5.6"}
    (server closes the websocket, normal closure)
 ```
 

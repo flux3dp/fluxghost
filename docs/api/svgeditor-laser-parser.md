@@ -114,7 +114,7 @@ Flags (`:370-514`), with the `svgeditor2taskcode` kwarg they set:
 | `-cbl` | — | `custom_backlash` |
 | `-mep <n>` / `-mpp <n>` | int | `min_engraving_padding` / `min_printing_padding` |
 | `-mpc` / `-owp` | — | `multipass_compensation` / `one_way_printing` |
-| `-ptp <n>` / `-pbp <n>` | int | `printing_top_padding` / `printing_bot_padding` |
+| `-ptp <n>` / `-pbp <n>` | int | `printing_top_padding` / `printing_bot_padding` (px; overridden per layer by `data-printingTopPadding` / `data-printingBotPadding` layer attributes) |
 | `-psw <n>` / `-psh <n>` | int | `printing_slice_width` / `printing_slice_height` |
 | `-nv <v>` / `-npw <v>` | float | `nozzle_voltage` / `nozzle_pulse_width` (4C printer) |
 | `-mof <json>` | object | `module_offsets` per layer module |
