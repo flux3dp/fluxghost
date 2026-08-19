@@ -7,7 +7,6 @@ from time import time
 import cv2
 import numpy as np
 from PIL import Image
-from scipy import spatial
 
 from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
 from fluxghost.utils.camera.calibration import (
@@ -23,6 +22,7 @@ from fluxghost.utils.camera.charuco.detect import get_calibration_data_from_char
 from fluxghost.utils.camera.constants import B_PAD, CHESSBOARD, L_PAD, R_PAD, T_PAD
 from fluxghost.utils.camera.corner_detection import apply_points
 from fluxghost.utils.camera.corner_detection.find_corners import find_blob_centers
+from fluxghost.utils.camera.corner_detection.match_points import match_projected_points
 from fluxghost.utils.camera.general import pad_image
 from fluxghost.utils.camera.perspective import calculate_regional_perspective_points, generate_grid_objects
 from fluxghost.utils.camera.solve_pnp import solve_pnp
@@ -322,64 +322,26 @@ def camera_calibration_api_mixin(cls):
                         cv2.circle(img_copy, tuple(p.astype(int)), 0, (255, 0, 0), -1)
                         cv2.circle(img_copy, tuple(p.astype(int)), 5, (255, 0, 0), 1)
 
-                target_counts = len(projected_points)
                 result_img_points = None
-                if len(corners) >= target_counts:
-                    corner_tree = spatial.KDTree(corners)
-                    best_res = None
-                    for ref_index in range(target_counts):
-                        for candidate_index in range(len(corners)):
-                            res = [None] * target_counts
-                            score = 0
-                            score_detail = [0] * target_counts
-                            res[ref_index] = corners[candidate_index]
-                            score_detail[ref_index] = 1.0
-                            used_indices = set([candidate_index])
-                            delta = corners[candidate_index] - projected_points[ref_index]
-                            # Find best match point for target_counts - 1 times, add min dist result for each time
-                            for i in range(target_counts - 1):
-                                min_dist_data = None
-                                # Check for j-th target point distance
-                                for j in range(target_counts):
-                                    if res[j] is not None:
-                                        continue
-                                    dists, indices = corner_tree.query(
-                                        projected_points[j] + delta, k=1 + len(used_indices)
-                                    )
-                                    for dist, idx in zip(dists, indices):
-                                        if idx not in used_indices:
-                                            if min_dist_data is None or dist < min_dist_data[0]:
-                                                min_dist_data = (dist, idx, j)
-                                            break
-                                dist, corner_idx, target_idx = min_dist_data
-                                used_indices.add(corner_idx)
-                                res[target_idx] = corners[corner_idx]
-                                # soft_inlier_score with sigma = 30
-                                point_score = np.exp(-(dist * dist) / (2 * 30 * 30))
-                                score_detail[target_idx] = point_score
-                                score += point_score
-                                # Early stop: even all next points are perfect score, total score cannot exceed best_res
-                                if best_res and score + (target_counts - i - 2) < best_res[1]:
-                                    break
-                            if best_res is None or score > best_res[1]:
-                                best_res = (res, score, score_detail, ref_index)
-                    res, score, score_detail, ref_index = best_res
-                    logger.info('[solve_pnp] Total score: {}, detail: {}'.format(score, score_detail))
-                    if score >= 0.5:
-                        for i in range(target_counts):
-                            if WRITE_DEBUG_IMG:
-                                color = (255, 0, 255) if i == ref_index else (0, 255, 0)
-                                cv2.circle(img_copy, tuple(res[i].astype(int)), 0, color, -1)
-                                cv2.circle(img_copy, tuple(res[i].astype(int)), 4, color, 1)
-                            if score_detail[i] < 0.3:
-                                logger.info(
-                                    '[solve_pnp] Point %d score: %.2f less than threshold, use ref point + offset'
-                                    % (i, score_detail[i])
-                                )
-                                res[i] = res[ref_index] + (projected_points[i] - projected_points[ref_index])
-                        result_img_points = np.array(res)
-                    else:
-                        logger.info('[solve_pnp] Total score: %.2f is less than threshold.' % score)
+                match = match_projected_points(corners, projected_points)
+                if match is not None:
+                    result_img_points = match.points
+                    if WRITE_DEBUG_IMG:
+                        for i, p in enumerate(match.matched):
+                            color = (255, 0, 255) if i == match.ref_index else (0, 255, 0)
+                            cv2.circle(img_copy, tuple(p.astype(int)), 0, color, -1)
+                            cv2.circle(img_copy, tuple(p.astype(int)), 4, color, 1)
+                            cv2.putText(
+                                img_copy,
+                                '%d:%.2f' % (i, match.score_detail[i]),
+                                tuple((p + np.array([6, -6])).astype(int)),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5,
+                                color,
+                                1,
+                            )
+                        # raw match, before low-score points are replaced by ref point + offset
+                        debug_imwrite('solve-pnp-matched.png', img_copy)
 
                 if result_img_points is None:
                     logger.info('[solve_pnp] Fail to use found points, projected points directly.')
@@ -417,6 +379,7 @@ def camera_calibration_api_mixin(cls):
         def cmd_solve_pnp_calculate(self, message):
             if self.calibration_params.get('k') is None:
                 self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
+                return
             k = self.calibration_params['k']
             d = self.calibration_params['d']
             is_fisheye = self.calibration_params.get('is_fisheye', True)
