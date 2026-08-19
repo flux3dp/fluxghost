@@ -62,6 +62,7 @@ Each module spawns its own server (`ghost.py -d --port 0`) via `tests/usage/_har
 | U2 | second real utils command (per docs/api/utils.md) | `utils-ws.ts` | test_image_utils |
 | U3 | third real utils command | `utils-ws.ts` | test_image_utils |
 | O1 | opencv `upload` + `sharpen` → binary result | `open-cv.ts` | test_image_utils |
+| K1 | solve_pnp corner matcher: exact / translated / tie-break by pose / no match / too few corners / missing-corner fallback | `camera-calibration.ts` (`solve_pnp_find_corners`) | test_camera_match_points |
 | X1 | `push-studio` `set_handler` → ok | `ai-extension.ts` | test_push_channel |
 | X2 | `inter-process` `adobe_illustrator` relays to push-studio ws | AI plugin | test_push_channel |
 | X3 | relay without registered handler (current behavior pinned) | — | test_push_channel |

@@ -95,7 +95,7 @@ Injects previously saved calibration data into `calibration_params` without reca
 
 Step 1 of extrinsic refinement. Requires stored `k`/`d`/`rvec`/`tvec` (else `{"status": "fail", "info": "NO_DATA", "reason": "No calibration data found"}`). `ref_points_json` is `[[x, y], ...]` in mm (mapped to 3-D as `(x, y, -dh)`), `dh` the height offset (rounded to 2 decimals), `interest_area_json` an optional `{"x", "y", "width", "height"}` crop in image pixels.
 
-`← {"status": "continue"}` → binary upload. The image is remapped, blob centers are detected (`find_blob_centers`) and matched against the projected reference points with a KD-tree scoring pass (soft-inlier score, sigma 30 px; a total score ≥ 0.5 is required, per-point scores < 0.3 are replaced by reference offsets). If matching fails, the projected points themselves (optionally recentered on the interest area) are returned; with an interest area, results are clamped to its inner 90%.
+`← {"status": "continue"}` → binary upload. The image is remapped, blob centers are detected (`find_blob_centers`) and matched against the projected reference points by `match_projected_points` ([fluxghost/utils/camera/corner_detection/match_points.py](../../fluxghost/utils/camera/corner_detection/match_points.py)). Each (anchor point, candidate corner) hypothesis is scored **relative** (KD-tree soft-inlier score of the pattern translated onto the candidate, sigma 60 px) **+ absolute** (agreement between that translation and the projected pose, sigma 300 px); ranking uses the sum, acceptance uses the relative score alone (≥ 0.5), so a stale `rvec`/`tvec` can only break ties, never reject a clear match. Per-point scores < 0.1 are replaced by anchor + reference offset. If matching fails, the projected points themselves (optionally recentered on the interest area) are returned; with an interest area, results are clamped to its inner 90%.
 
 ```
 ← {"status": "ok", "points": [[x, y], ...]}
@@ -110,7 +110,7 @@ Step 2: computes new extrinsics from the (possibly user-corrected) image points.
 ← {"status": "ok", "rvec": [[...]], "tvec": [[...]]}
 ```
 
-Failures: `{"status": "fail", "reason": "solve pnp failed"}` (solver returned false) or `{"status": "fail", "reason": "solve pnp failed<exception>"}`.
+Failures: `{"status": "fail", "info": "NO_DATA", "reason": "No calibration data found"}` (no stored `k`), `{"status": "fail", "reason": "solve pnp failed"}` (solver returned false) or `{"status": "fail", "reason": "solve pnp failed<exception>"}`.
 
 ### `check_pnp <args_json>`
 
@@ -168,5 +168,5 @@ A fixed-focus (V3-style) charuco calibration followed by solvePnP refinement:
 - **Fisheye padding**: fisheye images are padded by the fixed constants `T_PAD/B_PAD = 876`, `L_PAD/R_PAD = 1168` around the nominal `3264×2448` sensor image before remapping (`constants.py`, `pad_image` in `general.py`). `calibrate_camera` applies the same offsets to input image points — clients pass *unpadded* coordinates.
 - **Laser-origin offset**: both `do_fisheye_calibration` and `calibrate_chessboard` add `(35, 55, 0)` mm to tvec to move the origin from the chessboard corner to the laser origin. `calibrate_camera` (charuco path) does not.
 - **Known quirk**: `cmd_solve_pnp_calculate` does not `return` after sending the `NO_DATA` fail message, so calling it before any calibration data exists additionally raises a `KeyError` server-side (`camera_calibration.py` line 417-420).
-- **Debug output**: when fluxghost runs with debug-image writing enabled (`WRITE_DEBUG_IMG` in `fluxghost/debug.py`), the solve-pnp and check-pnp steps dump annotated PNGs (`solve-pnp-input.png`, `solve-pnp-corner.png`, `check_pnp.png`).
+- **Debug output**: when fluxghost runs with debug-image writing enabled (`WRITE_DEBUG_IMG` in `fluxghost/debug.py`), the solve-pnp and check-pnp steps dump annotated PNGs (`solve-pnp-input.png`, `solve-pnp-matched.png`, `solve-pnp-corner.png`, `check_pnp.png`). `solve-pnp-matched.png` is the raw match labelled `<index>:<per-point score>` (anchor in magenta), written before points scoring < 0.1 are replaced by anchor + reference offset; `solve-pnp-corner.png` adds the returned points in cyan.
 - **Frontend quirks** (`camera-calibration.ts`): the client keeps a single module-level socket (`cameraCalibrationApi`), still sends the deprecated `calibrate_fisheye` for fisheye lenses, and sends `dh` with `toFixed(2)`/`toFixed(3)` while the server re-rounds to 2 decimals.
