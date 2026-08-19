@@ -186,6 +186,21 @@ Handled in `fluxghost/api/svgeditor_toolpath.py:51-67`. The value is everything 
 
 Beam Studio calls `set_params loop_compensation <n>` and `set_params curve_engraving <json>` right before `go` (`svg-laser-parser.ts:653-663`).
 
+## Per-layer `data-*` attributes
+
+Per-layer parameters are not websocket flags: they ride inside the uploaded SVG as attributes on each layer `<g>` and are parsed by fluxclient's `SvgeditorImage._get_layer_params` (`fluxclient/toolpath/svgeditor_factory.py`), which holds the full attribute list (`data-strength`, `data-speed`, `data-repeat`, `data-halftone`, `data-printingTopPadding`, …).
+
+Laser engraving texture (applied in `LaserBitmapFactory.process_color` before dithering, in ink space so it stays visible on solid black):
+
+| Attribute | Type | Default | Effect |
+|---|---|---|---|
+| `data-texture` | int | 0 | `1` enables texturing for the layer |
+| `data-textureMode` | int | 1 | `1` random noise, `2` stripe |
+| `data-textureRandomIntensity` | float | 30 | random mode: per-pixel ±intensity% noise on the pixel's own ink (white stays white) |
+| `data-textureStripeAngle` | float | 45 | stripe mode: line angle in degrees, CCW from +x |
+| `data-textureStripeInterval` | float | 0.5 | stripe mode: perpendicular line spacing in mm |
+| `data-textureStripeIntensity` | float | 50 | stripe mode: on-line ink is multiplied by `1 - intensity/100` |
+
 ## Binary Flows
 
 **Upload (client → server).** Commands that expect binary (`upload_plain_svg`, `svgeditor_upload`, `g2f`) install a `BinaryUploadHelper(length, callback, ...)` and answer `{"status": "continue"}`. Every subsequent binary websocket frame is appended (`fluxghost/api/misc.py:73-89`); frames may be arbitrarily chunked (Beam Studio uses 128 KB chunks for `svgeditor_upload`, one blob otherwise). When the byte count reaches exactly `length` the callback runs and normal text-command mode resumes. Overshooting the declared length raises `BAD_LENGTH ...`, delivered as a `fatal` (`fluxghost/api/misc.py:17-26`). Binary frames sent while no helper is installed produce `{"status": "fatal", ..., "error": "BAD_PROTOCOL"}`.
