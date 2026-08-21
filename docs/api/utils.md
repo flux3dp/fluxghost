@@ -68,7 +68,14 @@ With `base64` the last two frames are replaced by `{"status": "ok", "data": "<ba
 
 ### `split_color <file_size> <color_type>`
 
-Upload an image, get its four CMYK channels back as separate base64 JPEGs (`fluxghost/api/utils.py:131-173`). `color_type == 'cmyk'` uses PIL's plain `convert('CMYK')`; any other value (Beam Studio sends `rgb`) goes through the Fogra39 ICC transform. Each channel is inverted (`255 - x`) before encoding.
+Upload an image, get its four CMYK channels back as separate base64 JPEGs (`fluxghost/api/utils.py:132-180`). `color_type == 'cmyk'` uses PIL's plain `convert('CMYK')`; `color_type == 'cmy'` separates without black ink (see below); any other value (Beam Studio sends `rgb`) goes through the Fogra39 ICC transform. Each channel is inverted (`255 - x`) before encoding.
+
+`cmy` backs the "blend K with CMY" full color layer option and always returns a blank `k` channel, which Beam Studio's `splitColor.ts` detects as empty and drops. `fluxghost/utils/cmy_separation.py` handles the two source types differently:
+
+- **RGB source** — inverts the Fogra39 profile with K pinned to 0 (nearest Lab match over a CMY ink grid, baked into a 33³ 3D LUT built once per process, ~0.15 s). Accuracy matches the normal four colour separation within ~1.5 dE.
+- **CMYK source** — keeps C, M and Y exactly as the file authored them and replaces only the black, using the CMY that reproduces each black level on its own, combined with the ink already present the way two inks overlap (`a + b - ab`). A pure cyan stays a pure cyan; re-separating by colour would turn it into a three ink mix. ~2 dE.
+
+Neither can escape the colorant limit: CMY at 300% ink bottoms out at L* ~= 20, so blacks print as a dark brown grey.
 
 ```
 → split_color 20480 rgb

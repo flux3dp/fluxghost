@@ -4,7 +4,7 @@ Covers /ws/utils commands the Beam Studio frontend actually calls
 (`packages/core/src/web/helpers/api/utils-ws.ts`):
 
 - U1 rgb_to_cmyk  (transformRgbImageToCmyk, resultType 'binary' — the frontend default)
-- U2 split_color  (splitColor with colorType 'rgb' — helpers/layer/full-color/splitColor.ts)
+- U2 split_color  (splitColor with colorType 'rgb' and 'cmy' — helpers/layer/full-color/splitColor.ts)
 - U3 get_convex_hull (getConvexHull — helpers/device/framing.ts)
 
 and the /ws/opencv upload+sharpen flow (`open-cv.ts`, Sharpen dialog):
@@ -107,6 +107,34 @@ class UtilsTest(unittest.TestCase):
             self.assertIn(channel, ok)
             jpeg = base64.b64decode(ok[channel])
             self.assertEqual(jpeg[:3], JPEG_MAGIC, 'channel %s is not a JPEG' % channel)
+
+    def test_u2_split_color_cmy(self):
+        """split_color cmy → the K channel comes back blank so no black ink is used."""
+        png = make_png(rect=(8, 8, 56, 56))
+        self.upload('split_color %d cmy' % len(png), png)
+        self.ws.json_until(lambda m: m.get('status') == 'uploaded')
+        ok = self.ws.json_until(lambda m: m.get('status') == 'ok')
+        channels = {c: Image.open(io.BytesIO(base64.b64decode(ok[c]))) for c in ('c', 'm', 'y', 'k')}
+        # 255 means no ink, so a blank K channel is all white
+        self.assertEqual(channels['k'].convert('L').getextrema(), (255, 255))
+        # the drawn rectangle still has to be printed by the remaining three
+        self.assertLess(min(min(channels[c].convert('L').getextrema()) for c in ('c', 'm', 'y')), 250)
+
+    def test_u2_split_color_cmy_from_cmyk_source(self):
+        """A CMYK upload goes through the profile on its way to CMY, not PIL's own conversion."""
+        cmyk = Image.new('CMYK', (32, 32))
+        ImageDraw.Draw(cmyk).rectangle((4, 4, 28, 28), fill=(0, 0, 0, 200))  # dark grey, black ink only
+        out = io.BytesIO()
+        cmyk.save(out, format='JPEG')
+        jpeg = out.getvalue()
+        self.upload('split_color %d cmy' % len(jpeg), jpeg)
+        self.ws.json_until(lambda m: m.get('status') == 'uploaded')
+        ok = self.ws.json_until(lambda m: m.get('status') == 'ok')
+        channels = {c: Image.open(io.BytesIO(base64.b64decode(ok[c]))) for c in ('c', 'm', 'y', 'k')}
+        self.assertEqual(channels['k'].convert('L').getextrema(), (255, 255))
+        # the black only rectangle has to come back as ink on all three remaining channels
+        for name in ('c', 'm', 'y'):
+            self.assertLess(min(channels[name].convert('L').getextrema()), 250, '%s channel is blank' % name)
 
     def test_u3_get_convex_hull(self):
         """get_convex_hull → ok with hull points covering the drawn shape, origin-nearest first."""

@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageCms
 
+from fluxghost.utils.cmy_separation import cmyk_to_cmy, rgb_to_cmy
 from fluxghost.utils.contour import find_similar_contours
 from fluxghost.utils.opencv import findContours
 
@@ -135,6 +136,9 @@ def utils_api_mixin(cls):
             def upload_callback(buf):
                 image = Image.open(io.BytesIO(buf))
                 self.send_json(status='uploaded')
+                if color_type == 'cmy' and image.mode == 'CMYK':
+                    # keep the separation the file was authored with, only move the black
+                    image = cmyk_to_cmy(image)
                 if image.mode != 'CMYK':
                     if image.info.get('transparency', None) is not None:
                         image = image.convert('RGBA')
@@ -142,7 +146,9 @@ def utils_api_mixin(cls):
                         white_image = Image.new('RGBA', image.size, 'white')
                         image = Image.alpha_composite(white_image, image)
                     image = image.convert('RGB')
-                    if color_type == 'cmyk':
+                    if color_type == 'cmy':
+                        image = rgb_to_cmy(image)
+                    elif color_type == 'cmyk':
                         image = image.convert('CMYK')
                     else:
                         srgb_profile = ImageCms.createProfile('sRGB')
