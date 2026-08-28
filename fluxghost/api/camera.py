@@ -34,6 +34,7 @@ fisheye_models = ['fad1', 'ado1', 'fbb2', 'fbm2', 'fhx2rf']
 def camera_api_mixin(cls):
     class CameraAPI(FisheyeCameraMixin, control_base_mixin(cls)):
         is_next_image_low_resolution = False
+        preview_downsample = 1
 
         def get_robot_from_device(self, device):
             self.remote_version = device.version
@@ -89,7 +90,22 @@ def camera_api_mixin(cls):
                 except Exception:
                     self.send_binary(image)
                     return
-                img = self.handle_fisheye_image(cv_img, downsample=1, is_low_resolution=is_low_resolution)
+                # Low-memory devices OOM inside cv2 at full resolution; retry the frame
+                # downsampled and stick with it for the rest of the connection
+                while True:
+                    try:
+                        img = self.handle_fisheye_image(
+                            cv_img, downsample=self.preview_downsample, is_low_resolution=is_low_resolution
+                        )
+                        break
+                    except (cv2.error, MemoryError):
+                        if self.preview_downsample >= 4:
+                            logger.exception('Failed to process fisheye image, dropping frame')
+                            return
+                        self.preview_downsample *= 2
+                        logger.warning(
+                            'cv2 error (likely OOM), retrying preview at downsample %d', self.preview_downsample
+                        )
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)

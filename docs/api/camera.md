@@ -73,7 +73,7 @@ Handled by `FisheyeCameraMixin.on_command` (reached via `super().on_command(...)
 
 ## Binary frames
 
-Every camera frame is sent to the client as one **binary websocket message containing a JPEG**. For the fisheye models `fad1`, `ado1`, `fbb2`, `fbm2`, `fhx2rf` (list in `camera.py`), if `set_fisheye_matrix` has been called, the frame is decoded, undistorted/perspective-transformed by `FisheyeCameraMixin.handle_fisheye_image` and re-encoded to JPEG first; otherwise the device's bytes are forwarded untouched. If decoding the fisheye frame fails, the raw bytes are forwarded as-is.
+Every camera frame is sent to the client as one **binary websocket message containing a JPEG**. For the fisheye models `fad1`, `ado1`, `fbb2`, `fbm2`, `fhx2rf` (list in `camera.py`), if `set_fisheye_matrix` has been called, the frame is decoded, undistorted/perspective-transformed by `FisheyeCameraMixin.handle_fisheye_image` and re-encoded to JPEG first; otherwise the device's bytes are forwarded untouched. If decoding the fisheye frame fails, the raw bytes are forwarded as-is. If the undistort/transform itself raises a `cv2.error` (seen as OOM on low-memory devices), the frame is retried at increasing downsample (2, then 4 — sticky for the rest of the connection); only if downsample 4 also fails is the frame dropped and logged.
 
 ## Errors
 

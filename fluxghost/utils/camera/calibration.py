@@ -26,14 +26,24 @@ INIT_D = np.array(
 )
 
 
+# ponytail: single-entry cache — one camera at a time; keyed dict if that changes
+_remap_map_cache = {}
+
+
 def get_remap_img(img, k, d, is_fisheye=True):
     h, w = img.shape[:2]
-    if not is_fisheye:
-        img = cv2.undistort(img, k, d)
-        return img
-    mapx, mapy = cv2.fisheye.initUndistortRectifyMap(k, d, np.eye(3), k, (w, h), cv2.CV_32FC1)
-    img = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
-    return img
+    key = (k.tobytes(), d.tobytes(), w, h, is_fisheye)
+    maps = _remap_map_cache.get(key)
+    if maps is None:
+        # CV_16SC2 directly: fixed-point maps take ~25% less memory than CV_32FC1 and
+        # avoid holding float intermediates during construction (OOMs low-memory devices)
+        if is_fisheye:
+            maps = cv2.fisheye.initUndistortRectifyMap(k, d, np.eye(3), k, (w, h), cv2.CV_16SC2)
+        else:
+            maps = cv2.initUndistortRectifyMap(k, d, None, k, (w, h), cv2.CV_16SC2)
+        _remap_map_cache.clear()
+        _remap_map_cache[key] = maps
+    return cv2.remap(img, maps[0], maps[1], cv2.INTER_LINEAR)
 
 
 def remap_corners(corners, k, d, is_fisheye=True):
