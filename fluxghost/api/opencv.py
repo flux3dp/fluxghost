@@ -85,7 +85,7 @@ def opencv_mixin(cls):
 
         def cmd_image_contour(self, params):
             # image_contour <file_length> [<json_params>]
-            # json_params: {"threshold": 250, "epsilon": 1.0, "min_area": 100, "alpha_threshold": 0}
+            # json_params: {"threshold": 242, "epsilon": 1.0, "min_area": 100}
             # Detects the outer silhouette of the image content (alpha channel when
             # present, otherwise dark-on-light with luminance < threshold) and returns
             # the outer contours in image pixel coordinates. Offsetting/smoothing the
@@ -93,19 +93,19 @@ def opencv_mixin(cls):
             params = params.split(' ', 1)
             file_length = int(params[0])
             options = json.loads(params[1]) if len(params) > 1 and params[1].strip() else {}
-            threshold = int(options.get('threshold', 250))
+            threshold = int(options.get('threshold', 242))  # ~95% of 255
             epsilon = float(options.get('epsilon', 1.0))
             min_area = float(options.get('min_area', 100))
-            # any non-zero coverage counts: thin strokes anti-alias to low alpha
-            # and would vanish from the mask with a mid-range threshold
-            alpha_threshold = int(options.get('alpha_threshold', 0))
 
             def upload_callback(buf):
                 img = Image.open(io.BytesIO(buf)).convert('RGBA')
                 arr = np.array(img)
                 alpha = arr[:, :, 3]
-                if (alpha < 255).any():
-                    mask = (alpha > alpha_threshold).astype(np.uint8) * 255
+                # use alpha only if it actually carves out background (some alpha == 0);
+                # a stray translucent edge row (resize/export artifact) must not switch
+                # modes. Any non-zero alpha counts so anti-aliased thin strokes survive.
+                if (alpha == 0).any():
+                    mask = (alpha > 0).astype(np.uint8) * 255
                 else:
                     gray = cv2.cvtColor(arr, cv2.COLOR_RGBA2GRAY)
                     mask = (gray < threshold).astype(np.uint8) * 255

@@ -23,6 +23,7 @@ Exit code 0 = all executed checks passed. Any FAIL = exit 1.
 
 import base64
 import contextlib
+import io
 import json
 import os
 import platform
@@ -128,9 +129,7 @@ def start_server():
     if sys.platform == 'darwin' and 'DYLD_FALLBACK_LIBRARY_PATH' not in env:
         # lib/mac dylibs are x86_64-only; use the Homebrew cairo for this arch:
         # /opt/homebrew (arm64) vs /usr/local (x86_64).
-        env['DYLD_FALLBACK_LIBRARY_PATH'] = (
-            '/opt/homebrew/lib' if platform.machine() == 'arm64' else '/usr/local/lib'
-        )
+        env['DYLD_FALLBACK_LIBRARY_PATH'] = '/opt/homebrew/lib' if platform.machine() == 'arm64' else '/usr/local/lib'
     proc = subprocess.Popen(
         [sys.executable, os.path.join(ROOT, 'ghost.py'), '-d', '--port', '0'],
         stdout=subprocess.PIPE,
@@ -259,6 +258,38 @@ def check_toolpath(port):
     ws.close()
 
 
+def check_opencv(port):
+    # opaque dark square on white, plus a translucent bottom row (a real-world
+    # resize/export artifact) that must NOT flip the handler into alpha mode
+    try:
+        from PIL import Image
+    except ImportError:
+        skip('opencv.image_contour', 'Pillow not installed')
+        return
+    img = Image.new('RGBA', (60, 60), (255, 255, 255, 255))
+    for x in range(20, 40):
+        for y in range(20, 40):
+            img.putpixel((x, y), (0, 0, 0, 255))
+    for x in range(60):
+        img.putpixel((x, 59), (255, 255, 255, 128))
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    png = buf.getvalue()
+
+    ws = WS(port, '/ws/opencv')
+    ws.send('image_contour %d' % len(png))
+    ws.json_until(lambda m: m.get('status') == 'continue')
+    ws.send(png, opcode=2)
+    msg = ws.json_until(lambda m: m.get('status') in ('ok', 'error', 'fatal'))
+    contours = msg.get('contours') or []
+    xs = [p[0] for c in contours for p in c]
+    ys = [p[1] for c in contours for p in c]
+    bbox = (min(xs), min(ys), max(xs), max(ys)) if xs else None
+    ok = len(contours) == 1 and bbox == (20.0, 20.0, 39.0, 39.0)
+    record('opencv.image_contour', ok, 'contours=%d bbox=%s' % (len(contours), bbox))
+    ws.close()
+
+
 def main():
     proc, port = start_server()
     print('server ready on port %d' % port)
@@ -277,6 +308,7 @@ def main():
             check_camera(port, pem)
 
         check_toolpath(port)
+        check_opencv(port)
     finally:
         proc.terminate()
 

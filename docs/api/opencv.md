@@ -64,9 +64,9 @@ Response `points` are blob centers in image pixel coordinates.
 
 Detects the outer silhouette of the image content and returns its contours — used by Beam Studio's Print and Cut, which builds the offset cut path client-side (round-join ClipperOffset on the raw silhouette). One-shot command like `detect_blobs`.
 
-The mask comes from the alpha channel when the image has transparency (`alpha > alpha_threshold`, default 0 so anti-aliased thin strokes are kept), otherwise from luminance (`gray < threshold`, i.e. dark content on a light background), then `cv2.findContours(RETR_EXTERNAL)` + `approxPolyDP(epsilon)`. Contours smaller than `min_area` (px²) are dropped.
+The mask comes from the alpha channel when the alpha channel actually contains background pixels (some `alpha == 0`; the mask is then `alpha > 0`, so anti-aliased thin strokes are kept). A merely translucent pixel — e.g. a resize artifact on the last row of an otherwise opaque PNG — does not switch to alpha mode; otherwise from luminance (`gray < threshold`, i.e. dark content on a light background), then `cv2.findContours(RETR_EXTERNAL)` + `approxPolyDP(epsilon)`. Contours smaller than `min_area` (px²) are dropped.
 
-`json_params` keys (all optional): `threshold` (int, default 250), `epsilon` (float, default 1.0), `min_area` (float, default 100), `alpha_threshold` (int, default 0).
+`json_params` keys (all optional): `threshold` (int, default 242, i.e. ~95% brightness), `epsilon` (float, default 1.0), `min_area` (float, default 100).
 
 Response `contours` is a list of contours, each a list of `[x, y]` points in image pixel coordinates.
 
