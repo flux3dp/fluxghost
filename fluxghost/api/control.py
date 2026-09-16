@@ -407,7 +407,6 @@ def control_api_mixin(cls):
                 try:
                     self.robot.update_fisheye_params(stream, int(size), self.cb_upload_callback)
                     self.send_ok()
-                    self.close()
                 except RobotError as e:
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)
@@ -422,7 +421,6 @@ def control_api_mixin(cls):
                 try:
                     self.robot.update_fisheye_3d_rotation(stream, int(size), self.cb_upload_callback)
                     self.send_ok()
-                    self.close()
                 except RobotError as e:
                     logger.debug('RobotError%s [error_symbol=%s]', repr(e.args), e.error_symbol)
                     self.send_error(e.error_symbol)

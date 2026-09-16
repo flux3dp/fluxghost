@@ -130,7 +130,7 @@ Frontend: `getDeviceSetting` / `setDeviceSetting` / `deleteDeviceSetting` (`cont
 
 ### Firmware & calibration-data upload
 
-All follow the upload flow in [Binary Transfers](#binary-transfers) using `simple_binary_receiver`; on success the server sends `ok` and then **closes the websocket** (`control.py:363-430`).
+All follow the upload flow in [Binary Transfers](#binary-transfers) using `simple_binary_receiver`; on success the server sends `ok`. The three firmware commands and `update_laser_records` then **close the websocket** because the device reboots (`control.py:363-402`); the two fisheye commands keep the session open (`control.py:404-430`).
 
 | command | behavior |
 |---|---|
