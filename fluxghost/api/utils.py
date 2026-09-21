@@ -1,5 +1,6 @@
 import base64
 import io
+import json
 import logging
 import os
 import shutil
@@ -11,7 +12,13 @@ import numpy as np
 from PIL import Image, ImageCms
 
 from fluxghost.utils.cmy_separation import cmyk_to_cmy, rgb_to_cmy
-from fluxghost.utils.contour import find_similar_contours
+from fluxghost.utils.contour import (
+    contours_from_polygons,
+    detect_contours,
+    find_similar_contours,
+    get_flat_contour_infos,
+    group_contour_data,
+)
 from fluxghost.utils.opencv import findContours
 
 from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
@@ -33,6 +40,8 @@ def utils_api_mixin(cls):
                 'split_color': [self.split_color],
                 'get_similar_contours': [self.get_similar_contours],
                 'get_all_similar_contours': [self.get_all_similar_contours],
+                'get_contours': [self.get_contours],
+                'group_contours': [self.group_contours],
                 'get_convex_hull': [self.get_convex_hull],
             }
 
@@ -217,6 +226,44 @@ def utils_api_mixin(cls):
 
             file_length = int(params[0])
             helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def get_contours(self, params):
+            """Detection stage only: flat contour list incl. singletons (for image-contour align)."""
+            params = params.split(' ')
+
+            def upload_callback(buf):
+                try:
+                    image = Image.open(io.BytesIO(buf))
+                    cv_img = cv2.cvtColor(np.array(image), cv2.COLOR_RGBA2BGRA)
+                    is_spliced_img = len(params) > 1 and params[1] == '1'
+                    data = get_flat_contour_infos(detect_contours(cv_img, is_spliced_img))
+                    self.send_ok(data=data)
+                except Exception as e:
+                    logger.exception('Error in get_contours')
+                    self.send_json(status='error', info=str(e))
+
+            helper = BinaryUploadHelper(int(params[0]), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def group_contours(self, params):
+            """Grouping stage only: JSON body {"contours": [[[x, y], ...], ...]} from an external
+            detector (e.g. the ONNX engine) -> same groups as get_all_similar_contours."""
+            params = params.split(' ')
+
+            def upload_callback(buf):
+                try:
+                    body = json.loads(buf)
+                    contour_data_list = contours_from_polygons(body['contours'])
+                    data = group_contour_data(contour_data_list, all_groups=True)
+                    self.send_ok(data=data)
+                except Exception as e:
+                    logger.exception('Error in group_contours')
+                    self.send_json(status='error', info=str(e))
+
+            helper = BinaryUploadHelper(int(params[0]), upload_callback)
             self.set_binary_helper(helper)
             self.send_json(status='continue')
 

@@ -65,7 +65,8 @@ def handle_transparent_image(img):
         img[transparent_mask] = [255 - avg_color[0], 255 - avg_color[1], 255 - avg_color[2], 255]
 
 
-def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
+def detect_contours(img, is_spliced_img=False, suffix=''):
+    """Classic-CV detection stage: Canny + HSV-gradient -> ContourData list (no grouping)."""
     debug_imwrite('similar-contours-input{}.png'.format(suffix), img)
     handle_transparent_image(img)
 
@@ -85,7 +86,32 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''
             i += 1
 
     write_all_contours_debug_image(img, contour_data_list, suffix=suffix)
+    return contour_data_list
 
+
+def contours_from_polygons(polygons, source='external', priority=3):
+    """Wrap externally detected polygons ([[x, y], ...] each) as ContourData for grouping."""
+    contour_data_list = []
+    for i, polygon in enumerate(polygons):
+        if len(polygon) < 3:
+            continue
+        contour = np.array(polygon, dtype=np.int32).reshape(-1, 1, 2)
+        contour_data_list.append(ContourData(contour, i, source=source, priority=priority))
+    return contour_data_list
+
+
+def get_flat_contour_infos(contour_data_list):
+    """Ungrouped infos (keeps singletons); angle is the cv2.minAreaRect angle in radians."""
+    data = []
+    for cd in contour_data_list:
+        info = get_contour_info(cd, None, include_contour=True)
+        info['angle'] = math.radians(cv2.minAreaRect(cd.contour)[2])
+        data.append(info)
+    return data
+
+
+def group_contour_data(contour_data_list, all_groups=False, img=None, suffix=''):
+    """Grouping + rotation stage shared by both detection engines (classic CV and ONNX)."""
     groups = group_similar_contours(contour_data_list)
     groups = [group for group in groups if len(group[0]) > 1]
     groups = sorted(groups, key=lambda x: (len(x[0]), -x[1]), reverse=True)
@@ -115,5 +141,11 @@ def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''
                 info = get_contour_info(cd, base_kd_tree if j > 0 else None, base_area=base_area, include_contour=True)
                 group_data.append(info)
             data.append(group_data)
-        write_group_contours_debug_image(img, data, suffix=suffix)
+        if img is not None:
+            write_group_contours_debug_image(img, data, suffix=suffix)
         return data
+
+
+def find_similar_contours(img, is_spliced_img=False, all_groups=False, suffix=''):
+    contour_data_list = detect_contours(img, is_spliced_img=is_spliced_img, suffix=suffix)
+    return group_contour_data(contour_data_list, all_groups=all_groups, img=img, suffix=suffix)
