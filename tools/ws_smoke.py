@@ -290,6 +290,46 @@ def check_opencv(port):
     ws.close()
 
 
+def check_contours(port):
+    # group_contours: two identical squares + one triangle -> one group of 2 (singleton dropped)
+    sq = [[0, 0], [100, 0], [100, 100], [0, 100]]
+    sq2 = [[300, 0], [400, 0], [400, 100], [300, 100]]
+    tri = [[0, 300], [120, 300], [60, 400]]
+    body = json.dumps({'contours': [sq, tri, sq2]}).encode()
+    ws = WS(port, '/ws/utils')
+    ws.send('group_contours %d 0' % len(body))
+    ws.json_until(lambda m: m.get('status') == 'continue')
+    ws.send(body, opcode=2)
+    msg = ws.json_until(lambda m: m.get('status') in ('ok', 'error', 'fatal'))
+    groups = msg.get('data') or []
+    ok = len(groups) == 1 and len(groups[0]) == 2 and all('contour' in c and 'bbox' in c for c in groups[0])
+    record('utils.group_contours', ok, 'groups=%s' % [len(g) for g in groups])
+
+    # get_contours: two dark squares on white; classic detector keeps contours with area > 20000 px^2
+    try:
+        from PIL import Image
+    except ImportError:
+        skip('utils.get_contours', 'Pillow not installed')
+        ws.close()
+        return
+    img = Image.new('RGBA', (800, 500), (255, 255, 255, 255))
+    for x0 in (100, 500):
+        for x in range(x0, x0 + 200):
+            for y in range(150, 350):
+                img.putpixel((x, y), (30, 30, 30, 255))
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    png = buf.getvalue()
+    ws.send('get_contours %d 0' % len(png))
+    ws.json_until(lambda m: m.get('status') == 'continue')
+    ws.send(png, opcode=2)
+    msg = ws.json_until(lambda m: m.get('status') in ('ok', 'error', 'fatal'))
+    data = msg.get('data') or []
+    ok = len(data) >= 2 and all('angle' in c and 'contour' in c for c in data)
+    record('utils.get_contours', ok, 'contours=%d' % len(data))
+    ws.close()
+
+
 def main():
     proc, port = start_server()
     print('server ready on port %d' % port)
@@ -309,6 +349,7 @@ def main():
 
         check_toolpath(port)
         check_opencv(port)
+        check_contours(port)
     finally:
         proc.terminate()
 

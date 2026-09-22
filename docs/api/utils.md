@@ -105,6 +105,28 @@ Each element comes from `get_contour_info` (`fluxghost/utils/contour/contour_inf
 
 Same as above with `all_groups=True` (`fluxghost/api/utils.py:196-215`): `data` is an array of groups, each an array of contour infos that additionally include `"contour": [[x, y], ...]` (frontend type `AutoFitContour[][]`).
 
+### `get_contours <file_size> [<is_spliced_img>]`
+
+Detection stage only (`detect_contours`, `fluxghost/utils/contour/__init__.py`): upload an RGBA image and get the flat contour list **including singletons** — no similarity grouping. Each element has `center`, `bbox`, `contour` and `angle` = `cv2.minAreaRect` angle in radians. Used by Beam Studio's image-contour Auto Align when the classic (OpenCV) engine is selected.
+
+```
+→ get_contours 30000 0
+← {"status": "continue"}
+→ <binary chunks...>
+← {"status": "ok", "data": [{"center": [120, 88], "angle": 0.02, "bbox": [80, 40, 80, 96], "contour": [[80, 40], ...]}]}
+```
+
+### `group_contours <body_size> [<is_spliced_img>]`
+
+Grouping stage only (`group_contour_data`): upload a JSON body `{"contours": [[[x, y], ...], ...]}` of polygons found by an external detector (Beam Studio's ONNX engine) and get the same `AutoFitContour[][]` reply as `get_all_similar_contours`. Polygons with fewer than 3 points are ignored; groups of size 1 are dropped.
+
+```
+→ group_contours 512 0
+← {"status": "continue"}
+→ <binary JSON body>
+← {"status": "ok", "data": [[{...}, {...}]]}
+```
+
 ### `get_convex_hull <file_size>`
 
 Upload an RGBA image; it is grayscaled, thresholded (`> 252` → background, inverted binary), external contours are combined and their convex hull computed (`fluxghost/api/utils.py:217-242`). The point list is rotated so the point nearest the origin comes first.
