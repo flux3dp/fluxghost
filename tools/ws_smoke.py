@@ -260,7 +260,8 @@ def check_toolpath(port):
 
 def check_opencv(port):
     # opaque dark square on white, plus a translucent bottom row (a real-world
-    # resize/export artifact) that must NOT flip the handler into alpha mode
+    # resize/export artifact) that must NOT flip the handler into alpha mode,
+    # plus a 1px dark line on the right edge (0 px² polygon area) that must be kept
     try:
         from PIL import Image
     except ImportError:
@@ -272,21 +273,27 @@ def check_opencv(port):
             img.putpixel((x, y), (0, 0, 0, 255))
     for x in range(60):
         img.putpixel((x, 59), (255, 255, 255, 128))
+    for y in range(50):
+        img.putpixel((59, y), (0, 0, 0, 255))
     buf = io.BytesIO()
     img.save(buf, format='PNG')
     png = buf.getvalue()
 
     ws = WS(port, '/ws/opencv')
-    ws.send('image_contour %d' % len(png))
+    ws.send('image_contour %d {"min_area": 30}' % len(png))
     ws.json_until(lambda m: m.get('status') == 'continue')
     ws.send(png, opcode=2)
     msg = ws.json_until(lambda m: m.get('status') in ('ok', 'error', 'fatal'))
     contours = msg.get('contours') or []
-    xs = [p[0] for c in contours for p in c]
-    ys = [p[1] for c in contours for p in c]
-    bbox = (min(xs), min(ys), max(xs), max(ys)) if xs else None
-    ok = len(contours) == 1 and bbox == (20.0, 20.0, 39.0, 39.0)
-    record('opencv.image_contour', ok, 'contours=%d bbox=%s' % (len(contours), bbox))
+
+    def bbox(c):
+        xs = [p[0] for p in c]
+        ys = [p[1] for p in c]
+        return (min(xs), min(ys), max(xs), max(ys))
+
+    bboxes = sorted(bbox(c) for c in contours)
+    ok = bboxes == [(20.0, 20.0, 39.0, 39.0), (59.0, 0.0, 59.0, 49.0)]
+    record('opencv.image_contour', ok, 'contours=%d bboxes=%s' % (len(contours), bboxes))
     ws.close()
 
 

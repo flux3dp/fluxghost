@@ -115,7 +115,10 @@ def opencv_mixin(cls):
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 result = []
                 for contour in contours:
-                    if cv2.contourArea(contour) < min_area:
+                    # contourArea traces pixel centres, so a 1px line is 0 px². Count the
+                    # filled pixels instead (Pick's theorem: A + B/2 + 1) so thin strokes,
+                    # e.g. a hairline along the image edge, survive min_area.
+                    if cv2.contourArea(contour) + cv2.arcLength(contour, True) / 2 + 1 < min_area:
                         continue
                     approx = cv2.approxPolyDP(contour, epsilon, True)
                     result.append([[float(point[0][0] - pad), float(point[0][1] - pad)] for point in approx])
