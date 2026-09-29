@@ -427,6 +427,9 @@ def laser_svgeditor_api_mixin(cls):
                     svgeditor2taskcode_kwargs['clip'] = clip_rect
                 elif param == '-cbl':
                     svgeditor2taskcode_kwargs['custom_backlash'] = True
+                elif param == '-ico':
+                    # 4C ink color order by cartridge slot, e.g. cymk
+                    svgeditor2taskcode_kwargs['color_order'] = params[i + 1]
                 elif param == '-mep':
                     with contextlib.suppress(Exception):
                         svgeditor2taskcode_kwargs['min_engraving_padding'] = int(params[i + 1])
