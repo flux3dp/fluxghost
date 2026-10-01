@@ -163,12 +163,12 @@ All use the same download flow: repeated `{"status": "transfer", "completed": n,
 | command | behavior |
 |---|---|
 | `task raw` | opens the device's raw (grbl-style) socket and pipes it to the websocket (`control.py:548-552`) |
-| `task auto_cover` / `task cartridge_io` / `task red_laser_measure` / `task z_speed_limit_test` | starts the named maintenance task on the robot (`control.py:535-546`); unknown types answer `error Unknown task: <type>` |
+| `task auto_cover` / `task cartridge_io` / `task control_task` / `task red_laser_measure` / `task z_speed_limit_test` | starts the named maintenance task on the robot (`control.py:535-546`); unknown types answer `error Unknown task: <type>` |
 | `task quit` | quits the active task (`control.py:554-557`), `ok` + `task: ""` |
 
 On success the server answers `{"status": "ok", "task": "<type>", "cmd": "task <type>"}`.
 
-**While a sub-task (non-raw) is active** (`control.py:752-764`): every text message except `quit`/`task quit` and `jsonrpc_req ...` is sent verbatim to the device backend (`make_cmd`) and the raw device reply is returned as `{"status": "ok", "data": "<reply>", "cmd": ...}`. This is how the frontend implements `takeReferenceZ` (`take_reference_z(...)`), `measureZ` (`measure_z(...)`) for `red_laser_measure`, and `set_speed <v>` / `start` for `z_speed_limit_test` (`control.ts:999-1085`). `checkTaskAlive` sends a lone space and checks whether the reply data contains `KICKED` (`control.ts:988-997`).
+**While a sub-task (non-raw) is active** (`control.py:752-764`): every text message except `quit`/`task quit` and `jsonrpc_req ...` is sent verbatim to the device backend and the raw device reply is returned as `{"status": "ok", "data": "<reply>", "cmd": ...}`. Tasks the device runs in binary mode (`BINARY_MODE_TASKS`: `cartridge_io`, `control_task`) are sent unframed (`binary_cmd`) because the device reads them as raw bytes; every other task goes through `make_cmd`, which prefixes the length. This is how the frontend implements `takeReferenceZ` (`take_reference_z(...)`), `measureZ` (`measure_z(...)`) for `red_laser_measure`, and `set_speed <v>` / `start` for `z_speed_limit_test` (`control.ts:999-1085`). `checkTaskAlive` sends a lone space and checks whether the reply data contains `KICKED` (`control.ts:988-997`).
 
 **While raw mode is active** (`control.py:744-750, 803-826`): each text message is written to the raw socket with a trailing `\n`; the special message `raw home` is translated to `$H\n`. Device output is pushed asynchronously as `{"status": "raw", "text": "..."}` frames. `quit` or `task quit` leaves raw mode. If the raw socket died, the server answers `error TASK_SOCKET_CLOSED` and quits the task; if the pipe reads EOF it sends fatal `DISCONNECTED` (`control.py:819-826`).
 

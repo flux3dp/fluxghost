@@ -24,6 +24,10 @@ STAGE_CONNECTED = '{"status": "connected"}'
 STAGE_TIMEOUT = '{"status": "error", "error": "TIMEOUT"}'
 
 
+# Tasks the device runs with handler.binary_mode on: their commands go out unframed.
+BINARY_MODE_TASKS = {'cartridge_io', 'control_task'}
+
+
 def control_api_mixin(cls):
     class ControlApi(control_base_mixin(cls)):
         _task = None
@@ -533,6 +537,7 @@ def control_api_mixin(cls):
             method_map = {
                 'auto_cover': self.robot.auto_cover,
                 'cartridge_io': self.robot.cartridge_io,
+                'control_task': self.robot.control_task,
                 'red_laser_measure': self.robot.red_laser_measure,
                 'z_speed_limit_test': self.robot.z_speed_limit_test,
             }
@@ -756,8 +761,13 @@ def control_api_mixin(cls):
                 args = shlex.split(message)
                 self.jsonrpc_req(args[1])
                 return
-            resp = self.robot._backend.make_cmd(message.encode())
             task_name = getattr(self._task, 'task_name', self._task.__class__)
+            if task_name in BINARY_MODE_TASKS:
+                # The device reads these tasks' commands as raw bytes, so the length prefix
+                # make_cmd adds would land inside the command itself.
+                resp = self._task.binary_cmd(message.encode())
+            else:
+                resp = self.robot._backend.make_cmd(message.encode())
             logger.info('%s: <= %s', task_name, resp)
             self.send_ok(data=resp)
 
