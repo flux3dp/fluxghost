@@ -1,5 +1,6 @@
 import io
 import logging
+from time import perf_counter
 
 import cv2
 import numpy as np
@@ -35,6 +36,9 @@ def camera_api_mixin(cls):
     class CameraAPI(FisheyeCameraMixin, control_base_mixin(cls)):
         is_next_image_low_resolution = False
         preview_downsample = 1
+        frame_requested_at = None
+        first_byte_at = None
+        read_count = 0
 
         def get_robot_from_device(self, device):
             self.remote_version = device.version
@@ -56,6 +60,10 @@ def camera_api_mixin(cls):
                 if cmd == 'enable_streaming':
                     self.robot.enable_streaming()
                 elif cmd == 'require_frame':
+                    self.frame_requested_at = perf_counter()
+                    self.first_byte_at = None
+                    self.read_count = 0
+                    logger.info('[timing] frame requested')
                     if len(msgs) > 1 and msgs[1] == 'l':
                         self.robot.require_frame(True)
                         self.is_next_image_low_resolution = True
@@ -81,7 +89,21 @@ def camera_api_mixin(cls):
         def on_image(self, camera, image):
             is_low_resolution = self.is_next_image_low_resolution
             self.is_next_image_low_resolution = False
-            logger.debug('on_image')
+            t_recv = perf_counter()
+            if self.frame_requested_at is not None:
+                first_byte = self.first_byte_at or t_recv
+                logger.info(
+                    '[timing] image received: %d bytes, %.1f ms after request '
+                    '(first byte after %.1f ms, then %.1f ms over %d socket reads)',
+                    len(image),
+                    (t_recv - self.frame_requested_at) * 1000,
+                    (first_byte - self.frame_requested_at) * 1000,
+                    (t_recv - first_byte) * 1000,
+                    self.read_count,
+                )
+                self.frame_requested_at = None
+            else:
+                logger.info('[timing] image received: %d bytes (streaming)', len(image))
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
                     img = Image.open(io.BytesIO(image))
@@ -90,6 +112,7 @@ def camera_api_mixin(cls):
                 except Exception:
                     self.send_binary(image)
                     return
+                t_decoded = perf_counter()
                 # Low-memory devices OOM inside cv2 at full resolution; retry the frame
                 # downsampled and stick with it for the rest of the connection
                 while True:
@@ -106,9 +129,18 @@ def camera_api_mixin(cls):
                         logger.warning(
                             'cv2 error (likely OOM), retrying preview at downsample %d', self.preview_downsample
                         )
+                t_fisheye = perf_counter()
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
                 self.send_binary(img_bytes)
+                t_sent = perf_counter()
+                logger.info(
+                    '[timing] decode %.1f ms, fisheye %.1f ms, encode+send %.1f ms, total %.1f ms',
+                    (t_decoded - t_recv) * 1000,
+                    (t_fisheye - t_decoded) * 1000,
+                    (t_sent - t_fisheye) * 1000,
+                    (t_sent - t_recv) * 1000,
+                )
             else:
                 self.send_binary(image)
 
@@ -126,6 +158,9 @@ class CameraWrapper:
         return self._fileno
 
     def on_read(self):
+        if self.ws.first_byte_at is None:
+            self.ws.first_byte_at = perf_counter()
+        self.ws.read_count += 1
         try:
             self.camera.feed(self.ws.on_image)
         except RuntimeError as e:

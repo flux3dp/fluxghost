@@ -1,5 +1,6 @@
 import json
 import logging
+from time import perf_counter
 
 import cv2
 import numpy as np
@@ -348,6 +349,7 @@ class FisheyeCameraMixin:
                 if downsample > 1:
                     img = cv2.resize(img, (img.shape[1] // downsample, img.shape[0] // downsample))
 
+            t0 = perf_counter()
             if downsample > 1:
                 k = k.copy()
                 k[0][0] /= downsample
@@ -358,10 +360,22 @@ class FisheyeCameraMixin:
                 img = cv2.resize(img, (PADDED_W, PADDED_H))
             else:
                 img = get_remap_img(img, k, d, is_fisheye=is_fisheye)
+            t_remap = perf_counter()
             padding = 150 if version == 2 else 0
 
             self.write_preview_remap_grid_image(img, xgrid, ygrid)
+            t_debug = perf_counter()
 
             img = apply_points(img, self.fisheye_param['perspective_points'], xgrid, ygrid, padding=padding)
             img = img[padding:, padding:]
+            t_grid = perf_counter()
+            logger.info(
+                '[timing] remap %.1f ms, debug img %.1f ms, apply grid %.1f ms (downsample=%d, size=%dx%d)',
+                (t_remap - t0) * 1000,
+                (t_debug - t_remap) * 1000,
+                (t_grid - t_debug) * 1000,
+                downsample,
+                w,
+                h,
+            )
         return img
