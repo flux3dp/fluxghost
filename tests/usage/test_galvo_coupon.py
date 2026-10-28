@@ -1,0 +1,103 @@
+"""Unit tests for the galvo coupon solver (fluxghost/utils/camera/galvo_coupon.py).
+
+No server, no hardware: a synthetic 20 px/mm coupon with a known affine is
+rendered by tests/usage/galvo_coupon_synth.py and the solver must recover it
+(beam-studio PRD hexa-g-galvo-calibration.md §7.8: 0.1 % on scale, 0.02 deg
+on skew). The ws endpoint wrapper is covered by tools/ws_smoke.py.
+"""
+
+import unittest
+
+import numpy as np
+
+from fluxghost.utils.camera.galvo_coupon import SolveError, solve_galvo_coupon
+from tests.usage.galvo_coupon_synth import render_coupon
+
+TRUTH = {'scale_x': 1.02, 'scale_y': 0.98, 'skew_deg': 0.3, 'rot_deg': 5.0, 'offset_mm': (3.2, -1.7)}
+PARAMS = {'px_per_mm': 20, 'expected_center_px': [1800, 1800], 'invert': [True, True]}
+
+
+def assert_truth(test, res, truth=TRUTH):
+    test.assertEqual(res['nodes_found'], 81)
+    test.assertEqual(res['ruler']['vertices_used'], 8)
+    test.assertLess(res['ruler']['rms_mm'], 0.05)
+    test.assertAlmostEqual(res['scale_x'], truth['scale_x'], delta=0.001 * truth['scale_x'])
+    test.assertAlmostEqual(res['scale_y'], truth['scale_y'], delta=0.001 * truth['scale_y'])
+    test.assertAlmostEqual(res['skew_deg'], truth['skew_deg'], delta=0.02)
+    test.assertAlmostEqual(res['rotation_deg'], truth['rot_deg'], delta=0.05)
+    test.assertFalse(res['mirrored'])
+    np.testing.assert_allclose(res['field_center_mm'], truth['offset_mm'], atol=0.05)
+    test.assertLess(res['affine_rms'], 0.02)
+    test.assertEqual(res['validation_affine']['count'], 8)
+    test.assertEqual(res['validation_bilinear']['count'], 8)
+    test.assertLess(res['validation_bilinear']['max'], 0.05)
+
+
+class SolveGalvoCouponTest(unittest.TestCase):
+    def test_recovers_known_affine_grayscale(self):
+        """Grayscale image (no colour separation): galvo mask degrades to a brightness threshold."""
+        res, annotated = solve_galvo_coupon(render_coupon(**TRUTH), dict(PARAMS, annotate=True))
+        assert_truth(self, res)
+        self.assertEqual(res['orientation']['source'], 'identity')
+        self.assertTrue(res['orientation']['matches_invert'])
+        self.assertEqual(res['ruler']['threshold'], [200, 'any'])
+        self.assertEqual(annotated.shape, (3600, 3600, 3))
+
+    def test_recovers_known_affine_colour(self):
+        """Reddish L frame (green < 150) is skipped by the first threshold set and caught by [160, 'red']."""
+        res, annotated = solve_galvo_coupon(render_coupon(color=True, **TRUTH), PARAMS)
+        assert_truth(self, res)
+        self.assertEqual(res['ruler']['threshold'], [160, 'red'])
+        self.assertIsNone(annotated)
+
+    def test_ruler_uses_full_frame_transform(self):
+        """A rotated, anisotropic ruler must not leak into scale/skew (full A^-1, not per-axis px/mm)."""
+        img = render_coupon(frame_rot_deg=2.0, frame_px_per_mm=(19.6, 20.3), **TRUTH)
+        res, _ = solve_galvo_coupon(img, PARAMS)
+        assert_truth(self, res)
+        self.assertAlmostEqual(res['ruler']['px_per_mm_x'], 19.6, delta=0.02)
+        self.assertAlmostEqual(res['ruler']['px_per_mm_y'], 20.3, delta=0.02)
+
+    def test_tolerates_noise_and_wrong_expected_center(self):
+        img = render_coupon(center_px=(1960, 1700), noise=25, **TRUTH)
+        res, _ = solve_galvo_coupon(img, PARAMS)  # expected_center_px is 8 mm off
+        assert_truth(self, res)
+
+    def test_identity_ring_fixes_orientation(self):
+        """A 180-degree coupon is resolved by the identity ring, not by the invert prior."""
+        truth = dict(TRUTH, rot_deg=185.0)
+        res, _ = solve_galvo_coupon(render_coupon(**truth), PARAMS)
+        self.assertEqual(res['orientation']['source'], 'identity')
+        self.assertFalse(res['orientation']['matches_invert'])
+        self.assertAlmostEqual(res['scale_x'], 1.02, delta=0.00102)
+        self.assertAlmostEqual(res['scale_y'], 0.98, delta=0.00098)
+        self.assertAlmostEqual(res['skew_deg'], 0.3, delta=0.02)
+        self.assertAlmostEqual(res['rotation_deg'], -175.0, delta=0.05)
+
+    def test_mirrored_coupon_is_flagged(self):
+        res, _ = solve_galvo_coupon(render_coupon(scale_x=-1.02, scale_y=0.98, skew_deg=0.3, rot_deg=5.0), PARAMS)
+        self.assertTrue(res['mirrored'])
+        self.assertAlmostEqual(res['scale_x'], 1.02, delta=0.00102)
+        self.assertAlmostEqual(res['scale_y'], 0.98, delta=0.00098)
+
+    def test_ruler_invalid_with_four_vertices(self):
+        img = render_coupon(drop_l=(0, 1, 2, 3), **TRUTH)
+        with self.assertRaises(SolveError) as ctx:
+            solve_galvo_coupon(img, PARAMS)
+        self.assertEqual(ctx.exception.info, 'RULER_INVALID')
+        self.assertIn('only 4 L vertices', ctx.exception.reason)
+
+    def test_six_vertices_is_enough(self):
+        res, _ = solve_galvo_coupon(render_coupon(drop_l=(0, 7), **TRUTH), PARAMS)
+        self.assertEqual(res['ruler']['vertices_used'], 6)
+        self.assertAlmostEqual(res['scale_x'], 1.02, delta=0.00102)
+
+    def test_ruler_invalid_without_frame(self):
+        img = render_coupon(drop_l=tuple(range(8)), **TRUTH)
+        with self.assertRaises(SolveError) as ctx:
+            solve_galvo_coupon(img, PARAMS)
+        self.assertEqual(ctx.exception.info, 'RULER_INVALID')
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from fluxghost.utils.camera.corner_detection.find_corners import find_blob_centers
+from fluxghost.utils.camera.galvo_coupon import SolveError, solve_galvo_coupon
 
 from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
@@ -24,6 +25,7 @@ def opencv_mixin(cls):
                 'sharpen': [self.cmd_sharpen],
                 'detect_blobs': [self.cmd_detect_blobs],
                 'image_contour': [self.cmd_image_contour],
+                'solve_galvo_coupon': [self.cmd_solve_galvo_coupon],
             }
             self.imgs = {}
             self.imgs_history = collections.deque([])
@@ -124,6 +126,43 @@ def opencv_mixin(cls):
                     result.append([[float(point[0][0] - pad), float(point[0][1] - pad)] for point in approx])
                 logger.info('Detected {} contours'.format(len(result)))
                 self.send_ok(contours=result)
+
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def cmd_solve_galvo_coupon(self, params):
+            # solve_galvo_coupon <file_length> [<json_params>]
+            # Solves a HEXA G galvo calibration coupon (9x9 node grid + nozzle L frame)
+            # captured in bed mm: ruler from the L frame, node centres, affine QR ->
+            # scale_x / scale_y / skew, validation errors, field centre. json_params and
+            # the result keys are documented in docs/api/opencv.md. One-shot like
+            # detect_blobs; with "annotate": true a JPEG of the detections follows the JSON.
+            params = params.split(' ', 1)
+            file_length = int(params[0])
+            options = json.loads(params[1]) if len(params) > 1 and params[1].strip() else {}
+
+            def upload_callback(buf):
+                img = Image.open(io.BytesIO(buf)).convert('RGB')
+                open_cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                logger.info('Solving galvo coupon %dx%d with params: %s', img.width, img.height, options)
+                try:
+                    result, annotated = solve_galvo_coupon(open_cv_img, options)
+                except SolveError as e:
+                    logger.warning('Galvo coupon solve failed: %s: %s', e.info, e.reason)
+                    self.send_json(status='fail', info=e.info, reason=e.reason)
+                    return
+                logger.info(
+                    'Galvo coupon solved: nodes=%d scale=(%.5f, %.5f) skew=%.4f',
+                    result['nodes_found'],
+                    result['scale_x'],
+                    result['scale_y'],
+                    result['skew_deg'],
+                )
+                self.send_ok(**result)
+                if annotated is not None:
+                    _, array_buffer = cv2.imencode('.jpg', annotated)
+                    self.send_binary(array_buffer.tobytes())
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)

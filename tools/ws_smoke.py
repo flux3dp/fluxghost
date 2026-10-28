@@ -17,6 +17,10 @@ without a machine:
     camera     binary PNG frame streaming
     toolpath   upload_plain_svg + divide_svg  (skipped if fluxsvg missing —
                a SKIP is NOT a pass when you changed toolpath code)
+    opencv     image_contour, solve_galvo_coupon on a synthetic coupon
+               (the camera `require_frame d<dpmm>` remap path needs a fisheye
+               model + params the simulator does not have; see
+               tests/usage/test_camera_dpmm.py)
 
 Exit code 0 = all executed checks passed. Any FAIL = exit 1.
 """
@@ -331,6 +335,66 @@ def check_opencv(port):
     ws.close()
 
 
+def check_galvo_coupon(port):
+    # solve_galvo_coupon: synthetic 20 px/mm coupon with a known affine (scale 1.02/0.98,
+    # skew 0.3 deg, rotation 5 deg) must come back within 0.1 % / 0.02 deg, then a
+    # frame with only 4 L vertices must fail with RULER_INVALID
+    try:
+        import cv2
+
+        sys.path.insert(0, ROOT)
+        from tests.usage.galvo_coupon_synth import render_coupon
+    except ImportError as e:
+        skip('opencv.solve_galvo_coupon', 'numpy/opencv missing (%s)' % e)
+        return
+    truth = dict(scale_x=1.02, scale_y=0.98, skew_deg=0.3, rot_deg=5.0, offset_mm=(3.2, -1.7))
+    params = {'px_per_mm': 20, 'expected_center_px': [1800, 1800], 'invert': [True, True], 'annotate': True}
+
+    def solve(img):
+        ok, png = cv2.imencode('.png', img)
+        png = png.tobytes()
+        ws = WS(port, '/ws/opencv', timeout=60)
+        ws.send('solve_galvo_coupon %d %s' % (len(png), json.dumps(params)))
+        ws.json_until(lambda m: m.get('status') == 'continue')
+        for start in range(0, len(png), 1000000):
+            ws.send(png[start : start + 1000000], opcode=2)
+        msg = ws.json_until(lambda m: m.get('status') in ('ok', 'fail', 'error', 'fatal', 'Error'))
+        jpeg = None
+        if msg.get('status') == 'ok':
+            op, payload = ws.frame()
+            jpeg = payload if op == 2 else None
+        ws.close()
+        return msg, jpeg
+
+    msg, jpeg = solve(render_coupon(**truth))
+    ok = (
+        msg.get('status') == 'ok'
+        and msg.get('nodes_found') == 81
+        and abs(msg.get('scale_x', 0) - 1.02) < 0.00102
+        and abs(msg.get('scale_y', 0) - 0.98) < 0.00098
+        and abs(msg.get('skew_deg', 9) - 0.3) < 0.02
+        and jpeg is not None
+        and jpeg[:3] == b'\xff\xd8\xff'
+    )
+    record(
+        'opencv.solve_galvo_coupon',
+        ok,
+        'status=%s nodes=%s scale=(%s, %s) skew=%s annotated=%s'
+        % (
+            msg.get('status'),
+            msg.get('nodes_found'),
+            msg.get('scale_x'),
+            msg.get('scale_y'),
+            msg.get('skew_deg'),
+            len(jpeg) if jpeg else None,
+        ),
+    )
+
+    msg, _ = solve(render_coupon(drop_l=(0, 1, 2, 3), **truth))
+    ok = msg.get('status') == 'fail' and msg.get('info') == 'RULER_INVALID'
+    record('opencv.solve_galvo_coupon.ruler_invalid', ok, json.dumps(msg))
+
+
 def check_contours(port):
     # group_contours: two identical squares + one triangle -> one group of 2 (singleton dropped)
     sq = [[0, 0], [100, 0], [100, 100], [0, 100]]
@@ -391,6 +455,7 @@ def main():
         check_camera_transform(port)
         check_toolpath(port)
         check_opencv(port)
+        check_galvo_coupon(port)
         check_contours(port)
     finally:
         proc.terminate()

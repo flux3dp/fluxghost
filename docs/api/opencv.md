@@ -2,7 +2,7 @@
 
 `ws://127.0.0.1:8000/ws/opencv`
 
-General OpenCV image service. The client uploads an image once (keyed by its URL), then can request unsharp-mask sharpening of that cached image; the sharpened result is returned as a PNG binary frame. It also provides one-shot circular-blob detection (`detect_blobs`) used by Beam Studio's Print and Cut alignment.
+General OpenCV image service. The client uploads an image once (keyed by its URL), then can request unsharp-mask sharpening of that cached image; the sharpened result is returned as a PNG binary frame. It also provides one-shot circular-blob detection (`detect_blobs`) used by Beam Studio's Print and Cut alignment, silhouette contours (`image_contour`) and the HEXA G galvo field-lens calibration solver (`solve_galvo_coupon`).
 
 - **Handler**: `fluxghost/api/opencv.py` (`opencv_mixin`), wrapper `fluxghost/websocket/opencv.py`, route `fluxghost/http_websocket_route.py:29` - **Beam Studio client**: `packages/core/src/web/helpers/api/open-cv.ts` (`OpenCVWebSocket`, used by the Sharpen dialog `app/components/dialogs/image/Sharpen.tsx`)
 
@@ -79,9 +79,71 @@ Response `contours` is a list of contours, each a list of `[x, y]` points in ima
 
 - **Beam Studio client**: `OpenCVWebSocket.imageContour` (`packages/core/src/web/helpers/api/open-cv.ts`), used by `app/components/dialogs/PrintAndCut/utils/computeCutPathD.ts` (caches the contours per design, offsets them with ClipperOffset, and falls back to a bounding-box outline when this call fails).
 
+### `solve_galvo_coupon <file_length> [<json_params>]`
+
+Solves a HEXA G galvo field-lens calibration coupon: the galvo engraves a 9x9 node grid (plus discovery / validation / identity marks) on a dark sheet and the nozzle cuts 8 L marks around it as the ruler; Beam Studio captures the sheet with the head camera (`require_frame d20`, see camera.md), stitches a bed-coordinate image and sends it here. One-shot upload like `detect_blobs`. Implementation: `fluxghost/utils/camera/galvo_coupon.py` (`solve_galvo_coupon`), a port of the factory `correction.html` method; spec in beam-studio `docs/prd/hexa-ii-galvo/hexa-g-galvo-calibration.md` §7.2 (pattern), §7.8 (algorithm), §7.9 (outputs).
+
+The image is decoded with PIL and converted to RGB (then BGR); PNG is expected (JPEG blurs the groove walls). Coordinates: image +x right, +y down; `expected_center_px` is where the galvo field centre C (= the nozzle position the L frame was cut around) lies in the image.
+
+`json_params` (every key optional; defaults are the PRD §7.2 pattern):
+
+| key | default | meaning |
+|---|---|---|
+| `px_per_mm` | 20 | nominal scale of the image; the real scale comes from the L frame |
+| `pitch`, `grid` | 11, 9 | node spacing (mm) and nodes per side |
+| `node_r`, `arm` | 1.25, [2.0, 4.5] | node ring radius and cross-arm extent (mm) |
+| `discovery`, `validation` | 12 / 8 points | X-mark and validation-ring centres (command mm) |
+| `identity`, `identity_r` | [-44, -51], 0.5 | identity ring centre and radius |
+| `l_frame` | {"half": 70, "arm": 8} | L vertices on the square C +- half, arm length |
+| `expected_center_px` | image centre | C in image px; may be off by several mm (the ruler is re-searched around its own origin) |
+| `invert` | [true, true] | Beam Studio's `field.invertX/Y`; only the orientation prior when the identity ring is not found |
+| `thresholds.galvo_green` | 150 | galvo marks = green channel > this (on a grayscale image: luminance) |
+| `thresholds.l_frame` | [[200,"any"],[160,"red"],[120,"red"],[100,"any"],[60,"any"]] | tried in order: `[threshold, channel]`, channel `any` (luminance) / `red` / `green` / `blue`; channels other than `any` also exclude galvo-mask pixels (skipped on grayscale images). The first set whose ruler passes the self-check wins |
+| `annotate` | false | also send a JPEG with the detections |
+
+Algorithm (factory order; the "do not" items are measured failures on real scans): (1) masks — galvo marks by green channel, L frame by the threshold sequence restricted to a ring around C; (2) ruler — 6.5–11 mm connected components, two line fits per L and their intersection (groove geometric centre, not intensity centroid), vertices binned into the 3x3 nominal grid, least squares `px = A*mm + b`, one-at-a-time rejection of the worst vertex until residuals <= 0.5 mm with at least 6 kept, self-check: max vertex span within 2% of 197.99 mm and RMS < 0.5 mm; (3) nodes — rings by radial distribution (not hole filling), lattice from pairwise vectors grouped by direction (not length), orientation from the identity ring (which corner is (-44,-44) and which axis is Y), a conic (ellipse) fit per node; (4) affine `p = L c + t`, `L = R U` (QR, R rotation, U upper triangular with positive diagonal), `scale_x = U11`, `scale_y = sqrt(U12^2 + U22^2)`, `skew = atan2(U12, U22)`; (5) the 8 validation rings predicted by affine only and by affine + bilinear interpolation of the node residuals; (6) field centre = galvo origin in the L-frame coordinate system. Node coordinates are mapped to mm with the full `A^-1` (not only the two per-axis px/mm), so a rotated or anisotropic stitch does not leak into skew; the frame's own rotation is reported as `rotation_deg`.
+
+Result (all mm unless noted; a quantity that could not be measured is `null`):
+
+```
+→ solve_galvo_coupon 1523311 {"px_per_mm": 20, "expected_center_px": [1800, 1800], "invert": [true, true], "annotate": true}
+← {"status": "continue"}
+→ <binary chunks totalling 1523311 bytes>
+← {"status": "ok",
+   "ruler": {"px_per_mm_x": 19.98, "px_per_mm_y": 20.01, "vertices_used": 8, "vertices_found": 8,
+             "rms_mm": 0.07, "span_mm": 197.9, "threshold": [200, "any"]},
+   "nodes_found": 81,
+   "scale_x": 1.0203, "scale_y": 0.9798, "skew_deg": 0.31,
+   "rotation_deg": 5.0, "mirrored": false,
+   "affine_rms": 0.05, "affine_max": 0.12,
+   "raw_rms": 0.82, "raw_max": 1.41,
+   "validation_affine": {"rms": 0.04, "max": 0.07, "count": 8},
+   "validation_bilinear": {"rms": 0.03, "max": 0.05, "count": 8},
+   "field_center_mm": [3.2, -1.7],
+   "orientation": {"source": "identity", "matches_invert": true, "identity_distance_mm": 0.03}}
+← <binary frame: annotated JPEG>          (only with "annotate": true)
+```
+
+- `scale_x`, `scale_y`: actual mm / commanded mm (1.0 = correct); `skew_deg`: deviation of the axis angle from 90 deg.
+- `affine_rms` / `affine_max`: `(p - Lc - t)` mapped back to galvo coordinates — the non-linear part. `raw_rms` / `raw_max`: `R^T (p - t) - c` — how far marks land from the commanded position, keeping scale and skew. The two are different quantities.
+- `field_center_mm`: the galvo origin relative to C in the L-frame (nozzle) coordinate system, i.e. the measured "field centre relative to nozzle" (`toolhead_shift`).
+- `rotation_deg`: galvo axes vs the L frame (extra, not in the factory output). `mirrored`: `det(L) < 0`; the Y axis is flipped before the decomposition so the scales stay positive.
+- `orientation.source`: `identity` when the identity ring fixed the orientation, `invert` when the prior had to be used. `matches_invert` compares the two. Prior semantics (to be confirmed on the first real coupon): with `invert = [true, true]` (Beam Studio's CO2 default) command +X runs along image +x and +Y along image +y; a differing flag mirrors that axis.
+
+Failure (no `ok`, no binary frame):
+
+```
+← {"status": "fail", "info": "RULER_INVALID", "reason": "200/any: only 4 L vertices found, need 6; ..."}
+← {"status": "fail", "info": "GRID_INVALID", "reason": "only 3 ring candidates found"}
+```
+
+`RULER_INVALID` is the §7.8 self-check (fewer than 6 usable vertices, span or RMS out of range) for every threshold set; `GRID_INVALID` means no 9x9 lattice could be built or fewer than 6 nodes were measured. A failed ruler is "wrong", not "imprecise" — it is also the go/no-go for the camera capture path (PRD §7.6).
+
+- **Tests**: `tests/usage/test_galvo_coupon.py` (synthetic coupon from `tests/usage/galvo_coupon_synth.py`, known affine recovered within 0.1 % / 0.02 deg; `RULER_INVALID` path) and `tools/ws_smoke.py` (`opencv.solve_galvo_coupon`).
+
 ## Errors
 
-- Unknown command, or non-numeric `sharpness`/`radius`/`file_length` (`ValueError`) → `{"status": "Error", "message": "BAD_PARAM_TYPE"}` — capitalized `Error` (`fluxghost/api/misc.py:50-52`).
+- Unknown command, or non-numeric `sharpness`/`radius`/`file_length`, or malformed `json_params` (`ValueError`) → `{"status": "Error", "message": "BAD_PARAM_TYPE"}` — capitalized `Error` (`fluxghost/api/misc.py:50-52`).
 - Text frame during an active upload → `{"status": "fatal", "symbol": ["PROTOCOL_ERROR"], "error": "PROTOCOL_ERROR"}` (`fluxghost/api/misc.py:48`).
 - Binary frame with no upload in progress → fatal `BAD_PROTOCOL`; more bytes than declared → fatal `BAD_LENGTH...` (`fluxghost/api/misc.py:17-27`, `86-89`).
 - `sharpen` on an unknown key is not an error — it returns `{"status": "need_upload"}` as shown above.
