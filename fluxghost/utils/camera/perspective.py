@@ -140,7 +140,13 @@ def calculate_regional_perspective_points(
     return perspective_points, xgrid, ygrid
 
 
-def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1, is_fisheye=True):
+def apply_perspective_points_transform(img, k, d, split, chessboard, points, downsample=1, is_fisheye=True, dpmm=DPMM):
+    """Undistort + per-cell perspective warp onto a flat mm grid.
+
+    `dpmm` is the output scale in px/mm (default DPMM = 5, the preview scale). A
+    higher value (e.g. 20 for `require_frame d20`) only enlarges the output; it
+    does not add information beyond the camera's native resolution.
+    """
     if is_fisheye:
         img = pad_image(img)
     if downsample > 1:
@@ -159,7 +165,7 @@ def apply_perspective_points_transform(img, k, d, split, chessboard, points, dow
     split_x, split_y = split
 
     # 10mm each chessboard square
-    unit_length = DPMM * 10
+    unit_length = int(dpmm) * 10
     img_w = (chessboard[0] - 1) * unit_length + padding * 2
     img_h = (chessboard[1] - 1) * unit_length + padding * 2
     base_img = np.zeros((img_h, img_w, 3), np.uint8)

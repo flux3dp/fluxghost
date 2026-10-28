@@ -35,6 +35,8 @@ fisheye_models = ['fad1', 'ado1', 'fbb2', 'fbm2', 'fhx2rf', 'fhx2galvo']
 def camera_api_mixin(cls):
     class CameraAPI(FisheyeCameraMixin, control_base_mixin(cls)):
         is_next_image_low_resolution = False
+        # px/mm requested for the next frame by `require_frame d<dpmm>`; None = default DPMM
+        next_image_dpmm = None
         preview_downsample = 1
         frame_requested_at = None
         first_byte_at = None
@@ -64,10 +66,15 @@ def camera_api_mixin(cls):
                     self.first_byte_at = None
                     self.read_count = 0
                     logger.info('[timing] frame requested')
-                    if len(msgs) > 1 and msgs[1] == 'l':
+                    arg = msgs[1].strip() if len(msgs) > 1 else ''
+                    if arg == 'l':
                         self.robot.require_frame(True)
                         self.is_next_image_low_resolution = True
                         return
+                    if arg.startswith('d') and arg[1:].isdigit() and int(arg[1:]) > 0:
+                        # `require_frame d20`: full-resolution frame remapped at 20 px/mm
+                        # (fisheye models only; other models get the raw frame as usual)
+                        self.next_image_dpmm = int(arg[1:])
                     self.robot.require_frame()
                 elif cmd == 'set_3d_rotation':
                     data = msgs[1]
@@ -104,6 +111,10 @@ def camera_api_mixin(cls):
                 self.frame_requested_at = None
             else:
                 logger.info('[timing] image received: %d bytes (streaming)', len(image))
+            dpmm = self.next_image_dpmm
+            self.next_image_dpmm = None
+            # only forwarded when requested so the default call stays identical
+            dpmm_kwargs = {} if dpmm is None else {'dpmm': dpmm}
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
                     img = Image.open(io.BytesIO(image))
@@ -118,7 +129,10 @@ def camera_api_mixin(cls):
                 while True:
                     try:
                         img = self.handle_fisheye_image(
-                            cv_img, downsample=self.preview_downsample, is_low_resolution=is_low_resolution
+                            cv_img,
+                            downsample=self.preview_downsample,
+                            is_low_resolution=is_low_resolution,
+                            **dpmm_kwargs,
                         )
                         break
                     except (cv2.error, MemoryError):

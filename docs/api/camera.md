@@ -33,9 +33,11 @@ All commands below are only handled when the device firmware version is greater 
 
 Calls `robot.enable_streaming()`. No JSON reply; frames then arrive continuously as binary messages.
 
-### `require_frame` / `require_frame l`
+### `require_frame` / `require_frame l` / `require_frame d<dpmm>`
 
 Requests a single frame (`robot.require_frame()`). With the `l` argument, requests a low-resolution frame (`robot.require_frame(True)`) and flags the next incoming image as low resolution for fisheye processing. No JSON reply; the frame arrives as a binary message.
+
+With `d<dpmm>` (a positive integer, e.g. `require_frame d20`) the next frame is a full-resolution frame whose fisheye/perspective remap is rendered at `dpmm` px/mm instead of the default `DPMM = 5` (`fluxghost/utils/camera/constants.py`): `handle_fisheye_image(..., dpmm=20)` forwards it to `apply_points(perspective_pixel_per_mm=...)` (params `v: 2/3/4`) or `apply_perspective_points_transform(dpmm=...)` (`v: 1`), so the output image is `dpmm / 5` times larger on each side. It applies to that one frame only; it adds no information beyond the camera's native resolution (HEXA G: 5–7 px/mm), it only stops the default remap from discarding it — used by Beam Studio's galvo calibration capture (`getPhotoFromMachine({ dpmm })`). A malformed argument (`d0`, `dx`) is ignored and behaves like a plain `require_frame`. On non-fisheye models, or before `set_fisheye_matrix`, the raw frame is forwarded as usual. `preview_downsample` (the OOM fallback below) still applies; note that at 20 px/mm a full HEXA frame is ~16x the pixels of the preview remap.
 
 ### `get_camera_count`
 
@@ -76,7 +78,7 @@ Handled by `FisheyeCameraMixin.on_command` (reached via `super().on_command(...)
 
 ## Binary frames
 
-Every camera frame is sent to the client as one **binary websocket message containing a JPEG**. For the fisheye models `fad1`, `ado1`, `fbb2`, `fbm2`, `fhx2rf` (list in `camera.py`), if `set_fisheye_matrix` has been called, the frame is decoded, undistorted/perspective-transformed by `FisheyeCameraMixin.handle_fisheye_image` and re-encoded to JPEG first; otherwise the device's bytes are forwarded untouched. If decoding the fisheye frame fails, the raw bytes are forwarded as-is. If the undistort/transform itself raises a `cv2.error` (seen as OOM on low-memory devices), the frame is retried at increasing downsample (2, then 4 — sticky for the rest of the connection); only if downsample 4 also fails is the frame dropped and logged.
+Every camera frame is sent to the client as one **binary websocket message containing a JPEG**. For the fisheye models `fad1`, `ado1`, `fbb2`, `fbm2`, `fhx2rf`, `fhx2galvo` (list in `camera.py`), if `set_fisheye_matrix` has been called, the frame is decoded, undistorted/perspective-transformed by `FisheyeCameraMixin.handle_fisheye_image` and re-encoded to JPEG first; otherwise the device's bytes are forwarded untouched. If decoding the fisheye frame fails, the raw bytes are forwarded as-is. If the undistort/transform itself raises a `cv2.error` (seen as OOM on low-memory devices), the frame is retried at increasing downsample (2, then 4 — sticky for the rest of the connection); only if downsample 4 also fails is the frame dropped and logged.
 
 ## Errors
 

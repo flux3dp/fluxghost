@@ -309,8 +309,13 @@ class FisheyeCameraMixin:
         debug_imwrite('preview-remap.png', remap)
 
     def handle_fisheye_image(
-        self, open_cv_img, downsample=1, is_low_resolution=False, expected_size=(IMAGE_W, IMAGE_H)
+        self, open_cv_img, downsample=1, is_low_resolution=False, expected_size=(IMAGE_W, IMAGE_H), dpmm=DPMM
     ):
+        # dpmm: output px/mm of the perspective-corrected frame. Default DPMM (5)
+        # is the preview scale; `require_frame d<dpmm>` asks for more (e.g. 20)
+        # so thin engraved marks keep the camera's native detail. Callers that
+        # do not pass it get a byte-identical output to before.
+        dpmm = int(dpmm)
         version = self.fisheye_param.get('v', 1)
         if version == 1:
             perspective_points = (
@@ -326,6 +331,7 @@ class FisheyeCameraMixin:
                 CHESSBOARD,
                 perspective_points,
                 downsample=downsample,
+                dpmm=dpmm,
             )
             if self.crop_param is not None:
                 cx = self.crop_param['cx']
@@ -375,7 +381,14 @@ class FisheyeCameraMixin:
             self.write_preview_remap_grid_image(img, xgrid, ygrid)
             t_debug = perf_counter()
 
-            img = apply_points(img, self.fisheye_param['perspective_points'], xgrid, ygrid, padding=padding)
+            img = apply_points(
+                img,
+                self.fisheye_param['perspective_points'],
+                xgrid,
+                ygrid,
+                padding=padding,
+                perspective_pixel_per_mm=dpmm,
+            )
             img = img[padding:, padding:]
             t_grid = perf_counter()
             logger.info(
