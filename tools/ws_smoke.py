@@ -223,6 +223,36 @@ def check_camera(port, pem):
     ws.close()
 
 
+def check_camera_transform(port):
+    # device-free fisheye endpoint: the manual offset keys must be accepted by v3 + grid and by v4
+    # all floats: cv2.fisheye.projectPoints rejects integer arrays, real params are floats anyway
+    k = [[1000.0, 0.0, 640.0], [0.0, 1000.0, 480.0], [0.0, 0.0, 1.0]]
+    d = [[0.0], [0.0], [0.0], [0.0]]
+    ws = WS(port, '/ws/camera-transform')
+    v3 = {'v': 3, 'k': k, 'd': d, 'rvec': [[0.0], [0.0], [0.0]], 'tvec': [[0.0], [0.0], [300.0]], 'offset': [1, -0.5]}
+    ws.send('set_fisheye_matrix ' + json.dumps(v3))
+    ok3 = ws.json_until(lambda m: m.get('status') in ('ok', 'error')).get('status') == 'ok'
+    ws.send('set_fisheye_grid {"x": [0, 30, 10], "y": [0, 30, 10]}')
+    ok_grid = ws.json_until(lambda m: m.get('status') in ('ok', 'error')).get('status') == 'ok'
+    record('camera_transform.v3_offset', ok3 and ok_grid)
+
+    regions = ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
+    v4 = {
+        'v': 4,
+        'k': k,
+        'd': d,
+        'rvec_polyfits': {r: [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]] for r in regions},
+        'tvec_polyfits': {r: [[0.0, 0.0, 0.0], [0.0, 0.0, 300.0]] for r in regions},
+        'grids': {'x': [0, 30, 10], 'y': [0, 30, 10]},
+        'offset': [0.5, 0],
+        'region_offsets': {'topLeft': [1, 0]},
+    }
+    ws.send('set_fisheye_matrix ' + json.dumps(v4))
+    ok4 = ws.json_until(lambda m: m.get('status') in ('ok', 'error')).get('status') == 'ok'
+    record('camera_transform.v4_region_offsets', ok4)
+    ws.close()
+
+
 def check_toolpath(port):
     svg = (
         b'<?xml version="1.0" encoding="utf-8"?>'
@@ -354,6 +384,7 @@ def main():
             check_control(port, pem)
             check_camera(port, pem)
 
+        check_camera_transform(port)
         check_toolpath(port)
         check_opencv(port)
         check_contours(port)

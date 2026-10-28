@@ -65,8 +65,10 @@ Handled by `FisheyeCameraMixin.on_command` (reached via `super().on_command(...)
   - `v: 3`: `{v, k, d, rvec, tvec, is_fisheye?}` — requires a later `set_fisheye_grid` before frames can be transformed.
   - `v: 4`: `{v, k, d, rvec_polyfits, tvec_polyfits, grids, is_fisheye?, total_width?, total_height?}` — 9-region polyfits; immediately computes points for height 0.
   - Any other `v` → `{"status": "error", "error": ["Invalid version"]}`.
+  - Optional on `v: 2/3/4`: `offset: [x, y]` — manual bed-plane correction in mm (right/down positive, Beam Studio "Manual Configuration"). It is added to every grid object point **before** projection, so the warped image shifts by exactly that much on the bed while the output size and origin stay the same. Absent = `[0, 0]`.
+  - Optional on `v: 4` only: `region_offsets: {topLeft, top, topRight, left, center, right, bottomLeft, bottom, bottomRight: [x, y]}` — per-region override of `offset`, keyed like `rvec_polyfits`. The region is chosen from the unshifted point; regions missing from the map fall back to `offset`.
 - `set_fisheye_height <h>` — recomputes perspective points for object height `h` (mm). Only valid for `v: 2` and `v: 4` params; otherwise replies `Invalid version` error. For `v: 2`, leveling data (if set) is subtracted per 3×3 region and the work area comes from `HW_PROFILE[model]` (fallback `430×320`).
-- `set_fisheye_grid <json>` — `{"x": [start, end, step], "y": [start, end, step]}` (see `PerspectiveGrid` in Beam Studio's `FisheyePreview.d.ts`). Only valid for `v: 3` params.
+- `set_fisheye_grid <json>` — `{"x": [start, end, step], "y": [start, end, step]}` (see `PerspectiveGrid` in Beam Studio's `FisheyePreview.d.ts`). Only valid for `v: 3` params. The `v: 3` `offset` is applied here.
 - `set_leveling_data <json>` — 3×3 leveling offsets keyed `A`–`I`.
 - `set_crop_param <json>` *(deprecated v1)* — `{width, height, cx, cy, top?, left?}`.
 - `set_3d_rotation <json>` *(deprecated v1)* — `{rx, ry, rz, h, tx, ty}` (radians / mm). Also handled directly in `camera.py::on_command`.
