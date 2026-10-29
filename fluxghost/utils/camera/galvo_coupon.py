@@ -435,11 +435,11 @@ def find_l_vertices_guided(gray, ppm, centre_px, half, arm, k_mm, response=None)
         response = thin_line_response(gray, k_mm, ppm)
     layout = l_frame_layout(half, arm)
     found = _guided_pass(response, ppm, centre_px, layout, arm)
-    hits = [i for i, (point, _) in enumerate(found) if point is not None]
+    hits = [i for i, entry in enumerate(found) if entry[0] is not None]
     if 3 <= len(hits) < len(layout):
         shift = np.median(np.array([found[i][0] - (centre_px + layout[i][0] * ppm) for i in hits]), axis=0)
         again = _guided_pass(response, ppm, centre_px + shift, layout, arm)
-        if sum(point is not None for point, _ in again) > len(hits):
+        if sum(entry[0] is not None for entry in again) > len(hits):
             found = again
     return [f for f in found if f[0] is not None]
 
@@ -475,7 +475,12 @@ def _guided_pass(response, ppm, centre_px, layout, arm):
                 fit = None
                 break
             vertex = point
-            fit = (point, (ra + rb) / 2)
+            segments = []
+            for (pp, dd, _, _), end_mm in zip(arms, (x_end_mm, y_end_mm)):
+                unit = (end_mm - vertex_mm) / arm
+                ts = [float((vertex + unit * span * ppm - pp) @ dd) for span in (lo, hi)]
+                segments.append((pp + dd * ts[0], pp + dd * ts[1]))
+            fit = (point, (ra + rb) / 2, segments)
         found.append(fit if fit is not None else (None, None))
     return found
 
@@ -520,7 +525,9 @@ def solve_ruler(vertices, centre_px, ppm_nominal, half, model='affine'):
     if len(vertices) < RULER_MIN_VERTICES:
         raise SolveError('RULER_INVALID', 'only %d L vertices found, need %d' % (len(vertices), RULER_MIN_VERTICES))
     bins = {}
-    for vertex, residual in vertices:
+    for entry in vertices:
+        vertex, residual = entry[0], entry[1]
+        segments = entry[2] if len(entry) > 2 else None
         rel = (np.asarray(vertex) - centre_px) / ppm_nominal
         key = (int(np.clip(round(rel[0] / half), -1, 1)), int(np.clip(round(rel[1] / half), -1, 1)))
         if key == (0, 0):
@@ -528,8 +535,9 @@ def solve_ruler(vertices, centre_px, ppm_nominal, half, model='affine'):
         nominal = np.array([key[0] * half, key[1] * half])
         off = float(np.linalg.norm(rel - nominal))
         if key not in bins or off < bins[key][1]:
-            bins[key] = (np.asarray(vertex, dtype=np.float64), off, residual)
+            bins[key] = (np.asarray(vertex, dtype=np.float64), off, residual, segments)
     keys = sorted(bins)
+    segments_by_key = {k: bins[k][3] for k in keys}
     px = np.array([bins[k][0] for k in keys])
     mm = np.array([[k[0] * half, k[1] * half] for k in keys], dtype=np.float64)
     rejected = []
@@ -570,7 +578,7 @@ def solve_ruler(vertices, centre_px, ppm_nominal, half, model='affine'):
         'vertices_used': len(keys),
         'rms_mm': rms,
         'span_mm': span,
-        'used': [(k, p) for k, p in zip(keys, px)],
+        'used': [(k, p, segments_by_key[k]) for k, p in zip(keys, px)],
         'rejected': rejected,
     }
 
@@ -962,7 +970,7 @@ def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
         vertices = find_l_vertices_guided(gray, ppm, centre, half, arm, 1.5, response)
         if not vertices:
             continue
-        score = (len(vertices), -float(np.mean([r for _, r in vertices])))
+        score = (len(vertices), -float(np.mean([v[1] for v in vertices])))
         if best is None or score > best[0]:
             best = (score, ppm)
     return (centre, best[1] if best is not None else ppm0)
@@ -1232,10 +1240,12 @@ def _solve_upright(img, params):
 def _annotate(img, ruler, node_px, affine_res, missing_px, val_px, px_to_mm, orientation, t_vec, ppm):
     out = img.copy()
     r = max(2, int(0.6 * ppm))
-    for key, px in ruler['used']:
+    for key, px, segments in ruler['used']:
         c = (round(px[0]), round(px[1]))
         cv2.circle(out, c, 2 * r, (0, 255, 0), 2)
         cv2.putText(out, '%d,%d' % key, (c[0] + 2 * r, c[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 1)
+        for a, b in segments or []:  # the part of each arm the line was fitted through
+            cv2.line(out, (round(a[0]), round(a[1])), (round(b[0]), round(b[1])), (0, 255, 0), 1)
     for _, px in ruler['rejected']:
         c = (round(px[0]), round(px[1]))
         cv2.circle(out, c, 2 * r, (0, 0, 255), 2)
