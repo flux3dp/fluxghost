@@ -8,10 +8,11 @@ on skew). The ws endpoint wrapper is covered by tools/ws_smoke.py.
 
 import unittest
 
+import cv2
 import numpy as np
 
 from fluxghost.utils.camera.galvo_coupon import SolveError, solve_galvo_coupon
-from tests.usage.galvo_coupon_synth import render_coupon
+from tests.usage.galvo_coupon_synth import l_frame_vertices, render_coupon
 
 TRUTH = {'scale_x': 1.02, 'scale_y': 0.98, 'skew_deg': 0.3, 'rot_deg': 5.0, 'offset_mm': (3.2, -1.7)}
 PARAMS = {'px_per_mm': 20, 'expected_center_px': [1800, 1800], 'invert': [True, True]}
@@ -91,6 +92,27 @@ class SolveGalvoCouponTest(unittest.TestCase):
         res, _ = solve_galvo_coupon(render_coupon(drop_l=(0, 7), **TRUTH), PARAMS)
         self.assertEqual(res['ruler']['vertices_used'], 6)
         self.assertAlmostEqual(res['scale_x'], 1.02, delta=0.00102)
+
+    def test_broken_corners_are_paired(self):
+        """An L whose corner did not cut is two arms; their lines still meet at the vertex."""
+        img = render_coupon(**TRUTH)
+        for vx, vy in l_frame_vertices():
+            cv2.circle(img, (int(1800 + vx * 20), int(1800 + vy * 20)), 14, (30, 30, 30), -1)
+        res, _ = solve_galvo_coupon(img, PARAMS)
+        assert_truth(self, res)
+
+    def test_low_contrast_frame_under_uneven_light_uses_tophat(self):
+        """Camera case: the L grooves sit 60 above a background that drifts by 120 across the image."""
+        full = render_coupon(**TRUTH)
+        no_frame = render_coupon(drop_l=tuple(range(8)), **TRUTH)
+        is_frame = np.any(full != no_frame, axis=2)
+        ramp = np.linspace(0, 120, full.shape[1], dtype=np.float32)[None, :, None]
+        img = np.clip(no_frame.astype(np.float32) + ramp, 0, 255)
+        img[is_frame] = np.clip(30 + ramp[0, :, 0][np.nonzero(is_frame)[1]][:, None] + 60, 0, 255)
+        img = img.astype(np.uint8)
+        res, _ = solve_galvo_coupon(img, PARAMS)
+        assert_truth(self, res)
+        self.assertEqual(res['ruler']['threshold'][2], 2.0)
 
     def test_ruler_invalid_without_frame(self):
         img = render_coupon(drop_l=tuple(range(8)), **TRUTH)

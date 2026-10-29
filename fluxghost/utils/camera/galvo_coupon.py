@@ -64,16 +64,35 @@ DEFAULT_VALIDATION = [
     [27.5, -27.5],
     [-27.5, -27.5],
 ]
-# factory defaults (flatbed scanner); camera values are tuned from the client
+# factory defaults (flatbed scanner) first; the last three are for the head camera's
+# stitched photograph, whose L grooves sit only 30-60 above a background that itself
+# varies by that much from tile to tile under the machine's lighting: a third element
+# names a top-hat kernel (mm) that subtracts the local background before the threshold.
 DEFAULT_THRESHOLDS = {
     'galvo_green': 150,
-    'l_frame': [[200, 'any'], [160, 'red'], [120, 'red'], [100, 'any'], [60, 'any']],
+    'l_frame': [
+        [200, 'any'],
+        [160, 'red'],
+        [120, 'red'],
+        [100, 'any'],
+        [60, 'any'],
+        [40, 'any', 2.0],
+        [28, 'any', 2.0],
+        [18, 'any', 2.0],
+    ],
 }
 L_DIAGONAL_MM = 197.99  # 140 * sqrt(2), corner to opposite corner
 RULER_SPAN_TOLERANCE = 0.02
 RULER_RESIDUAL_MM = 0.5
 RULER_MIN_VERTICES = 6
 L_COMPONENT_MM = (6.5, 11.0)  # factory: usable L components are 6.5-11 mm wide
+# An L whose corner did not cut, or whose arms a burn blob split, is two arm components:
+# each this long, at most this thick, and paired when their lines meet within L_PAIR_GAP_MM
+# of the near end of both and the far ends sit an arm's length away.
+L_ARM_MM = (4.5, 11.0)
+L_ARM_THICK_MM = 3.0
+L_PAIR_GAP_MM = 2.5
+L_PAIR_FAR_MM = (5.0, 11.5)
 
 
 class SolveError(Exception):
@@ -243,23 +262,67 @@ def _fit_l_vertex(xs, ys, ppm):
     return vertex, residual
 
 
+def _fit_arm(xs, ys):
+    """One straight arm: (point, unit direction, end a, end b, mean residual px)."""
+    p, d = _fit_line(xs, ys)
+    pts = np.column_stack([xs, ys]).astype(np.float64)
+    t = (pts - p) @ d
+    residual = float(np.mean(_point_line_distance(pts, p, d)))
+    return p, d, p + d * t.min(), p + d * t.max(), residual
+
+
+def _pair_arms(arms, ppm):
+    """Vertices from pairs of perpendicular arms that meet at one end of each."""
+    found = []
+    for i in range(len(arms)):
+        for j in range(i + 1, len(arms)):
+            a, b = arms[i], arms[j]
+            if abs(float(np.dot(a[1], b[1]))) > 0.5:
+                continue
+            vertex = _intersect(a[0], a[1], b[0], b[1])
+            if vertex is None:
+                continue
+            ok = True
+            for arm in (a, b):
+                ends = [np.linalg.norm(vertex - arm[2]) / ppm, np.linalg.norm(vertex - arm[3]) / ppm]
+                if min(ends) > L_PAIR_GAP_MM or not (L_PAIR_FAR_MM[0] <= max(ends) <= L_PAIR_FAR_MM[1]):
+                    ok = False
+            if ok:
+                found.append((vertex, (a[4] + b[4]) / 2))
+    return found
+
+
 def find_l_vertices(mask, ppm):
-    """All plausible L vertices (px) in a binary mask: list of (vertex, residual)."""
+    """All plausible L vertices (px) in a binary mask: list of (vertex, residual).
+
+    An L that is one component is fitted whole. One whose corner is missing, or that a
+    burn blob at a stroke end has split, shows up as two arm-sized components; those
+    are fitted as lines and paired. Both kinds may report the same L; solve_ruler keeps
+    the one nearer its nominal place.
+    """
     lo, hi = L_COMPONENT_MM[0] * ppm, L_COMPONENT_MM[1] * ppm
+    arm_lo, arm_hi, arm_thick = L_ARM_MM[0] * ppm, L_ARM_MM[1] * ppm, L_ARM_THICK_MM * ppm
     count, labels, stats, _ = cv2.connectedComponentsWithStats(mask.astype(np.uint8), connectivity=8)
     found = []
+    arms = []
     for i in range(1, count):
         x, y, w, h, area = stats[i]
-        if not (lo <= w <= hi and lo <= h <= hi):
+        whole = lo <= w <= hi and lo <= h <= hi
+        arm = arm_lo <= max(w, h) <= arm_hi and min(w, h) <= arm_thick
+        if not (whole or arm):
             continue
         if area < 2 * L_COMPONENT_MM[0] * ppm * 0.1 * ppm:  # thinner than 0.1 mm strokes: noise
             continue
         sub = labels[y : y + h, x : x + w] == i
         ys, xs = np.nonzero(sub)
-        fit = _fit_l_vertex(xs + x, ys + y, ppm)
-        if fit is not None:
-            found.append(fit)
-    return found
+        if whole:
+            fit = _fit_l_vertex(xs + x, ys + y, ppm)
+            if fit is not None:
+                found.append(fit)
+                continue
+        if arm:
+            arms.append(_fit_arm(xs + x, ys + y))
+    return found + _pair_arms(arms, ppm)
 
 
 def _fit_ruler(vertices_px, nominal_mm):
@@ -654,17 +717,25 @@ def solve_galvo_coupon(img, params):
         # the L frame lives in a ring around the coupon: vertices at +-half, arms `arm_len` inward
         ring_roi = _chebyshev_roi(img.shape, roi_centre, (half - arm_len - 3) * ppm_nominal, (half + 12) * ppm_nominal)
         errors = []
-        for threshold, mode in thresholds['l_frame']:
-            mask = (_channel(img, mode) > int(threshold)) & ring_roi
+        for entry in thresholds['l_frame']:
+            threshold, mode = entry[0], entry[1]
+            tophat_mm = float(entry[2]) if len(entry) > 2 else 0.0
+            channel = _channel(img, mode)
+            if tophat_mm > 0:
+                # what stands out of its surroundings within tophat_mm: the groove, not
+                # the tile-to-tile lighting nor a burn smear wider than the kernel
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (int(tophat_mm * ppm_nominal) | 1,) * 2)
+                channel = cv2.morphologyEx(channel, cv2.MORPH_TOPHAT, kernel)
+            mask = (channel > int(threshold)) & ring_roi
             if mode != 'any' and not is_gray:
                 mask &= galvo_dilated == 0  # "non-galvo marks" (meaningless on a grayscale image)
             vertices = find_l_vertices(mask, ppm_nominal)
             try:
                 found = solve_ruler(vertices, roi_centre, ppm_nominal, half)
             except SolveError as e:
-                errors.append('%s/%s: %s' % (threshold, mode, e.reason))
+                errors.append('%s/%s%s: %s' % (threshold, mode, '/tophat%g' % tophat_mm if tophat_mm else '', e.reason))
                 continue
-            found['threshold'] = [threshold, mode]
+            found['threshold'] = list(entry)
             found['vertices_found'] = len(vertices)
             return found
         raise SolveError('RULER_INVALID', '; '.join(errors) or 'no L-frame threshold set given')
