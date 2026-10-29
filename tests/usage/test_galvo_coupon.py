@@ -47,9 +47,12 @@ class SolveGalvoCouponTest(unittest.TestCase):
 
     def test_recovers_known_affine_colour(self):
         """Reddish L frame (green < 150) is skipped by the first threshold set and caught by [160, 'red']."""
-        res, annotated = solve_galvo_coupon(render_coupon(color=True, **TRUTH), dict(PARAMS, guided=False))
+        # the factory's fixed galvo threshold: the reddish frame must stay out of the galvo mask
+        params = dict(PARAMS, guided=False, thresholds={'galvo_green': 150})
+        res, annotated = solve_galvo_coupon(render_coupon(color=True, **TRUTH), params)
         assert_truth(self, res)
         self.assertEqual(res['ruler']['threshold'], [160, 'red'])
+        self.assertEqual(res['galvo_threshold'], 150)
         self.assertIsNone(annotated)
 
     def test_ruler_uses_full_frame_transform(self):

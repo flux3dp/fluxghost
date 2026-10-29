@@ -69,7 +69,10 @@ DEFAULT_VALIDATION = [
 # varies by that much from tile to tile under the machine's lighting: a third element
 # names a top-hat kernel (mm) that subtracts the local background before the threshold.
 DEFAULT_THRESHOLDS = {
-    'galvo_green': 150,
+    # 'auto': a quarter of the way from the median (the sheet) to the 99th percentile, at
+    # least GALVO_AUTO_MIN_CONTRAST above the median. White paper's burnt marks photograph
+    # only 20-odd levels off the paper, where the factory's 150 finds nothing.
+    'galvo_green': 'auto',
     'l_frame': [
         [200, 'any'],
         [160, 'red'],
@@ -82,6 +85,8 @@ DEFAULT_THRESHOLDS = {
     ],
 }
 L_DIAGONAL_MM = 197.99  # 140 * sqrt(2), corner to opposite corner
+GALVO_AUTO_FRACTION = 0.25
+GALVO_AUTO_MIN_CONTRAST = 10
 RULER_SPAN_TOLERANCE = 0.02
 RULER_RESIDUAL_MM = 0.5
 RULER_MIN_VERTICES = 6
@@ -103,7 +108,6 @@ GUIDED_ARM_SPAN_MM = (2.0, 6.5)
 GUIDED_BAND_MM = 1.0
 GUIDED_MIN_SNR = 3.0
 # locate: px/mm candidates tried around the estimate from the coupon's extent
-LOCATE_PPM_STEPS = [0.80 + 0.04 * i for i in range(11)]
 
 
 class SolveError(Exception):
@@ -427,6 +431,36 @@ def _guided_arm(response, start_px, end_px, ppm):
     return point, direction, residual, snr
 
 
+def _mean_response_along(response, start, end, ppm, half_width_mm=0.5):
+    """Mean of `response` in the strip from start to end, half_width_mm either side."""
+    direction = end - start
+    length = float(np.linalg.norm(direction))
+    if length < 1:
+        return 0.0
+    unit = direction / length
+    normal = np.array([-unit[1], unit[0]])
+    n_along, n_across = max(2, int(length)), max(1, int(half_width_mm * ppm))
+    t = np.linspace(0, length, n_along)
+    u = np.linspace(-half_width_mm * ppm, half_width_mm * ppm, 2 * n_across + 1)
+    pts = start + t[:, None, None] * unit + u[None, :, None] * normal
+    xs = np.clip(np.round(pts[..., 0]).astype(int), 0, response.shape[1] - 1)
+    ys = np.clip(np.round(pts[..., 1]).astype(int), 0, response.shape[0] - 1)
+    return float(response[ys, xs].mean())
+
+
+def _nothing_past_the_corner(response, vertex, units, ppm):
+    """An L stops at its corner; a node's cross goes on through it. For each arm direction,
+    the strip 1.5-4 mm past the vertex the other way must carry well under half of what the
+    arm's own 2-6.5 mm strip carries."""
+    lo, hi = GUIDED_ARM_SPAN_MM
+    for unit in units:
+        along = _mean_response_along(response, vertex + unit * lo * ppm, vertex + unit * hi * ppm, ppm)
+        beyond = _mean_response_along(response, vertex - unit * 1.5 * ppm, vertex - unit * 4.0 * ppm, ppm)
+        if along <= 0 or beyond > 0.5 * along:
+            return False
+    return True
+
+
 def find_l_vertices_guided(gray, ppm, centre_px, half, arm, k_mm, response=None):
     """L vertices from where the layout says the Ls are: list of (vertex px, residual px).
 
@@ -475,6 +509,11 @@ def _guided_pass(response, ppm, centre_px, layout, arm):
                 break
             point = _intersect(pa, da, pb, db)
             if point is None or np.linalg.norm(point - nominal) > GUIDED_SEARCH_MM * ppm:
+                fit = None
+                break
+            if not _nothing_past_the_corner(
+                response, point, [(x_end_mm - vertex_mm) / arm, (y_end_mm - vertex_mm) / arm], ppm
+            ):
                 fit = None
                 break
             vertex = point
@@ -924,18 +963,23 @@ def _px_to_mm_for(ruler):
     return _PxToMmProjective(ruler['H']) if ruler.get('H') is not None else _PxToMm(ruler['A'], ruler['b'])
 
 
-def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
-    """Where the coupon is and at what scale, from the galvo marks and then the L frame.
+LOCATE_SCALE_SWEEP = [0.15 * 1.06**i for i in range(34)]  # coupon from 15 % to ~100 % of the image
+LOCATE_NEAR_SWEEP = [0.70 * 1.05**i for i in range(15)]  # around the extent's own estimate
+LOCATE_MIN_COMPONENT_PX = 12
 
-    The galvo marks are one dense cluster of hundreds of small components whose neighbours
-    are about 3 mm apart (an arm and its ring, two arms across a gap), whatever the scale:
-    closing the mask with 2.5 times the median nearest-neighbour distance fuses them into one
-    blob and leaves the Ls, 10 mm off the cluster, and any specks apart. The blob holding
-    the most components is the coupon (a scan's white border is one blob holding none);
-    those components' mean is the centre and the blob's side (2 x `reach`, the discovery
-    marks' outer tips, at scale 1) the first guess at px/mm, swept over LOCATE_PPM_STEPS
-    with the guided L detection; the sweep's best (most vertices, then least residual)
-    wins. Returns (centre_px, ppm) or None without a cluster to go by.
+
+def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
+    """Where the coupon is and at what scale, from where the marks crowd and then the Ls.
+
+    The galvo marks are the densest crowd of small things on the sheet at any scale. On a
+    map of small-component centroids (specks dropped, a scan's border or edge line is one
+    big component and gets no say) a box filter a tenth of the image wide peaks on the
+    coupon; the region at half that peak is the coupon's extent, the centroid of the marks
+    in it is the centre, and its side (2 x `reach`, the discovery marks' outer tips, at
+    scale 1) a first px/mm. That is swept, near first and wide if need be, with the guided
+    L detection on one thin-line response of a fixed small kernel (a slit is thin at every
+    scale); the sweep's best (most vertices, then least residual) wins. Returns
+    (centre_px, ppm) or None.
     """
     h, w = galvo_raw.shape[:2]
     down = max(1, round(max(h, w) / 1200.0))
@@ -943,40 +987,56 @@ def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
     if down > 1:
         small = cv2.resize(small, (w // down, h // down), interpolation=cv2.INTER_AREA)
     small = (small > 0).astype(np.uint8)
+    if not small.any():
+        return None
     count, _, stats, centroids = cv2.connectedComponentsWithStats(small, connectivity=8)
-    marks = np.array([centroids[i] for i in range(1, count) if stats[i][4] >= 2])
-    if len(marks) < 50:
+    big = 0.005 * small.size
+    marks = np.array([centroids[i] for i in range(1, count) if LOCATE_MIN_COMPONENT_PX <= stats[i][4] < big])
+    if len(marks) < 30:
         return None
-    dists = np.linalg.norm(marks[:, None, :] - marks[None, :, :], axis=2)
-    np.fill_diagonal(dists, np.inf)
-    spacing = float(np.median(dists.min(axis=1)))
-    k = max(3, int(2.5 * spacing) | 1)
-    fused = cv2.morphologyEx(small, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
-    n_blobs, labels, stats, _ = cv2.connectedComponentsWithStats(fused, connectivity=8)
-    if n_blobs < 2:
+    points = np.zeros(small.shape, np.float32)
+    for x, y in marks:
+        points[round(y), round(x)] += 1
+    k = max(5, int(0.1 * max(small.shape)) | 1)
+    density = cv2.blur(points, (k, k), borderType=cv2.BORDER_CONSTANT)
+    cy, cx = np.unravel_index(int(np.argmax(density)), density.shape)
+    region = (density >= 0.5 * density.max()).astype(np.uint8)
+    n_regions, labels, rstats, _ = cv2.connectedComponentsWithStats(region, connectivity=8)
+    x, y, bw, bh, _ = rstats[labels[cy, cx]]
+    inside = marks[(marks[:, 0] >= x) & (marks[:, 0] < x + bw) & (marks[:, 1] >= y) & (marks[:, 1] < y + bh)]
+    if len(inside) < 30:
         return None
-    rows = np.clip(np.round(marks[:, 1]).astype(int), 0, labels.shape[0] - 1)
-    cols = np.clip(np.round(marks[:, 0]).astype(int), 0, labels.shape[1] - 1)
-    owner = labels[rows, cols]
-    counts = np.bincount(owner, minlength=n_blobs)
-    counts[0] = 0
-    i = int(np.argmax(counts))
-    if counts[i] < 50:
-        return None
-    x, y, bw, bh, _ = stats[i]
-    centre = marks[owner == i].mean(axis=0) * down
-    ppm0 = float(max(bw, bh)) * down / (2.0 * reach)
+    centre = inside.mean(axis=0) * down
+    ppm_extent = float(max(bw, bh)) * down / (2.0 * reach)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
+    response = cv2.add(
+        cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, kernel), cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel)
+    )
+    near = [ppm_extent * f for f in LOCATE_NEAR_SWEEP]
+    wide = [max(h, w) * f / (2.0 * reach) for f in LOCATE_SCALE_SWEEP]
+    # The centre from the density can be 10-20 mm off when part of the coupon is lost to
+    # a reflection, more than the guided search's reach, so it is tried from a coarse grid
+    # of starts around it as well; the guided search re-centres itself from the Ls it finds.
+    starts = [np.array([dx, dy], np.float64) for dx in (0, -20, 20, -10, 10) for dy in (0, -20, 20, -10, 10)]
     best = None
-    response = thin_line_response(gray, 1.5, ppm0)  # the kernel is within 20 % for every step
-    for step in LOCATE_PPM_STEPS:
-        ppm = ppm0 * step
-        vertices = find_l_vertices_guided(gray, ppm, centre, half, arm, 1.5, response)
-        if not vertices:
-            continue
-        score = (len(vertices), -float(np.mean([v[1] for v in vertices])))
-        if best is None or score > best[0]:
-            best = (score, ppm)
-    return (centre, best[1] if best is not None else ppm0)
+    for candidates in (near, wide):
+        for ppm in candidates:
+            if ppm < 2:
+                continue
+            for offset in starts:
+                vertices = find_l_vertices_guided(gray, ppm, centre + offset * ppm, half, arm, 1.5, response)
+                if len(vertices) < 3:
+                    continue
+                score = (len(vertices), -float(np.mean([v[1] for v in vertices])))
+                if best is None or score > best[0]:
+                    best = (score, ppm, offset)
+                if len(vertices) == 8:
+                    break
+        if best is not None and best[0][0] >= RULER_MIN_VERTICES:
+            break
+    if best is None:
+        return (centre, ppm_extent)
+    return (centre + best[2] * best[1], best[1])
 
 
 ROTATIONS = {0: None, 90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
@@ -1039,7 +1099,15 @@ def _solve_upright(img, params):
 
     # --- 1. masks
     is_gray = bool(np.array_equal(img[:, :, 0], img[:, :, 1]) and np.array_equal(img[:, :, 1], img[:, :, 2]))
-    galvo_raw = img[:, :, 1] > int(thresholds['galvo_green'])
+    green = img[:, :, 1]
+    galvo_threshold = thresholds['galvo_green']
+    if galvo_threshold == 'auto':
+        # a quarter of the way from the sheet to the brightest percent: on white paper the
+        # galvo marks are a faint 8 % while the cut Ls are black, and a threshold set by the
+        # Ls would leave the marks out
+        sheet, marks = np.percentile(green, [50, 99])
+        galvo_threshold = int(sheet + max(GALVO_AUTO_MIN_CONTRAST, GALVO_AUTO_FRACTION * (marks - sheet)))
+    galvo_raw = green > int(galvo_threshold)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     located = None
     if p['locate']:
@@ -1219,6 +1287,7 @@ def _solve_upright(img, params):
             'model': ruler['model'],
         },
         'inverted': bool(inverted),
+        'galvo_threshold': int(galvo_threshold),
         'located': None
         if located is None
         else {'center_px': [float(located[0][0]), float(located[0][1])], 'px_per_mm': float(located[1])},
