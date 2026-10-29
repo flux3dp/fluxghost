@@ -79,6 +79,18 @@ Response `contours` is a list of contours, each a list of `[x, y]` points in ima
 
 - **Beam Studio client**: `OpenCVWebSocket.imageContour` (`packages/core/src/web/helpers/api/open-cv.ts`), used by `app/components/dialogs/PrintAndCut/utils/computeCutPathD.ts` (caches the contours per design, offsets them with ClipperOffset, and falls back to a bounding-box outline when this call fails).
 
+### `save_galvo_capture <file_length> <json_meta>`
+
+Keeps the client's side of a galvo calibration capture next to the frames the camera endpoint kept for it (`require_frame d<dpmm>`, see camera.md: `~/Downloads/fluxghost-frames/<session>/`). Same two-phase upload as `solve_galvo_coupon`: `continue`, then the stitched image's bytes. Nothing is computed; it is for looking at a failed solve stage by stage. Implementation: `fluxghost/utils/camera/frame_dump.py` (`save_capture`).
+
+Written into the most recent frame folder (`frame_dump.latest_folder()`):
+
+- `stitched.png` — the uploaded bytes as they are;
+- `capture.json` — `json_meta` pretty-printed. Beam Studio sends `{ center, originMm, pxPerMm, patchMm, grid, aimInsetMm, tiles: [{ frame, point, camera, shift, anchor, rect }], warnings }`;
+- `NN-patch.png` — for every tile whose `frame` (1-based, the frame's number in the folder) and `rect` (`{sx, sy, sw, sh}` in that frame's remap pixels) are set, that rectangle cut from `NN-remap-*.jpg`: the pixels the client stitched. A tile with `rect: null` was left blank and gets no patch.
+
+Replies `{"status": "ok", "folder": "<path>", "written": ["stitched.png", "capture.json", "01-patch.png", ...]}`; `{"status": "fail", "info": "NO_DUMP"}` when no frames were kept (dump disabled, or none asked for at an explicit dpmm on this fluxghost run); `{"status": "fail", "info": "WRITE_FAILED", "reason": ...}` when the folder could not be written.
+
 ### `solve_galvo_coupon <file_length> [<json_params>]`
 
 Solves a HEXA G galvo field-lens calibration coupon: the galvo engraves a 9x9 node grid (plus discovery / validation / identity marks) on a dark sheet and the nozzle cuts 8 L marks around it as the ruler; Beam Studio captures the sheet with the head camera (`require_frame d20`, see camera.md), stitches a bed-coordinate image and sends it here. One-shot upload like `detect_blobs`. Implementation: `fluxghost/utils/camera/galvo_coupon.py` (`solve_galvo_coupon`), a port of the factory `correction.html` method; spec in beam-studio `docs/prd/hexa-ii-galvo/hexa-g-galvo-calibration.md` §7.2 (pattern), §7.8 (algorithm), §7.9 (outputs).

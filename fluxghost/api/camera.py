@@ -7,6 +7,7 @@ import numpy as np
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
+from fluxghost.utils.camera.frame_dump import FrameDump
 from fluxghost.utils.camera.general import open_frame
 
 from .control_base import control_base_mixin
@@ -41,6 +42,8 @@ def camera_api_mixin(cls):
         frame_requested_at = None
         first_byte_at = None
         read_count = 0
+        # frames asked for at an explicit px/mm are kept on disk, see frame_dump
+        frame_dump = None
 
         def get_robot_from_device(self, device):
             self.remote_version = device.version
@@ -123,6 +126,7 @@ def camera_api_mixin(cls):
                     cv_img = np.array(img)
                     cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGBA2BGR)
                 except Exception:
+                    self.dump_frame(dpmm, image)
                     self.send_binary(image)
                     return
                 t_decoded = perf_counter()
@@ -148,6 +152,7 @@ def camera_api_mixin(cls):
                 t_fisheye = perf_counter()
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
+                self.dump_frame(dpmm, image, img_bytes)
                 self.send_binary(img_bytes)
                 t_sent = perf_counter()
                 logger.info(
@@ -158,7 +163,17 @@ def camera_api_mixin(cls):
                     (t_sent - t_recv) * 1000,
                 )
             else:
+                self.dump_frame(dpmm, image)
                 self.send_binary(image)
+
+        def dump_frame(self, dpmm, raw, remap=None):
+            # A frame asked for at an explicit px/mm is a measurement, not a
+            # preview: keep what went in and what came out (frame_dump).
+            if dpmm is None:
+                return
+            if self.frame_dump is None:
+                self.frame_dump = FrameDump()
+            self.frame_dump.save(raw, remap, dpmm=dpmm)
 
     return CameraAPI
 

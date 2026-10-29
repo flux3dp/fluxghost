@@ -6,6 +6,7 @@ import logging
 import cv2
 import numpy as np
 
+from fluxghost.utils.camera import frame_dump
 from fluxghost.utils.camera.corner_detection.find_corners import find_blob_centers
 from fluxghost.utils.camera.galvo_coupon import SolveError, solve_galvo_coupon
 from fluxghost.utils.camera.general import open_frame
@@ -25,6 +26,7 @@ def opencv_mixin(cls):
                 'detect_blobs': [self.cmd_detect_blobs],
                 'image_contour': [self.cmd_image_contour],
                 'solve_galvo_coupon': [self.cmd_solve_galvo_coupon],
+                'save_galvo_capture': [self.cmd_save_galvo_capture],
             }
             self.imgs = {}
             self.imgs_history = collections.deque([])
@@ -162,6 +164,33 @@ def opencv_mixin(cls):
                 if annotated is not None:
                     _, array_buffer = cv2.imencode('.jpg', annotated)
                     self.send_binary(array_buffer.tobytes())
+
+            helper = BinaryUploadHelper(int(file_length), upload_callback)
+            self.set_binary_helper(helper)
+            self.send_json(status='continue')
+
+        def cmd_save_galvo_capture(self, params):
+            # save_galvo_capture <file_length> <json_meta>
+            # Keeps the client's side of a galvo calibration capture (the stitched
+            # image, capture.json, and the patch cut from each saved frame) in the
+            # folder the camera endpoint wrote the capture's frames to; see
+            # utils/camera/frame_dump.py. Nothing is computed from it.
+            params = params.split(' ', 1)
+            file_length = int(params[0])
+            meta = json.loads(params[1]) if len(params) > 1 and params[1].strip() else {}
+
+            def upload_callback(buf):
+                folder = frame_dump.latest_folder()
+                if not folder or not frame_dump.is_enabled():
+                    self.send_json(status='fail', info='NO_DUMP', reason='no frames were kept to put the capture with')
+                    return
+                try:
+                    written = frame_dump.save_capture(folder, buf, meta)
+                except Exception as e:
+                    logger.exception('could not save the galvo capture')
+                    self.send_json(status='fail', info='WRITE_FAILED', reason=str(e))
+                    return
+                self.send_ok(folder=folder, written=written)
 
             helper = BinaryUploadHelper(int(file_length), upload_callback)
             self.set_binary_helper(helper)
