@@ -4,10 +4,10 @@ from time import perf_counter
 
 import cv2
 import numpy as np
-from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
+from fluxghost.utils.camera.general import open_frame
 
 from .control_base import control_base_mixin
 from .fisheye_camera_mixin import FisheyeCameraMixin
@@ -117,7 +117,9 @@ def camera_api_mixin(cls):
             dpmm_kwargs = {} if dpmm is None else {'dpmm': dpmm}
             if self.remote_model in fisheye_models and self.fisheye_param is not None:
                 try:
-                    img = Image.open(io.BytesIO(image))
+                    # open_frame applies the frame's EXIF orientation, as the
+                    # calibration endpoint did when it produced fisheye_param
+                    img = open_frame(image)
                     cv_img = np.array(img)
                     cv_img = cv2.cvtColor(cv_img, cv2.COLOR_RGBA2BGR)
                 except Exception:

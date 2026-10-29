@@ -1,9 +1,9 @@
-import io
 import logging
 
 import cv2
 import numpy as np
-from PIL import Image
+
+from fluxghost.utils.camera.general import open_frame
 
 from .fisheye_camera_mixin import FisheyeCameraMixin
 from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
@@ -29,7 +29,7 @@ def camera_transform_api_mixin(cls):
 
         def transform_image(self, *params):
             def upload_callback(buf):
-                image = Image.open(io.BytesIO(buf))
+                image = open_frame(buf)
                 if self.fisheye_param is not None:
                     try:
                         cv_img = np.array(image)

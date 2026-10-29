@@ -13,7 +13,7 @@ No URL parameters and no authentication (route regex `camera-calibration` in [fl
 - `calibration_params` — dict of `k`, `d`, `rvec`, `tvec`, `rvec_polyfit`, `tvec_polyfit`, `levelingData`, `is_fisheye`, filled by `calibrate_camera` / `calibrate_chessboard` / `solve_pnp_calculate` / `update_data` and consumed by the `solve_pnp_*` and `remap_image` commands.
 - Fisheye multi-image state (`fisheye_calibrate_imgs`, `fisheye_calibrate_heights`, `interrupted`) reset by `start_fisheye_calibration`.
 
-**Binary upload protocol** (used by every command that takes an image): the client sends `command <file_length> ...`, the server replies `{"status": "continue"}`, the client then sends the image bytes (JPEG/PNG, any PIL-decodable format) as one or more binary messages totalling exactly `file_length` bytes, and the server runs the command's callback on the assembled buffer.
+**Binary upload protocol** (used by every command that takes an image): the client sends `command <file_length> ...`, the server replies `{"status": "continue"}`, the client then sends the image bytes (JPEG/PNG, any PIL-decodable format) as one or more binary messages totalling exactly `file_length` bytes, and the server runs the command's callback on the assembled buffer. Every image is decoded with `open_frame` (`utils/camera/general.py`), which applies the JPEG's EXIF Orientation first -- the HEXA II galvo head's camera is mounted upside down and the device only tags its frames (Orientation=3) -- so the calibration runs on the frame the way the browser and the `camera` endpoint show it. Parameters calibrated on a tagged camera before `open_frame` existed were computed on the 180-rotated frame and must be recalibrated: the principal point mirrors.
 
 ## Commands
 

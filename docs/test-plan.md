@@ -24,7 +24,7 @@ Each module spawns its own server (`ghost.py -d --port 0`) via `tests/usage/_har
 - **Control `file upload`/`download`, `config set/get`, and `fetch_*` families are untested** — blocked on `SimulateRobot` missing the corresponding methods (`upload_stream`, config ops), the same class of gap as `simulate_start_player` (see todo.md). Extend the simulator first.
 - **Keep-alive `ping` is only tested on `control`** — on OnTextMessageMixin endpoints it currently yields `Error BAD_PARAM_TYPE` (see todo.md); add a cross-endpoint ping test once fixed.
 - **`utils` `pdf2svg` untested** (needs the external `pdf2svg` binary); `upload_to`/`check_exist`/`select_font` untested (trivial file ops; `select_font` has a known missing-return bug).
-- **Pure unit tests** (no server) live next to the protocol tests: `test_camera_match_points.py`, `test_camera_oom_fallback.py`, `test_remap_cache.py`, `test_camera_dpmm.py` (`require_frame d<dpmm>`), `test_galvo_coupon.py` (`solve_galvo_coupon` on a synthetic coupon rendered by `galvo_coupon_synth.py`).
+- **Pure unit tests** (no server) live next to the protocol tests: `test_camera_match_points.py`, `test_camera_oom_fallback.py`, `test_remap_cache.py`, `test_camera_dpmm.py` (`require_frame d<dpmm>`), `test_galvo_coupon.py` (`solve_galvo_coupon` on a synthetic coupon rendered by `galvo_coupon_synth.py`), `test_camera_orientation.py` (EXIF Orientation=3 frames are decoded upright by every frame-consuming endpoint).
 - **M3 camera cadence** has a 0.5 s lower bound that could flake if trigger-pipe bytes queue during a slow handshake — loosen to 0.4 s if it ever fires in CI.
 
 | # | Case | Frontend source | Module |

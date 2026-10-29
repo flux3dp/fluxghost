@@ -1,15 +1,14 @@
 import collections
 import contextlib
-import io
 import json
 import logging
 
 import cv2
 import numpy as np
-from PIL import Image
 
 from fluxghost.utils.camera.corner_detection.find_corners import find_blob_centers
 from fluxghost.utils.camera.galvo_coupon import SolveError, solve_galvo_coupon
+from fluxghost.utils.camera.general import open_frame
 
 from .misc import BinaryHelperMixin, BinaryUploadHelper, OnTextMessageMixin
 
@@ -43,7 +42,7 @@ def opencv_mixin(cls):
             file_length = int(params[1])
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 open_cv_img = np.array(img)
                 open_cv_img = cv2.cvtColor(open_cv_img, cv2.COLOR_RGBA2BGRA)
                 self.imgs[img_url] = open_cv_img
@@ -74,7 +73,7 @@ def opencv_mixin(cls):
             kwargs = {key: options[key] for key in allowed_keys if key in options}
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf)).convert('RGB')
+                img = open_frame(buf).convert('RGB')
                 open_cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
                 logger.info('Detecting blobs with params: {}'.format(kwargs))
                 centers = find_blob_centers(open_cv_img, **kwargs)
@@ -100,7 +99,7 @@ def opencv_mixin(cls):
             min_area = float(options.get('min_area', 100))
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf)).convert('RGBA')
+                img = open_frame(buf).convert('RGBA')
                 arr = np.array(img)
                 alpha = arr[:, :, 3]
                 # use alpha only if it actually carves out background (some alpha == 0);
@@ -143,7 +142,7 @@ def opencv_mixin(cls):
             options = json.loads(params[1]) if len(params) > 1 and params[1].strip() else {}
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf)).convert('RGB')
+                img = open_frame(buf).convert('RGB')
                 open_cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
                 logger.info('Solving galvo coupon %dx%d with params: %s', img.width, img.height, options)
                 try:

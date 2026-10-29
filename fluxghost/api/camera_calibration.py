@@ -1,4 +1,3 @@
-import io
 import json
 import logging
 from math import cos, radians, sin
@@ -6,7 +5,6 @@ from time import time
 
 import cv2
 import numpy as np
-from PIL import Image
 
 from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
 from fluxghost.utils.camera.calibration import (
@@ -23,7 +21,7 @@ from fluxghost.utils.camera.constants import B_PAD, CHESSBOARD, L_PAD, R_PAD, T_
 from fluxghost.utils.camera.corner_detection import apply_points
 from fluxghost.utils.camera.corner_detection.find_corners import find_blob_centers
 from fluxghost.utils.camera.corner_detection.match_points import match_projected_points
-from fluxghost.utils.camera.general import pad_image
+from fluxghost.utils.camera.general import open_frame, pad_image
 from fluxghost.utils.camera.perspective import calculate_regional_perspective_points, generate_grid_objects
 from fluxghost.utils.camera.solve_pnp import solve_pnp
 
@@ -83,7 +81,7 @@ def camera_calibration_api_mixin(cls):
             message = message.split(' ')
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img_cv = np.array(img)
                 result = calc_picture_shape(img_cv)
                 if result is None:
@@ -121,7 +119,7 @@ def camera_calibration_api_mixin(cls):
             message = message.split(' ')
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 img_z = float(message[1])
@@ -175,7 +173,7 @@ def camera_calibration_api_mixin(cls):
             chess_h = int(message[3])
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 try:
@@ -258,7 +256,7 @@ def camera_calibration_api_mixin(cls):
             k, d = np.array(k), np.array(d)
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 if is_fisheye:
@@ -292,7 +290,7 @@ def camera_calibration_api_mixin(cls):
                 interest_area = json.loads(interest_area)
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 if is_fisheye:
@@ -414,7 +412,7 @@ def camera_calibration_api_mixin(cls):
             grid = args['grid']
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img = np.array(img)
                 img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
                 k, d = np.array(params['k']), np.array(params['d'])
@@ -496,7 +494,7 @@ def camera_calibration_api_mixin(cls):
                     )
 
             def upload_callback(buf):
-                img = Image.open(io.BytesIO(buf))
+                img = open_frame(buf)
                 img_cv = np.array(img)
                 img_cv = cv2.cvtColor(img_cv, cv2.COLOR_RGBA2BGR)
                 res = get_calibration_data_from_charuco(
