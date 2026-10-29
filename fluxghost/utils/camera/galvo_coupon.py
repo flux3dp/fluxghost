@@ -93,6 +93,17 @@ L_ARM_MM = (4.5, 11.0)
 L_ARM_THICK_MM = 3.0
 L_PAIR_GAP_MM = 2.5
 L_PAIR_FAR_MM = (5.0, 11.5)
+# Guided detection (photographs): the L is looked for where the layout puts it, as two
+# straight arms in a thin-line response that does not care whether the groove photographs
+# bright or dark. Only the middle of each arm is used, clear of the corner (which may not
+# have cut) and of the stroke's end (where the beam dwelt and burnt a blob).
+GUIDED_KERNELS_MM = [1.0, 1.5, 2.0]
+GUIDED_SEARCH_MM = 6.0
+GUIDED_ARM_SPAN_MM = (2.0, 6.5)
+GUIDED_BAND_MM = 1.0
+GUIDED_MIN_SNR = 3.0
+# locate: px/mm candidates tried around the estimate from the coupon's extent
+LOCATE_PPM_STEPS = [0.80 + 0.04 * i for i in range(11)]
 
 
 class SolveError(Exception):
@@ -132,6 +143,15 @@ def parse_params(params, image_shape):
         'invert': [bool(invert[0]), bool(invert[1])],
         'thresholds': thresholds,
         'annotate': bool(params.get('annotate', False)),
+        # 'affine' (a stitched or scanned image), 'projective' (a hand-held photograph of the
+        # flat sheet), or 'auto': affine unless its self-check fails and 8 vertices allow more
+        'ruler_model': str(params.get('ruler_model', 'affine')),
+        # the guided (layout-driven) L detection runs before the threshold masks; off, only
+        # the masks run, as on the factory's scans
+        'guided': bool(params.get('guided', True)),
+        # find the coupon in the image first; expected_center_px and px_per_mm are then only
+        # a starting point and may be far off (a photograph of unknown scale)
+        'locate': bool(params.get('locate', False)),
     }
 
 
@@ -325,6 +345,139 @@ def find_l_vertices(mask, ppm):
     return found + _pair_arms(arms, ppm)
 
 
+def l_frame_layout(half, arm):
+    """The 8 Ls as (vertex mm, x-arm end mm, y-arm end mm), the nozzle's layout (beam-studio
+    galvoCoupon.ts buildLFrameMarks): corners point inward, edge midpoints along their axis to +."""
+    out = []
+    for vx, vy in [
+        (-half, -half),
+        (0, -half),
+        (half, -half),
+        (half, 0),
+        (half, half),
+        (0, half),
+        (-half, half),
+        (-half, 0),
+    ]:
+        xa = arm if vx == 0 else -np.sign(vx) * arm
+        ya = arm if vy == 0 else -np.sign(vy) * arm
+        out.append(
+            (np.array([vx, vy], np.float64), np.array([vx + xa, vy], np.float64), np.array([vx, vy + ya], np.float64))
+        )
+    return out
+
+
+def thin_line_response(gray, k_mm, ppm):
+    """What is thinner than k_mm and stands out of its surroundings, bright or dark: a cut
+    slit photographs as a dark line, a bright line, or one of each wall, with the light."""
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (int(k_mm * ppm) | 1,) * 2)
+    return cv2.add(cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, kernel), cv2.morphologyEx(gray, cv2.MORPH_BLACKHAT, kernel))
+
+
+def _guided_arm(response, start_px, end_px, ppm):
+    """Line through one arm, looked for between start_px and end_px (the part of the arm to
+    use) and GUIDED_SEARCH_MM either side of it: the peak of the response's profile across
+    the arm, then a weighted line through the response within GUIDED_BAND_MM of the peak.
+    Returns (point, direction, residual px, snr) or None."""
+    along_x = abs(end_px[0] - start_px[0]) > abs(end_px[1] - start_px[1])
+    search = GUIDED_SEARCH_MM * ppm
+    if along_x:
+        x0, x1 = sorted([start_px[0], end_px[0]])
+        y0, y1 = start_px[1] - search, start_px[1] + search
+    else:
+        y0, y1 = sorted([start_px[1], end_px[1]])
+        x0, x1 = start_px[0] - search, start_px[0] + search
+    x0, x1, y0, y1 = [round(v) for v in (x0, x1, y0, y1)]
+    # the part of the arm must be in the image; the search across it may be cut by the edge
+    along_in = (x0 >= 0 and x1 <= response.shape[1]) if along_x else (y0 >= 0 and y1 <= response.shape[0])
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(response.shape[1], x1), min(response.shape[0], y1)
+    across = (y1 - y0) if along_x else (x1 - x0)
+    if not along_in or across < 2 * GUIDED_BAND_MM * ppm or x1 - x0 < 3 or y1 - y0 < 3:
+        return None
+    win = response[y0:y1, x0:x1].astype(np.float32)
+    profile = win.sum(axis=1 if along_x else 0)
+    profile = np.convolve(profile, np.ones(3) / 3.0, mode='same')
+    peak = int(np.argmax(profile))
+    snr = float(profile[peak] / max(float(np.median(profile)), 1e-6))
+    if snr < GUIDED_MIN_SNR:
+        return None
+    band = int(GUIDED_BAND_MM * ppm)
+    if along_x:
+        rows = np.arange(max(0, peak - band), min(win.shape[0], peak + band + 1))
+        sub = win[rows, :]
+        weight = sub.sum(axis=0)
+        centre = (sub * rows[:, None]).sum(axis=0) / np.maximum(weight, 1e-6)
+        keep = weight > 0.2 * weight.max()
+        pts = np.column_stack([np.arange(win.shape[1])[keep] + x0, centre[keep] + y0])
+    else:
+        cols = np.arange(max(0, peak - band), min(win.shape[1], peak + band + 1))
+        sub = win[:, cols]
+        weight = sub.sum(axis=1)
+        centre = (sub * cols[None, :]).sum(axis=1) / np.maximum(weight, 1e-6)
+        keep = weight > 0.2 * weight.max()
+        pts = np.column_stack([centre[keep] + x0, np.arange(win.shape[0])[keep] + y0])
+    if len(pts) < 10:
+        return None
+    point, direction = _fit_line(pts[:, 0], pts[:, 1])
+    residual = float(np.mean(_point_line_distance(pts, point, direction)))
+    return point, direction, residual, snr
+
+
+def find_l_vertices_guided(gray, ppm, centre_px, half, arm, k_mm):
+    """L vertices from where the layout says the Ls are: list of (vertex px, residual px).
+
+    When the expected centre is a few mm off, the Ls it finds say by how much: with at least
+    three found and some missing, the search is repeated once from the corrected centre.
+    """
+    response = thin_line_response(gray, k_mm, ppm)
+    layout = l_frame_layout(half, arm)
+    found = _guided_pass(response, ppm, centre_px, layout, arm)
+    hits = [i for i, (point, _) in enumerate(found) if point is not None]
+    if 3 <= len(hits) < len(layout):
+        shift = np.median(np.array([found[i][0] - (centre_px + layout[i][0] * ppm) for i in hits]), axis=0)
+        again = _guided_pass(response, ppm, centre_px + shift, layout, arm)
+        if sum(point is not None for point, _ in again) > len(hits):
+            found = again
+    return [f for f in found if f[0] is not None]
+
+
+def _guided_pass(response, ppm, centre_px, layout, arm):
+    """One pass over the layout; an L not found is (None, None) so the caller can pair up."""
+    lo, hi = GUIDED_ARM_SPAN_MM
+    found = []
+    for vertex_mm, x_end_mm, y_end_mm in layout:
+        nominal = centre_px + vertex_mm * ppm
+        vertex = nominal
+        fit = None
+        # Twice: the first pass measures the arms from where the layout says the vertex is,
+        # which may be millimetres off, so the sampled span can reach into the corner and the
+        # other arm; the second samples each arm from the vertex just found.
+        for _ in range(2):
+            arms = []
+            for end_mm in (x_end_mm, y_end_mm):
+                unit = (end_mm - vertex_mm) / arm
+                one = _guided_arm(response, vertex + unit * lo * ppm, vertex + unit * hi * ppm, ppm)
+                if one is None:
+                    break
+                arms.append(one)
+            if len(arms) < 2:
+                fit = None
+                break
+            (pa, da, ra, _), (pb, db, rb, _) = arms
+            if abs(float(np.dot(da, db))) > 0.5:
+                fit = None
+                break
+            point = _intersect(pa, da, pb, db)
+            if point is None or np.linalg.norm(point - nominal) > GUIDED_SEARCH_MM * ppm:
+                fit = None
+                break
+            vertex = point
+            fit = (point, (ra + rb) / 2)
+        found.append(fit if fit is not None else (None, None))
+    return found
+
+
 def _fit_ruler(vertices_px, nominal_mm):
     """Least squares px = A*mm + b. Returns (A, b, residual_mm (N,2))."""
     design = np.column_stack([nominal_mm, np.ones(len(nominal_mm))])
@@ -337,8 +490,31 @@ def _fit_ruler(vertices_px, nominal_mm):
     return a_mat, b_vec, res_mm
 
 
-def solve_ruler(vertices, centre_px, ppm_nominal, half):
-    """Bin L vertices into the 3x3 nominal grid and fit the ruler; raises SolveError."""
+def _fit_ruler_projective(vertices_px, nominal_mm):
+    """Least squares homography mm -> px. Returns (H, residual_mm (N,2))."""
+    h_mat, _ = cv2.findHomography(nominal_mm.astype(np.float64), vertices_px.astype(np.float64), 0)
+    if h_mat is None:
+        raise SolveError('RULER_INVALID', 'projective ruler is degenerate')
+    back = cv2.perspectiveTransform(vertices_px.reshape(-1, 1, 2).astype(np.float64), np.linalg.inv(h_mat)).reshape(
+        -1, 2
+    )
+    return h_mat, back - nominal_mm
+
+
+def _affine_at_origin(h_mat):
+    """The homography's local affine (A, b) at mm = 0: what px/mm means for a projective ruler."""
+    w = h_mat[2, 2]
+    b_vec = h_mat[:2, 2] / w
+    a_mat = (h_mat[:2, :2] - np.outer(b_vec, h_mat[2, :2])) / w
+    return a_mat, b_vec
+
+
+def solve_ruler(vertices, centre_px, ppm_nominal, half, model='affine'):
+    """Bin L vertices into the 3x3 nominal grid and fit the ruler; raises SolveError.
+
+    `model`: 'affine' (px = A mm + b) or 'projective' (a homography, for a hand-held
+    photograph of the flat sheet). The self-check is the same for both.
+    """
     if len(vertices) < RULER_MIN_VERTICES:
         raise SolveError('RULER_INVALID', 'only %d L vertices found, need %d' % (len(vertices), RULER_MIN_VERTICES))
     bins = {}
@@ -355,12 +531,17 @@ def solve_ruler(vertices, centre_px, ppm_nominal, half):
     px = np.array([bins[k][0] for k in keys])
     mm = np.array([[k[0] * half, k[1] * half] for k in keys], dtype=np.float64)
     rejected = []
+    h_mat = None
     while True:
         if len(keys) < RULER_MIN_VERTICES:
             raise SolveError(
                 'RULER_INVALID', 'fewer than %d vertices left after outlier rejection' % RULER_MIN_VERTICES
             )
-        a_mat, b_vec, res_mm = _fit_ruler(px, mm)
+        if model == 'projective':
+            h_mat, res_mm = _fit_ruler_projective(px, mm)
+            a_mat, b_vec = _affine_at_origin(h_mat)
+        else:
+            a_mat, b_vec, res_mm = _fit_ruler(px, mm)
         norms = np.linalg.norm(res_mm, axis=1)
         worst = int(np.argmax(norms))
         if norms[worst] <= RULER_RESIDUAL_MM or len(keys) <= RULER_MIN_VERTICES:
@@ -370,7 +551,7 @@ def solve_ruler(vertices, centre_px, ppm_nominal, half):
         px = np.delete(px, worst, axis=0)
         mm = np.delete(mm, worst, axis=0)
     rms = float(math.sqrt(np.mean(norms**2)))
-    measured_mm = (px - b_vec) @ np.linalg.inv(a_mat).T
+    measured_mm = mm + res_mm
     diffs = measured_mm[:, None, :] - measured_mm[None, :, :]
     span = float(np.max(np.linalg.norm(diffs, axis=2)))
     if abs(span - L_DIAGONAL_MM) > RULER_SPAN_TOLERANCE * L_DIAGONAL_MM:
@@ -380,6 +561,8 @@ def solve_ruler(vertices, centre_px, ppm_nominal, half):
     return {
         'A': a_mat,
         'b': b_vec,
+        'H': h_mat,
+        'model': model,
         'px_per_mm_x': float(np.linalg.norm(a_mat[:, 0])),
         'px_per_mm_y': float(np.linalg.norm(a_mat[:, 1])),
         'vertices_used': len(keys),
@@ -693,6 +876,89 @@ class _PxToMm:
     def to_px(self, mm):
         return np.asarray(mm, dtype=np.float64) @ self.a.T + self.b
 
+    def grid_mm(self, xs, ys):
+        """mm_x, mm_y rasters for pixel column coordinates xs (1,W) and rows ys (H,1)."""
+        dx, dy = xs - self.b[0], ys - self.b[1]
+        return self.inv[0, 0] * dx + self.inv[0, 1] * dy, self.inv[1, 0] * dx + self.inv[1, 1] * dy
+
+
+class _PxToMmProjective(_PxToMm):
+    """The same through a homography; `mm_per_px`, `a`, `b` are its local affine at the origin."""
+
+    def __init__(self, h_mat):
+        a_mat, b_vec = _affine_at_origin(h_mat)
+        super().__init__(a_mat, b_vec)
+        self.h = h_mat
+        self.h_inv = np.linalg.inv(h_mat)
+
+    def __call__(self, px):
+        pts = np.asarray(px, dtype=np.float64).reshape(-1, 1, 2)
+        out = cv2.perspectiveTransform(pts, self.h_inv).reshape(-1, 2)
+        return out[0] if np.asarray(px).ndim == 1 else out
+
+    def to_px(self, mm):
+        pts = np.asarray(mm, dtype=np.float64).reshape(-1, 1, 2)
+        out = cv2.perspectiveTransform(pts, self.h).reshape(-1, 2)
+        return out[0] if np.asarray(mm).ndim == 1 else out
+
+    def grid_mm(self, xs, ys):
+        h = self.h_inv
+        w = h[2, 0] * xs + h[2, 1] * ys + h[2, 2]
+        return (h[0, 0] * xs + h[0, 1] * ys + h[0, 2]) / w, (h[1, 0] * xs + h[1, 1] * ys + h[1, 2]) / w
+
+
+def _px_to_mm_for(ruler):
+    return _PxToMmProjective(ruler['H']) if ruler.get('H') is not None else _PxToMm(ruler['A'], ruler['b'])
+
+
+def locate_coupon(galvo_raw, gray, pitch, half, arm):
+    """Where the coupon is and at what scale, from the node rings and then the L frame.
+
+    The node rings are the near-square galvo components a ring's share full (about 0.4;
+    an X stroke's box is emptier, an arm's box is a line): their median is the coupon's
+    centre and the median distance between nearest rings is one pitch, at the galvo's
+    own scale, so a first guess at px/mm. That guess is swept over LOCATE_PPM_STEPS with
+    the guided L detection and the sweep's best (most vertices, then least residual)
+    wins. Returns (centre_px, ppm) or None when there are no rings to go by.
+    """
+    count, labels, stats, centroids = cv2.connectedComponentsWithStats(galvo_raw.astype(np.uint8), connectivity=8)
+    limit = 0.05 * max(galvo_raw.shape)
+    rings = []
+    for i in range(1, count):
+        x, y, w, h, area = stats[i]
+        if area < 8 or max(w, h) >= limit or min(w, h) < 3:
+            continue
+        if not (0.7 <= w / float(h) <= 1.4) or not (0.25 <= area / float(w * h) <= 0.6):
+            continue
+        # a ring encloses background: a hole that does not touch its box's border. An X
+        # stroke or a broken arm fills a box of the same shape and share without one.
+        hole = (labels[y : y + h, x : x + w] != i).astype(np.uint8)
+        n_bg, bg = cv2.connectedComponents(hole, connectivity=4)
+        border = np.unique(np.concatenate([bg[0, :], bg[-1, :], bg[:, 0], bg[:, -1]]))
+        if len(set(range(1, n_bg)) - set(border.tolist())) == 0:
+            continue
+        rings.append(centroids[i])
+    if len(rings) < 12:
+        return None
+    pts = np.array(rings)
+    centre = np.median(pts, axis=0)
+    diffs = np.linalg.norm(pts[:, None, :] - pts[None, :, :], axis=2)
+    np.fill_diagonal(diffs, np.inf)
+    nearest = np.sort(diffs.min(axis=1))
+    ppm0 = float(np.median(nearest)) / pitch
+    if ppm0 <= 0:
+        return None
+    best = None
+    for step in LOCATE_PPM_STEPS:
+        ppm = ppm0 * step
+        vertices = find_l_vertices_guided(gray, ppm, centre, half, arm, 1.5)
+        if not vertices:
+            continue
+        score = (len(vertices), -float(np.mean([r for _, r in vertices])))
+        if best is None or score > best[0]:
+            best = (score, ppm)
+    return (centre, best[1] if best is not None else ppm0)
+
 
 def solve_galvo_coupon(img, params):
     """Solve one coupon image (BGR uint8). Returns (result dict, annotated BGR or None).
@@ -710,13 +976,38 @@ def solve_galvo_coupon(img, params):
     # --- 1. masks
     is_gray = bool(np.array_equal(img[:, :, 0], img[:, :, 1]) and np.array_equal(img[:, :, 1], img[:, :, 2]))
     galvo_raw = img[:, :, 1] > int(thresholds['galvo_green'])
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    located = None
+    if p['locate']:
+        located = locate_coupon(galvo_raw, gray, p['pitch'], half, arm_len)
+        if located is not None:
+            centre, ppm_nominal = located
     kernel = np.ones((3, 3), np.uint8)
     galvo_dilated = cv2.dilate(galvo_raw.astype(np.uint8), kernel, iterations=max(1, int(0.3 * ppm_nominal)))
 
+    def ruler_models():
+        if p['ruler_model'] == 'auto':
+            return ['affine', 'projective']
+        return [p['ruler_model']]
+
     def solve_ruler_at(roi_centre):
-        # the L frame lives in a ring around the coupon: vertices at +-half, arms `arm_len` inward
-        ring_roi = _chebyshev_roi(img.shape, roi_centre, (half - arm_len - 3) * ppm_nominal, (half + 12) * ppm_nominal)
         errors = []
+        # guided first: the layout says where each L is, and the thin-line response does not
+        # care whether the groove photographs bright or dark
+        for k_mm in GUIDED_KERNELS_MM if p['guided'] else []:
+            vertices = find_l_vertices_guided(gray, ppm_nominal, roi_centre, half, arm_len, k_mm)
+            for model in ruler_models():
+                try:
+                    found = solve_ruler(vertices, roi_centre, ppm_nominal, half, model)
+                except SolveError as e:
+                    errors.append('guided %g/%s: %s' % (k_mm, model, e.reason))
+                    continue
+                found['threshold'] = ['guided', k_mm]
+                found['vertices_found'] = len(vertices)
+                return found
+        # then the factory's masks: the L frame lives in a ring around the coupon, vertices at
+        # +-half, arms `arm_len` inward
+        ring_roi = _chebyshev_roi(img.shape, roi_centre, (half - arm_len - 3) * ppm_nominal, (half + 12) * ppm_nominal)
         for entry in thresholds['l_frame']:
             threshold, mode = entry[0], entry[1]
             tophat_mm = float(entry[2]) if len(entry) > 2 else 0.0
@@ -730,14 +1021,18 @@ def solve_galvo_coupon(img, params):
             if mode != 'any' and not is_gray:
                 mask &= galvo_dilated == 0  # "non-galvo marks" (meaningless on a grayscale image)
             vertices = find_l_vertices(mask, ppm_nominal)
-            try:
-                found = solve_ruler(vertices, roi_centre, ppm_nominal, half)
-            except SolveError as e:
-                errors.append('%s/%s%s: %s' % (threshold, mode, '/tophat%g' % tophat_mm if tophat_mm else '', e.reason))
-                continue
-            found['threshold'] = list(entry)
-            found['vertices_found'] = len(vertices)
-            return found
+            for model in ruler_models():
+                try:
+                    found = solve_ruler(vertices, roi_centre, ppm_nominal, half, model)
+                except SolveError as e:
+                    errors.append(
+                        '%s/%s%s/%s: %s'
+                        % (threshold, mode, '/tophat%g' % tophat_mm if tophat_mm else '', model, e.reason)
+                    )
+                    continue
+                found['threshold'] = list(entry)
+                found['vertices_found'] = len(vertices)
+                return found
         raise SolveError('RULER_INVALID', '; '.join(errors) or 'no L-frame threshold set given')
 
     ruler = solve_ruler_at(centre)
@@ -751,18 +1046,16 @@ def solve_galvo_coupon(img, params):
         except SolveError:
             pass
 
-    px_to_mm = _PxToMm(ruler['A'], ruler['b'])
+    px_to_mm = _px_to_mm_for(ruler)
     ppm_mean = 1.0 / px_to_mm.mm_per_px
 
     # --- 3. galvo mask + ring candidates
     # Everything inside Chebyshev radius (half - arm - 1) of the ruler origin is galvo
     # territory: the coupon reaches ~53.4 mm, the nearest L arm tip is at half - arm.
     inner_mm = half - arm_len - 1
-    ys = np.arange(img.shape[0], dtype=np.float32)[:, None] - ruler['b'][1]
-    xs = np.arange(img.shape[1], dtype=np.float32)[None, :] - ruler['b'][0]
-    inv = px_to_mm.inv
-    mm_x = inv[0, 0] * xs + inv[0, 1] * ys
-    mm_y = inv[1, 0] * xs + inv[1, 1] * ys
+    ys = np.arange(img.shape[0], dtype=np.float32)[:, None]
+    xs = np.arange(img.shape[1], dtype=np.float32)[None, :]
+    mm_x, mm_y = px_to_mm.grid_mm(xs, ys)
     inner_roi = (np.abs(mm_x) < inner_mm) & (np.abs(mm_y) < inner_mm)
     del mm_x, mm_y
     galvo_mask = galvo_raw & inner_roi
@@ -855,7 +1148,11 @@ def solve_galvo_coupon(img, params):
             'rms_mm': ruler['rms_mm'],
             'span_mm': ruler['span_mm'],
             'threshold': ruler['threshold'],
+            'model': ruler['model'],
         },
+        'located': None
+        if located is None
+        else {'center_px': [float(located[0][0]), float(located[0][1])], 'px_per_mm': float(located[1])},
         'nodes_found': nodes_found,
         'scale_x': dec['scale_x'],
         'scale_y': dec['scale_y'],

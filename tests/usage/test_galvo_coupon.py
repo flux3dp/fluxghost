@@ -41,12 +41,13 @@ class SolveGalvoCouponTest(unittest.TestCase):
         assert_truth(self, res)
         self.assertEqual(res['orientation']['source'], 'identity')
         self.assertTrue(res['orientation']['matches_invert'])
-        self.assertEqual(res['ruler']['threshold'], [200, 'any'])
+        self.assertEqual(res['ruler']['threshold'], ['guided', 1.0])
+        self.assertEqual(res['ruler']['model'], 'affine')
         self.assertEqual(annotated.shape, (3600, 3600, 3))
 
     def test_recovers_known_affine_colour(self):
         """Reddish L frame (green < 150) is skipped by the first threshold set and caught by [160, 'red']."""
-        res, annotated = solve_galvo_coupon(render_coupon(color=True, **TRUTH), PARAMS)
+        res, annotated = solve_galvo_coupon(render_coupon(color=True, **TRUTH), dict(PARAMS, guided=False))
         assert_truth(self, res)
         self.assertEqual(res['ruler']['threshold'], [160, 'red'])
         self.assertIsNone(annotated)
@@ -110,9 +111,48 @@ class SolveGalvoCouponTest(unittest.TestCase):
         img = np.clip(no_frame.astype(np.float32) + ramp, 0, 255)
         img[is_frame] = np.clip(30 + ramp[0, :, 0][np.nonzero(is_frame)[1]][:, None] + 60, 0, 255)
         img = img.astype(np.uint8)
-        res, _ = solve_galvo_coupon(img, PARAMS)
+        res, _ = solve_galvo_coupon(img, dict(PARAMS, guided=False))
         assert_truth(self, res)
         self.assertEqual(res['ruler']['threshold'][2], 2.0)
+        # and the guided detection, which does not threshold, is not troubled by the light
+        res, _ = solve_galvo_coupon(img, PARAMS)
+        assert_truth(self, res)
+        self.assertEqual(res['ruler']['threshold'][0], 'guided')
+
+    def test_dark_slit_frame_is_found_too(self):
+        """Camera case: a cut-through L photographs as a dark line; the masks want bright ones."""
+        full = render_coupon(**TRUTH)
+        no_frame = render_coupon(drop_l=tuple(range(8)), **TRUTH)
+        img = no_frame.copy()
+        img[np.any(full != no_frame, axis=2)] = (5, 5, 5)
+        res, _ = solve_galvo_coupon(img, PARAMS)
+        assert_truth(self, res)
+        self.assertEqual(res['ruler']['threshold'][0], 'guided')
+
+    def test_hand_held_photograph_needs_the_projective_ruler(self):
+        """A phone photograph of the flat sheet is a homography of it, which no affine ruler fits."""
+        img = render_coupon(**TRUTH)
+        src = np.float32([[0, 0], [3600, 0], [3600, 3600], [0, 3600]])
+        dst = np.float32([[120, 60], [3480, 0], [3600, 3600], [0, 3540]])
+        warped = cv2.warpPerspective(img, cv2.getPerspectiveTransform(src, dst), (3600, 3600))
+        with self.assertRaises(SolveError) as ctx:
+            solve_galvo_coupon(warped, PARAMS)
+        self.assertEqual(ctx.exception.info, 'RULER_INVALID')
+        res, _ = solve_galvo_coupon(warped, dict(PARAMS, ruler_model='auto'))
+        assert_truth(self, res)
+        self.assertEqual(res['ruler']['model'], 'projective')
+
+    def test_locate_finds_the_coupon_at_an_unknown_scale(self):
+        """A photograph of unknown scale: the centre and px/mm given are only a starting point."""
+        img = render_coupon(px_per_mm=15.0, center_px=(1500, 2000), **TRUTH)
+        params = dict(PARAMS, px_per_mm=20, expected_center_px=[1800, 1800], locate=True)
+        res, _ = solve_galvo_coupon(img, params)
+        assert_truth(self, res)
+        self.assertAlmostEqual(res['located']['px_per_mm'], 15.0, delta=0.75)
+        np.testing.assert_allclose(
+            res['located']['center_px'], [1500, 2000], atol=6 * 15
+        )  # the galvo marks sit offset_mm off the frame centre
+        self.assertAlmostEqual(res['ruler']['px_per_mm_x'], 15.0, delta=0.02)
 
     def test_ruler_invalid_without_frame(self):
         img = render_coupon(drop_l=tuple(range(8)), **TRUTH)
