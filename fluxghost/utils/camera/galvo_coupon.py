@@ -424,13 +424,15 @@ def _guided_arm(response, start_px, end_px, ppm):
     return point, direction, residual, snr
 
 
-def find_l_vertices_guided(gray, ppm, centre_px, half, arm, k_mm):
+def find_l_vertices_guided(gray, ppm, centre_px, half, arm, k_mm, response=None):
     """L vertices from where the layout says the Ls are: list of (vertex px, residual px).
 
     When the expected centre is a few mm off, the Ls it finds say by how much: with at least
     three found and some missing, the search is repeated once from the corrected centre.
+    `response` is thin_line_response(gray, k_mm, ppm) when the caller has it already.
     """
-    response = thin_line_response(gray, k_mm, ppm)
+    if response is None:
+        response = thin_line_response(gray, k_mm, ppm)
     layout = l_frame_layout(half, arm)
     found = _guided_pass(response, ppm, centre_px, layout, arm)
     hits = [i for i, (point, _) in enumerate(found) if point is not None]
@@ -911,47 +913,53 @@ def _px_to_mm_for(ruler):
     return _PxToMmProjective(ruler['H']) if ruler.get('H') is not None else _PxToMm(ruler['A'], ruler['b'])
 
 
-def locate_coupon(galvo_raw, gray, pitch, half, arm):
-    """Where the coupon is and at what scale, from the node rings and then the L frame.
+def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
+    """Where the coupon is and at what scale, from the galvo marks and then the L frame.
 
-    The node rings are the near-square galvo components a ring's share full (about 0.4;
-    an X stroke's box is emptier, an arm's box is a line): their median is the coupon's
-    centre and the median distance between nearest rings is one pitch, at the galvo's
-    own scale, so a first guess at px/mm. That guess is swept over LOCATE_PPM_STEPS with
-    the guided L detection and the sweep's best (most vertices, then least residual)
-    wins. Returns (centre_px, ppm) or None when there are no rings to go by.
+    The galvo marks are one dense cluster of hundreds of small components whose neighbours
+    are about 3 mm apart (an arm and its ring, two arms across a gap), whatever the scale:
+    closing the mask with 2.5 times the median nearest-neighbour distance fuses them into one
+    blob and leaves the Ls, 10 mm off the cluster, and any specks apart. The blob holding
+    the most components is the coupon (a scan's white border is one blob holding none);
+    those components' mean is the centre and the blob's side (2 x `reach`, the discovery
+    marks' outer tips, at scale 1) the first guess at px/mm, swept over LOCATE_PPM_STEPS
+    with the guided L detection; the sweep's best (most vertices, then least residual)
+    wins. Returns (centre_px, ppm) or None without a cluster to go by.
     """
-    count, labels, stats, centroids = cv2.connectedComponentsWithStats(galvo_raw.astype(np.uint8), connectivity=8)
-    limit = 0.05 * max(galvo_raw.shape)
-    rings = []
-    for i in range(1, count):
-        x, y, w, h, area = stats[i]
-        if area < 8 or max(w, h) >= limit or min(w, h) < 3:
-            continue
-        if not (0.7 <= w / float(h) <= 1.4) or not (0.25 <= area / float(w * h) <= 0.6):
-            continue
-        # a ring encloses background: a hole that does not touch its box's border. An X
-        # stroke or a broken arm fills a box of the same shape and share without one.
-        hole = (labels[y : y + h, x : x + w] != i).astype(np.uint8)
-        n_bg, bg = cv2.connectedComponents(hole, connectivity=4)
-        border = np.unique(np.concatenate([bg[0, :], bg[-1, :], bg[:, 0], bg[:, -1]]))
-        if len(set(range(1, n_bg)) - set(border.tolist())) == 0:
-            continue
-        rings.append(centroids[i])
-    if len(rings) < 12:
+    h, w = galvo_raw.shape[:2]
+    down = max(1, round(max(h, w) / 1200.0))
+    small = galvo_raw.astype(np.uint8) * 255
+    if down > 1:
+        small = cv2.resize(small, (w // down, h // down), interpolation=cv2.INTER_AREA)
+    small = (small > 0).astype(np.uint8)
+    count, _, stats, centroids = cv2.connectedComponentsWithStats(small, connectivity=8)
+    marks = np.array([centroids[i] for i in range(1, count) if stats[i][4] >= 2])
+    if len(marks) < 50:
         return None
-    pts = np.array(rings)
-    centre = np.median(pts, axis=0)
-    diffs = np.linalg.norm(pts[:, None, :] - pts[None, :, :], axis=2)
-    np.fill_diagonal(diffs, np.inf)
-    nearest = np.sort(diffs.min(axis=1))
-    ppm0 = float(np.median(nearest)) / pitch
-    if ppm0 <= 0:
+    dists = np.linalg.norm(marks[:, None, :] - marks[None, :, :], axis=2)
+    np.fill_diagonal(dists, np.inf)
+    spacing = float(np.median(dists.min(axis=1)))
+    k = max(3, int(2.5 * spacing) | 1)
+    fused = cv2.morphologyEx(small, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+    n_blobs, labels, stats, _ = cv2.connectedComponentsWithStats(fused, connectivity=8)
+    if n_blobs < 2:
         return None
+    rows = np.clip(np.round(marks[:, 1]).astype(int), 0, labels.shape[0] - 1)
+    cols = np.clip(np.round(marks[:, 0]).astype(int), 0, labels.shape[1] - 1)
+    owner = labels[rows, cols]
+    counts = np.bincount(owner, minlength=n_blobs)
+    counts[0] = 0
+    i = int(np.argmax(counts))
+    if counts[i] < 50:
+        return None
+    x, y, bw, bh, _ = stats[i]
+    centre = marks[owner == i].mean(axis=0) * down
+    ppm0 = float(max(bw, bh)) * down / (2.0 * reach)
     best = None
+    response = thin_line_response(gray, 1.5, ppm0)  # the kernel is within 20 % for every step
     for step in LOCATE_PPM_STEPS:
         ppm = ppm0 * step
-        vertices = find_l_vertices_guided(gray, ppm, centre, half, arm, 1.5)
+        vertices = find_l_vertices_guided(gray, ppm, centre, half, arm, 1.5, response)
         if not vertices:
             continue
         score = (len(vertices), -float(np.mean([r for _, r in vertices])))
@@ -960,11 +968,48 @@ def locate_coupon(galvo_raw, gray, pitch, half, arm):
     return (centre, best[1] if best is not None else ppm0)
 
 
+ROTATIONS = {0: None, 90: cv2.ROTATE_90_CLOCKWISE, 180: cv2.ROTATE_180, 270: cv2.ROTATE_90_COUNTERCLOCKWISE}
+
+
 def solve_galvo_coupon(img, params):
     """Solve one coupon image (BGR uint8). Returns (result dict, annotated BGR or None).
 
+    With `rotate: "auto"` the image is tried as it is and turned by 90, 180 and 270 degrees
+    (a sheet goes on a scanner any way up), and the first way up whose solve lands the
+    identity ring where the layout puts it, with the galvo axes within 45 degrees of the
+    frame's, is the answer; `rotated_deg` says which. The annotated image is of that way up.
+
     Raises SolveError for RULER_INVALID / GRID_INVALID.
     """
+    rotate = str(params.get('rotate', 'none'))
+    if rotate != 'auto':
+        result, annotated = _solve_upright(img, params)
+        result['rotated_deg'] = 0
+        return result, annotated
+    errors = []
+    fallback = None
+    # The threshold masks cost seconds per try on a large scan; the guided detection is what
+    # finds a photographed frame anyway, so the four ways up are tried with it alone first.
+    guided_only = dict(params, thresholds=dict(params.get('thresholds') or {}, l_frame=[]))
+    for trial in (guided_only, params):
+        for deg, code in ROTATIONS.items():
+            turned = img if code is None else cv2.rotate(img, code)
+            try:
+                result, annotated = _solve_upright(turned, trial)
+            except SolveError as e:
+                errors.append('%d: %s' % (deg, e.reason))
+                continue
+            result['rotated_deg'] = deg
+            if result['orientation']['source'] == 'identity' and abs(result['rotation_deg']) < 45:
+                return result, annotated
+            if fallback is None:
+                fallback = (result, annotated)
+        if fallback is not None:
+            return fallback
+    raise SolveError('RULER_INVALID', '; '.join(errors))
+
+
+def _solve_upright(img, params):
     if img.ndim == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     p = parse_params(params, img.shape)
@@ -979,7 +1024,7 @@ def solve_galvo_coupon(img, params):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     located = None
     if p['locate']:
-        located = locate_coupon(galvo_raw, gray, p['pitch'], half, arm_len)
+        located = locate_coupon(galvo_raw, gray, p['pitch'], half, arm_len, p['grid'])
         if located is not None:
             centre, ppm_nominal = located
     kernel = np.ones((3, 3), np.uint8)
@@ -990,12 +1035,16 @@ def solve_galvo_coupon(img, params):
             return ['affine', 'projective']
         return [p['ruler_model']]
 
+    responses = {}
+
     def solve_ruler_at(roi_centre):
         errors = []
         # guided first: the layout says where each L is, and the thin-line response does not
         # care whether the groove photographs bright or dark
         for k_mm in GUIDED_KERNELS_MM if p['guided'] else []:
-            vertices = find_l_vertices_guided(gray, ppm_nominal, roi_centre, half, arm_len, k_mm)
+            if k_mm not in responses:
+                responses[k_mm] = thin_line_response(gray, k_mm, ppm_nominal)
+            vertices = find_l_vertices_guided(gray, ppm_nominal, roi_centre, half, arm_len, k_mm, responses[k_mm])
             for model in ruler_models():
                 try:
                     found = solve_ruler(vertices, roi_centre, ppm_nominal, half, model)

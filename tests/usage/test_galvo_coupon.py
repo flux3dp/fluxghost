@@ -154,6 +154,19 @@ class SolveGalvoCouponTest(unittest.TestCase):
         )  # the galvo marks sit offset_mm off the frame centre
         self.assertAlmostEqual(res['ruler']['px_per_mm_x'], 15.0, delta=0.02)
 
+    def test_rotate_auto_turns_a_sideways_scan_the_right_way_up(self):
+        """A sheet scanned on its side: the identity ring says which way is up."""
+        img = cv2.rotate(render_coupon(**TRUTH), cv2.ROTATE_90_CLOCKWISE)
+        # as it is, the frame's own rotation absorbs the quarter turn and the galvo axes come out
+        # 90 degrees off; turned the right way up, the numbers are the sheet's
+        sideways, _ = solve_galvo_coupon(img, PARAMS)
+        self.assertGreater(abs(sideways['rotation_deg']), 45)
+        res, annotated = solve_galvo_coupon(img, dict(PARAMS, rotate='auto', annotate=True))
+        assert_truth(self, res)
+        self.assertEqual(res['rotated_deg'], 270)
+        self.assertEqual(res['orientation']['source'], 'identity')
+        self.assertEqual(annotated.shape, (3600, 3600, 3))
+
     def test_ruler_invalid_without_frame(self):
         img = render_coupon(drop_l=tuple(range(8)), **TRUTH)
         with self.assertRaises(SolveError) as ctx:
