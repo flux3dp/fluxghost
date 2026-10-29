@@ -146,6 +146,7 @@ class FisheyeCameraMixin:
                 'rvec_polyfit': np.array(data['rvec_polyfit']),
                 'tvec_polyfit': np.array(data['tvec_polyfit']),
                 'is_fisheye': data.get('is_fisheye', True),
+                'offset': tuple(data.get('offset', (0, 0))),
             }
 
             remote_model = getattr(self, 'remote_model', None)
@@ -158,6 +159,7 @@ class FisheyeCameraMixin:
                 'rvec': np.array(data['rvec']),
                 'tvec': np.array(data['tvec']),
                 'is_fisheye': data.get('is_fisheye', True),
+                'offset': tuple(data.get('offset', (0, 0))),
             }
         elif version == 4:
             self.fisheye_param = {
@@ -170,6 +172,8 @@ class FisheyeCameraMixin:
                 'is_fisheye': data.get('is_fisheye', True),
                 'total_width': data.get('total_width', None),
                 'total_height': data.get('total_height', None),
+                'offset': tuple(data.get('offset', (0, 0))),
+                'region_offsets': data.get('region_offsets', None),
             }
 
             remote_model = getattr(self, 'remote_model', None)
@@ -203,6 +207,7 @@ class FisheyeCameraMixin:
             width, height = hw_profile['width'], hw_profile['length']
             xgrid, ygrid = range(0, width + 1, 10), range(0, height + 1, 10)
             objp = np.zeros((len(xgrid) * len(ygrid), 1, 3), np.float64)
+            ox, oy = self.fisheye_param.get('offset', (0, 0))
             keyMap = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
             for i in range(len(ygrid)):
                 for j in range(len(xgrid)):
@@ -212,7 +217,7 @@ class FisheyeCameraMixin:
                         y = min(int((ygrid[i] / height) * 3), 2)
                         key = keyMap[y * 3 + x]
                         h -= self.leveling_data[key]
-                    objp[i * len(xgrid) + j] = [xgrid[j], ygrid[i], -h]
+                    objp[i * len(xgrid) + j] = [xgrid[j] + ox, ygrid[i] + oy, -h]
             projected_points = project_points(objp, rvec, tvec, k, d, is_fisheye=is_fisheye)
             perspective_points = remap_corners(projected_points, k, d).reshape(len(ygrid), len(xgrid), 2)
             self.fisheye_param.update({'xgrid': xgrid, 'ygrid': ygrid, 'perspective_points': perspective_points})
@@ -242,6 +247,8 @@ class FisheyeCameraMixin:
                 is_fisheye=is_fisheye,
                 total_width=self.fisheye_param.get('total_width', None),
                 total_height=self.fisheye_param.get('total_height', None),
+                offset=self.fisheye_param.get('offset', (0, 0)),
+                region_offsets=self.fisheye_param.get('region_offsets', None),
             )
 
             self.fisheye_param.update(
@@ -268,6 +275,8 @@ class FisheyeCameraMixin:
         rvec = self.fisheye_param['rvec']
         tvec = self.fisheye_param['tvec']
         is_fisheye = self.fisheye_param.get('is_fisheye', True)
+        # manual bed-plane offset: shift the object points, never the grid axes or the pixels
+        objp = objp + np.array([*self.fisheye_param.get('offset', (0, 0)), 0])
         points = project_points(objp.reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d, is_fisheye=is_fisheye)
         points = remap_corners(points, k, d).reshape(objp.shape[0], objp.shape[1], 2)
         self.fisheye_param.update({'xgrid': xgrid - xgrid[0], 'ygrid': ygrid - ygrid[0], 'perspective_points': points})

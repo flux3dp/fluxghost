@@ -43,7 +43,18 @@ def generate_grid_objects(grid_data_x, grid_data_y):
 
 
 def calculate_regional_perspective_points(
-    grid_data_x, grid_data_y, h, k, d, rvecs, tvecs, is_fisheye=True, total_width=None, total_height=None
+    grid_data_x,
+    grid_data_y,
+    h,
+    k,
+    d,
+    rvecs,
+    tvecs,
+    is_fisheye=True,
+    total_width=None,
+    total_height=None,
+    offset=(0, 0),
+    region_offsets=None,
 ):
     """
     Calculate the perspective points using for 9-region rvecs and tvecs
@@ -56,6 +67,10 @@ def calculate_regional_perspective_points(
     :param np.array d: distortion coefficients
     :param Dict[np.array] rvecs: of rotation vectors for each region
     :param Dict[np.array] tvecs: dict of translation vectors for each region
+    :param (float, float) offset: manual bed-plane correction in mm added to every object point before
+        projection, so the warped image shifts by exactly that much on the bed
+    :param Dict[(float, float)] region_offsets: per-region override of `offset`; the region is chosen from
+        the unshifted point, so a cell means "pixels shown in this part of the bed move by this much"
     """
     xgrid, ygrid, objp = generate_grid_objects(grid_data_x, grid_data_y)
     orig_shape = objp.shape
@@ -73,8 +88,14 @@ def calculate_regional_perspective_points(
         region = region_key_map[y_index * 3 + x_index]
         rvec = rvecs[region]
         tvec = tvecs[region]
+        ox, oy = region_offsets.get(region, offset) if region_offsets else offset
         point = project_points(
-            np.array([[x, y, -h]]).reshape(-1, 1, 3).astype(np.float32), rvec, tvec, k, d, is_fisheye=is_fisheye
+            np.array([[x + ox, y + oy, -h]]).reshape(-1, 1, 3).astype(np.float32),
+            rvec,
+            tvec,
+            k,
+            d,
+            is_fisheye=is_fisheye,
         )
         perspective_points[i] = point[0][0]
     perspective_points = perspective_points.reshape(1, -1, 2)

@@ -22,6 +22,7 @@ Sets the calibration parameters used by `transform_image`. The `v` field selects
 - `v: 2`: `{"v": 2, "k", "d", "refHeight", "rvec_polyfit", "tvec_polyfit", "is_fisheye"?}` — perspective points are immediately computed for height 0. Since this endpoint has no connected device, the work-area lookup falls back to `{"width": 430, "length": 320}` (`HW_PROFILE.get(None, ...)`).
 - `v: 3`: `{"v": 3, "k", "d", "rvec", "tvec", "is_fisheye"?}` — a follow-up `set_fisheye_grid` is required before `transform_image` can produce a corrected image.
 - `v: 4`: `{"v": 4, "k", "d", "rvec_polyfits", "tvec_polyfits", "grids", "is_fisheye"?, "total_width"?, "total_height"?}` — perspective points computed for height 0.
+- Optional `offset` (v2/3/4) and `region_offsets` (v4): manual bed-plane corrections in mm, see `set_fisheye_matrix` in [camera.md](camera.md).
 
 `← {"status": "ok"}` on success; `← {"status": "error", "error": ["Invalid version"]}` for an unrecognized `v`.
 
