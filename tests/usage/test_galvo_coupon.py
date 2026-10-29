@@ -167,6 +167,18 @@ class SolveGalvoCouponTest(unittest.TestCase):
         self.assertEqual(res['orientation']['source'], 'identity')
         self.assertEqual(annotated.shape, (3600, 3600, 3))
 
+    def test_white_paper_is_inverted_first(self):
+        """Burnt marks on white paper: the solver turns it into the dark sheet it expects."""
+        img = 255 - render_coupon(**TRUTH)
+        res, annotated = solve_galvo_coupon(img, dict(PARAMS, annotate=True))
+        assert_truth(self, res)
+        self.assertTrue(res['inverted'])
+        self.assertEqual(res['ruler']['threshold'][0], 'guided')
+        # the annotation is drawn on what was solved, the inverted image
+        self.assertLess(float(np.median(annotated)), 127)
+        res, _ = solve_galvo_coupon(render_coupon(**TRUTH), PARAMS)
+        self.assertFalse(res['inverted'])
+
     def test_ruler_invalid_without_frame(self):
         img = render_coupon(drop_l=tuple(range(8)), **TRUTH)
         with self.assertRaises(SolveError) as ctx:

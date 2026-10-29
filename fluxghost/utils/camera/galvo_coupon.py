@@ -152,6 +152,9 @@ def parse_params(params, image_shape):
         # find the coupon in the image first; expected_center_px and px_per_mm are then only
         # a starting point and may be far off (a photograph of unknown scale)
         'locate': bool(params.get('locate', False)),
+        # 'dark': a dark sheet with bright marks, as the factory's; 'light': white paper with
+        # burnt marks, inverted before anything looks at it; 'auto': by the median brightness
+        'polarity': str(params.get('polarity', 'auto')),
     }
 
 
@@ -1021,6 +1024,14 @@ def _solve_upright(img, params):
     if img.ndim == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     p = parse_params(params, img.shape)
+    # The solver's masks want bright marks on a dark sheet. White paper is the other way
+    # round (burnt marks, and a cut slit shows the scanner's lid or the bed), so it is
+    # inverted here, once, and nothing downstream knows the difference.
+    inverted = p['polarity'] == 'light' or (
+        p['polarity'] == 'auto' and float(np.median(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))) > 127
+    )
+    if inverted:
+        img = 255 - img
     ppm_nominal = p['px_per_mm']
     centre = np.array(p['expected_center_px'])
     half, arm_len = p['l_frame']['half'], p['l_frame']['arm']
@@ -1207,6 +1218,7 @@ def _solve_upright(img, params):
             'threshold': ruler['threshold'],
             'model': ruler['model'],
         },
+        'inverted': bool(inverted),
         'located': None
         if located is None
         else {'center_px': [float(located[0][0]), float(located[0][1])], 'px_per_mm': float(located[1])},
