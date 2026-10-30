@@ -966,6 +966,10 @@ def _px_to_mm_for(ruler):
 LOCATE_SCALE_SWEEP = [0.15 * 1.06**i for i in range(34)]  # coupon from 15 % to ~100 % of the image
 LOCATE_NEAR_SWEEP = [0.70 * 1.05**i for i in range(15)]  # around the extent's own estimate
 LOCATE_MIN_COMPONENT_PX = 12
+# Marks this close to the image edge (fraction of each side) get no say in where the coupon is:
+# a scanner's shadow strip down one side is a narrow crowd of specks denser than the coupon.
+# The coupon sits inside its L frame, which sits well inside the sheet.
+LOCATE_EDGE_MARGIN = 0.06
 
 
 def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
@@ -973,7 +977,8 @@ def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
 
     The galvo marks are the densest crowd of small things on the sheet at any scale. On a
     map of small-component centroids (specks dropped, a scan's border or edge line is one
-    big component and gets no say) a box filter a tenth of the image wide peaks on the
+    big component and gets no say, nor does anything in the outer LOCATE_EDGE_MARGIN) a box
+    filter a tenth of the image wide peaks on the
     coupon; the region at half that peak is the coupon's extent, the centroid of the marks
     in it is the centre, and its side (2 x `reach`, the discovery marks' outer tips, at
     scale 1) a first px/mm. That is swept, near first and wide if need be, with the guided
@@ -991,7 +996,17 @@ def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
         return None
     count, _, stats, centroids = cv2.connectedComponentsWithStats(small, connectivity=8)
     big = 0.005 * small.size
-    marks = np.array([centroids[i] for i in range(1, count) if LOCATE_MIN_COMPONENT_PX <= stats[i][4] < big])
+    sh, sw = small.shape
+    mx, my = LOCATE_EDGE_MARGIN * sw, LOCATE_EDGE_MARGIN * sh
+    marks = np.array(
+        [
+            centroids[i]
+            for i in range(1, count)
+            if LOCATE_MIN_COMPONENT_PX <= stats[i][4] < big
+            and mx <= centroids[i][0] < sw - mx
+            and my <= centroids[i][1] < sh - my
+        ]
+    )
     if len(marks) < 30:
         return None
     points = np.zeros(small.shape, np.float32)

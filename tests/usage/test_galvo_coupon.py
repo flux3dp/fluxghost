@@ -157,6 +157,19 @@ class SolveGalvoCouponTest(unittest.TestCase):
         )  # the galvo marks sit offset_mm off the frame centre
         self.assertAlmostEqual(res['ruler']['px_per_mm_x'], 15.0, delta=0.02)
 
+    def test_locate_ignores_a_speckled_scanner_shadow_down_one_side(self):
+        """A scanner's shadow strip: a narrow crowd of specks, denser than the coupon's marks."""
+        img = render_coupon(px_per_mm=15.0, center_px=(1700, 1800), **TRUTH)
+        rng = np.random.default_rng(1)
+        h, w = img.shape[:2]
+        for _ in range(400):
+            x, y = int(rng.integers(w - 180, w - 20)), int(rng.integers(300, h - 300))
+            cv2.circle(img, (x, y), 8, (200, 200, 200), -1)
+        params = dict(PARAMS, px_per_mm=20, expected_center_px=[1800, 1800], locate=True)
+        res, _ = solve_galvo_coupon(img, params)
+        assert_truth(self, res)
+        np.testing.assert_allclose(res['located']['center_px'], [1700, 1800], atol=6 * 15)
+
     def test_rotate_auto_turns_a_sideways_scan_the_right_way_up(self):
         """A sheet scanned on its side: the identity ring says which way is up."""
         img = cv2.rotate(render_coupon(**TRUTH), cv2.ROTATE_90_CLOCKWISE)
