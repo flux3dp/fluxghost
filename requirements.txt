@@ -40,6 +40,8 @@ pillow==10.4.0
     # via fluxghost
 pycparser==2.23
     # via cffi
+pycryptodome==3.24.1
+    # via fluxghost
 pyinstaller==6.13.0
 pyinstaller-hooks-contrib==2025.4
     # via pyinstaller

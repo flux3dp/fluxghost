@@ -52,11 +52,6 @@ jobs:
           token: ${{ secrets.REPO_TOKEN }}
           path: .github/actions/fluxclient
 
-      # fluxclient's action runs `setup.py install`, whose easy_install ignores Requires-Python and
-      # grabs pycryptodome 4.x (Python >= 3.9, released 2026-10-24); pip picks a 3.x wheel for 3.8.
-      - name: Pin pycryptodome for Python 3.8
-        run: pip install "pycryptodome<4"
-
       - name: Install FluxClient
         uses: ./.github/actions/fluxclient
 
