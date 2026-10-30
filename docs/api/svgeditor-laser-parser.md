@@ -112,6 +112,7 @@ Flags (`:370-514`), with the `svgeditor2taskcode` kwarg they set:
 | `-rev` | — | `is_reverse_engraving` |
 | `-mask <t,r,b,l>` | floats | `clip` rectangle (borderless/open-bottom) |
 | `-cbl` | — | `custom_backlash` |
+| `-ico <order>` | str | `color_order`: 4C ink order by cartridge slot, e.g. `cymk` (default `cmyk`) |
 | `-mep <n>` / `-mpp <n>` | int | `min_engraving_padding` / `min_printing_padding` |
 | `-mpc` / `-owp` | — | `multipass_compensation` / `one_way_printing` |
 | `-ptp <n>` / `-pbp <n>` | int | `printing_top_padding` / `printing_bot_padding` (px; overridden per layer by `data-printingTopPadding` / `data-printingBotPadding` layer attributes) |
