@@ -250,6 +250,10 @@ def check_camera_transform(port):
     ws.send('set_fisheye_matrix ' + json.dumps(v4))
     ok4 = ws.json_until(lambda m: m.get('status') in ('ok', 'error')).get('status') == 'ok'
     record('camera_transform.v4_region_offsets', ok4)
+    # the blend flag must be accepted both ways; the geometry is asserted in tests/test_fisheye_offset.py
+    ws.send('set_fisheye_matrix ' + json.dumps({**v4, 'region_offsets': {'topLeft': [1, 0], 'blend': False}}))
+    ok4_step = ws.json_until(lambda m: m.get('status') in ('ok', 'error')).get('status') == 'ok'
+    record('camera_transform.v4_region_offsets_step', ok4_step)
     ws.close()
 
 
