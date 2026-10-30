@@ -23,6 +23,7 @@ dependencies = [
     "cairocffi==1.7.1", # for fluxsvg
     "lxml==6.0.0",
     "msgpack>=1.1.1", # for fluxclient
+    "pycryptodome>=3.20,<4", # for fluxclient and http_server_debug; 4.x needs Python >= 3.9
 ]
 
 [dependency-groups]
