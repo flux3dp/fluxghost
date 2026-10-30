@@ -1,9 +1,28 @@
 import cv2
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
 
 from .calibration import get_remap_img, project_points, remap_corners
 from .constants import DPMM
 from .general import pad_image
+
+# Manual per-region offsets ramp across a band this fraction of a region wide, centred on each border,
+# and hold the exact value over the rest of the region (Beam Studio PRD manual-calibration-config D8).
+REGION_OFFSET_BLEND_BAND = 1 / 3
+REGION_KEYS = ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
+
+
+def region_offset_sampler(table, band=REGION_OFFSET_BLEND_BAND):
+    """
+    Plateau-and-ramp surface over a 3x3 table as a callable `f((ty, tx)) -> (ox, oy)`, coordinates in region
+    units [0, 3]. Each cell is duplicated at both ends of its plateau, so plain bilinear interpolation over
+    the knots gives the exact cell value over the middle `1 - band` of a region, a linear ramp across the
+    band at each border (a border = midpoint of its neighbours) and no ramp at the bed edges.
+    """
+    h = band / 2
+    knots = [0, 1 - h, 1 + h, 2 - h, 2 + h, 3]
+    values = np.repeat(np.repeat(np.asarray(table, np.float64), 2, axis=0), 2, axis=1)
+    return RegularGridInterpolator((knots, knots), values, bounds_error=False, fill_value=None)
 
 
 def get_split_indices(split, chessboard, i, j):
@@ -70,25 +89,40 @@ def calculate_regional_perspective_points(
     :param (float, float) offset: manual bed-plane correction in mm added to every object point before
         projection, so the warped image shifts by exactly that much on the bed
     :param Dict[(float, float)] region_offsets: per-region override of `offset`; the region is chosen from
-        the unshifted point, so a cell means "pixels shown in this part of the bed move by this much"
+        the unshifted point, so a cell means "pixels shown in this part of the bed move by this much".
+        Its optional `blend` key (default True) samples the table as a plateau-and-ramp surface (exact over
+        the middle of each region, linear across a REGION_OFFSET_BLEND_BAND-wide band at each border)
+        instead of stepping at the border, so neighbouring regions with different offsets do not tear
     """
     xgrid, ygrid, objp = generate_grid_objects(grid_data_x, grid_data_y)
     orig_shape = objp.shape
     objp = objp.reshape(-1, 3)
     perspective_points = np.zeros((objp.shape[0], 2), np.float32)
-    region_key_map = ['topLeft', 'top', 'topRight', 'left', 'center', 'right', 'bottomLeft', 'bottom', 'bottomRight']
+    region_key_map = REGION_KEYS
     if total_width is None:
         total_width = xgrid[-1] - xgrid[0]
     if total_height is None:
         total_height = ygrid[-1] - ygrid[0]
+    # bed coordinates in region units [0, 3]
+    tx = (objp[:, 0] - xgrid[0]) * 3 / total_width
+    ty = (objp[:, 1] - ygrid[0]) * 3 / total_height
+    blended = None
+    if region_offsets and region_offsets.get('blend', True):
+        table = [[region_offsets.get(region_key_map[r * 3 + c], offset) for c in range(3)] for r in range(3)]
+        blended = region_offset_sampler(table)(np.stack([ty, tx], axis=-1))
     for i in range(objp.shape[0]):
         x, y = objp[i][0], objp[i][1]
-        x_index = min(int((x - xgrid[0]) * 3 // total_width), 2)
-        y_index = min(int((y - ygrid[0]) * 3 // total_height), 2)
+        x_index = min(int(tx[i]), 2)
+        y_index = min(int(ty[i]), 2)
         region = region_key_map[y_index * 3 + x_index]
         rvec = rvecs[region]
         tvec = tvecs[region]
-        ox, oy = region_offsets.get(region, offset) if region_offsets else offset
+        if blended is not None:
+            ox, oy = blended[i]
+        elif region_offsets:
+            ox, oy = region_offsets.get(region, offset)
+        else:
+            ox, oy = offset
         point = project_points(
             np.array([[x + ox, y + oy, -h]]).reshape(-1, 1, 3).astype(np.float32),
             rvec,
