@@ -159,6 +159,10 @@ def parse_params(params, image_shape):
         # 'dark': a dark sheet with bright marks, as the factory's; 'light': white paper with
         # burnt marks, inverted before anything looks at it; 'auto': by the median brightness
         'polarity': str(params.get('polarity', 'auto')),
+        # the card's grid correction table the result proposes: points per axis and the
+        # field it spans (the galvo's whole field, not the coupon's +-44)
+        'grid_size': int(params.get('grid_size', 9)),
+        'grid_field': float(params.get('grid_field', 110)),
     }
 
 
@@ -867,6 +871,55 @@ def fit_ring_centre(mask, predicted_px, ppm, node_r, min_fraction=0.35):
 
 
 # ---------------------------------------------------------------------------
+# grid correction table (beam-studio docs/prd/hexa-ii-galvo/galvo-grid-correction.md)
+
+
+def _cubic_terms(x, y):
+    """The 10 monomials of a bivariate cubic, columns of the design matrix."""
+    return np.column_stack([np.ones_like(x), x, y, x * x, x * y, y * y, x ** 3, x * x * y, x * y * y, y ** 3])
+
+
+def grid_table(node_cmd, displacement, size=9, field=110.0):
+    """A size x size grid correction table from the node displacements.
+
+    `displacement` is where each node landed minus where it was commanded, mm, with the
+    field's translation and rotation taken out (those belong to the module offset and
+    `field.angle`, not to the table) -- `raw_res`. Scale and every non-linear term stay in.
+
+    A bivariate cubic is fitted per axis and evaluated on the card's grid, which spans
+    the whole field (+-field/2) while the coupon reaches only +-44: points outside the
+    nodes are extrapolated and counted as such. The f-theta residual the table exists
+    for is a cubic, so the fit carries it out to the edge.
+
+    Points are row-major from (-field/2, -field/2), X fastest -- the order
+    BeamOS tools/bsl-gridcor.py and the player send them in.
+    """
+    cmd = np.asarray(node_cmd, dtype=float)
+    disp = np.asarray(displacement, dtype=float)
+    scale = field / 2.0  # fit in units of the half field, so the design is well conditioned
+    design = _cubic_terms(cmd[:, 0] / scale, cmd[:, 1] / scale)
+    coef_x, _, _, _ = np.linalg.lstsq(design, disp[:, 0], rcond=None)
+    coef_y, _, _, _ = np.linalg.lstsq(design, disp[:, 1], rcond=None)
+    fitted = np.column_stack([design @ coef_x, design @ coef_y])
+    fit_rms, fit_max = _rms_max(disp - fitted)
+    axis = np.linspace(-field / 2.0, field / 2.0, size)
+    gx, gy = np.meshgrid(axis, axis)  # gx varies along a row: X fastest
+    gx, gy = gx.ravel(), gy.ravel()
+    at_grid = _cubic_terms(gx / scale, gy / scale)
+    reach = np.max(np.abs(cmd), axis=0)
+    extrapolated = int(np.sum((np.abs(gx) > reach[0] + 1e-6) | (np.abs(gy) > reach[1] + 1e-6)))
+    return {
+        'size': int(size),
+        'field': float(field),
+        'dx': [round(float(v), 4) for v in at_grid @ coef_x],
+        'dy': [round(float(v), 4) for v in at_grid @ coef_y],
+        'fit_rms_mm': fit_rms,
+        'fit_max_mm': fit_max,
+        'extrapolated': extrapolated,
+    }
+
+
+# ---------------------------------------------------------------------------
 # step 4: affine
 
 
@@ -1319,6 +1372,7 @@ def _solve_upright(img, params):
         'validation_affine': None if va_rms is None else {'rms': va_rms, 'max': va_max, 'count': len(val_affine)},
         'validation_bilinear': None if vb_rms is None else {'rms': vb_rms, 'max': vb_max, 'count': len(val_bilinear)},
         'field_center_mm': [float(t_vec[0]), float(t_vec[1])],
+        'grid': grid_table(node_cmd, raw_res, p['grid_size'], p['grid_field']) if nodes_found >= 10 else None,
         'orientation': {
             'source': orientation['source'],
             'matches_invert': orientation['matches_invert'],

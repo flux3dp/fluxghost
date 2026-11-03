@@ -11,7 +11,7 @@ import unittest
 import cv2
 import numpy as np
 
-from fluxghost.utils.camera.galvo_coupon import SolveError, solve_galvo_coupon
+from fluxghost.utils.camera.galvo_coupon import SolveError, grid_table, solve_galvo_coupon
 from tests.usage.galvo_coupon_synth import l_frame_vertices, render_coupon
 
 TRUTH = {'scale_x': 1.02, 'scale_y': 0.98, 'skew_deg': 0.3, 'rot_deg': 5.0, 'offset_mm': (3.2, -1.7)}
@@ -200,6 +200,43 @@ class SolveGalvoCouponTest(unittest.TestCase):
         with self.assertRaises(SolveError) as ctx:
             solve_galvo_coupon(img, PARAMS)
         self.assertEqual(ctx.exception.info, 'RULER_INVALID')
+
+    def test_proposes_a_grid_table(self):
+        res, _ = solve_galvo_coupon(render_coupon(**TRUTH), PARAMS)
+        grid = res['grid']
+        self.assertEqual((grid['size'], grid['field']), (9, 110.0))
+        self.assertEqual((len(grid['dx']), len(grid['dy'])), (81, 81))
+        # a pure affine is a cubic's linear part: fitted to the noise of the ring centres
+        self.assertLess(grid['fit_rms_mm'], 0.02)
+        # every point beyond the coupon's +-44 is extrapolated: all but the inner 7 x 7
+        self.assertEqual(grid['extrapolated'], 81 - 49)
+
+
+NODES = np.array([(x, y) for y in range(-44, 45, 11) for x in range(-44, 45, 11)], dtype=float)
+
+
+class GridTableTest(unittest.TestCase):
+    def test_identity_is_all_zero(self):
+        grid = grid_table(NODES, np.zeros_like(NODES))
+        self.assertTrue(np.allclose(grid['dx'], 0) and np.allclose(grid['dy'], 0))
+        self.assertEqual(grid['fit_rms_mm'], 0)
+
+    def test_carries_a_cubic_to_the_edge(self):
+        # the f-theta residual the table is for: x^3 / y^3, 0.48 mm at 44
+        k = 0.48 / 44**3
+        disp = np.column_stack([k * NODES[:, 0] ** 3, k * NODES[:, 1] ** 3 + 0.001 * NODES[:, 0] * NODES[:, 1]])
+        grid = grid_table(NODES, disp)
+        self.assertLess(grid['fit_rms_mm'], 1e-9)
+        axis = np.linspace(-55, 55, 9)
+        gx, gy = np.meshgrid(axis, axis)
+        np.testing.assert_allclose(grid['dx'], (k * gx**3).ravel(), atol=1e-4)
+        np.testing.assert_allclose(grid['dy'], (k * gy**3 + 0.001 * gx * gy).ravel(), atol=1e-4)
+
+    def test_points_run_x_fastest_from_the_low_corner(self):
+        grid = grid_table(NODES, np.column_stack([0.01 * NODES[:, 0], np.zeros(len(NODES))]))
+        self.assertAlmostEqual(grid['dx'][0], -0.55, places=4)  # (-55, -55)
+        self.assertAlmostEqual(grid['dx'][8], 0.55, places=4)  # (+55, -55): end of the first row
+        self.assertAlmostEqual(grid['dx'][9], -0.55, places=4)  # (-55, -41.25): next row
 
 
 if __name__ == '__main__':
