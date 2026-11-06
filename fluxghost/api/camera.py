@@ -8,6 +8,7 @@ from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
+from fluxghost.utils.camera.pose_check import measure_rims
 
 from .control_base import control_base_mixin
 from .fisheye_camera_mixin import FisheyeCameraMixin
@@ -113,6 +114,27 @@ def camera_api_mixin(cls):
                     self.send_binary(image)
                     return
                 t_decoded = perf_counter()
+                pose = None
+                if self.pose_check is not None:
+                    # Measured on the raw frame: the remap below crops the chassis rims out
+                    try:
+                        expected = self.compute_expected_rims()
+                        pose = (
+                            measure_rims(cv_img, expected, self.pose_check['tolerance'])
+                            if expected is not None
+                            # parameters changed to a version without extrinsics: nothing to compare against
+                            else {
+                                'ok': False,
+                                'left': None,
+                                'right': None,
+                                'expected_left': None,
+                                'expected_right': None,
+                            }
+                        )
+                    except Exception:
+                        # A check that cannot run must not pass frames: stop it, the client then draws nothing
+                        logger.exception('pose check failed, disabled for this connection')
+                        self.pose_check = None
                 # Low-memory devices OOM inside cv2 at full resolution; retry the frame
                 # downsampled and stick with it for the rest of the connection
                 while True:
@@ -132,6 +154,8 @@ def camera_api_mixin(cls):
                 t_fisheye = perf_counter()
                 _, array_buffer = cv2.imencode('.jpg', img)
                 img_bytes = array_buffer.tobytes()
+                if pose is not None:
+                    self.send_json(status='frame', pose=pose)
                 self.send_binary(img_bytes)
                 t_sent = perf_counter()
                 logger.info(
