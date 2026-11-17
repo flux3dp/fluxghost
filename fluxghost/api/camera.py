@@ -8,7 +8,7 @@ from PIL import Image
 
 from fluxclient.robot.camera import FluxCamera
 from fluxclient.utils.version import StrictVersion
-from fluxghost.utils.camera.pose_check import measure_rims
+from fluxghost.utils.camera.pose_check import measure_ridges, measure_rims
 
 from .control_base import control_base_mixin
 from .fisheye_camera_mixin import FisheyeCameraMixin
@@ -120,7 +120,11 @@ def camera_api_mixin(cls):
                     try:
                         expected = self.compute_expected_rims()
                         pose = (
-                            measure_rims(cv_img, expected, self.pose_check['tolerance'])
+                            (
+                                measure_ridges(cv_img, expected)
+                                if self.fisheye_param.get('is_fisheye', True)
+                                else measure_rims(cv_img, expected, self.pose_check['tolerance'])
+                            )
                             if expected is not None
                             # parameters changed to a version without extrinsics: nothing to compare against
                             else {

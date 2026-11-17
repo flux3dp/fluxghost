@@ -21,11 +21,16 @@ K = np.array([[1000.0, 0.0, 640.0], [0.0, 1000.0, 480.0], [0.0, 0.0, 1.0]])
 D = np.zeros((5, 1))
 TVEC = np.array([[0.0], [0.0], [300.0]])
 
+
+def line_rim(deg, a, b, scale=1.0):
+    """An `expected_rims` entry for the straight line x = a*y + b (analysis pixels), scaled to the frame."""
+    ys = np.array([0.0, 2000.0])
+    return {'deg': deg, 'xs': (a * ys + b) * scale, 'ys': ys * scale}
+
+
 # Fitted on open.jpg (fhx2rf, lid at its stop): left rim +2.0 deg, right rim -2.0 deg
-OPEN_RIMS = {
-    'left': {'deg': 1.98, 'a': 0.0346, 'b': 101.1},
-    'right': {'deg': -1.96, 'a': -0.0343, 'b': 1149.1},
-}
+OPEN_LINES = {'left': (1.98, 0.0346, 101.1), 'right': (-1.96, -0.0343, 1149.1)}
+OPEN_RIMS = {side: line_rim(*line) for side, line in OPEN_LINES.items()}
 
 
 def fixture(name):
@@ -43,8 +48,8 @@ class ExpectedRimsTest(unittest.TestCase):
         self.assertAlmostEqual(rims['left']['deg'], 0.0, places=3)
         self.assertAlmostEqual(rims['right']['deg'], 0.0, places=3)
         # u = fx * x / z + cx: x = 0 -> 640, x = 300 at z = 300 -> 1640
-        self.assertAlmostEqual(rims['left']['b'], 640.0, places=1)
-        self.assertAlmostEqual(rims['right']['b'], 1640.0, places=1)
+        self.assertAlmostEqual(rims['left']['xs'][0], 640.0, places=1)
+        self.assertAlmostEqual(rims['right']['xs'][0], 1640.0, places=1)
 
     def test_fisheye_rims_come_back_in_raw_frame_pixels(self):
         # calibrate_fisheye_camera pads each frame by (L_PAD, T_PAD) before solving, so a fisheye K's principal
@@ -55,8 +60,8 @@ class ExpectedRimsTest(unittest.TestCase):
         rvec = np.zeros((3, 1))
         tvec = np.array([[-150.0], [-100.0], [300.0]])
         rims = pose_check.expected_rims(k, d, {'left': rvec, 'right': rvec}, {'left': tvec, 'right': tvec}, 300, 200)
-        self.assertAlmostEqual((rims['left']['b'] + rims['right']['b']) / 2, IMAGE_W / 2, places=1)
-        self.assertLess(rims['left']['b'], IMAGE_W / 2)
+        self.assertAlmostEqual((rims['left']['xs'][0] + rims['right']['xs'][0]) / 2, IMAGE_W / 2, places=1)
+        self.assertLess(rims['left']['xs'][0], IMAGE_W / 2)
         self.assertAlmostEqual(rims['left']['deg'], 0.0, places=3)
 
     def test_pitched_camera_converges_the_rims_symmetrically(self):
@@ -101,8 +106,8 @@ class MeasureRimsTest(unittest.TestCase):
     def test_expected_lines_are_in_full_resolution_pixels(self):
         img = fixture('open')
         big = cv2.resize(img, (img.shape[1] * 2, img.shape[0] * 2), interpolation=cv2.INTER_LINEAR)
-        # Same slope, intercept doubled: the band around the expected line is met after downscaling ...
-        rims = {s: {'deg': r['deg'], 'a': r['a'], 'b': r['b'] * 2} for s, r in OPEN_RIMS.items()}
+        # The same lines in full-resolution pixels: the band around them is met after downscaling ...
+        rims = {side: line_rim(*line, scale=2) for side, line in OPEN_LINES.items()}
         result = pose_check.measure_rims(big, rims)
         self.assertIsNotNone(result['left'], result)
         self.assertIsNotNone(result['right'], result)
@@ -111,9 +116,64 @@ class MeasureRimsTest(unittest.TestCase):
         result = pose_check.measure_rims(big, OPEN_RIMS)
         self.assertIsNone(result['right'], result)
 
+    def test_curved_rims_compare_against_the_curve_where_the_segment_is(self):
+        # A bent rim's straight fit is several degrees off any stretch of it, so a segment is judged against the
+        # curve's own chord over its rows
+        ys = np.arange(0.0, 961.0, 10.0)
+        left = 150 + 0.0002 * ys**2
+        img = np.zeros((960, 1280), np.uint8)
+        for xs in (left, 1280 - left):
+            cv2.polylines(img, [np.stack([xs, ys], axis=1).astype(np.int32)], False, 255, 3)
+        rims = {
+            side: {'deg': pose_check.fit_line(np.stack([xs, ys], axis=1))[0], 'xs': xs, 'ys': ys}
+            for side, xs in (('left', left), ('right', 1280 - left))
+        }
+        result = pose_check.measure_rims(img, rims)
+        self.assertTrue(result['ok'], result)
+        self.assertGreater(abs(result['left'] - rims['left']['deg']), pose_check.DEFAULT_TOLERANCE_DEG)
+
     def test_tolerance_is_applied_per_rim(self):
         result = pose_check.measure_rims(fixture('open'), OPEN_RIMS, tolerance_deg=0.01)
         self.assertFalse(result['ok'], result)
+
+
+def ridge_frame(xs, ys, w=3264, h=2448):
+    """Dark full-resolution frame with a 2 px bright line along (xs, ys), like the LED highlight on fbb2's chassis."""
+    img = np.full((h, w), 10, np.uint8)
+    cv2.polylines(img, [np.stack([xs, ys], axis=1).astype(np.int32)], False, 200, 2)
+    return img
+
+
+class MeasureRidgesTest(unittest.TestCase):
+    ys = np.arange(1000.0, 2400.0, 10.0)
+    left = 300 + 0.0003 * (ys - 1000) ** 2
+    right = 3264 - left
+    rims = {'left': {'deg': 0.0, 'xs': left, 'ys': ys}, 'right': {'deg': 0.0, 'xs': right, 'ys': ys}}
+
+    def test_highlight_on_both_curves_passes(self):
+        img = np.maximum(ridge_frame(self.left, self.ys), ridge_frame(self.right, self.ys))
+        result = pose_check.measure_ridges(img, self.rims)
+        self.assertTrue(result['ok'], result)
+        self.assertGreater(result['left'], pose_check.RIDGE_MIN)
+        self.assertEqual(result['expected_left'], pose_check.RIDGE_MIN)
+
+    def test_one_side_is_enough(self):
+        # the highlight is specular: at the open stop one side can go dark
+        result = pose_check.measure_ridges(ridge_frame(self.left, self.ys), self.rims)
+        self.assertTrue(result['ok'], result)
+        self.assertLess(result['right'], pose_check.RIDGE_MIN)
+
+    def test_highlight_off_the_curve_fails(self):
+        # a lowered lid moves the chassis edge well past the search window (20 px vanished on the fbb2 frames)
+        img = np.maximum(ridge_frame(self.left + 20, self.ys), ridge_frame(self.right - 20, self.ys))
+        result = pose_check.measure_ridges(img, self.rims)
+        self.assertFalse(result['ok'], result)
+        self.assertLess(result['left'], 1.0)
+
+    def test_curve_mostly_outside_the_frame_scores_zero(self):
+        rims = {s: {'deg': 0.0, 'xs': r['xs'] + 5000, 'ys': r['ys']} for s, r in self.rims.items()}
+        result = pose_check.measure_ridges(ridge_frame(self.left, self.ys), rims)
+        self.assertEqual((result['ok'], result['left'], result['right']), (False, 0.0, 0.0))
 
 
 if __name__ == '__main__':

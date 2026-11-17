@@ -17,6 +17,7 @@ from PIL import Image
 from fluxclient.utils.version import StrictVersion
 from fluxghost.api.api_base import ApiBase
 from fluxghost.api.camera import camera_api_mixin
+from fluxghost.utils.camera.pose_check import RIDGE_MIN
 from tests.usage.test_pose_check import FIXTURES, OPEN_RIMS
 
 CameraAPI = camera_api_mixin(ApiBase)  # ApiBase for send_ok / send_error / send_json on top of send_text
@@ -70,16 +71,16 @@ class SetLidCheckTest(unittest.TestCase):
         # straight-down pinhole: both bed edges vertical, x = 0 at cx, x = 300 mm one bed width to the right
         expected = api.compute_expected_rims()
         self.assertAlmostEqual(expected['left']['deg'], 0.0, places=3)
-        self.assertAlmostEqual(expected['left']['b'], 640.0, places=1)
-        self.assertAlmostEqual(expected['right']['b'], 1640.0, places=1)
+        self.assertAlmostEqual(expected['left']['xs'][0], 640.0, places=1)
+        self.assertAlmostEqual(expected['right']['xs'][0], 1640.0, places=1)
 
     def test_expected_rims_follow_the_current_height(self):
         api = make_api()
         api.on_command('set_fisheye_matrix ' + json.dumps(V4_PARAMS))
         api.on_command('set_pose_check {"enabled": true}')
-        self.assertAlmostEqual(api.compute_expected_rims()['right']['b'], 1640.0, places=1)
+        self.assertAlmostEqual(api.compute_expected_rims()['right']['xs'][0], 1640.0, places=1)
         api.on_command('set_fisheye_height 150')  # camera 150 mm closer: the right edge projects further out
-        self.assertAlmostEqual(api.compute_expected_rims()['right']['b'], 2640.0, places=1)
+        self.assertAlmostEqual(api.compute_expected_rims()['right']['xs'][0], 2640.0, places=1)
 
     def test_disable(self):
         api = make_api()
@@ -110,6 +111,14 @@ class FrameMessageTest(unittest.TestCase):
         self.assertTrue(api.sent[0]['pose']['ok'], api.sent[0])
         self.assertAlmostEqual(api.sent[0]['pose']['left'], 2.0, delta=0.5)
         self.assertEqual(api.sent[1], b'<frame>')
+
+    def test_fisheye_parameters_use_the_highlight_check(self):
+        api = make_api()
+        api.on_command('set_fisheye_matrix ' + json.dumps({**V4_PARAMS, 'is_fisheye': True, 'd': [[0.0]] * 4}))
+        api.on_command('set_pose_check {"enabled": true}')
+        del api.sent[:]
+        api.on_image(None, open_frame_jpeg())
+        self.assertEqual(api.sent[0]['pose']['expected_left'], RIDGE_MIN, api.sent[0])
 
     def test_rims_not_found_reports_ok_false(self):
         api = make_api()
