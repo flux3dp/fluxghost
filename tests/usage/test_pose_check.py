@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 
 from fluxghost.utils.camera import pose_check
+from fluxghost.utils.camera.constants import IMAGE_H, IMAGE_W, L_PAD, T_PAD
 
 FIXTURES = os.path.join(os.path.dirname(__file__), 'fixtures', 'pose_check')
 
@@ -44,6 +45,19 @@ class ExpectedRimsTest(unittest.TestCase):
         # u = fx * x / z + cx: x = 0 -> 640, x = 300 at z = 300 -> 1640
         self.assertAlmostEqual(rims['left']['b'], 640.0, places=1)
         self.assertAlmostEqual(rims['right']['b'], 1640.0, places=1)
+
+    def test_fisheye_rims_come_back_in_raw_frame_pixels(self):
+        # calibrate_fisheye_camera pads each frame by (L_PAD, T_PAD) before solving, so a fisheye K's principal
+        # point is in padded coordinates. A camera straight above the bed centre must still put the rims
+        # symmetrically about the raw frame's centre column, not about the padded one.
+        k = np.array([[1000.0, 0.0, IMAGE_W / 2 + L_PAD], [0.0, 1000.0, IMAGE_H / 2 + T_PAD], [0.0, 0.0, 1.0]])
+        d = np.zeros((4, 1))
+        rvec = np.zeros((3, 1))
+        tvec = np.array([[-150.0], [-100.0], [300.0]])
+        rims = pose_check.expected_rims(k, d, {'left': rvec, 'right': rvec}, {'left': tvec, 'right': tvec}, 300, 200)
+        self.assertAlmostEqual((rims['left']['b'] + rims['right']['b']) / 2, IMAGE_W / 2, places=1)
+        self.assertLess(rims['left']['b'], IMAGE_W / 2)
+        self.assertAlmostEqual(rims['left']['deg'], 0.0, places=3)
 
     def test_pitched_camera_converges_the_rims_symmetrically(self):
         # Pitch about the bed's x axis (the hinge direction): both edges tilt, mirror images of each other

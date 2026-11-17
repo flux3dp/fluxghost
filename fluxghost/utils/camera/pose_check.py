@@ -18,6 +18,7 @@ import cv2
 import numpy as np
 
 from fluxghost.utils.camera.calibration import project_points
+from fluxghost.utils.camera.constants import L_PAD, T_PAD
 
 ANALYSIS_WIDTH = 1280
 CANNY = (50, 150)
@@ -48,6 +49,10 @@ def expected_rims(k, d, rvecs, tvecs, bed_w, bed_h, is_fisheye=True):
         ys = np.arange(0.0, bed_h + EDGE_STEP_MM / 2, EDGE_STEP_MM)
         objp = np.stack([np.full_like(ys, x), ys, np.zeros_like(ys)], axis=1).reshape(-1, 1, 3).astype(np.float32)
         imgp = project_points(objp, rvecs[side], tvecs[side], k, d, is_fisheye=is_fisheye).reshape(-1, 2)
+        if is_fisheye:
+            # calibrate_fisheye_camera pads every frame before solving, so k and the extrinsics live in padded
+            # coordinates; measure_rims works on the raw frame
+            imgp = imgp - (L_PAD, T_PAD)
         deg, a, b = fit_line(imgp)
         out[side] = {'deg': deg, 'a': a, 'b': b}
     return out
