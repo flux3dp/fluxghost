@@ -220,6 +220,10 @@ def check_camera(port, pem):
             frame = payload
             break
     record('camera.frame', frame is not None and frame[:4] == b'\x89PNG', 'len=%s' % (len(frame) if frame else 0))
+    # camera pose check needs v4 extrinsics; the simulated device has none, so the command must say so
+    ws.send('set_pose_check {"enabled": true}')
+    reply = ws.json_until(lambda m: m.get('status') in ('ok', 'error'))
+    record('camera.pose_check_without_params', reply.get('error') == ['No fisheye params'], 'reply=%r' % (reply,))
     ws.close()
 
 

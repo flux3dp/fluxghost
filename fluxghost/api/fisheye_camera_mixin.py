@@ -23,6 +23,7 @@ from fluxghost.utils.camera.perspective import (
     calculate_regional_perspective_points,
     generate_grid_objects,
 )
+from fluxghost.utils.camera.pose_check import DEFAULT_TOLERANCE_DEG, expected_rims
 from fluxghost.utils.camera.rotation import apply_matrix_to_perspective_points, calculate_3d_rotation_matrix
 
 logger = logging.getLogger(__file__)
@@ -49,6 +50,8 @@ class FisheyeCameraMixin:
     fisheye_param = None
     leveling_data = None
     perspective_points = None
+    # {'tolerance': deg} while the client asked for the camera pose check on each frame (camera.py on_image)
+    pose_check = None
     # deprecated v1 parameters
     crop_param = None
     camera_3d_rotation = None
@@ -76,6 +79,8 @@ class FisheyeCameraMixin:
             height = float(msgs[1])
             remote_model = getattr(self, 'remote_model', None)
             self.set_fisheye_height(height, remote_model)
+        elif cmd == 'set_pose_check':
+            self.set_pose_check(data)
         # deprecated v1 commands
         elif cmd == 'set_crop_param':
             self.set_crop_param(data)
@@ -86,6 +91,7 @@ class FisheyeCameraMixin:
         self.fisheye_param = None
         self.leveling_data = None
         self.perspective_points = None
+        self.pose_check = None
         # deprecated v1 parameters
         self.crop_param = None
         self.camera_3d_rotation = None
@@ -256,12 +262,41 @@ class FisheyeCameraMixin:
                     'xgrid': x_grid - x_grid[0],
                     'ygrid': y_grid - y_grid[0],
                     'perspective_points': perspective_points,
+                    'rvecs': rvecs,
+                    'tvecs': tvecs,
                 }
             )
 
         else:
             self.send_error('Invalid version')
             return
+        self.send_ok()
+
+    def compute_expected_rims(self):
+        """Rim lines for the camera at its calibrated pose from the current parameters, or None without v4
+        extrinsics (set_fisheye_height not run). Computed per frame rather than cached, so a later parameter or
+        height change can never leave a stale reference behind."""
+        param = self.fisheye_param
+        if not param or param.get('v') != 4 or 'rvecs' not in param:
+            return None
+        grids = param['grids']
+        return expected_rims(
+            param['k'], param['d'], param['rvecs'], param['tvecs'], grids['x'][1], grids['y'][1], param['is_fisheye']
+        )
+
+    def set_pose_check(self, data):
+        """`{"enabled": true, "tolerance_deg": 1.5}` asks for a `{"status": "frame", "pose": ...}` message before each
+        frame (camera.py on_image); `{"enabled": false}` stops it. Beam Studio's auto full-area preview uses it to
+        draw only photos taken with the lid at its calibrated stop."""
+        data = json.loads(data)
+        if not data.get('enabled', True):
+            self.pose_check = None
+            self.send_ok()
+            return
+        if self.compute_expected_rims() is None:
+            self.send_error('No fisheye params')
+            return
+        self.pose_check = {'tolerance': float(data.get('tolerance_deg', DEFAULT_TOLERANCE_DEG))}
         self.send_ok()
 
     def set_fisheye_grid(self, data):

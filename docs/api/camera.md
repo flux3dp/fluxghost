@@ -74,6 +74,22 @@ Handled by `FisheyeCameraMixin.on_command` (reached via `super().on_command(...)
 - `set_crop_param <json>` *(deprecated v1)* — `{width, height, cx, cy, top?, left?}`.
 - `set_3d_rotation <json>` *(deprecated v1)* — `{rx, ry, rz, h, tx, ty}` (radians / mm). Also handled directly in `camera.py::on_command`.
 
+### `set_pose_check <json>`
+
+Camera pose check for Beam Studio's auto full-area preview on fbb2 / fhx2rf (spec: beam-studio `docs/prd/auto-full-area-preview-pose-check.md`). The wide-angle camera sits in the lid and the v4 calibration was shot with the lid at its open stop, so a frame is only usable at that pose; the check tells the client, per frame, whether the lid was there.
+
+- `{"enabled": true, "tolerance_deg": 1.5}` — enables it. Needs `v: 4` parameters with their height already evaluated (`set_fisheye_matrix` does that for height 0), otherwise `{"status": "error", "error": ["No fisheye params"]}`. `tolerance_deg` is optional (default 1.5). Reply `{"status": "ok"}`.
+- `{"enabled": false}` — disables it. Reply `{"status": "ok"}`.
+
+While enabled, every frame is preceded by one text message:
+
+```
+← {"status": "frame", "pose": {"ok": true, "left": 1.9, "right": -2.1, "expected_left": 2.0, "expected_right": -2.0}}
+← <binary JPEG>
+```
+
+`expected_*` come from the bed's side edges (x = 0 and x = bed width from `grids`) projected through the `left` / `right` region extrinsics (`fluxghost/utils/camera/pose_check.py` `expected_rims`): the angle of the projected line over the rows of the chosen rim segment, or of the whole line when no rim is found. `left` / `right` are the angles of the chassis rims measured on the raw frame before the remap (`measure_rims`: Canny + probabilistic Hough at 1280 px, longest segment near the expected curve), `null` when no rim is found there. Degrees from vertical, positive when the lower end is to the right of the upper end, rounded to 0.1. `ok` is true when both rims are found within `tolerance_deg` of their expected angle. With fisheye parameters (`is_fisheye`, fbb2) the bare bed's edge has no contrast, so the check scores the LED highlight on the chassis edge instead (`measure_ridges`): `left` / `right` are the mean highlight strength along each side's projected chassis-edge curve, `expected_*` the threshold (`RIDGE_MIN`, 30), `ok` true when either side reaches it, and `tolerance_deg` is unused. The expected lines are computed from the current parameters for every frame, so a later `set_fisheye_matrix` or `set_fisheye_height` is picked up at once; if the parameters no longer carry v4 extrinsics the message reports `ok: false` with every angle `null`. If the measurement raises, the check disables itself for the connection (logged once) and frames keep flowing without the message. Sessions that never send `set_pose_check` see no new message.
+
 ## Binary frames
 
 Every camera frame is sent to the client as one **binary websocket message containing a JPEG**. For the fisheye models `fad1`, `ado1`, `fbb2`, `fbm2`, `fhx2rf` (list in `camera.py`), if `set_fisheye_matrix` has been called, the frame is decoded, undistorted/perspective-transformed by `FisheyeCameraMixin.handle_fisheye_image` and re-encoded to JPEG first; otherwise the device's bytes are forwarded untouched. If decoding the fisheye frame fails, the raw bytes are forwarded as-is. If the undistort/transform itself raises a `cv2.error` (seen as OOM on low-memory devices), the frame is retried at increasing downsample (2, then 4 — sticky for the rest of the connection); only if downsample 4 also fails is the frame dropped and logged.
