@@ -134,8 +134,14 @@ def find_chessboard(
 
 
 # CALIB_FIX_K4 sometimes works better, maybe set flags according to the camera
+# CALIB_FIX_SKEW: nothing downstream uses a skew term (fisheye.projectPoints takes it as a separate alpha that we
+# never pass, undistortPoints / initUndistortRectifyMap ignore it), so fitting one only moves error into a
+# parameter the preview then drops
 CALIBRATION_FLAGS_FISHEYE = (
-    cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC + cv2.fisheye.CALIB_CHECK_COND + cv2.fisheye.CALIB_FIX_K1
+    cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC
+    + cv2.fisheye.CALIB_CHECK_COND
+    + cv2.fisheye.CALIB_FIX_K1
+    + cv2.fisheye.CALIB_FIX_SKEW
 )
 CALIBRATION_FLAGS = cv2.CALIB_FIX_K1
 CALIBRATION_CRIT = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, 1e-5)
