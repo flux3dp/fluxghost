@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
-from fluxghost.utils.camera.auto_pnp import detect_marks, match_marks
+from fluxghost.utils.camera.auto_pnp import WEAK_MIN_AREA, detect_marks, match_marks
 from fluxghost.utils.camera.calibration import (
     calibrate_camera,
     calibrate_fisheye_camera,
@@ -420,26 +420,29 @@ def camera_calibration_api_mixin(cls):
             def upload_callback(buf):
                 img = cv2.cvtColor(np.array(Image.open(io.BytesIO(buf)).convert('RGB')), cv2.COLOR_RGB2BGR)
                 blobs = detect_marks(img, k, d)
-                logger.info('[auto_pnp] detect: %d blobs', len(blobs))
-                self.send_ok(blobs=blobs)
+                weak = detect_marks(img, k, d, min_area=WEAK_MIN_AREA)
+                logger.info('[auto_pnp] detect: %d blobs, %d weak', len(blobs), len(weak))
+                self.send_ok(blobs=blobs, weak=weak)
 
             self.set_binary_helper(BinaryUploadHelper(int(message.split(' ')[0]), upload_callback))
             self.send_json(status='continue')
 
         def cmd_auto_pnp_match(self, message):
             args = json.loads(message)
-            res = match_marks(args['blobs'], args['ref_points'])
+            res = match_marks(args['blobs'], args['ref_points'], args.get('weak'))
             logger.info(
-                '[auto_pnp] match: %d/%d marks, rms %s mm, %s',
+                '[auto_pnp] match: %d/%d marks (%d from weak blobs), rms %s mm, %s',
                 res['matched'],
                 len(args['ref_points']),
+                res['filled'],
                 res['rms'],
                 res['reason'] or 'accepted',
             )
+            extra = {'matched': res['matched'], 'filled': res['filled'], 'rms': res['rms']}
             if res['reason']:
-                self.send_json(status='fail', reason=res['reason'], matched=res['matched'], rms=res['rms'])
+                self.send_json(status='fail', reason=res['reason'], **extra)
                 return
-            self.send_ok(points=res['points'], matched=res['matched'], rms=res['rms'])
+            self.send_ok(points=res['points'], **extra)
 
         def cmd_check_pnp(self, message):
             message = message.split(' ')

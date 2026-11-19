@@ -121,23 +121,25 @@ Automatic alternative to `solve_pnp_find_corners`, step 1: find the engraved mar
 Dark blobs are detected on the raw frame (`detect_marks`, [fluxghost/utils/camera/auto_pnp.py](../../fluxghost/utils/camera/auto_pnp.py), same detector parameters as `find_blob_centers`) and only their centres are undistorted, so `x`, `y` are in the same remapped-image px space as `solve_pnp_find_corners` returns and `solve_pnp_calculate` takes. `contrast` is the brightness of a ring around the blob minus the blob.
 
 ```
-← {"status": "ok", "blobs": [[x, y, size, contrast], ...]}
+← {"status": "ok", "blobs": [[x, y, size, contrast], ...], "weak": [[x, y, size, contrast], ...]}
 ```
 
-The list holds the marks plus stray blobs (chassis, text). Call it once per exposure; telling marks from strays is `auto_pnp_match`'s job.
+`blobs` holds the marks plus stray blobs (chassis, text). `weak` is a second detection with the minimum area lowered from 15 px to 4 px (`WEAK_MIN_AREA`), everything else equal: it catches marks that lens flare or a faint engraving leaves below the normal detector, among hundreds of noise blobs. Call it once per exposure; telling marks from strays is `auto_pnp_match`'s job.
 
 ### `auto_pnp_match <args_json>`
 
-Step 2: tell which blob is which mark. `args_json` = `{"ref_points": [[x, y], ...], "blobs": [[[x, y, size, contrast], ...], ...]}`: `ref_points` are the mark positions in mm, a full rectangular lattice in any order; `blobs` is one `auto_pnp_detect` result per exposure. Stateless, needs no stored data.
+Step 2: tell which blob is which mark. `args_json` = `{"ref_points": [[x, y], ...], "blobs": [[[x, y, size, contrast], ...], ...], "weak": [[[x, y, size, contrast], ...], ...]}`: `ref_points` are the mark positions in mm, a full rectangular lattice in any order; `blobs` and the optional `weak` hold one `auto_pnp_detect` result per exposure. Stateless, needs no stored data.
 
-Blobs from different exposures within 8 px are one mark, kept from the exposure with the best contrast. `match_grid` then fits one homography between the bed plane and the blob centres with no pose prior: every grid cell seeded from a blob and its right, lower and diagonal neighbours, grown by assigning each grid position its nearest blob within 15 mm on the bed. It assumes only that bed +x / +y run along image +x / +y.
+Blobs from different exposures within 8 px are one mark, kept from the exposure with the best contrast. `match_grid` then fits one homography between the bed plane and the blob centres with no pose prior: every grid cell seeded from a blob and its right, lower and diagonal neighbours, grown by assigning each grid position its nearest blob within 15 mm on the bed (`ASSIGN_TOL_MM`), then settled at 3 mm (`TIGHT_TOL_MM`) so a stray near a covered mark is dropped instead of taking its place. It assumes only that bed +x / +y run along image +x / +y.
+
+When at least 75 % of the marks matched (`FILL_MIN_FRACTION`), `fill_missing` predicts each missing mark from that homography and takes the median of the `weak` blobs within 2 mm of it (`FILL_TOL_MM`). `weak` blobs are never used for the matching itself.
 
 ```
-← {"status": "ok", "points": [[x, y], ...], "matched": <n>, "rms": <mm>}
-← {"status": "fail", "reason": "NOT_ENOUGH_MARKS" | "HIGH_RESIDUAL", "matched": <n>, "rms": <mm | null>}
+← {"status": "ok", "points": [[x, y], ...], "matched": <n>, "filled": <n>, "rms": <mm>}
+← {"status": "fail", "reason": "NOT_ENOUGH_MARKS" | "HIGH_RESIDUAL", "matched": <n>, "filled": <n>, "rms": <mm | null>}
 ```
 
-`points` is ordered like `ref_points` and feeds `solve_pnp_calculate` directly. `rms` is the residual of the matched marks to the homography, in bed mm. `NOT_ENOUGH_MARKS`: fewer blobs matched than `ref_points` (every mark is required). `HIGH_RESIDUAL`: all matched but `rms` > `R_MAX_MM` (0.75), which means a stray took a mark's place or `k`/`d` describe this camera poorly.
+`points` is ordered like `ref_points` and feeds `solve_pnp_calculate` directly. `matched` counts every mark found, `filled` how many of them came from `weak`. `rms` is the residual of the matched marks to the homography, in bed mm. `NOT_ENOUGH_MARKS`: fewer blobs matched than `ref_points` (every mark is required). `HIGH_RESIDUAL`: all matched but `rms` > `R_MAX_MM` (0.75), which means a stray took a mark's place or `k`/`d` describe this camera poorly.
 
 ### `check_pnp <args_json>`
 

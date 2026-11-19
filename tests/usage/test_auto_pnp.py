@@ -64,6 +64,32 @@ class TestMatchGridOnPhotos(unittest.TestCase):
                 found = assign >= 0
                 np.testing.assert_array_equal(assign[found], truth[found])
 
+    def with_covered_marks(self, exposures, covered, strays_mm):
+        """Blobs of the photos with some marks removed and blobs added at mm offsets from them."""
+        blobs = merge_exposures([self.data['exposures'][e] for e in exposures])
+        raw = np.array([b[:2] for b in blobs])
+        keep = np.linalg.norm(raw[:, None] - self.marks[covered][None], axis=2).min(axis=1) > 3
+        px_per_mm = np.linalg.norm(self.marks[6] - self.marks[5]) / 100
+        strays = [self.marks[i] + np.array(offset) * px_per_mm for i, offset in strays_mm]
+        return undistort_centers(np.vstack([raw[keep], *strays]), self.k, self.d)
+
+    def assert_only_real_marks(self, und, covered):
+        assign, rms = match_grid(und, self.bed)
+        self.assertEqual((assign >= 0).sum(), 16 - len(covered))
+        self.assertTrue((assign[covered] == -1).all())
+        self.assertLess(rms, 0.75)
+
+    def test_stray_next_to_a_covered_mark_is_not_counted(self):
+        # seen on hardware: two marks covered by a board, and a blob on the board 7 mm from one of them was
+        # taken for it (15/16, rms 3.5 mm). The count must say what is really there.
+        self.assert_only_real_marks(self.with_covered_marks(['75'], [5, 10], [(5, (7, 0))]), [5, 10])
+
+    def test_strays_from_many_exposures_do_not_shift_the_grid(self):
+        # same board after the second exposure round: more strays near the covered marks, and the strays of
+        # seven exposures crowd the seeds. A grid shifted by one row then fitted 10 blobs perfectly and won.
+        strays = [(5, (7, 0)), (5, (-9, 8)), (10, (-5, 6)), (10, (11, -3))]
+        self.assert_only_real_marks(self.with_covered_marks(list(self.data['exposures']), [5, 10], strays), [5, 10])
+
     def marks_result(self, exposures):
         lists = []
         for e in exposures:
@@ -156,6 +182,35 @@ class TestAutoPnpWebsocket(unittest.TestCase):
             self.assertEqual(self.reply(ws).get('info'), 'NO_DATA')
         finally:
             ws.close()
+
+
+class TestFaintMarks(unittest.TestCase):
+    """A unit whose bottom-left marks are too faint for the detector at every exposure (lens flare)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(FIXTURE_DIR, 'fbm2_unit3_faint_marks.json')) as f:
+            cls.data = json.load(f)
+
+    def run_match(self, with_weak):
+        exposures = list(self.data['blobs'])
+        weak = [self.data['weak'][e] for e in exposures] if with_weak else None
+        return match_marks([self.data['blobs'][e] for e in exposures], self.data['ref_points'], weak)
+
+    def test_two_marks_missing_without_the_weak_candidates(self):
+        res = self.run_match(with_weak=False)
+        self.assertEqual((res['reason'], res['matched'], res['filled']), (NOT_ENOUGH_MARKS, 14, 0))
+        self.assertEqual([i for i, p in enumerate(res['points']) if p is None], [8, 12])  # (30, 150) and (30, 210)
+
+    def test_weak_candidates_next_to_the_predicted_positions_complete_the_set(self):
+        res = self.run_match(with_weak=True)
+        self.assertEqual((res['reason'], res['matched'], res['filled']), (None, 16, 2))
+        self.assertLess(res['rms'], 0.75)
+
+    def test_weak_candidates_are_not_used_with_too_few_marks(self):
+        # one overexposed photo shows half the marks; hundreds of weak blobs must not fill in the rest
+        res = match_marks([self.data['blobs']['200']], self.data['ref_points'], [self.data['weak']['200']])
+        self.assertEqual((res['reason'], res['filled']), (NOT_ENOUGH_MARKS, 0))
 
 
 class TestGate(unittest.TestCase):

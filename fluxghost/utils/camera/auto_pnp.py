@@ -12,6 +12,7 @@ by 90 degrees).
 
 import cv2
 import numpy as np
+from scipy.spatial import cKDTree
 
 from .constants import L_PAD, T_PAD
 
@@ -25,6 +26,19 @@ ASSIGN_TOL_MM = 15.0
 # to see how many units it turns away (their way out is a new ChArUco calibration); a stray taking a mark's place
 # gives 3 mm or more.
 R_MAX_MM = 0.75
+
+# Final tolerance, once the homography has settled. A stray blob near a missing mark (seen on hardware: a board
+# over two marks, a blob on it 7 mm from one of them) is assigned at ASSIGN_TOL_MM and drags the fit; at this
+# tolerance it is not a mark. Correct marks sit within about 1 mm.
+TIGHT_TOL_MM = 3.0
+# Weak candidates (blobs down to this area, px) only count within FILL_TOL_MM of a position predicted from the
+# marks already matched, and only when at least FILL_MIN_FRACTION of the marks were matched to predict from.
+# On paper a random position has a weak blob that close in about 2 % of cases (seven exposures).
+WEAK_MIN_AREA = 4
+FILL_TOL_MM = 2.0
+FILL_MIN_FRACTION = 0.75
+# How far perspective may stretch a cell's width / height ratio in the image before a seed is not worth trying
+SEED_ASPECT = 2.5
 
 NOT_ENOUGH_MARKS = 'NOT_ENOUGH_MARKS'
 HIGH_RESIDUAL = 'HIGH_RESIDUAL'
@@ -45,11 +59,11 @@ def merge_exposures(blob_lists):
     return merged
 
 
-def _detector():
+def _detector(min_area=15):
     # same parameters as find_blob_centers, dark blobs only
     p = cv2.SimpleBlobDetector_Params()
     p.minThreshold, p.maxThreshold = 10, 200
-    p.filterByArea, p.minArea, p.maxArea = True, 15, 1000
+    p.filterByArea, p.minArea, p.maxArea = True, min_area, 1000
     p.filterByCircularity, p.minCircularity = True, 0.64
     p.filterByConvexity, p.minConvexity = True, 0.85
     p.filterByColor, p.blobColor = True, 0
@@ -67,32 +81,35 @@ def _contrast(gray, x, y, size):
     return float(min(np.median(patch[(dist > 2 * r) & (dist <= 3 * r)]), 250) - patch[dist <= r].mean())
 
 
-def detect_marks(img, k, d):
+def detect_marks(img, k, d, min_area=15):
     """auto_pnp_detect: dark blobs in a raw (still distorted, unpadded) BGR photo -> [[x, y, size, contrast]].
 
     Detection runs on the raw frame and only the centres are undistorted; x, y are in the same undistorted px
     space as solve_pnp_find_corners returns and solve_pnp_calculate takes.
+
+    min_area=WEAK_MIN_AREA gives the weak candidates: hundreds per photo, mostly paper texture, usable only
+    next to a position that is already predicted (see fill_missing).
     """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    keypoints = _detector().detect(gray)
+    keypoints = _detector(min_area).detect(gray)
     if not keypoints:
         return []
     und = undistort_centers([kp.pt for kp in keypoints], k, d)
     return [
-        [float(x), float(y), float(kp.size), _contrast(gray, kp.pt[0], kp.pt[1], kp.size)]
+        [round(float(x), 2), round(float(y), 2), round(float(kp.size), 2), round(_contrast(gray, *kp.pt, kp.size), 1)]
         for (x, y), kp in zip(und, keypoints)
     ]
 
 
-def _assign(model, und, bed):
-    """Give each grid position its nearest blob within ASSIGN_TOL_MM on the bed, each blob used once."""
+def _assign(model, und, bed, tol_mm):
+    """Give each grid position its nearest blob within tol_mm on the bed, each blob used once."""
     on_bed = cv2.perspectiveTransform(und.reshape(-1, 1, 2), np.linalg.inv(model)).reshape(-1, 2)
     dist = np.linalg.norm(bed[:, None] - on_bed[None], axis=2)
     out = np.full(len(bed), -1)
     used = set()
     for g in np.argsort(dist.min(axis=1)):
         for b in np.argsort(dist[g]):
-            if dist[g, b] > ASSIGN_TOL_MM:
+            if dist[g, b] > tol_mm:
                 break
             if b not in used:
                 out[g] = b
@@ -118,7 +135,7 @@ def _residuals(model, und, bed):
     return cv2.perspectiveTransform(und.reshape(-1, 1, 2), np.linalg.inv(model)).reshape(-1, 2) - bed
 
 
-def match_grid(und, bed, neighbours=8, iterations=6):
+def match_grid(und, bed, neighbours=16, iterations=6):
     """Assign blobs to grid positions.
 
     :param und: undistorted blob centres, px
@@ -135,45 +152,106 @@ def match_grid(und, bed, neighbours=8, iterations=6):
         for j in range(len(ys) - 1)
     ]
     best = (-1, np.inf, None)
-    # ponytail: every (blob, right, lower) triple times every cell, ~1 s in Python with 40 blobs. Fine for a
-    # once-per-calibration call; prune seeds by blob size or vectorise if it ever runs per frame.
+    tree = cKDTree(und)
+    centre = bed.mean(axis=0).reshape(1, 1, 2)
+    enough = max(4, len(bed) // 3)
+    seen = set()  # assignments already refined; many seeds land on the same one
+    # a cell's width / height on the bed; perspective changes it in the image, but not by more than SEED_ASPECT
+    ratios = [(xs[i + 1] - xs[i]) / (ys[j + 1] - ys[j]) for i in range(len(xs) - 1) for j in range(len(ys) - 1)]
+    min_ratio, max_ratio = min(ratios) / SEED_ASPECT, max(ratios) * SEED_ASPECT
+    # ponytail: every plausible (blob, right, lower) seed times every cell, in Python. Instant when all marks are
+    # there (early return), 1 to 2 s for 40 blobs with marks missing, 8 s for 95 blobs (seven exposures merged,
+    # marks missing). Vectorise the assignment or rank seeds by blob size if that failure path must be faster.
     for a in range(len(und)):
         near = np.argsort(np.linalg.norm(und - und[a], axis=1))[1 : neighbours + 1]
         for b in near:
-            if und[b, 0] <= und[a, 0]:
+            ab = und[b] - und[a]
+            if ab[0] <= abs(ab[1]):  # right neighbour: mostly along image +x, as _upright requires of the result
                 continue
             for c in near:
-                if c == b or und[c, 1] <= und[a, 1]:
+                ac = und[c] - und[a]
+                if c == b or ac[1] <= abs(ac[0]):
+                    continue
+                if not min_ratio <= np.linalg.norm(ab) / np.linalg.norm(ac) <= max_ratio:
                     continue
                 dists = np.linalg.norm(und - (und[b] + und[c] - und[a]), axis=1)
                 dists[[a, b, c]] = np.inf
                 e = int(np.argmin(dists))
                 # the fourth corner must sit near where the parallelogram puts it
-                if dists[e] > 0.5 * min(np.linalg.norm(und[b] - und[a]), np.linalg.norm(und[c] - und[a])):
+                if dists[e] > 0.5 * min(np.linalg.norm(ab), np.linalg.norm(ac)):
                     continue
                 img = und[[a, b, c, e]].astype(np.float32)
                 for cell in cells:
                     model = cv2.getPerspectiveTransform(bed[list(cell)].astype(np.float32), img)
                     if not _usable(model) or not _upright(model, bed):
                         continue
+                    # cheap rejection before the assignment loop: a seed that is not a real cell puts the grid
+                    # where there are no blobs. Radius = ASSIGN_TOL_MM at the grid centre's scale, doubled
+                    # because one cell extrapolates badly.
+                    step = cv2.perspectiveTransform(np.hstack([centre, centre + (ASSIGN_TOL_MM, 0)]), model)[0]
+                    radius = 2 * np.linalg.norm(step[1] - step[0])
+                    grid_img = cv2.perspectiveTransform(bed.reshape(-1, 1, 2), model).reshape(-1, 2)
+                    if np.isfinite(tree.query(grid_img, distance_upper_bound=radius)[0]).sum() < enough:
+                        continue
                     assign = None
-                    for _ in range(iterations):
-                        new = _assign(model, und, bed)
-                        ok = new >= 0
-                        stable = assign is not None and np.array_equal(new, assign)
-                        assign = new
-                        if ok.sum() < 4 or stable:
+                    # grow at the loose tolerance (one cell extrapolates badly), then settle at the tight one,
+                    # so hypotheses are ranked by marks that really fit and not by strays swept in on the way
+                    for tol in (ASSIGN_TOL_MM, TIGHT_TOL_MM):
+                        assign = None
+                        for it in range(iterations):
+                            new = _assign(model, und, bed, tol)
+                            if tol == ASSIGN_TOL_MM and it == 0:
+                                # refinement is deterministic from here, so the same start gives the same end
+                                if new.tobytes() in seen:
+                                    assign = None
+                                    break
+                                seen.add(new.tobytes())
+                            ok = new >= 0
+                            stable = assign is not None and np.array_equal(new, assign)
+                            assign = new
+                            if ok.sum() < enough or stable:
+                                break
+                            model, _ = cv2.findHomography(bed[ok], und[assign[ok]], 0)
+                            if not _usable(model):
+                                break
+                        if assign is None or not _usable(model) or (assign >= 0).sum() < enough:
                             break
-                        model, _ = cv2.findHomography(bed[ok], und[assign[ok]], 0)
-                        if not _usable(model):
-                            break
+                    if assign is None or not _usable(model):
+                        continue
                     ok = assign >= 0
-                    if not _usable(model) or ok.sum() < 4 or not _upright(model, bed):
+                    if ok.sum() < 4 or not _upright(model, bed):
                         continue
                     rms = float(np.sqrt((_residuals(model, und[assign[ok]], bed[ok]) ** 2).sum(axis=1).mean()))
                     if ok.sum() > best[0] or (ok.sum() == best[0] and rms < best[1]):
                         best = (int(ok.sum()), rms, assign.copy())
+                        # every mark, fitting well: no other hypothesis can beat it by enough to matter
+                        if best[0] == len(bed) and rms <= R_MAX_MM:
+                            return best[2], best[1]
     return best[2], best[1]
+
+
+def fill_missing(assign, und, bed, weak):
+    """Look for the marks the detector missed among the weak candidates, next to where the others say they are.
+
+    Seen on hardware: lens flare from the light panel left two corner marks at a tenth of the usual contrast,
+    below what the detector can pick out of a whole photo at any exposure, yet visible exactly where the other
+    14 marks put them. Returns (und with the filled centres appended, assign, number filled).
+    """
+    assign = assign.copy()
+    ok = assign >= 0
+    weak = np.asarray(weak, np.float64).reshape(-1, 2)
+    if ok.all() or ok.sum() < FILL_MIN_FRACTION * len(bed) or not len(weak):
+        return und, assign, 0
+    model, _ = cv2.findHomography(bed[ok], und[assign[ok]], 0)
+    on_bed = cv2.perspectiveTransform(weak.reshape(-1, 1, 2), np.linalg.inv(model)).reshape(-1, 2)
+    filled = []
+    for g in np.flatnonzero(~ok):
+        near = np.linalg.norm(on_bed - bed[g], axis=1) <= FILL_TOL_MM
+        if near.any():
+            # one mark seen in several exposures gives several candidates; the median ignores a lone speck
+            assign[g] = len(und) + len(filled)
+            filled.append(np.median(weak[near], axis=0))
+    return (np.vstack([und, *filled]) if filled else und), assign, len(filled)
 
 
 def gate(matched, total, rms):
@@ -191,20 +269,28 @@ def gate(matched, total, rms):
     return None
 
 
-def match_marks(blob_lists, ref_points):
+def match_marks(blob_lists, ref_points, weak_lists=None):
     """auto_pnp_match: blobs per exposure ([x, y, size, contrast], undistorted px) -> one image point per ref point.
 
-    :return: dict with points (per ref point, [x, y] or None), matched, rms, and reason (None when accepted)
+    :return: dict with points (per ref point, [x, y] or None), matched, filled, rms, and reason (None when accepted)
     """
+    bed = np.asarray(ref_points, np.float64).reshape(-1, 2)
     blobs = merge_exposures(blob_lists)
     und = np.array([b[:2] for b in blobs], np.float64).reshape(-1, 2)
-    assign, rms = match_grid(und, ref_points) if len(und) >= 4 else (None, np.inf)
+    assign, rms = match_grid(und, bed) if len(und) >= 4 else (None, np.inf)
     if assign is None:
-        assign = np.full(len(ref_points), -1)
+        assign = np.full(len(bed), -1)
+    weak = [b[:2] for blobs in weak_lists or [] for b in blobs]
+    und, assign, filled = fill_missing(assign, und, bed, weak)
+    if filled:
+        ok = assign >= 0
+        model, _ = cv2.findHomography(bed[ok], und[assign[ok]], 0)
+        rms = float(np.sqrt((_residuals(model, und[assign[ok]], bed[ok]) ** 2).sum(axis=1).mean()))
     matched = int((assign >= 0).sum())
     return {
         'points': [und[i].tolist() if i >= 0 else None for i in assign],
         'matched': matched,
+        'filled': filled,
         'rms': None if np.isinf(rms) else rms,
-        'reason': gate(matched, len(ref_points), rms),
+        'reason': gate(matched, len(bed), rms),
     }
