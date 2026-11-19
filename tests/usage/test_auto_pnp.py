@@ -1,0 +1,195 @@
+"""Automatic solve-PnP mark matching (fluxghost/utils/camera/auto_pnp.py).
+
+Fixture: blobs detected in raw photos of one fbm2 after the calibration engraving, one list per exposure, with
+the 16 mark positions that were confirmed by warping the photo through the preview code.
+"""
+
+import json
+import os
+import unittest
+
+import cv2
+import numpy as np
+
+from fluxghost.utils.camera.auto_pnp import (
+    HIGH_RESIDUAL,
+    NOT_ENOUGH_MARKS,
+    detect_marks,
+    gate,
+    match_grid,
+    match_marks,
+    merge_exposures,
+    undistort_centers,
+)
+from tests.usage._harness import WS, Server
+
+FIXTURE_DIR = os.path.join(os.path.dirname(__file__), 'fixtures', 'auto_pnp')
+FIXTURE = os.path.join(FIXTURE_DIR, 'fbm2_unit2_blobs.json')
+PHOTO = os.path.join(FIXTURE_DIR, 'fbm2_unit2_exp75.jpg')  # the exposure-75 photo the '75' blob list came from
+
+
+class TestMatchGridOnPhotos(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open(FIXTURE) as f:
+            cls.data = json.load(f)
+        cls.k, cls.d = np.array(cls.data['k']), np.array(cls.data['d'])
+        cls.bed = np.array(cls.data['ref_points'])
+        cls.marks = np.array(cls.data['marks'])
+
+    def run_match(self, exposures):
+        blobs = merge_exposures([self.data['exposures'][e] for e in exposures])
+        raw = np.array([b[:2] for b in blobs])
+        assign, rms = match_grid(undistort_centers(raw, self.k, self.d), self.bed)
+        # the mark each grid position really is, as a blob index (-1 when this photo does not show it)
+        dist = np.linalg.norm(self.marks[:, None] - raw[None], axis=2)
+        truth = np.where(dist.min(axis=1) < 3, dist.argmin(axis=1), -1)
+        return assign, truth, rms
+
+    def test_all_marks_from_one_good_exposure(self):
+        assign, truth, rms = self.run_match(['75'])
+        np.testing.assert_array_equal(assign, truth)
+        self.assertTrue((assign >= 0).all())
+        self.assertLess(rms, 1.0)
+
+    def test_bracket_gives_the_same_answer(self):
+        assign, truth, _ = self.run_match(['75', '200'])
+        np.testing.assert_array_equal(assign, truth)
+
+    def test_never_assigns_a_wrong_blob_when_most_marks_show(self):
+        for exposure in ('50', '100', '150'):
+            with self.subTest(exposure=exposure):
+                assign, truth, _ = self.run_match([exposure])
+                self.assertGreaterEqual((truth >= 0).sum(), 11)
+                found = assign >= 0
+                np.testing.assert_array_equal(assign[found], truth[found])
+
+    def marks_result(self, exposures):
+        lists = []
+        for e in exposures:
+            blobs = self.data['exposures'][e]
+            und = undistort_centers(np.array([b[:2] for b in blobs]), self.k, self.d)
+            lists.append([[x, y, b[2], b[3]] for (x, y), b in zip(und.tolist(), blobs)])
+        return match_marks(lists, self.data['ref_points'])
+
+    def test_match_marks_accepts_a_full_set(self):
+        res = self.marks_result(['75', '200'])
+        self.assertIsNone(res['reason'])
+        self.assertEqual(res['matched'], 16)
+        expected = undistort_centers(self.marks, self.k, self.d)
+        np.testing.assert_allclose(np.array(res['points']), expected, atol=1.0)
+
+    def test_match_marks_rejects_an_overexposed_photo(self):
+        res = self.marks_result(['350'])
+        self.assertEqual(res['reason'], NOT_ENOUGH_MARKS)
+        self.assertIn(None, res['points'])
+
+    def test_match_marks_with_no_blobs(self):
+        res = match_marks([[]], self.data['ref_points'])
+        self.assertEqual((res['reason'], res['matched'], res['rms']), (NOT_ENOUGH_MARKS, 0, None))
+
+
+class TestDetectMarks(unittest.TestCase):
+    def test_finds_every_mark_in_the_photo(self):
+        with open(FIXTURE) as f:
+            data = json.load(f)
+        k, d = np.array(data['k']), np.array(data['d'])
+        blobs = np.array(detect_marks(cv2.imread(PHOTO), k, d))
+        self.assertEqual(blobs.shape[1], 4)
+        expected = undistort_centers(np.array(data['marks']), k, d)
+        nearest = np.linalg.norm(expected[:, None] - blobs[None, :, :2], axis=2).min(axis=1)
+        self.assertLess(nearest.max(), 1.0)
+        self.assertLess(len(blobs), 60)  # a clean sheet gives the marks plus a few strays, not hundreds
+
+    def test_blank_photo(self):
+        self.assertEqual(detect_marks(np.full((240, 320, 3), 200, np.uint8), np.eye(3), np.zeros((4, 1))), [])
+
+
+class TestAutoPnpWebsocket(unittest.TestCase):
+    """The two commands over /ws/camera-calibration, the way Beam Studio calls them."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.server = Server()
+        with open(FIXTURE) as f:
+            cls.data = json.load(f)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.stop()
+
+    def reply(self, ws):
+        return ws.json_until(lambda m: m.get('status') in ('ok', 'fail', 'error', 'continue'))
+
+    def test_detect_then_match(self):
+        ws = WS(self.server.port, '/ws/camera-calibration', timeout=60)
+        try:
+            ws.send('update_data ' + json.dumps({'k': self.data['k'], 'd': self.data['d']}))
+            self.assertEqual(self.reply(ws)['status'], 'ok')
+            with open(PHOTO, 'rb') as f:
+                photo = f.read()
+            ws.send('auto_pnp_detect %d' % len(photo))
+            self.assertEqual(self.reply(ws)['status'], 'continue')
+            ws.send(photo, opcode=2)
+            detected = self.reply(ws)
+            self.assertEqual(detected['status'], 'ok')
+            ws.send(
+                'auto_pnp_match ' + json.dumps({'ref_points': self.data['ref_points'], 'blobs': [detected['blobs']]})
+            )
+            matched = self.reply(ws)
+            self.assertEqual((matched['status'], matched['matched']), ('ok', 16))
+            self.assertEqual(len(matched['points']), 16)
+            # too few blobs: a fail with the reason, not an error
+            ws.send(
+                'auto_pnp_match '
+                + json.dumps({'ref_points': self.data['ref_points'], 'blobs': [detected['blobs'][:5]]})
+            )
+            failed = self.reply(ws)
+            self.assertEqual((failed['status'], failed['reason']), ('fail', NOT_ENOUGH_MARKS))
+        finally:
+            ws.close()
+
+    def test_detect_needs_calibration_data(self):
+        ws = WS(self.server.port, '/ws/camera-calibration')
+        try:
+            ws.send('auto_pnp_detect 10')
+            self.assertEqual(self.reply(ws).get('info'), 'NO_DATA')
+        finally:
+            ws.close()
+
+
+class TestGate(unittest.TestCase):
+    def test_gate(self):
+        self.assertIsNone(gate(16, 16, 0.5))
+        self.assertEqual(gate(15, 16, 0.5), NOT_ENOUGH_MARKS)
+        self.assertEqual(gate(16, 16, 6.4), HIGH_RESIDUAL)
+        # a missing mark is the more useful thing to tell the user, so it wins
+        self.assertEqual(gate(7, 16, 6.4), NOT_ENOUGH_MARKS)
+        self.assertEqual(gate(0, 16, float('inf')), NOT_ENOUGH_MARKS)
+
+
+class TestMatchGridSynthetic(unittest.TestCase):
+    def test_grid_similar_to_its_transpose_stays_upright(self):
+        # fbb2 wide-angle spacings: 120/180/120 across, 80/120/80 down. Rotated by 90 degrees the grid has the
+        # same shape, and without the upright check that assignment fitted real photos better than the true one.
+        bed = np.array([(x, y) for y in (40, 120, 240, 320) for x in (90, 210, 390, 510)], float)
+        view = np.array([[2.4, 0.5, 300], [0.05, 1.5, 250], [0.0, 0.0009, 1]])  # strong keystone, like a lid camera
+        img = cv2.perspectiveTransform(bed.reshape(-1, 1, 2), view).reshape(-1, 2)
+        strays = np.array([(150.0, 180.0), (1900.0, 1400.0), (1000.0, 60.0)])
+        order = np.random.default_rng(0).permutation(len(img) + len(strays))
+        und = np.vstack([img, strays])[order]
+        assign, rms = match_grid(und, bed)
+        np.testing.assert_array_equal(order[assign], np.arange(16))
+        self.assertLess(rms, 0.01)
+
+
+class TestMergeExposures(unittest.TestCase):
+    def test_keeps_each_mark_from_its_best_contrast_exposure(self):
+        dark = [[100.0, 100.0, 10.0, 80.0], [300.0, 100.0, 10.0, 20.0]]
+        bright = [[101.0, 100.5, 10.0, 30.0], [300.5, 100.0, 10.0, 90.0], [500.0, 100.0, 10.0, 40.0]]
+        merged = merge_exposures([dark, bright])
+        self.assertEqual(sorted(m[:2] for m in merged), [[100.0, 100.0], [300.5, 100.0], [500.0, 100.0]])
+
+
+if __name__ == '__main__':
+    unittest.main()

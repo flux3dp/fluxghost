@@ -227,6 +227,22 @@ def check_camera(port, pem):
     ws.close()
 
 
+def check_camera_calibration(port):
+    # device-free: automatic solve-PnP needs k/d first, and a match with no blobs is a fail with a reason
+    ws = WS(port, '/ws/camera-calibration')
+    done = lambda m: m.get('status') in ('ok', 'fail', 'error', 'continue')  # noqa: E731
+    ws.send('auto_pnp_detect 10')
+    record('camera_calibration.auto_pnp_detect_without_data', ws.json_until(done).get('info') == 'NO_DATA')
+    ws.send('auto_pnp_match ' + json.dumps({'ref_points': [[0, 0], [10, 0], [0, 10], [10, 10]], 'blobs': [[]]}))
+    reply = ws.json_until(done)
+    record(
+        'camera_calibration.auto_pnp_match_no_blobs',
+        reply.get('status') == 'fail' and reply.get('reason') == 'NOT_ENOUGH_MARKS',
+        'reply=%r' % (reply,),
+    )
+    ws.close()
+
+
 def check_camera_transform(port):
     # device-free fisheye endpoint: the manual offset keys must be accepted by v3 + grid and by v4
     # all floats: cv2.fisheye.projectPoints rejects integer arrays, real params are floats anyway
@@ -393,6 +409,7 @@ def main():
             check_camera(port, pem)
 
         check_camera_transform(port)
+        check_camera_calibration(port)
         check_toolpath(port)
         check_opencv(port)
         check_contours(port)

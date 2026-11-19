@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from fluxghost.debug import WRITE_DEBUG_IMG, debug_imwrite
+from fluxghost.utils.camera.auto_pnp import detect_marks, match_marks
 from fluxghost.utils.camera.calibration import (
     calibrate_camera,
     calibrate_fisheye_camera,
@@ -49,6 +50,8 @@ def camera_calibration_api_mixin(cls):
                 'calibrate_chessboard': [self.cmd_calibrate_chessboard],
                 'solve_pnp_find_corners': [self.cmd_solve_pnp_find_corners],
                 'solve_pnp_calculate': [self.cmd_solve_pnp_calculate],
+                'auto_pnp_detect': [self.cmd_auto_pnp_detect],
+                'auto_pnp_match': [self.cmd_auto_pnp_match],
                 'check_pnp': [self.cmd_check_pnp],
                 'update_data': [self.cmd_update_data],
                 'extrinsic_regression': [self.cmd_extrinsic_regression],
@@ -401,9 +404,42 @@ def camera_calibration_api_mixin(cls):
                 logger.info('[solve_pnp] Reprojection error: {}'.format(reproj_error))
                 self.calibration_params['rvec'] = new_rvec
                 self.calibration_params['tvec'] = new_tvec
-                self.send_ok(rvec=new_rvec.tolist(), tvec=new_tvec.tolist())
+                # per-point distance; the mean above cancels opposite errors and is only logged
+                rms = float(np.sqrt(((projected - imgpoints.reshape(-1, 2)) ** 2).sum(axis=1).mean()))
+                self.send_ok(rvec=new_rvec.tolist(), tvec=new_tvec.tolist(), rms=rms)
             except Exception as e:
                 self.send_json(status='fail', reason='solve pnp failed' + str(e))
+
+        def cmd_auto_pnp_detect(self, message):
+            if self.calibration_params.get('k') is None:
+                self.send_json(status='fail', info='NO_DATA', reason='No calibration data found')
+                return
+            k = self.calibration_params['k']
+            d = self.calibration_params['d']
+
+            def upload_callback(buf):
+                img = cv2.cvtColor(np.array(Image.open(io.BytesIO(buf)).convert('RGB')), cv2.COLOR_RGB2BGR)
+                blobs = detect_marks(img, k, d)
+                logger.info('[auto_pnp] detect: %d blobs', len(blobs))
+                self.send_ok(blobs=blobs)
+
+            self.set_binary_helper(BinaryUploadHelper(int(message.split(' ')[0]), upload_callback))
+            self.send_json(status='continue')
+
+        def cmd_auto_pnp_match(self, message):
+            args = json.loads(message)
+            res = match_marks(args['blobs'], args['ref_points'])
+            logger.info(
+                '[auto_pnp] match: %d/%d marks, rms %s mm, %s',
+                res['matched'],
+                len(args['ref_points']),
+                res['rms'],
+                res['reason'] or 'accepted',
+            )
+            if res['reason']:
+                self.send_json(status='fail', reason=res['reason'], matched=res['matched'], rms=res['rms'])
+                return
+            self.send_ok(points=res['points'], matched=res['matched'], rms=res['rms'])
 
         def cmd_check_pnp(self, message):
             message = message.split(' ')
