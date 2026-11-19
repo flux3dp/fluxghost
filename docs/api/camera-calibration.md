@@ -128,11 +128,11 @@ Dark blobs are detected on the raw frame (`detect_marks`, [fluxghost/utils/camer
 
 ### `auto_pnp_match <args_json>`
 
-Step 2: tell which blob is which mark. `args_json` = `{"ref_points": [[x, y], ...], "blobs": [[[x, y, size, contrast], ...], ...], "weak": [[[x, y, size, contrast], ...], ...]}`: `ref_points` are the mark positions in mm, a full rectangular lattice in any order; `blobs` and the optional `weak` hold one `auto_pnp_detect` result per exposure. Stateless, needs no stored data.
+Step 2: tell which blob is which mark. `args_json` = `{"ref_points": [[x, y], ...], "blobs": [[[x, y, size, contrast], ...], ...], "weak": [[[x, y, size, contrast], ...], ...]}`: `ref_points` are the mark positions in mm in any order, either a full rectangular lattice (fbm2, wide-angle: 4 x 4) or nested rectangles (laser head, Ador: 8 marks); `blobs` and the optional `weak` hold one `auto_pnp_detect` result per exposure. Stateless, needs no stored data.
 
-Blobs from different exposures within 8 px are one mark, kept from the exposure with the best contrast. `match_grid` then fits one homography between the bed plane and the blob centres with no pose prior: every grid cell seeded from a blob and its right, lower and diagonal neighbours, grown by assigning each grid position its nearest blob within 15 mm on the bed (`ASSIGN_TOL_MM`), then settled at 3 mm (`TIGHT_TOL_MM`) so a stray near a covered mark is dropped instead of taking its place. It assumes only that bed +x / +y run along image +x / +y.
+Blobs from different exposures within 8 px are one mark, kept from the exposure with the best contrast. `match_grid` then fits one homography between the bed plane and the blob centres with no pose prior: every cell (a mark, the next mark to its right, the next one below and the one closing the rectangle: the lattice cells, or each of the nested rectangles) seeded from a blob and its right, lower and diagonal neighbours, grown by assigning each grid position its nearest blob within 15 mm on the bed (`ASSIGN_TOL_MM`), then settled at 3 mm (`TIGHT_TOL_MM`), starting from a RANSAC fit of the loose assignment, so a stray near a covered mark is dropped instead of taking its place. For a layout that is not a full lattice the seed may be any blobs, not only neighbouring ones. It assumes only that bed +x / +y run along image +x / +y.
 
-When at least 75 % of the marks matched (`FILL_MIN_FRACTION`), `fill_missing` predicts each missing mark from that homography and takes the median of the `weak` blobs within 2 mm of it (`FILL_TOL_MM`). `weak` blobs are never used for the matching itself.
+When at least 7 in 8 of the marks matched (`FILL_MIN_FRACTION`: 14 of 16, 7 of 8), `fill_missing` predicts each missing mark from that homography and takes the median of the `weak` blobs within 2 mm of it (`FILL_TOL_MM`). `weak` blobs are never used for the matching itself.
 
 ```
 ← {"status": "ok", "points": [[x, y], ...], "matched": <n>, "filled": <n>, "rms": <mm>}

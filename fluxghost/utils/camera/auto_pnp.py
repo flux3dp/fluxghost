@@ -34,9 +34,12 @@ TIGHT_TOL_MM = 3.0
 # Weak candidates (blobs down to this area, px) only count within FILL_TOL_MM of a position predicted from the
 # marks already matched, and only when at least FILL_MIN_FRACTION of the marks were matched to predict from.
 # On paper a random position has a weak blob that close in about 2 % of cases (seven exposures).
+# 7 of 8 / 14 of 16: with two of the 8 nested-rectangle marks missing, a homography that squeezes the pattern along
+# a diagonal fits six real marks to the wrong positions with no residual (seen on an Ador photo), and the fill
+# would then look for the other two in the wrong place.
 WEAK_MIN_AREA = 4
 FILL_TOL_MM = 2.0
-FILL_MIN_FRACTION = 0.75
+FILL_MIN_FRACTION = 0.875
 # How far perspective may stretch a cell's width / height ratio in the image before a seed is not worth trying
 SEED_ASPECT = 2.5
 
@@ -139,25 +142,34 @@ def match_grid(und, bed, neighbours=16, iterations=6):
     """Assign blobs to grid positions.
 
     :param und: undistorted blob centres, px
-    :param bed: grid positions in bed mm, a full rectangular lattice in any order
+    :param bed: mark positions in bed mm, in any order: a full rectangular lattice, or nested rectangles
     :return: (blob index per grid position or -1, rms residual to the homography in mm), (None, inf) if no fit
     """
     und = np.asarray(und, np.float64).reshape(-1, 2)
     bed = np.asarray(bed, np.float64).reshape(-1, 2)
     xs, ys = np.unique(bed[:, 0]), np.unique(bed[:, 1])
     pos = {tuple(p): i for i, p in enumerate(bed)}
-    cells = [
-        (pos[(xs[i], ys[j])], pos[(xs[i + 1], ys[j])], pos[(xs[i], ys[j + 1])], pos[(xs[i + 1], ys[j + 1])])
-        for i in range(len(xs) - 1)
-        for j in range(len(ys) - 1)
-    ]
+    # a cell is a mark with the next mark to its right, the next one below, and the mark closing the rectangle.
+    # On a full lattice these are the lattice cells; on two nested rectangles (the 8-mark layouts) the two rectangles.
+    cells, ratios = [], []
+    for x, y in pos:
+        right = [v for v in xs if v > x and (v, y) in pos]
+        below = [v for v in ys if v > y and (x, v) in pos]
+        if right and below and (right[0], below[0]) in pos:
+            cells.append((pos[(x, y)], pos[(right[0], y)], pos[(x, below[0])], pos[(right[0], below[0])]))
+            ratios.append((right[0] - x) / (below[0] - y))
+    if not cells:
+        return None, np.inf
+    if len(bed) < len(xs) * len(ys):
+        # not a full lattice: a cell's corners are not each other's nearest marks (the inner rectangle and any
+        # stray sit in between), so a seed may be any blobs, not only near ones. These layouts have few marks.
+        neighbours = len(und)
     best = (-1, np.inf, None)
     tree = cKDTree(und)
     centre = bed.mean(axis=0).reshape(1, 1, 2)
     enough = max(4, len(bed) // 3)
     seen = set()  # assignments already refined; many seeds land on the same one
     # a cell's width / height on the bed; perspective changes it in the image, but not by more than SEED_ASPECT
-    ratios = [(xs[i + 1] - xs[i]) / (ys[j + 1] - ys[j]) for i in range(len(xs) - 1) for j in range(len(ys) - 1)]
     min_ratio, max_ratio = min(ratios) / SEED_ASPECT, max(ratios) * SEED_ASPECT
     # ponytail: every plausible (blob, right, lower) seed times every cell, in Python. Instant when all marks are
     # there (early return), 1 to 2 s for 40 blobs with marks missing, 8 s for 95 blobs (seven exposures merged,
@@ -197,6 +209,14 @@ def match_grid(und, bed, neighbours=16, iterations=6):
                     # grow at the loose tolerance (one cell extrapolates badly), then settle at the tight one,
                     # so hypotheses are ranked by marks that really fit and not by strays swept in on the way
                     for tol in (ASSIGN_TOL_MM, TIGHT_TOL_MM):
+                        if tol == TIGHT_TOL_MM:
+                            # a stray swept in at the loose tolerance drags a least-squares fit, badly with 8 marks
+                            # (seen: an old mark 14 mm from a missing one cost a real mark its place). Start the
+                            # tight stage from the fit most marks agree on instead.
+                            ok = assign >= 0
+                            robust, _ = cv2.findHomography(und[assign[ok]], bed[ok], cv2.RANSAC, TIGHT_TOL_MM)
+                            if _usable(robust):
+                                model = np.linalg.inv(robust)
                         assign = None
                         for it in range(iterations):
                             new = _assign(model, und, bed, tol)

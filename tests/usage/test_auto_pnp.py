@@ -213,6 +213,40 @@ class TestFaintMarks(unittest.TestCase):
         self.assertEqual((res['reason'], res['filled']), (NOT_ENOUGH_MARKS, 0))
 
 
+class TestNestedRectangles(unittest.TestCase):
+    """The 8-mark layouts (fbb2 / fhx2rf laser head, Ador): two concentric rectangles, not a lattice."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(FIXTURE_DIR, 'nested_rectangles_8_marks.json')) as f:
+            cls.cases = json.load(f)['cases']
+
+    def wrong(self, res, case):
+        pairs = zip(res['points'], case['marks'])
+        return [p for p, m in pairs if p is not None and np.hypot(p[0] - m[0], p[1] - m[1]) > 2]
+
+    def test_finds_the_eight_marks_among_old_marks(self):
+        for case in self.cases:
+            with self.subTest(case['name']):
+                res = match_marks([case['blobs']], case['ref_points'])
+                self.assertEqual((res['matched'], res['reason']), (8, None))
+                self.assertLess(res['rms'], 0.2)
+                self.assertEqual(self.wrong(res, case), [])
+
+    def test_an_old_mark_never_stands_in_for_a_missing_one(self):
+        for case in self.cases:
+            for hidden in case['marks']:
+                with self.subTest(case['name'], hidden=hidden):
+                    blobs = [b for b in case['blobs'] if np.hypot(b[0] - hidden[0], b[1] - hidden[1]) > 8]
+                    res = match_marks([blobs], case['ref_points'])
+                    self.assertEqual((res['matched'], res['reason']), (7, NOT_ENOUGH_MARKS))
+                    self.assertEqual(self.wrong(res, case), [])
+
+    def test_layout_without_a_rectangle_is_not_matched(self):
+        res = match_marks([self.cases[0]['blobs']], [[0, 0], [10, 0], [20, 5], [0, 30]])
+        self.assertEqual((res['matched'], res['reason']), (0, NOT_ENOUGH_MARKS))
+
+
 class TestGate(unittest.TestCase):
     def test_gate(self):
         self.assertIsNone(gate(16, 16, 0.5))
