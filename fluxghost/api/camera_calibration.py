@@ -440,7 +440,8 @@ def camera_calibration_api_mixin(cls):
             )
             extra = {'matched': res['matched'], 'filled': res['filled'], 'rms': res['rms']}
             if res['reason']:
-                self.send_json(status='fail', reason=res['reason'], **extra)
+                # the points go along: after HIGH_RESIDUAL the caller may let the user keep them
+                self.send_json(status='fail', reason=res['reason'], points=res['points'], **extra)
                 return
             self.send_ok(points=res['points'], **extra)
 

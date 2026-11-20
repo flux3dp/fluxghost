@@ -136,10 +136,10 @@ When at least 7 in 8 of the marks matched (`FILL_MIN_FRACTION`: 14 of 16, 7 of 8
 
 ```
 ← {"status": "ok", "points": [[x, y], ...], "matched": <n>, "filled": <n>, "rms": <mm>}
-← {"status": "fail", "reason": "NOT_ENOUGH_MARKS" | "HIGH_RESIDUAL", "matched": <n>, "filled": <n>, "rms": <mm | null>}
+← {"status": "fail", "reason": "NOT_ENOUGH_MARKS" | "HIGH_RESIDUAL", "points": [[x, y] | null, ...], "matched": <n>, "filled": <n>, "rms": <mm | null>}
 ```
 
-`points` is ordered like `ref_points` and feeds `solve_pnp_calculate` directly. `matched` counts every mark found, `filled` how many of them came from `weak`. `rms` is the residual of the matched marks to the homography, in bed mm. `NOT_ENOUGH_MARKS`: fewer blobs matched than `ref_points` (every mark is required). `HIGH_RESIDUAL`: all matched but `rms` > `R_MAX_MM` (1.0), which means a stray took a mark's place or `k`/`d` describe this camera poorly.
+`points` is ordered like `ref_points` and feeds `solve_pnp_calculate` directly. A fail carries them too, with `null` for a mark that was not found: after `HIGH_RESIDUAL` all of them are there and the caller may offer to continue with them. `matched` counts every mark found, `filled` how many of them came from `weak`. `rms` is the residual of the matched marks to the homography, in bed mm. `NOT_ENOUGH_MARKS`: fewer blobs matched than `ref_points` (every mark is required). `HIGH_RESIDUAL`: all matched but `rms` > `R_MAX_MM` (1.0), which means a stray took a mark's place or `k`/`d` describe this camera poorly.
 
 ### `check_pnp <args_json>`
 

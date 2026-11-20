@@ -172,6 +172,9 @@ class TestAutoPnpWebsocket(unittest.TestCase):
             )
             failed = self.reply(ws)
             self.assertEqual((failed['status'], failed['reason']), ('fail', NOT_ENOUGH_MARKS))
+            # a fail carries the points too (all of them after HIGH_RESIDUAL), None for a missing mark
+            self.assertEqual(len(failed['points']), 16)
+            self.assertIn(None, failed['points'])
         finally:
             ws.close()
 
