@@ -22,10 +22,10 @@ SAME_MARK_PX = 8
 ASSIGN_TOL_MM = 15.0
 # Every mark is required: each region pose is solved from exactly its four marks. The residual to one homography
 # also tracks how well k, d describe this camera: with all marks matched it was 0.46 to 0.71 mm on the units
-# measured, and the worst preview error inside the mark grid is about the same figure. 0.75 is deliberately tight,
-# to see how many units it turns away (their way out is a new ChArUco calibration); a stray taking a mark's place
-# gives 3 mm or more.
-R_MAX_MM = 0.75
+# measured, and the worst preview error inside the mark grid is about the same figure. 1.0 aims at a preview within
+# about 1 mm; a unit turned away needs a new ChArUco calibration. A stray taking a mark's place on the 16-mark
+# grid gives 3 mm or more. The 8-mark layouts fit to 0.03 to 0.10 mm and need their own, tighter value.
+R_MAX_MM = 1.0
 
 # Final tolerance, once the homography has settled. A stray blob near a missing mark (seen on hardware: a board
 # over two marks, a blob on it 7 mm from one of them) is assigned at ASSIGN_TOL_MM and drags the fit; at this
@@ -168,6 +168,11 @@ def match_grid(und, bed, neighbours=16, iterations=6):
     tree = cKDTree(und)
     centre = bed.mean(axis=0).reshape(1, 1, 2)
     enough = max(4, len(bed) // 3)
+    near_needed = enough
+    if len(bed) < len(xs) * len(ys):
+        # the seed's own four blobs always pass the check below, and with every blob a possible seed that lets
+        # thousands of hypotheses through (41 s for 54 blobs). Ask for half of the other marks as well.
+        near_needed = 4 + (len(bed) - 4) // 2
     seen = set()  # assignments already refined; many seeds land on the same one
     # a cell's width / height on the bed; perspective changes it in the image, but not by more than SEED_ASPECT
     min_ratio, max_ratio = min(ratios) / SEED_ASPECT, max(ratios) * SEED_ASPECT
@@ -203,7 +208,7 @@ def match_grid(und, bed, neighbours=16, iterations=6):
                     step = cv2.perspectiveTransform(np.hstack([centre, centre + (ASSIGN_TOL_MM, 0)]), model)[0]
                     radius = 2 * np.linalg.norm(step[1] - step[0])
                     grid_img = cv2.perspectiveTransform(bed.reshape(-1, 1, 2), model).reshape(-1, 2)
-                    if np.isfinite(tree.query(grid_img, distance_upper_bound=radius)[0]).sum() < enough:
+                    if np.isfinite(tree.query(grid_img, distance_upper_bound=radius)[0]).sum() < near_needed:
                         continue
                     assign = None
                     # grow at the loose tolerance (one cell extrapolates badly), then settle at the tight one,
