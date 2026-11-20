@@ -165,6 +165,14 @@ class TestAutoPnpWebsocket(unittest.TestCase):
             matched = self.reply(ws)
             self.assertEqual((matched['status'], matched['matched']), ('ok', 16))
             self.assertEqual(len(matched['points']), 16)
+            # a tighter limit from the caller: a fail that still carries every point
+            ws.send(
+                'auto_pnp_match '
+                + json.dumps({'ref_points': self.data['ref_points'], 'blobs': [detected['blobs']], 'r_max': 0.01})
+            )
+            tight = self.reply(ws)
+            self.assertEqual((tight['status'], tight['reason']), ('fail', HIGH_RESIDUAL))
+            self.assertEqual(tight['points'], matched['points'])
             # too few blobs: a fail with the reason, not an error
             ws.send(
                 'auto_pnp_match '
@@ -255,6 +263,9 @@ class TestGate(unittest.TestCase):
         self.assertIsNone(gate(16, 16, 0.5))
         self.assertEqual(gate(15, 16, 0.5), NOT_ENOUGH_MARKS)
         self.assertEqual(gate(16, 16, 6.4), HIGH_RESIDUAL)
+        # the caller's limit replaces the default
+        self.assertEqual(gate(8, 8, 0.5, r_max=0.2), HIGH_RESIDUAL)
+        self.assertIsNone(gate(8, 8, 0.1, r_max=0.2))
         # a missing mark is the more useful thing to tell the user, so it wins
         self.assertEqual(gate(7, 16, 6.4), NOT_ENOUGH_MARKS)
         self.assertEqual(gate(0, 16, float('inf')), NOT_ENOUGH_MARKS)

@@ -429,7 +429,7 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_auto_pnp_match(self, message):
             args = json.loads(message)
-            res = match_marks(args['blobs'], args['ref_points'], args.get('weak'))
+            res = match_marks(args['blobs'], args['ref_points'], args.get('weak'), args.get('r_max'))
             logger.info(
                 '[auto_pnp] match: %d/%d marks (%d from weak blobs), rms %s mm, %s',
                 res['matched'],

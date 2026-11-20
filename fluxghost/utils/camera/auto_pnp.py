@@ -279,22 +279,24 @@ def fill_missing(assign, und, bed, weak):
     return (np.vstack([und, *filled]) if filled else und), assign, len(filled)
 
 
-def gate(matched, total, rms):
+def gate(matched, total, rms, r_max=R_MAX_MM):
     """Decide whether a match may be used for solve-PnP.
 
     :param int matched: grid positions that got a blob
     :param int total: grid positions
     :param float rms: residual of the matched marks to one homography, mm (inf when nothing fitted)
+    :param float r_max: residual limit, mm. The default suits the 16-mark lattice; with 8 marks a homography
+        absorbs most of one wrong mark, so those callers pass a tighter one
     :return: None to accept, or NOT_ENOUGH_MARKS / HIGH_RESIDUAL
     """
     if matched < total:
         return NOT_ENOUGH_MARKS
-    if rms > R_MAX_MM:
+    if rms > r_max:
         return HIGH_RESIDUAL
     return None
 
 
-def match_marks(blob_lists, ref_points, weak_lists=None):
+def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
     """auto_pnp_match: blobs per exposure ([x, y, size, contrast], undistorted px) -> one image point per ref point.
 
     :return: dict with points (per ref point, [x, y] or None), matched, filled, rms, and reason (None when accepted)
@@ -317,5 +319,5 @@ def match_marks(blob_lists, ref_points, weak_lists=None):
         'matched': matched,
         'filled': filled,
         'rms': None if np.isinf(rms) else rms,
-        'reason': gate(matched, len(bed), rms),
+        'reason': gate(matched, len(bed), rms, R_MAX_MM if r_max is None else r_max),
     }
