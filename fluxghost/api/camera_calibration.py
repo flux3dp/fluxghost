@@ -419,6 +419,9 @@ def camera_calibration_api_mixin(cls):
 
             def upload_callback(buf):
                 img = cv2.cvtColor(np.array(Image.open(io.BytesIO(buf)).convert('RGB')), cv2.COLOR_RGB2BGR)
+                # GHOST_DEBUG_IMG=1: a run shoots up to 7 exposures, so keep the last 8 photos and no more
+                self._auto_pnp_shots = getattr(self, '_auto_pnp_shots', 0) + 1
+                debug_imwrite('auto-pnp-input-%d.png' % (self._auto_pnp_shots % 8), img)
                 blobs = detect_marks(img, k, d)
                 weak = detect_marks(img, k, d, min_area=WEAK_MIN_AREA)
                 logger.info('[auto_pnp] detect: %d blobs, %d weak', len(blobs), len(weak))
