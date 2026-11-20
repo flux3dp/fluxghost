@@ -16,32 +16,28 @@ from scipy.spatial import cKDTree
 
 from .constants import L_PAD, T_PAD
 
+# Where each value comes from (measurements, the cases seen on hardware): docs/api/camera-calibration.md,
+# "auto_pnp constants".
+
 # Blobs from different exposures closer than this (px) are the same mark
 SAME_MARK_PX = 8
-# A blob further than this (mm, on the bed) from every grid position is not a mark
+# A blob further than this (mm, on the bed) from every grid position is not a mark, while the fit is growing
 ASSIGN_TOL_MM = 15.0
-# Every mark is required: each region pose is solved from exactly its four marks. The residual to one homography
-# also tracks how well k, d describe this camera: with all marks matched it was 0.46 to 0.71 mm on the units
-# measured, and the worst preview error inside the mark grid is about the same figure. 1.0 aims at a preview within
-# about 1 mm; a unit turned away needs a new ChArUco calibration. A stray taking a mark's place on the 16-mark
-# grid gives 3 mm or more. The 8-mark layouts fit to 0.03 to 0.10 mm and need their own, tighter value.
-R_MAX_MM = 1.0
-
-# Final tolerance, once the homography has settled. A stray blob near a missing mark (seen on hardware: a board
-# over two marks, a blob on it 7 mm from one of them) is assigned at ASSIGN_TOL_MM and drags the fit; at this
-# tolerance it is not a mark. Correct marks sit within about 1 mm.
+# ... and once the fit has settled. Drops a stray that sits near a missing mark
 TIGHT_TOL_MM = 3.0
-# Weak candidates (blobs down to this area, px) only count within FILL_TOL_MM of a position predicted from the
-# marks already matched, and only when at least FILL_MIN_FRACTION of the marks were matched to predict from.
-# On paper a random position has a weak blob that close in about 2 % of cases (seven exposures).
-# 7 of 8 / 14 of 16: with two of the 8 nested-rectangle marks missing, a homography that squeezes the pattern along
-# a diagonal fits six real marks to the wrong positions with no residual (seen on an Ador photo), and the fill
-# would then look for the other two in the wrong place.
+# Largest rms residual (mm) of the marks to one homography for a match to be accepted. It tracks how well k, d
+# describe the camera. Suits the 16-mark lattice; callers with 8 marks pass a tighter one (see gate)
+R_MAX_MM = 1.0
+# Weak candidates (blobs down to this area, px) are only used within FILL_TOL_MM (mm) of a position predicted
+# from the marks already matched, and only when at least FILL_MIN_FRACTION of the marks are there to predict from
 WEAK_MIN_AREA = 4
 FILL_TOL_MM = 2.0
 FILL_MIN_FRACTION = 0.875
 # How far perspective may stretch a cell's width / height ratio in the image before a seed is not worth trying
 SEED_ASPECT = 2.5
+# Nested-rectangle layouts only: how far the image scale along bed x may differ from the one along bed y in a
+# finished match. A homography absorbs any stretch, so a pattern of other proportions fits without residual
+MAX_ANISOTROPY = 1.25
 
 NOT_ENOUGH_MARKS = 'NOT_ENOUGH_MARKS'
 HIGH_RESIDUAL = 'HIGH_RESIDUAL'
@@ -130,6 +126,14 @@ def _upright(model, bed):
     return ex[0] > abs(ex[1]) and ey[1] > abs(ey[0])
 
 
+def _isotropic(model, bed):
+    """Whether a millimetre along bed x and one along bed y are about as long in the image (MAX_ANISOTROPY)."""
+    c = bed.mean(axis=0)
+    q = cv2.perspectiveTransform(np.array([c, c + (1, 0), c + (0, 1)]).reshape(-1, 1, 2), model).reshape(-1, 2)
+    ratio = np.linalg.norm(q[1] - q[0]) / np.linalg.norm(q[2] - q[0])
+    return 1 / MAX_ANISOTROPY <= ratio <= MAX_ANISOTROPY
+
+
 def _usable(model):
     return model is not None and abs(np.linalg.det(model)) > 1e-9
 
@@ -160,25 +164,24 @@ def match_grid(und, bed, neighbours=16, iterations=6):
             ratios.append((right[0] - x) / (below[0] - y))
     if not cells:
         return None, np.inf
-    if len(bed) < len(xs) * len(ys):
-        # not a full lattice: a cell's corners are not each other's nearest marks (the inner rectangle and any
-        # stray sit in between), so a seed may be any blobs, not only near ones. These layouts have few marks.
+    nested = len(bed) < len(xs) * len(ys)
+    if nested:
+        # a cell's corners are not each other's nearest marks here, so a seed may be any blobs
         neighbours = len(und)
     best = (-1, np.inf, None)
     tree = cKDTree(und)
     centre = bed.mean(axis=0).reshape(1, 1, 2)
     enough = max(4, len(bed) // 3)
     near_needed = enough
-    if len(bed) < len(xs) * len(ys):
-        # the seed's own four blobs always pass the check below, and with every blob a possible seed that lets
-        # thousands of hypotheses through (41 s for 54 blobs). Ask for half of the other marks as well.
+    if nested:
+        # the seed's own four blobs always pass the check below: ask for half of the other marks as well
         near_needed = 4 + (len(bed) - 4) // 2
     seen = set()  # assignments already refined; many seeds land on the same one
     # a cell's width / height on the bed; perspective changes it in the image, but not by more than SEED_ASPECT
     min_ratio, max_ratio = min(ratios) / SEED_ASPECT, max(ratios) * SEED_ASPECT
     # ponytail: every plausible (blob, right, lower) seed times every cell, in Python. Instant when all marks are
-    # there (early return), 1 to 2 s for 40 blobs with marks missing, 8 s for 95 blobs (seven exposures merged,
-    # marks missing). Vectorise the assignment or rank seeds by blob size if that failure path must be faster.
+    # there (early return), seconds when marks are missing. Vectorise the assignment or rank seeds by blob size
+    # if that failure path must be faster.
     for a in range(len(und)):
         near = np.argsort(np.linalg.norm(und - und[a], axis=1))[1 : neighbours + 1]
         for b in near:
@@ -215,9 +218,8 @@ def match_grid(und, bed, neighbours=16, iterations=6):
                     # so hypotheses are ranked by marks that really fit and not by strays swept in on the way
                     for tol in (ASSIGN_TOL_MM, TIGHT_TOL_MM):
                         if tol == TIGHT_TOL_MM:
-                            # a stray swept in at the loose tolerance drags a least-squares fit, badly with 8 marks
-                            # (seen: an old mark 14 mm from a missing one cost a real mark its place). Start the
-                            # tight stage from the fit most marks agree on instead.
+                            # a stray swept in at the loose tolerance drags a least-squares fit: start the tight
+                            # stage from the fit most marks agree on
                             ok = assign >= 0
                             robust, _ = cv2.findHomography(und[assign[ok]], bed[ok], cv2.RANSAC, TIGHT_TOL_MM)
                             if _usable(robust):
@@ -244,7 +246,8 @@ def match_grid(und, bed, neighbours=16, iterations=6):
                     if assign is None or not _usable(model):
                         continue
                     ok = assign >= 0
-                    if ok.sum() < 4 or not _upright(model, bed):
+                    # only the finished fit is checked for proportions: one cell alone extrapolates too badly
+                    if ok.sum() < 4 or not _upright(model, bed) or (nested and not _isotropic(model, bed)):
                         continue
                     rms = float(np.sqrt((_residuals(model, und[assign[ok]], bed[ok]) ** 2).sum(axis=1).mean()))
                     if ok.sum() > best[0] or (ok.sum() == best[0] and rms < best[1]):
@@ -258,9 +261,7 @@ def match_grid(und, bed, neighbours=16, iterations=6):
 def fill_missing(assign, und, bed, weak):
     """Look for the marks the detector missed among the weak candidates, next to where the others say they are.
 
-    Seen on hardware: lens flare from the light panel left two corner marks at a tenth of the usual contrast,
-    below what the detector can pick out of a whole photo at any exposure, yet visible exactly where the other
-    14 marks put them. Returns (und with the filled centres appended, assign, number filled).
+    Returns (und with the filled centres appended, assign, number filled).
     """
     assign = assign.copy()
     ok = assign >= 0

@@ -253,6 +253,21 @@ class TestNestedRectangles(unittest.TestCase):
                     self.assertEqual((res['matched'], res['reason']), (7, NOT_ENOUGH_MARKS))
                     self.assertEqual(self.wrong(res, case), [])
 
+    def test_an_old_pattern_of_other_proportions_is_not_taken(self):
+        # seen on hardware: the old 120 x 80 pattern fitted the 120 x 120 reference with 0.05 mm of residual,
+        # a homography absorbs the stretch, and the preview at that height was wrong
+        with open(os.path.join(FIXTURE_DIR, 'nested_rectangles_8_marks.json')) as f:
+            case = json.load(f)['other_pattern']
+        res = match_marks([case['blobs']], case['ref_points'], r_max=0.2)
+        self.assertEqual((res['matched'], res['reason']), (8, None))
+        self.assertEqual(self.wrong(res, case), [])
+        # with a real mark gone nothing may be accepted: an old mark 4 mm away can take its place, and the
+        # tighter limit the 8-mark callers pass is what catches that
+        for hidden in case['marks']:
+            with self.subTest(hidden=hidden):
+                blobs = [b for b in case['blobs'] if np.hypot(b[0] - hidden[0], b[1] - hidden[1]) > 8]
+                self.assertIsNotNone(match_marks([blobs], case['ref_points'], r_max=0.2)['reason'])
+
     def test_layout_without_a_rectangle_is_not_matched(self):
         res = match_marks([self.cases[0]['blobs']], [[0, 0], [10, 0], [20, 5], [0, 30]])
         self.assertEqual((res['matched'], res['reason']), (0, NOT_ENOUGH_MARKS))
