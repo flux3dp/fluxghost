@@ -104,7 +104,7 @@ wheels = [
 
 [[package]]
 name = "fluxghost"
-version = "2.5.8"
+version = "2.5.9"
 source = { editable = "." }
 dependencies = [
     { name = "cairocffi" },
