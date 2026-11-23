@@ -142,11 +142,14 @@ def _residuals(model, und, bed):
     return cv2.perspectiveTransform(und.reshape(-1, 1, 2), np.linalg.inv(model)).reshape(-1, 2) - bed
 
 
-def match_grid(und, bed, neighbours=16, iterations=6):
+def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
     """Assign blobs to grid positions.
 
     :param und: undistorted blob centres, px
     :param bed: mark positions in bed mm, in any order: a full rectangular lattice, or nested rectangles
+    :param r_max: residual (mm) under which a hypothesis with every mark ends the search. Must be the limit the
+        caller gates with: a complete but poorer fit (a stray in a mark's place) would otherwise end the search
+        before the right one is tried
     :return: (blob index per grid position or -1, rms residual to the homography in mm), (None, inf) if no fit
     """
     und = np.asarray(und, np.float64).reshape(-1, 2)
@@ -253,7 +256,7 @@ def match_grid(und, bed, neighbours=16, iterations=6):
                     if ok.sum() > best[0] or (ok.sum() == best[0] and rms < best[1]):
                         best = (int(ok.sum()), rms, assign.copy())
                         # every mark, fitting well: no other hypothesis can beat it by enough to matter
-                        if best[0] == len(bed) and rms <= R_MAX_MM:
+                        if best[0] == len(bed) and rms <= r_max:
                             return best[2], best[1]
     return best[2], best[1]
 
@@ -305,7 +308,8 @@ def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
     bed = np.asarray(ref_points, np.float64).reshape(-1, 2)
     blobs = merge_exposures(blob_lists)
     und = np.array([b[:2] for b in blobs], np.float64).reshape(-1, 2)
-    assign, rms = match_grid(und, bed) if len(und) >= 4 else (None, np.inf)
+    r_max = R_MAX_MM if r_max is None else r_max
+    assign, rms = match_grid(und, bed, r_max=r_max) if len(und) >= 4 else (None, np.inf)
     if assign is None:
         assign = np.full(len(bed), -1)
     weak = [b[:2] for blobs in weak_lists or [] for b in blobs]
@@ -320,5 +324,5 @@ def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
         'matched': matched,
         'filled': filled,
         'rms': None if np.isinf(rms) else rms,
-        'reason': gate(matched, len(bed), rms, R_MAX_MM if r_max is None else r_max),
+        'reason': gate(matched, len(bed), rms, r_max),
     }

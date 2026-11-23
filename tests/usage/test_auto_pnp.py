@@ -268,6 +268,18 @@ class TestNestedRectangles(unittest.TestCase):
                 blobs = [b for b in case['blobs'] if np.hypot(b[0] - hidden[0], b[1] - hidden[1]) > 8]
                 self.assertIsNotNone(match_marks([blobs], case['ref_points'], r_max=0.2)['reason'])
 
+    def test_search_does_not_stop_at_a_fit_over_the_callers_limit(self):
+        # found in review: in this blob order a hypothesis with a stray in a mark's place (0.72 mm) comes up
+        # before the right one (0.07 mm), and the search used to stop at anything under the default 1.0 mm
+        with open(os.path.join(FIXTURE_DIR, 'nested_rectangles_8_marks.json')) as f:
+            case = json.load(f)['other_pattern']
+        blobs = [[b[0], b[1], b[2], 100.0] for b in case['blobs']]
+        blobs = [blobs[i] for i in np.random.default_rng(1).permutation(len(blobs))]
+        res = match_marks([blobs], case['ref_points'], r_max=0.2)
+        self.assertEqual((res['matched'], res['reason']), (8, None))
+        self.assertLess(res['rms'], 0.1)
+        self.assertEqual(self.wrong(res, case), [])
+
     def test_layout_without_a_rectangle_is_not_matched(self):
         res = match_marks([self.cases[0]['blobs']], [[0, 0], [10, 0], [20, 5], [0, 30]])
         self.assertEqual((res['matched'], res['reason']), (0, NOT_ENOUGH_MARKS))
