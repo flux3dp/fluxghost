@@ -110,7 +110,54 @@ Step 2: computes new extrinsics from the (possibly user-corrected) image points.
 ← {"status": "ok", "rvec": [[...]], "tvec": [[...]]}
 ```
 
+`rms` is the reprojection error in remapped-image px (root mean square of the per-point distance).
+
 Failures: `{"status": "fail", "info": "NO_DATA", "reason": "No calibration data found"}` (no stored `k`), `{"status": "fail", "reason": "solve pnp failed"}` (solver returned false) or `{"status": "fail", "reason": "solve pnp failed<exception>"}`.
+
+### `auto_pnp_detect <file_length>`
+
+Automatic alternative to `solve_pnp_find_corners`, step 1: find the engraved marks in one photo. Requires stored `k`/`d` (else the `NO_DATA` failure above); no `rvec`/`tvec` and no interest area. `← {"status": "continue"}` → binary upload of the raw camera photo.
+
+Dark blobs are detected on the raw frame (`detect_marks`, [fluxghost/utils/camera/auto_pnp.py](../../fluxghost/utils/camera/auto_pnp.py), same detector parameters as `find_blob_centers`) and only their centres are undistorted, so `x`, `y` are in the same remapped-image px space as `solve_pnp_find_corners` returns and `solve_pnp_calculate` takes. `contrast` is the brightness of a ring around the blob minus the blob.
+
+```
+← {"status": "ok", "blobs": [[x, y, size, contrast], ...], "weak": [[x, y, size, contrast], ...]}
+```
+
+`blobs` holds the marks plus stray blobs (chassis, text). `weak` is a second detection with the minimum area lowered from 15 px to 4 px (`WEAK_MIN_AREA`), everything else equal: it catches marks that lens flare or a faint engraving leaves below the normal detector, among hundreds of noise blobs. Call it once per exposure; telling marks from strays is `auto_pnp_match`'s job.
+
+### `auto_pnp_match <args_json>`
+
+Step 2: tell which blob is which mark. `args_json` = `{"ref_points": [[x, y], ...], "blobs": [[[x, y, size, contrast], ...], ...], "weak": [[[x, y, size, contrast], ...], ...], "r_max": <mm>}` (`r_max` optional, the `HIGH_RESIDUAL` limit, default `R_MAX_MM`; callers with 8 marks pass a tighter one, since a homography through 8 points absorbs most of one wrong mark): `ref_points` are the mark positions in mm in any order, either a full rectangular lattice (fbm2, wide-angle: 4 x 4) or nested rectangles (laser head, Ador: 8 marks); `blobs` and the optional `weak` hold one `auto_pnp_detect` result per exposure. Stateless, needs no stored data.
+
+Blobs from different exposures within 8 px are one mark, kept from the exposure with the best contrast. `match_grid` then fits one homography between the bed plane and the blob centres with no pose prior: every cell (a mark, the next mark to its right, the next one below and the one closing the rectangle: the lattice cells, or each of the nested rectangles) seeded from a blob and its right, lower and diagonal neighbours, grown by assigning each grid position its nearest blob within 15 mm on the bed (`ASSIGN_TOL_MM`), then settled at 3 mm (`TIGHT_TOL_MM`), starting from a RANSAC fit of the loose assignment, so a stray near a covered mark is dropped instead of taking its place. For a layout that is not a full lattice the seed may be any blobs, not only neighbouring ones. It assumes only that bed +x / +y run along image +x / +y.
+
+When at least 7 in 8 of the marks matched (`FILL_MIN_FRACTION`: 14 of 16, 7 of 8), `fill_missing` predicts each missing mark from that homography and takes the median of the `weak` blobs within 2 mm of it (`FILL_TOL_MM`). `weak` blobs are never used for the matching itself.
+
+```
+← {"status": "ok", "points": [[x, y], ...], "matched": <n>, "filled": <n>, "rms": <mm>}
+← {"status": "fail", "reason": "NOT_ENOUGH_MARKS" | "HIGH_RESIDUAL", "points": [[x, y] | null, ...], "matched": <n>, "filled": <n>, "rms": <mm | null>}
+```
+
+`points` is ordered like `ref_points` and feeds `solve_pnp_calculate` directly. A fail carries them too, with `null` for a mark that was not found: after `HIGH_RESIDUAL` all of them are there and the caller may offer to continue with them. `matched` counts every mark found, `filled` how many of them came from `weak`. `rms` is the residual of the matched marks to the homography, in bed mm. `NOT_ENOUGH_MARKS`: fewer blobs matched than `ref_points` (every mark is required). `HIGH_RESIDUAL`: all matched but `rms` > `R_MAX_MM` (1.0), which means a stray took a mark's place or `k`/`d` describe this camera poorly.
+
+#### auto_pnp constants
+
+The values in `fluxghost/utils/camera/auto_pnp.py` and what each one rests on. Measurements are from office units: three `fbm2`, one `fbb2`, one `fhx2rf`, one `ado1`. The photos behind them are the fixtures of `tests/usage/test_auto_pnp.py`.
+
+| Constant | Value | Basis |
+|---|---|---|
+| `SAME_MARK_PX` | 8 px | One mark moves by less than 1 px between exposures (0.4 px on `fbm2`, 0.6 px on `fbb2`); the closest two marks of any layout are more than 100 px apart. |
+| `ASSIGN_TOL_MM` | 15 mm | Loose on purpose: a fit seeded from one cell extrapolates badly across the bed. |
+| `TIGHT_TOL_MM` | 3 mm | Correct marks sit within about 1 mm of the settled fit. Seen on `fbm2`: a board over two marks carried a blob 7 mm from one of them, which was assigned at 15 mm and dragged the fit. With 8 marks a stray 14 mm from a missing mark cost a real mark its place, hence the RANSAC start of the tight stage. |
+| `R_MAX_MM` | 1.0 mm | Every mark is required (each `fbm2` region pose is solved from exactly its four marks), so this is the only quality gate left. With all 16 marks matched the residual was 0.38 to 0.71 mm, and the worst preview error inside the mark grid is about the same figure, so 1.0 aims at a preview within about 1 mm. A stray taking a mark's place on the 16-mark lattice gives 3 mm or more. |
+| `r_max` passed for 8 marks | 0.2 mm (Beam Studio) | A homography through 8 points absorbs most of one wrong mark. Correct matches: 0.04 to 0.05 mm (`fbb2`, `ado1`), 0.10 mm (`fhx2rf`). One mark displaced by 1 / 2 / 3 mm: 0.15 to 0.31 / 0.31 to 0.62 / 0.47 to 0.93 mm (simulated on an `fbb2` photo). Seen on `ado1`: an old mark 4 mm from a hidden one gave 0.72 mm. |
+| `WEAK_MIN_AREA`, `FILL_TOL_MM` | 4 px, 2 mm | Seen on one `fbm2`: lens flare from the light panel left two corner marks at a tenth of the usual contrast, below what the detector picks out of a whole photo at any exposure, yet visible where the other 14 put them. A weak detection returns hundreds of blobs per photo, mostly paper texture; a random position on paper has one within 2 mm in about 2 % of cases (seven exposures). |
+| `FILL_MIN_FRACTION` | 0.875 (14 of 16, 7 of 8) | With two of the 8 nested-rectangle marks missing, a homography that squeezes the pattern along a diagonal fits six real marks to wrong positions with no residual (an `ado1` photo), and the fill would then look in the wrong place. |
+| `SEED_ASPECT` | 2.5 | Only prunes seeds. Perspective on the `fbm2` camera changes a cell's width / height ratio by up to about 1.3. |
+| `MAX_ANISOTROPY` | 1.25 | Seen on `ado1`: an old `fbb2` laser-head pattern on a reused sheet (120 × 80 mm, inner 60 × 40) was taken for the Ador one (120 × 120, inner 60 × 60) with 0.05 mm of residual, and the preview at that height was wrong; its ratio of x scale to y scale is 1.5. True matches of the nested-rectangle layouts: 0.94 to 1.03 (`fbb2` straight, the oblique default points, `fhx2rf`, `ado1`). Not applied to lattices: a lid camera looks at the bed obliquely and a real lattice can be stretched more than that. |
+
+Matching time: nothing measurable when all marks are found (the first complete, well-fitting hypothesis returns). With marks missing every seed is tried: 1 to 2 s at 40 blobs, 6 to 9 s at 75 to 95 blobs (`fbm2`, seven exposures merged). For the nested-rectangle layouts a seed must also explain half of the other marks before it is refined, which took a 54-blob failing photo from 41 s to 2 s; over-exposed photos (about 90 blobs) still take 20 to 40 s and fail, so callers should not shoot above the exposure where the marks wash out.
 
 ### `check_pnp <args_json>`
 
