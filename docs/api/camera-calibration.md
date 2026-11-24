@@ -118,7 +118,7 @@ Failures: `{"status": "fail", "info": "NO_DATA", "reason": "No calibration data 
 
 Automatic alternative to `solve_pnp_find_corners`, step 1: find the engraved marks in one photo. Requires stored `k`/`d` (else the `NO_DATA` failure above); no `rvec`/`tvec` and no interest area. `← {"status": "continue"}` → binary upload of the raw camera photo.
 
-Dark blobs are detected on the raw frame (`detect_marks`, [fluxghost/utils/camera/auto_pnp.py](../../fluxghost/utils/camera/auto_pnp.py), same detector parameters as `find_blob_centers`) and only their centres are undistorted, so `x`, `y` are in the same remapped-image px space as `solve_pnp_find_corners` returns and `solve_pnp_calculate` takes. `contrast` is the brightness of a ring around the blob minus the blob.
+Dark blobs are detected on the raw frame (`detect_marks`, [fluxghost/utils/camera/auto_pnp.py](../../fluxghost/utils/camera/auto_pnp.py), same detector parameters as `find_blob_centers`) and only their centres are undistorted, so `x`, `y` are in the same remapped-image px space as `solve_pnp_find_corners` returns and `solve_pnp_calculate` takes. The camera model follows the stored `is_fisheye` (`update_data`, default fisheye): a fisheye photo is padded and undistorted with `cv2.fisheye`, a pinhole one (fhx2rf wide-angle) is not padded and is undistorted with `cv2.undistortPointsIter`, iterated to convergence where `cv2.undistortPoints` stops after 5 steps (since 2.5.9). `contrast` is the brightness of a ring around the blob minus the blob.
 
 ```
 ← {"status": "ok", "blobs": [[x, y, size, contrast], ...], "weak": [[x, y, size, contrast], ...]}

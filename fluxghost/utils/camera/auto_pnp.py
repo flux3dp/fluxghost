@@ -43,10 +43,18 @@ NOT_ENOUGH_MARKS = 'NOT_ENOUGH_MARKS'
 HIGH_RESIDUAL = 'HIGH_RESIDUAL'
 
 
-def undistort_centers(raw_xy, k, d):
-    """Raw photo px -> the undistorted px space the rest of the calibration uses (padded, P = k)."""
-    pts = (np.asarray(raw_xy, np.float64) + (L_PAD, T_PAD)).reshape(-1, 1, 2)
-    return cv2.fisheye.undistortPoints(pts, k, d, np.eye(3), k).reshape(-1, 2)
+PINHOLE_UNDISTORT_CRITERIA = (cv2.TERM_CRITERIA_COUNT | cv2.TERM_CRITERIA_EPS, 100, 1e-8)
+
+
+def undistort_centers(raw_xy, k, d, is_fisheye=True):
+    """Raw photo px -> the undistorted px space the rest of the calibration uses (P = k; padded for fisheye only,
+    as get_remap_img is fed)."""
+    pts = np.asarray(raw_xy, np.float64).reshape(-1, 1, 2)
+    if not is_fisheye:
+        # undistortPoints stops after 5 iterations: 0.5 px off at 85 % of the way to the corner with the fhx2rf
+        # wide-angle k / d, where the manual flow finds its points on the exactly remapped photo
+        return cv2.undistortPointsIter(pts, k, d, None, k, PINHOLE_UNDISTORT_CRITERIA).reshape(-1, 2)
+    return cv2.fisheye.undistortPoints(pts + (L_PAD, T_PAD), k, d, np.eye(3), k).reshape(-1, 2)
 
 
 def merge_exposures(blob_lists):
@@ -80,7 +88,7 @@ def _contrast(gray, x, y, size):
     return float(min(np.median(patch[(dist > 2 * r) & (dist <= 3 * r)]), 250) - patch[dist <= r].mean())
 
 
-def detect_marks(img, k, d, min_area=15):
+def detect_marks(img, k, d, min_area=15, is_fisheye=True):
     """auto_pnp_detect: dark blobs in a raw (still distorted, unpadded) BGR photo -> [[x, y, size, contrast]].
 
     Detection runs on the raw frame and only the centres are undistorted; x, y are in the same undistorted px
@@ -93,7 +101,7 @@ def detect_marks(img, k, d, min_area=15):
     keypoints = _detector(min_area).detect(gray)
     if not keypoints:
         return []
-    und = undistort_centers([kp.pt for kp in keypoints], k, d)
+    und = undistort_centers([kp.pt for kp in keypoints], k, d, is_fisheye)
     return [
         [round(float(x), 2), round(float(y), 2), round(float(kp.size), 2), round(_contrast(gray, *kp.pt, kp.size), 1)]
         for (x, y), kp in zip(und, keypoints)
