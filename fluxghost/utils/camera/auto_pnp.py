@@ -150,7 +150,7 @@ def _residuals(model, und, bed):
     return cv2.perspectiveTransform(und.reshape(-1, 1, 2), np.linalg.inv(model)).reshape(-1, 2) - bed
 
 
-def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
+def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM, tight_tol=TIGHT_TOL_MM):
     """Assign blobs to grid positions.
 
     :param und: undistorted blob centres, px
@@ -158,6 +158,7 @@ def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
     :param r_max: residual (mm) under which a hypothesis with every mark ends the search. Must be the limit the
         caller gates with: a complete but poorer fit (a stray in a mark's place) would otherwise end the search
         before the right one is tried
+    :param tight_tol: the settling tolerance (mm); must exceed what the homography cannot model on this camera
     :return: (blob index per grid position or -1, rms residual to the homography in mm), (None, inf) if no fit
     """
     und = np.asarray(und, np.float64).reshape(-1, 2)
@@ -227,12 +228,12 @@ def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
                     assign = None
                     # grow at the loose tolerance (one cell extrapolates badly), then settle at the tight one,
                     # so hypotheses are ranked by marks that really fit and not by strays swept in on the way
-                    for tol in (ASSIGN_TOL_MM, TIGHT_TOL_MM):
-                        if tol == TIGHT_TOL_MM:
+                    for stage, tol in enumerate((ASSIGN_TOL_MM, tight_tol)):
+                        if stage == 1:
                             # a stray swept in at the loose tolerance drags a least-squares fit: start the tight
                             # stage from the fit most marks agree on
                             ok = assign >= 0
-                            robust, _ = cv2.findHomography(und[assign[ok]], bed[ok], cv2.RANSAC, TIGHT_TOL_MM)
+                            robust, _ = cv2.findHomography(und[assign[ok]], bed[ok], cv2.RANSAC, tight_tol)
                             if _usable(robust):
                                 model = np.linalg.inv(robust)
                         assign = None
@@ -308,7 +309,7 @@ def gate(matched, total, rms, r_max=R_MAX_MM):
     return None
 
 
-def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
+def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None, tight_tol=None):
     """auto_pnp_match: blobs per exposure ([x, y, size, contrast], undistorted px) -> one image point per ref point.
 
     :return: dict with points (per ref point, [x, y] or None), matched, filled, rms, and reason (None when accepted)
@@ -317,7 +318,8 @@ def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
     blobs = merge_exposures(blob_lists)
     und = np.array([b[:2] for b in blobs], np.float64).reshape(-1, 2)
     r_max = R_MAX_MM if r_max is None else r_max
-    assign, rms = match_grid(und, bed, r_max=r_max) if len(und) >= 4 else (None, np.inf)
+    tight_tol = TIGHT_TOL_MM if tight_tol is None else tight_tol
+    assign, rms = match_grid(und, bed, r_max=r_max, tight_tol=tight_tol) if len(und) >= 4 else (None, np.inf)
     if assign is None:
         assign = np.full(len(bed), -1)
     weak = [b[:2] for blobs in weak_lists or [] for b in blobs]

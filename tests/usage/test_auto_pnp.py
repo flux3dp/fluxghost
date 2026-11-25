@@ -312,6 +312,24 @@ class TestNestedRectangles(unittest.TestCase):
         self.assertEqual((res['matched'], res['reason']), (0, NOT_ENOUGH_MARKS))
 
 
+class TestWideAnglePinhole(unittest.TestCase):
+    """fhx2rf wide-angle: with k1 fixed at 0 a homography leaves up to 2.5 mm, more than the default settling."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(FIXTURE_DIR, 'fhx2rf_wide_angle_pinhole.json')) as f:
+            cls.data = json.load(f)
+
+    def test_default_settling_drops_a_column(self):
+        res = match_marks([self.data['blobs']], self.data['ref_points'])
+        self.assertEqual((res['matched'], res['reason']), (12, NOT_ENOUGH_MARKS))
+
+    def test_the_callers_settling_and_limit_take_every_mark(self):
+        res = match_marks([self.data['blobs']], self.data['ref_points'], r_max=2.0, tight_tol=5.0)
+        self.assertIsNone(res['reason'])
+        np.testing.assert_allclose(res['points'], self.data['marks'], atol=0.01)
+
+
 class TestGate(unittest.TestCase):
     def test_gate(self):
         self.assertIsNone(gate(16, 16, 0.5))
