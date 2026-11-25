@@ -1025,7 +1025,7 @@ LOCATE_MIN_COMPONENT_PX = 12
 LOCATE_EDGE_MARGIN = 0.06
 
 
-def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
+def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=None):
     """Where the coupon is and at what scale, from where the marks crowd and then the Ls.
 
     The galvo marks are the densest crowd of small things on the sheet at any scale. On a
@@ -1039,6 +1039,10 @@ def locate_coupon(galvo_raw, gray, pitch, half, arm, grid=9, reach=49.5 + 2.2):
     scale); the sweep's best (most vertices, then least residual) wins. Returns
     (centre_px, ppm) or None.
     """
+    if reach is None:
+        # the discovery marks sit half a pitch beyond the outer nodes and their arms end
+        # about 2.2 mm further out: 49.5 + 2.2 on the 110 lens's 9 x 9, less on a smaller grid
+        reach = grid * pitch / 2.0 + 2.2
     h, w = galvo_raw.shape[:2]
     down = max(1, round(max(h, w) / 1200.0))
     small = galvo_raw.astype(np.uint8) * 255

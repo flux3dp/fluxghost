@@ -170,6 +170,41 @@ class SolveGalvoCouponTest(unittest.TestCase):
         assert_truth(self, res)
         np.testing.assert_allclose(res['located']['center_px'], [1700, 1800], atol=6 * 15)
 
+    def test_smaller_lenses_have_fewer_nodes(self):
+        """The 90 and 70 lenses: 7 x 7 and 5 x 5 nodes at the same pitch, with the block's square on the sheet."""
+        for field, grid, identity, mid in ((90, 7, (-33.0, -42.0), 16.5), (70, 5, (-22.0, -32.0), 16.5)):
+            with self.subTest(field=field):
+                half = (grid - 1) * 11 / 2.0
+                img = render_coupon(grid=grid, identity=identity, square_mm=field - 10, **TRUTH)
+                validation = [[sx * v, sy * v] for v in (5.5, mid) for sx in (1, -1) for sy in (1, -1)]
+                params = dict(PARAMS, grid=grid, identity=list(identity), validation=validation, grid_field=field)
+                res, _ = solve_galvo_coupon(img, params)
+                self.assertEqual(res['nodes_found'], grid * grid)
+                # the identity ring sits 2 mm outside the square, clear of it
+                self.assertEqual(res['orientation']['source'], 'identity')
+                self.assertAlmostEqual(res['scale_x'], TRUTH['scale_x'], delta=0.001 * TRUTH['scale_x'])
+                self.assertAlmostEqual(res['scale_y'], TRUTH['scale_y'], delta=0.001 * TRUTH['scale_y'])
+                self.assertAlmostEqual(res['skew_deg'], TRUTH['skew_deg'], delta=0.02)
+                self.assertAlmostEqual(res['rotation_deg'], TRUTH['rot_deg'], delta=0.05)
+                np.testing.assert_allclose(res['field_center_mm'], TRUTH['offset_mm'], atol=0.05)
+                self.assertEqual(res['validation_bilinear']['count'], 8)
+                self.assertLess(res['validation_bilinear']['max'], 0.05)
+                self.assertEqual(res['grid']['field'], float(field))
+                # the table spans the lens's field; the nodes reach only +-half of it
+                axis = np.linspace(-field / 2.0, field / 2.0, 9)
+                inside = int(np.sum(np.abs(axis) <= half + 1e-6))
+                self.assertEqual(res['grid']['extrapolated'], 81 - inside * inside)
+
+    def test_locate_finds_a_smaller_coupon(self):
+        """A photograph of the 70 lens's coupon: its extent, not the 110 lens's, sets the first px/mm."""
+        img = render_coupon(px_per_mm=15.0, center_px=(1500, 2000), grid=5, identity=(-22.0, -32.0), **TRUTH)
+        validation = [[sx * v, sy * v] for v in (5.5, 16.5) for sx in (1, -1) for sy in (1, -1)]
+        params = dict(PARAMS, grid=5, identity=[-22, -32], validation=validation, grid_field=70, locate=True)
+        res, _ = solve_galvo_coupon(img, params)
+        self.assertEqual(res['nodes_found'], 25)
+        self.assertAlmostEqual(res['located']['px_per_mm'], 15.0, delta=0.75)
+        self.assertAlmostEqual(res['scale_x'], TRUTH['scale_x'], delta=0.001 * TRUTH['scale_x'])
+
     def test_rotate_auto_turns_a_sideways_scan_the_right_way_up(self):
         """A sheet scanned on its side: the identity ring says which way is up."""
         img = cv2.rotate(render_coupon(**TRUTH), cv2.ROTATE_90_CLOCKWISE)

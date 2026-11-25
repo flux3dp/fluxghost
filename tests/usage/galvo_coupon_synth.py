@@ -34,24 +34,32 @@ def _circle(cx, cy, r, segments=CIRCLE_SEGMENTS):
     return pts
 
 
-def coupon_features(pitch=PITCH, grid=GRID):
-    """Feature centres in command mm, keyed by kind (matches §7.2)."""
+def coupon_features(pitch=PITCH, grid=GRID, identity=IDENTITY):
+    """Feature centres in command mm, keyed by kind (matches §7.2).
+
+    The defaults are the 110 lens's coupon. A smaller lens gets fewer nodes at the same
+    pitch (7 x 7 on the 90 lens, 5 x 5 on the 70), the other marks keeping their place
+    relative to the outer nodes, as Beam Studio's galvoCoupon.ts lays them out.
+    """
     half = (grid - 1) * pitch / 2.0
+    inner = pitch / 2.0
+    outer = half + inner
+    mid = inner + pitch * ((grid - 1) // 4)
     nodes = [[-half + i * pitch, -half + j * pitch] for j in range(grid) for i in range(grid)]
     discovery = (
-        [[sx * 49.5, sy * 49.5] for sx in (1, -1) for sy in (1, -1)]
-        + [[sx * 5.5, sy * 49.5] for sx in (1, -1) for sy in (1, -1)]
-        + [[sx * 49.5, sy * 5.5] for sx in (1, -1) for sy in (1, -1)]
+        [[sx * outer, sy * outer] for sx in (1, -1) for sy in (1, -1)]
+        + [[sx * inner, sy * outer] for sx in (1, -1) for sy in (1, -1)]
+        + [[sx * outer, sy * inner] for sx in (1, -1) for sy in (1, -1)]
     )
-    validation = [[sx * 5.5, sy * 5.5] for sx in (1, -1) for sy in (1, -1)] + [
-        [sx * 27.5, sy * 27.5] for sx in (1, -1) for sy in (1, -1)
+    validation = [[sx * inner, sy * inner] for sx in (1, -1) for sy in (1, -1)] + [
+        [sx * mid, sy * mid] for sx in (1, -1) for sy in (1, -1)
     ]
-    return {'nodes': nodes, 'discovery': discovery, 'validation': validation, 'identity': [list(IDENTITY)]}
+    return {'nodes': nodes, 'discovery': discovery, 'validation': validation, 'identity': [list(identity)]}
 
 
-def coupon_strokes(pitch=PITCH, grid=GRID):
+def coupon_strokes(pitch=PITCH, grid=GRID, identity=IDENTITY):
     """Polylines (command mm, no roll) of the whole galvo coupon."""
-    feats = coupon_features(pitch, grid)
+    feats = coupon_features(pitch, grid, identity)
     strokes = []
     for cx, cy in feats['nodes']:
         strokes.append(_circle(cx, cy, NODE_R))
@@ -66,7 +74,7 @@ def coupon_strokes(pitch=PITCH, grid=GRID):
             strokes.append([[cx + sx * r0 * d, cy + sy * r0 * d], [cx + sx * r1 * d, cy + sy * r1 * d]])
     for cx, cy in feats['validation']:
         strokes.append(_circle(cx, cy, NODE_R))
-    strokes.append(_circle(IDENTITY[0], IDENTITY[1], IDENTITY_R))
+    strokes.append(_circle(identity[0], identity[1], IDENTITY_R))
     return strokes
 
 
@@ -118,6 +126,9 @@ def render_coupon(
     drop_l=(),
     noise=0.0,
     seed=0,
+    grid=GRID,
+    identity=IDENTITY,
+    square_mm=None,
 ):
     """Render a coupon + L frame image (BGR uint8).
 
@@ -126,7 +137,8 @@ def render_coupon(
     `frame_rot_deg`. L frame: px = C + F @ v. `drop_l` lists vertex indices
     (order of `l_frame_vertices`) to leave out. `color=True` draws galvo marks
     greenish-white and the L frame reddish (green channel below 150) so the
-    threshold sequence is exercised.
+    threshold sequence is exercised. `grid` and `identity` draw a smaller lens's coupon;
+    `square_mm` adds the square the calibration marks on the same sheet.
     """
     w, h = size_px
     if center_px is None:
@@ -152,7 +164,11 @@ def render_coupon(
 
     galvo_colour = (210, 240, 210) if color else (fg, fg, fg)
     l_colour = (140, 140, 220) if color else (fg, fg, fg)
-    draw(coupon_strokes(), lambda c: centre + frame @ (l_mat @ c + offset), galvo_colour)
+    galvo_strokes = coupon_strokes(grid=grid, identity=identity)
+    if square_mm:
+        e = square_mm / 2.0
+        galvo_strokes.append([[-e, -e], [e, -e], [e, e], [-e, e], [-e, -e]])
+    draw(galvo_strokes, lambda c: centre + frame @ (l_mat @ c + offset), galvo_colour)
     l_strokes = [s for k, s in enumerate(l_frame_strokes()) if k not in set(drop_l)]
     draw(l_strokes, lambda v: centre + frame @ v, l_colour)
     if noise > 0:
