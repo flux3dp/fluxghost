@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 
 from fluxghost.utils.camera.auto_pnp import (
+    ASSIGN_TOL_MM,
     HIGH_RESIDUAL,
     NOT_ENOUGH_MARKS,
     detect_marks,
@@ -127,6 +128,15 @@ class TestDetectMarks(unittest.TestCase):
         self.assertLess(nearest.max(), 1.0)
         self.assertLess(len(blobs), 60)  # a clean sheet gives the marks plus a few strays, not hundreds
 
+    def test_pinhole_camera_is_not_padded_and_uses_the_pinhole_model(self):
+        # k / d of one fhx2rf wide-angle camera (pinhole); the photo is remapped without padding
+        k = np.array([[1177.873, 0, 1620.083], [0, 1175.157, 1190.263], [0, 0, 1]])
+        d = np.array([[0, -0.010651, -0.000986, -0.000513, -0.000817]])
+        und = np.array([[400.0, 300.0], [1620.0, 1190.0], [2436.9, 1790.6], [3124.6, 2297.2]])
+        normalized = cv2.undistortPoints(und.reshape(-1, 1, 2), k, None)
+        raw, _ = cv2.projectPoints(cv2.convertPointsToHomogeneous(normalized), np.zeros(3), np.zeros(3), k, d)
+        np.testing.assert_allclose(undistort_centers(raw.reshape(-1, 2), k, d, is_fisheye=False), und, atol=0.05)
+
     def test_blank_photo(self):
         self.assertEqual(detect_marks(np.full((240, 320, 3), 200, np.uint8), np.eye(3), np.zeros((4, 1))), [])
 
@@ -185,6 +195,24 @@ class TestAutoPnpWebsocket(unittest.TestCase):
             self.assertIn(None, failed['points'])
         finally:
             ws.close()
+
+    def test_detect_follows_is_fisheye_from_update_data(self):
+        ws = WS(self.server.port, '/ws/camera-calibration', timeout=60)
+        try:
+            ws.send('update_data ' + json.dumps({'k': self.data['k'], 'd': self.data['d'], 'is_fisheye': False}))
+            self.assertEqual(self.reply(ws)['status'], 'ok')
+            with open(PHOTO, 'rb') as f:
+                photo = f.read()
+            ws.send('auto_pnp_detect %d' % len(photo))
+            self.assertEqual(self.reply(ws)['status'], 'continue')
+            ws.send(photo, opcode=2)
+            blobs = np.array(self.reply(ws)['blobs'])[:, :2]
+        finally:
+            ws.close()
+        k, d = np.array(self.data['k']), np.array(self.data['d'])
+        pinhole = np.array(detect_marks(cv2.imread(PHOTO), k, d, is_fisheye=False))[:, :2]
+        nearest = np.linalg.norm(blobs[:, None] - pinhole[None], axis=2).min(axis=1)
+        self.assertLess(np.median(nearest), 0.5)
 
     def test_detect_needs_calibration_data(self):
         ws = WS(self.server.port, '/ws/camera-calibration')
@@ -283,6 +311,32 @@ class TestNestedRectangles(unittest.TestCase):
     def test_layout_without_a_rectangle_is_not_matched(self):
         res = match_marks([self.cases[0]['blobs']], [[0, 0], [10, 0], [20, 5], [0, 30]])
         self.assertEqual((res['matched'], res['reason']), (0, NOT_ENOUGH_MARKS))
+
+
+class TestWideAnglePinhole(unittest.TestCase):
+    """fhx2rf wide-angle: with k1 fixed at 0 a homography leaves up to 2.5 mm, more than the default settling."""
+
+    @classmethod
+    def setUpClass(cls):
+        with open(os.path.join(FIXTURE_DIR, 'fhx2rf_wide_angle_pinhole.json')) as f:
+            cls.data = json.load(f)
+
+    def test_default_settling_drops_a_column(self):
+        res = match_marks([self.data['blobs']], self.data['ref_points'])
+        self.assertEqual((res['matched'], res['reason']), (12, NOT_ENOUGH_MARKS))
+
+    def test_the_callers_settling_and_limit_take_every_mark(self):
+        res = match_marks([self.data['blobs']], self.data['ref_points'], r_max=2.0, tight_tol=5.0)
+        self.assertIsNone(res['reason'])
+        np.testing.assert_allclose(res['points'], self.data['marks'], atol=0.01)
+
+    def test_settling_at_the_growing_tolerance_keeps_its_own_assignment(self):
+        # the duplicate-start check belongs to the growing stage only: keyed on the tolerance value, a caller
+        # settling at ASSIGN_TOL_MM had every settling stage thrown out as a repeat of its growing stage
+        # (seen with the 16 marks alone; the strays of the full photo happen to hide it)
+        blobs = [[x, y, 5.0, 100.0] for x, y in self.data['marks']]
+        res = match_marks([blobs], self.data['ref_points'], r_max=2.0, tight_tol=ASSIGN_TOL_MM)
+        self.assertEqual((res['matched'], res['reason']), (16, None))
 
 
 class TestGate(unittest.TestCase):

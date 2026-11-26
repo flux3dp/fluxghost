@@ -416,14 +416,15 @@ def camera_calibration_api_mixin(cls):
                 return
             k = self.calibration_params['k']
             d = self.calibration_params['d']
+            is_fisheye = self.calibration_params.get('is_fisheye', True)
 
             def upload_callback(buf):
                 img = cv2.cvtColor(np.array(Image.open(io.BytesIO(buf)).convert('RGB')), cv2.COLOR_RGB2BGR)
                 # GHOST_DEBUG_IMG=1: a run shoots up to 7 exposures, so keep the last 8 photos and no more
                 self._auto_pnp_shots = getattr(self, '_auto_pnp_shots', 0) + 1
                 debug_imwrite('auto-pnp-input-%d.png' % (self._auto_pnp_shots % 8), img)
-                blobs = detect_marks(img, k, d)
-                weak = detect_marks(img, k, d, min_area=WEAK_MIN_AREA)
+                blobs = detect_marks(img, k, d, is_fisheye=is_fisheye)
+                weak = detect_marks(img, k, d, min_area=WEAK_MIN_AREA, is_fisheye=is_fisheye)
                 logger.info('[auto_pnp] detect: %d blobs, %d weak', len(blobs), len(weak))
                 self.send_ok(blobs=blobs, weak=weak)
 
@@ -432,7 +433,9 @@ def camera_calibration_api_mixin(cls):
 
         def cmd_auto_pnp_match(self, message):
             args = json.loads(message)
-            res = match_marks(args['blobs'], args['ref_points'], args.get('weak'), args.get('r_max'))
+            res = match_marks(
+                args['blobs'], args['ref_points'], args.get('weak'), args.get('r_max'), args.get('tight_tol')
+            )
             logger.info(
                 '[auto_pnp] match: %d/%d marks (%d from weak blobs), rms %s mm, %s',
                 res['matched'],

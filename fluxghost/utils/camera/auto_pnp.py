@@ -43,10 +43,18 @@ NOT_ENOUGH_MARKS = 'NOT_ENOUGH_MARKS'
 HIGH_RESIDUAL = 'HIGH_RESIDUAL'
 
 
-def undistort_centers(raw_xy, k, d):
-    """Raw photo px -> the undistorted px space the rest of the calibration uses (padded, P = k)."""
-    pts = (np.asarray(raw_xy, np.float64) + (L_PAD, T_PAD)).reshape(-1, 1, 2)
-    return cv2.fisheye.undistortPoints(pts, k, d, np.eye(3), k).reshape(-1, 2)
+PINHOLE_UNDISTORT_CRITERIA = (cv2.TERM_CRITERIA_COUNT | cv2.TERM_CRITERIA_EPS, 100, 1e-8)
+
+
+def undistort_centers(raw_xy, k, d, is_fisheye=True):
+    """Raw photo px -> the undistorted px space the rest of the calibration uses (P = k; padded for fisheye only,
+    as get_remap_img is fed)."""
+    pts = np.asarray(raw_xy, np.float64).reshape(-1, 1, 2)
+    if not is_fisheye:
+        # undistortPoints stops after 5 iterations: 0.5 px off at 85 % of the way to the corner with the fhx2rf
+        # wide-angle k / d, where the manual flow finds its points on the exactly remapped photo
+        return cv2.undistortPointsIter(pts, k, d, None, k, PINHOLE_UNDISTORT_CRITERIA).reshape(-1, 2)
+    return cv2.fisheye.undistortPoints(pts + (L_PAD, T_PAD), k, d, np.eye(3), k).reshape(-1, 2)
 
 
 def merge_exposures(blob_lists):
@@ -80,7 +88,7 @@ def _contrast(gray, x, y, size):
     return float(min(np.median(patch[(dist > 2 * r) & (dist <= 3 * r)]), 250) - patch[dist <= r].mean())
 
 
-def detect_marks(img, k, d, min_area=15):
+def detect_marks(img, k, d, min_area=15, is_fisheye=True):
     """auto_pnp_detect: dark blobs in a raw (still distorted, unpadded) BGR photo -> [[x, y, size, contrast]].
 
     Detection runs on the raw frame and only the centres are undistorted; x, y are in the same undistorted px
@@ -93,7 +101,7 @@ def detect_marks(img, k, d, min_area=15):
     keypoints = _detector(min_area).detect(gray)
     if not keypoints:
         return []
-    und = undistort_centers([kp.pt for kp in keypoints], k, d)
+    und = undistort_centers([kp.pt for kp in keypoints], k, d, is_fisheye)
     return [
         [round(float(x), 2), round(float(y), 2), round(float(kp.size), 2), round(_contrast(gray, *kp.pt, kp.size), 1)]
         for (x, y), kp in zip(und, keypoints)
@@ -142,7 +150,7 @@ def _residuals(model, und, bed):
     return cv2.perspectiveTransform(und.reshape(-1, 1, 2), np.linalg.inv(model)).reshape(-1, 2) - bed
 
 
-def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
+def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM, tight_tol=TIGHT_TOL_MM):
     """Assign blobs to grid positions.
 
     :param und: undistorted blob centres, px
@@ -150,6 +158,7 @@ def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
     :param r_max: residual (mm) under which a hypothesis with every mark ends the search. Must be the limit the
         caller gates with: a complete but poorer fit (a stray in a mark's place) would otherwise end the search
         before the right one is tried
+    :param tight_tol: the settling tolerance (mm); must exceed what the homography cannot model on this camera
     :return: (blob index per grid position or -1, rms residual to the homography in mm), (None, inf) if no fit
     """
     und = np.asarray(und, np.float64).reshape(-1, 2)
@@ -219,18 +228,18 @@ def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM):
                     assign = None
                     # grow at the loose tolerance (one cell extrapolates badly), then settle at the tight one,
                     # so hypotheses are ranked by marks that really fit and not by strays swept in on the way
-                    for tol in (ASSIGN_TOL_MM, TIGHT_TOL_MM):
-                        if tol == TIGHT_TOL_MM:
+                    for stage, tol in enumerate((ASSIGN_TOL_MM, tight_tol)):
+                        if stage == 1:
                             # a stray swept in at the loose tolerance drags a least-squares fit: start the tight
                             # stage from the fit most marks agree on
                             ok = assign >= 0
-                            robust, _ = cv2.findHomography(und[assign[ok]], bed[ok], cv2.RANSAC, TIGHT_TOL_MM)
+                            robust, _ = cv2.findHomography(und[assign[ok]], bed[ok], cv2.RANSAC, tight_tol)
                             if _usable(robust):
                                 model = np.linalg.inv(robust)
                         assign = None
                         for it in range(iterations):
                             new = _assign(model, und, bed, tol)
-                            if tol == ASSIGN_TOL_MM and it == 0:
+                            if stage == 0 and it == 0:
                                 # refinement is deterministic from here, so the same start gives the same end
                                 if new.tobytes() in seen:
                                     assign = None
@@ -300,7 +309,7 @@ def gate(matched, total, rms, r_max=R_MAX_MM):
     return None
 
 
-def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
+def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None, tight_tol=None):
     """auto_pnp_match: blobs per exposure ([x, y, size, contrast], undistorted px) -> one image point per ref point.
 
     :return: dict with points (per ref point, [x, y] or None), matched, filled, rms, and reason (None when accepted)
@@ -309,7 +318,8 @@ def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None):
     blobs = merge_exposures(blob_lists)
     und = np.array([b[:2] for b in blobs], np.float64).reshape(-1, 2)
     r_max = R_MAX_MM if r_max is None else r_max
-    assign, rms = match_grid(und, bed, r_max=r_max) if len(und) >= 4 else (None, np.inf)
+    tight_tol = TIGHT_TOL_MM if tight_tol is None else tight_tol
+    assign, rms = match_grid(und, bed, r_max=r_max, tight_tol=tight_tol) if len(und) >= 4 else (None, np.inf)
     if assign is None:
         assign = np.full(len(bed), -1)
     weak = [b[:2] for blobs in weak_lists or [] for b in blobs]
