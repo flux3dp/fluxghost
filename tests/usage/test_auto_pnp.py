@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 
 from fluxghost.utils.camera.auto_pnp import (
+    ASSIGN_TOL_MM,
     HIGH_RESIDUAL,
     NOT_ENOUGH_MARKS,
     detect_marks,
@@ -328,6 +329,14 @@ class TestWideAnglePinhole(unittest.TestCase):
         res = match_marks([self.data['blobs']], self.data['ref_points'], r_max=2.0, tight_tol=5.0)
         self.assertIsNone(res['reason'])
         np.testing.assert_allclose(res['points'], self.data['marks'], atol=0.01)
+
+    def test_settling_at_the_growing_tolerance_keeps_its_own_assignment(self):
+        # the duplicate-start check belongs to the growing stage only: keyed on the tolerance value, a caller
+        # settling at ASSIGN_TOL_MM had every settling stage thrown out as a repeat of its growing stage
+        # (seen with the 16 marks alone; the strays of the full photo happen to hide it)
+        blobs = [[x, y, 5.0, 100.0] for x, y in self.data['marks']]
+        res = match_marks([blobs], self.data['ref_points'], r_max=2.0, tight_tol=ASSIGN_TOL_MM)
+        self.assertEqual((res['matched'], res['reason']), (16, None))
 
 
 class TestGate(unittest.TestCase):

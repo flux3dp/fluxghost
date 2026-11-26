@@ -239,7 +239,7 @@ def match_grid(und, bed, neighbours=16, iterations=6, r_max=R_MAX_MM, tight_tol=
                         assign = None
                         for it in range(iterations):
                             new = _assign(model, und, bed, tol)
-                            if tol == ASSIGN_TOL_MM and it == 0:
+                            if stage == 0 and it == 0:
                                 # refinement is deterministic from here, so the same start gives the same end
                                 if new.tobytes() in seen:
                                     assign = None
