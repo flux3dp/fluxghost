@@ -114,6 +114,7 @@ class TestMatchGridOnPhotos(unittest.TestCase):
     def test_match_marks_with_no_blobs(self):
         res = match_marks([[]], self.data['ref_points'])
         self.assertEqual((res['reason'], res['matched'], res['rms']), (NOT_ENOUGH_MARKS, 0, None))
+        self.assertIsNone(res['predicted'])
 
 
 class TestDetectMarks(unittest.TestCase):
@@ -192,6 +193,7 @@ class TestAutoPnpWebsocket(unittest.TestCase):
             self.assertEqual((failed['status'], failed['reason']), ('fail', NOT_ENOUGH_MARKS))
             # a fail carries the points too (all of them after HIGH_RESIDUAL), None for a missing mark
             self.assertEqual(len(failed['points']), 16)
+            self.assertIn('predicted', failed)
             self.assertIn(None, failed['points'])
         finally:
             ws.close()
@@ -240,6 +242,13 @@ class TestFaintMarks(unittest.TestCase):
         res = self.run_match(with_weak=False)
         self.assertEqual((res['reason'], res['matched'], res['filled']), (NOT_ENOUGH_MARKS, 14, 0))
         self.assertEqual([i for i, p in enumerate(res['points']) if p is None], [8, 12])  # (30, 150) and (30, 210)
+
+    def test_missing_marks_come_with_a_predicted_position(self):
+        res = self.run_match(with_weak=False)
+        full = np.array(self.run_match(with_weak=True)['points'])
+        # every ref point gets one, within a few px (5 at most on this photo) of the mark itself
+        np.testing.assert_allclose(np.array(res['predicted']), full, atol=10.0)
+        self.assertIsNone(self.run_match(with_weak=True)['predicted'])
 
     def test_weak_candidates_next_to_the_predicted_positions_complete_the_set(self):
         res = self.run_match(with_weak=True)

@@ -446,8 +446,11 @@ def camera_calibration_api_mixin(cls):
             )
             extra = {'matched': res['matched'], 'filled': res['filled'], 'rms': res['rms']}
             if res['reason']:
-                # the points go along: after HIGH_RESIDUAL the caller may let the user keep them
-                self.send_json(status='fail', reason=res['reason'], points=res['points'], **extra)
+                # the points go along: after HIGH_RESIDUAL the caller may let the user keep them, and after
+                # NOT_ENOUGH_MARKS place the missing ones by hand, starting from the predicted positions
+                self.send_json(
+                    status='fail', reason=res['reason'], points=res['points'], predicted=res['predicted'], **extra
+                )
                 return
             self.send_ok(points=res['points'], **extra)
 
