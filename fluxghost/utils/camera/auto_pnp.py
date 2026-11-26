@@ -312,7 +312,9 @@ def gate(matched, total, rms, r_max=R_MAX_MM):
 def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None, tight_tol=None):
     """auto_pnp_match: blobs per exposure ([x, y, size, contrast], undistorted px) -> one image point per ref point.
 
-    :return: dict with points (per ref point, [x, y] or None), matched, filled, rms, and reason (None when accepted)
+    :return: dict with points (per ref point, [x, y] or None), matched, filled, rms, reason (None when accepted), and
+        predicted: where every ref point should be according to the marks that were found, as a starting position
+        for placing the missing ones by hand; None unless marks are missing and at least 4 were found
     """
     bed = np.asarray(ref_points, np.float64).reshape(-1, 2)
     blobs = merge_exposures(blob_lists)
@@ -328,9 +330,16 @@ def match_marks(blob_lists, ref_points, weak_lists=None, r_max=None, tight_tol=N
         ok = assign >= 0
         model, _ = cv2.findHomography(bed[ok], und[assign[ok]], 0)
         rms = float(np.sqrt((_residuals(model, und[assign[ok]], bed[ok]) ** 2).sum(axis=1).mean()))
-    matched = int((assign >= 0).sum())
+    ok = assign >= 0
+    matched = int(ok.sum())
+    predicted = None
+    if 4 <= matched < len(bed):
+        model, _ = cv2.findHomography(bed[ok], und[assign[ok]], 0)
+        if model is not None:
+            predicted = cv2.perspectiveTransform(bed.reshape(-1, 1, 2), model).reshape(-1, 2).tolist()
     return {
         'points': [und[i].tolist() if i >= 0 else None for i in assign],
+        'predicted': predicted,
         'matched': matched,
         'filled': filled,
         'rms': None if np.isinf(rms) else rms,
